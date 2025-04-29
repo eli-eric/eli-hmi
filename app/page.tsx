@@ -21,21 +21,18 @@ export default function SocketPage() {
   const connectSocket = () => {
     // Reset error state
     setError(null);
-
     try {
       // Initialize Socket.IO - first make a request to initialize server
-      fetch("/api/socket").finally(() => {
+      fetch("/").finally(() => {
         // Create Socket.IO connection
         const socketClient = io();
         setSocket(socketClient);
-
         // Handle connection open
         socketClient.on("connect", () => {
           console.log("Socket.IO connection established");
           setConnected(true);
           setError(null);
         });
-
         // Handle binary data
         socketClient.on("binary-stream", (data) => {
           try {
@@ -48,7 +45,6 @@ export default function SocketPage() {
             console.error("Error handling Socket.IO message:", err);
           }
         });
-
         // Handle errors
         socketClient.on("connect_error", (err) => {
           console.error("Socket.IO connection error:", err);
@@ -57,7 +53,6 @@ export default function SocketPage() {
           setSocket(null);
           setConnected(false);
         });
-
         // Handle disconnection
         socketClient.on("disconnect", () => {
           console.log("Socket.IO disconnected");
@@ -91,7 +86,6 @@ export default function SocketPage() {
           <button onClick={disconnectSocket}>Disconnect</button>
         )}
       </div>
-
       <div>
         <h3>Incoming Binary Stream (Socket.IO):</h3>
         <div>
@@ -102,7 +96,6 @@ export default function SocketPage() {
           )}
         </div>
       </div>
-
       <div>
         <p>
           The server will stream random binary digits (0s and 1s) every second
