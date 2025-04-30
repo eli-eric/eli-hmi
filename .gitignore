@@ -20,6 +20,11 @@
 # production
 /build
 
+# ai tools
+CLAUDE.md
+.cursor
+.codex
+
 # misc
 .DS_Store
 *.pem
