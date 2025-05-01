@@ -1,7 +1,8 @@
 'use client'
 
-import Image from 'next/image'
 import { useWebSocketProvider } from '../providers/socket-provider'
+import { CheckIcon } from '@/components/ui/icons/check-icon'
+import { CloseIcon } from '@/components/ui/icons/close-icon'
 
 export const StatusBar = () => {
   const ws = useWebSocketProvider()
@@ -12,16 +13,8 @@ export const StatusBar = () => {
           <span>System Status</span>
         </div>
         <div className="status-bar-body">
-          <div className="status-bar-item">
-            <span>WebSocket connection</span>
-            <Image
-              className="icon"
-              width={50}
-              height={50}
-              src={ws.isConnected ? './check_icon.svg' : './close_icon.svg'}
-              alt="Check Icon"
-            />
-          </div>
+          <span>WebSocket Connection</span>
+          {ws.isConnected ? <CheckIcon /> : <CloseIcon />}
         </div>
       </div>
     </div>
