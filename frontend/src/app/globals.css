@@ -23,89 +23,7 @@ html {
   font-family: sans-serif;
 }
 
-.navigation-container {
-  display: flex;
-  padding: 0.5rem 1.5rem;
-  height: 2rem;
-  align-items: center;
-  gap: 3rem;
-  align-self: stretch;
-  background: #454545;
-}
 
-.navigation-item {
-  color: #e6e6e6;
-  font-size: 0.875rem;
-  font-style: normal;
-  font-weight: 400;
-  line-height: normal;
-}
-
-.navigation-item:hover {
-  opacity: 0.6;
-}
-
-.navigation-item--active {
-  font-weight: 700;
-}
-
-.status-bar-container {
-  display: flex;
-  padding: 1.5rem;
-  align-items: flex-start;
-  gap: 1.5rem;
-  align-self: stretch;
-  background: #9e9e9e;
-}
-
-.status-bar-content {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.75rem;
-  align-self: stretch;
-}
-
-.status-bar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  align-self: stretch;
-}
-
-.status-bar-header span {
-  color: #000;
-  font-size: 0.875rem;
-  font-style: normal;
-  font-weight: 400;
-  line-height: normal;
-}
-.status-bar-body {
-  display: flex;
-  width: 12.75rem;
-  padding: 0.5rem;
-  justify-content: space-between;
-  align-items: center;
-  align-self: stretch;
-  background: #b0b0b0;
-}
-
-.status-bar-body span {
-  color: #000;
-  font-size: 0.75rem;
-  font-style: normal;
-  font-weight: 400;
-  line-height: normal;
-}
-
-.status-bar-item {
-  display: flex;
-  padding: 0.5rem;
-  justify-content: center;
-  align-items: center;
-  gap: 0.625rem;
-  align-self: stretch;
-}
 
 .page-container {
   display: flex;
@@ -118,9 +36,3 @@ html {
   background: #b0b0b0;
 }
 
-.icon {
-  width: 0.875rem;
-  height: 0.625rem;
-  flex-shrink: 0;
-  aspect-ratio: 7/5;
-}
