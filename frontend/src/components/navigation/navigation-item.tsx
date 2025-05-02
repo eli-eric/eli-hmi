@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { FC } from 'react'
+import styles from './navigation-item.module.css'
 
 interface NavigationItemProps {
   text: string
@@ -16,8 +17,8 @@ export const NavigationItem: FC<NavigationItemProps> = ({ text, href }) => {
   return (
     <Link href={href}>
       <span
-        className={clsx('navigation-item', {
-          'navigation-item--active': isActive,
+        className={clsx(styles.item, {
+          [styles.active]: isActive,
         })}
       >
         {text}
