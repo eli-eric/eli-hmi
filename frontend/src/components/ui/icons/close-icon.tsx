@@ -1,19 +1,13 @@
+import styles from './icon.module.css'
+
 export const CloseIcon = () => {
   return (
-    <div
-      style={{
-        display: 'flex',
-        width: '1.75rem',
-        height: '1.125rem',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
+    <div className={styles.container}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="10"
         height="10"
-        className="icon"
+        className={styles.icon}
         viewBox="0 0 10 10"
         fill="none"
       >

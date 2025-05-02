@@ -1,18 +1,12 @@
+import styles from './icon.module.css'
+
 export const CheckIcon = () => {
   return (
-    <div
-      style={{
-        display: 'flex',
-        width: '1.75rem',
-        height: '1.125rem',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
+    <div className={styles.container}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="14"
-        className="icon"
+        className={styles.icon}
         height="10"
         viewBox="0 0 14 10"
         fill="none"

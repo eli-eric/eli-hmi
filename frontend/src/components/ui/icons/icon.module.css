@@ -1,0 +1,22 @@
+.container {
+  display: flex;
+  width: 1.75rem;
+  height: 1.125rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.icon {
+  width: 0.875rem;
+  height: 0.625rem;
+  flex-shrink: 0;
+  aspect-ratio: 7/5;
+}
+
+.settingsIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  padding-top: 0.1rem;
+  background-color: transparent; /* Added background color */
+}

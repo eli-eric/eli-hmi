@@ -5,4 +5,17 @@
   justify-content: center;
   align-items: center;
   gap: 0.625rem;
+  background-color: #ececec;
+  background: #ececec;
+  border: none; /* Fixed border syntax */
+  border-radius: 0%;
+  cursor: pointer;
+}
+
+.button:hover {
+  opacity: 0.6;
+}
+.button:disabled {
+  background-color: #b0b0b0;
+  cursor: not-allowed;
 }

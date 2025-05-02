@@ -7,7 +7,7 @@ export default function L3btPage() {
   return (
     <div>
       <TestComp pvname="AI_TEMP_2" />
-      <SettingsButton />
+      <SettingsButton disabled />
     </div>
   )
 }

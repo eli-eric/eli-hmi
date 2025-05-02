@@ -36,9 +36,3 @@ html {
   background: #b0b0b0;
 }
 
-.icon {
-  width: 0.875rem;
-  height: 0.625rem;
-  flex-shrink: 0;
-  aspect-ratio: 7/5;
-}
