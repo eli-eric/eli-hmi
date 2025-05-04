@@ -16,41 +16,33 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// -------- WebSocket payloads -------------------------------------------------
+/* ------------------------- JSON payloads ---------------------------------- */
 
-// Subscribe is the message sent by the browser.
-// Example:
-//
-//	{ "type":"subscribe", "pvs":["AI_TEMP", "BI_PUMP_OK"], "interval_ms":500 }
-type Subscribe struct {
-	Type      string   `json:"type"`        // must be "subscribe"
-	PVs       []string `json:"pvs"`         // list of PV names
-	IntervalM int      `json:"interval_ms"` // optional; defaults to 1000 ms
+type RequestMessage struct {
+	Type string   `json:"type"` // "subscribe" | "unsubscribe"
+	PVs  []string `json:"pvs"`
 }
 
-// PVMessage is broadcast back to the browser.
-type PVMessage struct {
+type ResponseMessage struct {
 	Type      string      `json:"type"` // always "pv"
 	Name      string      `json:"name"`
-	Value     interface{} `json:"value"` // float64 or bool
+	Value     interface{} `json:"value"`
 	Severity  int         `json:"severity"`
 	OK        bool        `json:"ok"`
 	Timestamp float64     `json:"timestamp"`
 	Units     string      `json:"units"`
 }
 
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true }, // allow any origin
-}
+var (
+	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
+)
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
-
 	e := echo.New()
 	e.Use(middleware.Logger(), middleware.Recover())
-
 	e.GET("/ws/pvs", wsHandler)
 
 	addr := ":8080"
@@ -65,97 +57,155 @@ func wsHandler(c echo.Context) error {
 	}
 	defer conn.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// ---- per-connection state ---------------------------------------------
+	ctx, cancelSocket := context.WithCancel(context.Background())
+	defer cancelSocket()
 
 	var wg sync.WaitGroup
-
-	// one goroutine serialises all writes for this socket
 	writeCh := make(chan []byte)
+
+	// map[PV]cancelFunc — guarded by a tiny mutex
+	subs := make(map[string]context.CancelFunc)
+	var subMu sync.Mutex
+
+	/* -------- writer goroutine ------------------------------------------- */
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for msg := range writeCh {
 			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 				log.Println("ws write:", err)
+				cancelSocket() // triggers shutdown
 				return
 			}
 		}
 	}()
 
+	/* -------- reader loop ------------------------------------------------- */
 	for {
 		_, raw, err := conn.ReadMessage()
 		if err != nil {
 			break // socket closed
 		}
-
-		var sub Subscribe
-		if json.Unmarshal(raw, &sub) != nil || sub.Type != "subscribe" {
-			log.Println("invalid subscribe")
+		var m RequestMessage
+		if json.Unmarshal(raw, &m) != nil {
+			log.Println("invalid payload")
 			continue
 		}
-		period := time.Duration(sub.IntervalM)
-		if period <= 0 {
-			period = time.Millisecond * 200
-		}
 
-		// launch one simulator per PV for this connection
-		for _, pv := range sub.PVs {
-			pvName := strings.TrimSpace(pv)
-			if pvName == "" {
-				continue
-			}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				tick := time.NewTicker(period)
-				defer tick.Stop()
-
-				for {
-					select {
-					case t := <-tick.C:
-						msg := PVMessage{
-							Type:      "pv",
-							Name:      pvName,
-							Value:     synthValue(pvName),
-							Severity:  0,
-							OK:        true,
-							Timestamp: float64(t.UnixNano()) / 1e9,
-							Units:     unitsFor(pvName),
-						}
-						b, _ := json.Marshal(msg)
-						select {
-						case writeCh <- b:
-						case <-ctx.Done():
-							return
-						}
-					case <-ctx.Done():
-						return
-					}
-				}
-			}()
+		switch m.Type {
+		case "subscribe":
+			handleSubscribe(ctx, &wg, writeCh, m.PVs, subs, &subMu)
+		case "unsubscribe":
+			handleUnsubscribe(m.PVs, subs, &subMu)
+		default:
+			log.Println("unknown type:", m.Type)
 		}
 	}
 
-	// connection closing: stop everything
-	cancel()
+	/* -------- teardown ---------------------------------------------------- */
+	subMu.Lock()
+	for _, cancel := range subs {
+		cancel() // stop any remaining PV goroutine
+	}
+	subMu.Unlock()
+
 	close(writeCh)
 	wg.Wait()
 	return nil
 }
 
-// ---- helpers ---------------------------------------------------------------
+/* ========================== helpers ======================================= */
 
-// AI_*  → float64     ‖   BI_* → bool
+func handleSubscribe(
+	socketCtx context.Context,
+	wg *sync.WaitGroup,
+	writeCh chan<- []byte,
+	pvs []string,
+	subs map[string]context.CancelFunc,
+	mu *sync.Mutex,
+) {
+	const period = 200 * time.Millisecond
+	for _, rawPV := range pvs {
+		pv := strings.TrimSpace(rawPV)
+		if pv == "" {
+			continue
+		}
+		mu.Lock()
+		if _, already := subs[pv]; already {
+			mu.Unlock()
+			continue // ignore duplicate subscription
+		}
+		// new subscription: create a cancellable context for this PV
+		ctx, cancelPV := context.WithCancel(socketCtx)
+		subs[pv] = cancelPV
+		mu.Unlock()
+
+		wg.Add(1)
+		go func(name string, cancel context.CancelFunc) {
+			defer wg.Done()
+			defer cancel() // make sure map entry dies when loop exits
+
+			ticker := time.NewTicker(period)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case t := <-ticker.C:
+					msg := ResponseMessage{
+						Type:      "pv",
+						Name:      name,
+						Value:     synthValue(name),
+						Severity:  0,
+						OK:        true,
+						Timestamp: float64(t.UnixNano()) / 1e9,
+						Units:     unitsFor(name),
+					}
+					if b, _ := json.Marshal(msg); b != nil {
+						select {
+						case writeCh <- b:
+						case <-ctx.Done():
+							return
+						}
+					}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}(pv, cancelPV)
+	}
+}
+
+func handleUnsubscribe(
+	pvs []string,
+	subs map[string]context.CancelFunc,
+	mu *sync.Mutex,
+) {
+	for _, rawPV := range pvs {
+		pv := strings.TrimSpace(rawPV)
+		if pv == "" {
+			continue
+		}
+		mu.Lock()
+		if cancel, ok := subs[pv]; ok {
+			cancel()         // stop the goroutine
+			delete(subs, pv) // forget it
+			log.Println("unsubscribed", pv)
+		}
+		mu.Unlock()
+	}
+}
+
+/* -------- value + unit synthesis ----------------------------------------- */
+
 func synthValue(name string) interface{} {
 	switch {
 	case strings.HasPrefix(name, "AI_"):
-		// little random walk around 0..100
-		return 50 + rand.NormFloat64()*5
+		return 50 + rng.NormFloat64()*5
 	case strings.HasPrefix(name, "BI_"):
-		return rand.Intn(2) == 0
+		return rng.Intn(2) == 0
 	default:
-		return rand.Float64() // fallback: generic number
+		return rng.Float64()
 	}
 }
 

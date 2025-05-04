@@ -132,6 +132,11 @@ export class WebSocketDataProvider implements KeyedDataProvider {
   unsubscribe(key: string): void {
     if (!this.subscribers.has(key)) return
     this.subscribers.delete(key)
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.send({ type: 'unsubscribe', pvs: [key] })
+    } else {
+      console.warn(`WebSocket not open when trying to unsubscribe from ${key}`)
+    }
   }
 
   send(message: unknown): void {
