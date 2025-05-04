@@ -125,7 +125,7 @@ func handleSubscribe(
 	subs map[string]context.CancelFunc,
 	mu *sync.Mutex,
 ) {
-	const period = 200 * time.Millisecond
+	const period = 400 * time.Millisecond
 	for _, rawPV := range pvs {
 		pv := strings.TrimSpace(rawPV)
 		if pv == "" {
