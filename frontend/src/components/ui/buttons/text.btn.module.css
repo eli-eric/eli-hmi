@@ -1,0 +1,84 @@
+.button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0%;
+  margin: 0%;
+  background: none;
+  border: none;
+  color: #000;
+  cursor: pointer;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  color: #9e9e9e;
+}
+
+.button:disabled .icon {
+  border-color: #9e9e9e;
+}
+
+.button:disabled .icon span {
+  color: #9e9e9e;
+}
+
+.button:hover {
+  opacity: 0.6;
+}
+
+.button:disabled:hover {
+  opacity: 1;
+}
+
+.button:active {
+  opacity: 0.8;
+}
+
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.span {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-decoration-skip-ink: auto;
+  text-decoration-thickness: auto;
+  text-underline-offset: auto;
+  text-underline-position: from-font;
+}
+
+.icon {
+  width: 0.8125rem;
+  height: 0.8125rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.0625rem solid #000;
+}
+
+.icon span {
+  font-size: 0.625rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+}
+
+.processing {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+  text-decoration-style: solid;
+  text-decoration-skip-ink: auto;
+  text-decoration-thickness: auto;
+  text-underline-offset: auto;
+  text-underline-position: from-font;
+}
