@@ -19,11 +19,9 @@ a {
 }
 
 html {
-  font-size: 10px;
+  font-size: 12px;
   font-family: sans-serif;
 }
-
-
 
 .page-container {
   display: flex;
@@ -35,4 +33,3 @@ html {
   align-self: stretch;
   background: #b0b0b0;
 }
-
