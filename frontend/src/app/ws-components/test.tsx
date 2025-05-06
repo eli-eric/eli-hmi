@@ -3,7 +3,7 @@ import { Message } from '@/lib/websocket-provider/message'
 import { withWebSocketData } from './withWebSocketData'
 
 interface MyComponentProps {
-  data: Message<number> | null
+  data?: Message<number>
 }
 
 const TestComponent = ({ data }: MyComponentProps) => {

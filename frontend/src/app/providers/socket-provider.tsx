@@ -47,7 +47,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         setIsConnected(connected)
       }
     }
-
     // Cleanup on unmount
     return () => {
       providerRef.current?.destroy()
