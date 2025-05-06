@@ -53,7 +53,9 @@ func main() {
 	e := echo.New()
 	e.Use(middleware.Logger(), middleware.Recover())
 
-	e.GET("/ws/pvs", wsHandler)
+	e.GET("/ws/pvs", wsHandler) // main ws route
+
+	// using GET for set methods to be able to easily set everything from the browser
 	e.GET("/pv/:name/:value", setPvHandler)       // manual setter
 	e.GET("/mode/:name/:value", setPvModeHandler) // mode switcher
 
