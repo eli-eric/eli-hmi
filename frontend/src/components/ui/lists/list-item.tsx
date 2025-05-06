@@ -10,13 +10,29 @@ export const ListItem = ({
   value?: boolean
   isConnected: boolean
 }) => {
-  console.log(isConnected, 'list item')
   return (
     <div className={styles.item}>
       <span>{title}</span>
-      {value === true && <CheckIcon />}
-      {value === false && <CloseIcon />}
-      {isConnected === false && <span>N/A</span>}
+      <IconsStatus value={value} isConnected={isConnected} />
     </div>
   )
+}
+
+const IconsStatus = ({
+  value,
+  isConnected,
+}: {
+  value?: boolean
+  isConnected: boolean
+}) => {
+  if (isConnected === false) {
+    return <span>N/A</span>
+  }
+  if (value === true) {
+    return <CheckIcon />
+  }
+  if (value === false) {
+    return <CloseIcon />
+  }
+  return <span>N/A</span>
 }

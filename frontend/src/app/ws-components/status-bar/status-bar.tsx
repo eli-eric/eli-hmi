@@ -1,23 +1,21 @@
 'use client'
 
-import { CheckIcon, CloseIcon } from '@/components/ui/icons'
 import styles from './status-bar.module.css'
 import { useWebSocketProvider } from '@/app/providers/socket-provider'
+import { StatusBarMessage } from './status-bar.message'
+import { StatusBarIcon } from './status-bar.icon'
 
 export const StatusBar = () => {
-  const ws = useWebSocketProvider()
-  console.log('StatusBar', ws.isConnected)
+  const { isConnected, connectionAttempt } = useWebSocketProvider()
   return (
     <div className={styles.container}>
       <div className={styles.content}>
         <div className={styles.header}>
           <span className={styles.headerText}>System Status</span>
         </div>
-        <div className={styles.body}>
-          <span className={styles.bodyText}>WebSocket Connection</span>
-          {ws.isConnected ? <CheckIcon /> : <CloseIcon />}
-        </div>
+        <StatusBarIcon isConnected={isConnected} />
       </div>
+      {!isConnected && <StatusBarMessage attempt={connectionAttempt} />}
     </div>
   )
 }
