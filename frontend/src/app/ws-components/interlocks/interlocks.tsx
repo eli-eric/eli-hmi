@@ -1,7 +1,7 @@
 import { withWebSocketData } from '@/app/ws-components/withWebSocketData'
-import { CheckIcon, CloseIcon } from '@/components/ui/icons'
 import { Message } from '@/lib/websocket-provider/message'
-import styles from './interlocks.module.css'
+import { ListItem } from '@/components/ui/lists/list-item'
+import { useWebSocketProvider } from '@/app/providers/socket-provider'
 
 interface InterlockItemProps {
   data?: Message<boolean> | null
@@ -10,12 +10,8 @@ interface InterlockItemProps {
 
 const InterlockItem = ({ title, data }: InterlockItemProps) => {
   const value = data?.value
-  return (
-    <div className={styles.item}>
-      <span>{title}</span>
-      {value ? <CheckIcon /> : <CloseIcon />}
-    </div>
-  )
+  const { isConnected } = useWebSocketProvider()
+  return <ListItem title={title} value={value} isConnected={isConnected} />
 }
 
 const InterLockContainer = withWebSocketData(InterlockItem)

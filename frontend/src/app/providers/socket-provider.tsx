@@ -13,9 +13,11 @@ import React, {
   ReactNode,
   useState,
 } from 'react'
+import { Attempt } from './types'
 
 interface WebSocketProviderContextValue {
   provider: WebSocketDataProvider
+  connectionAttempt: Attempt
   isConnected: boolean
 }
 
@@ -33,6 +35,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 }) => {
   const providerRef = useRef<WebSocketDataProvider | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [lastAttempt, setLastAttempt] = useState<Date | null>(null)
+  const [nextAttempt, setNextAttempt] = useState<number | null>(null)
+  const [attempt, setAttempt] = useState<number>(0)
 
   // Initialize provider only once
   if (!providerRef.current) {
@@ -46,8 +51,22 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         console.log('Connection state updated:', connected)
         setIsConnected(connected)
       }
+      providerRef.current.onReconnectionProgress = (
+        attempt: number,
+        lastAttempt: Date | null,
+        nextAttemptIn: number,
+      ) => {
+        console.log(
+          'Reconnection progress:',
+          attempt,
+          lastAttempt,
+          nextAttemptIn,
+        )
+        setAttempt(attempt)
+        setLastAttempt(lastAttempt)
+        setNextAttempt(nextAttemptIn)
+      }
     }
-
     // Cleanup on unmount
     return () => {
       providerRef.current?.destroy()
@@ -57,9 +76,14 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   const value = useMemo(
     () => ({
       provider: providerRef.current!,
+      connectionAttempt: {
+        attempt,
+        lastAttempt,
+        nextAttempt,
+      },
       isConnected,
     }),
-    [isConnected],
+    [isConnected, attempt, lastAttempt, nextAttempt],
   )
 
   return (
