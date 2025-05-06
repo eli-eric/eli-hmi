@@ -5,6 +5,7 @@
   width: fit-content;
   min-height: 100%;
   padding: 0.5rem;
+  gap: 0.5rem;
   position: relative;
   overflow: visible;
   box-sizing: border-box;

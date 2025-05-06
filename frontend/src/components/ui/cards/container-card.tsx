@@ -13,7 +13,7 @@ export const ContainerCard: FC<PropsWithChildren<ContainerCardProps>> = ({
   return (
     <div className={styles.card}>
       <div className={styles.titleContainer}>
-        <h3 className={styles.title}>{title}</h3>
+        <span className={styles.title}>{title}</span>
         {controller && <div className={styles.controller}>{controller()}</div>}
       </div>
       {children}

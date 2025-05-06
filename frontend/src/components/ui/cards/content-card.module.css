@@ -5,6 +5,7 @@
   align-items: stretch;
   gap: 0.5rem;
   align-self: stretch;
+  padding: 0.5rem;
   width: 100%;
   position: relative;
   overflow: visible;
