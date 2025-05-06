@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,7 +17,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-/* ------------------------- JSON payloads ---------------------------------- */
+/* ----------------------------- payloads ---------------------------------- */
 
 type RequestMessage struct {
 	Type string   `json:"type"` // "subscribe" | "unsubscribe"
@@ -33,22 +34,157 @@ type ResponseMessage struct {
 	Units     string      `json:"units"`
 }
 
-/* ------------------------------------------------------------------------- */
+/* --------------------------- globals ------------------------------------- */
 
 var (
+	aiMode   = 2 // 1 = autosimulate, 2 = manual
+	biMode   = 2 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// pvRegistry: pvName -> *pvSim
+	pvRegistry   = make(map[string]*pvSim)
+	pvRegistryMu sync.Mutex
 )
+
+/* --------------------------- main ---------------------------------------- */
 
 func main() {
 	e := echo.New()
 	e.Use(middleware.Logger(), middleware.Recover())
+
 	e.GET("/ws/pvs", wsHandler)
+	e.GET("/pv/:name/:value", setPvHandler) // manual setter
 
 	addr := ":8080"
 	log.Println("Sim gateway listening on", addr)
 	e.Logger.Fatal(e.Start(addr))
 }
+
+/* ---------------------- per-PV simulator --------------------------------- */
+
+type pvSim struct {
+	name   string
+	value  interface{}
+	subs   map[*client]struct{}
+	mu     sync.Mutex
+	cancel context.CancelFunc
+}
+
+func newPVSim(name string) *pvSim {
+	ctx, cancel := context.WithCancel(context.Background())
+	ps := &pvSim{
+		name:   name,
+		value:  synthValue(name),
+		subs:   make(map[*client]struct{}),
+		cancel: cancel,
+	}
+	go ps.loop(ctx)
+	return ps
+}
+
+const period = 400 * time.Millisecond
+
+func (ps *pvSim) loop(ctx context.Context) {
+	ticker := time.NewTicker(period)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if ps.shouldSimulate() {
+				ps.mu.Lock()
+				ps.value = synthValue(ps.name)
+				b := ps.encodeLocked()
+				for cl := range ps.subs {
+					select {
+					case cl.writeCh <- b:
+					default:
+					}
+				}
+				ps.mu.Unlock()
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// shouldSimulate checks the global mode flags.
+func (ps *pvSim) shouldSimulate() bool {
+	switch {
+	case strings.HasPrefix(ps.name, "AI_"):
+		return aiMode == 1
+	case strings.HasPrefix(ps.name, "BI_"):
+		return biMode == 1
+	default:
+		return true
+	}
+}
+
+// encodeLocked assumes ps.mu is held.
+func (ps *pvSim) encodeLocked() []byte {
+	msg := ResponseMessage{
+		Type:      "pv",
+		Name:      ps.name,
+		Value:     ps.value,
+		Severity:  0,
+		OK:        true,
+		Timestamp: float64(time.Now().UnixNano()) / 1e9,
+		Units:     unitsFor(ps.name),
+	}
+	b, _ := json.Marshal(msg)
+	return b
+}
+
+func (ps *pvSim) add(cl *client) {
+	ps.mu.Lock()
+	ps.subs[cl] = struct{}{}
+	b := ps.encodeLocked() // send current value immediately
+	ps.mu.Unlock()
+
+	// non-blocking send
+	select {
+	case cl.writeCh <- b:
+	default:
+	}
+}
+
+func (ps *pvSim) remove(cl *client) {
+	ps.mu.Lock()
+	delete(ps.subs, cl)
+	empty := len(ps.subs) == 0
+	ps.mu.Unlock()
+
+	if empty {
+		ps.cancel()
+		pvRegistryMu.Lock()
+		delete(pvRegistry, ps.name)
+		pvRegistryMu.Unlock()
+	}
+}
+
+func (ps *pvSim) setManualValue(v interface{}) {
+	ps.mu.Lock()
+	ps.value = v
+	b := ps.encodeLocked()
+	for cl := range ps.subs {
+		select {
+		case cl.writeCh <- b:
+		default:
+		}
+	}
+	ps.mu.Unlock()
+}
+
+/* ---------------------- per-connection state ----------------------------- */
+
+type client struct {
+	writeCh chan []byte
+	subs    map[string]*pvSim
+}
+
+/* ------------------------ WebSocket handler ------------------------------ */
 
 func wsHandler(c echo.Context) error {
 	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
@@ -57,146 +193,124 @@ func wsHandler(c echo.Context) error {
 	}
 	defer conn.Close()
 
-	// ---- per-connection state ---------------------------------------------
-	ctx, cancelSocket := context.WithCancel(context.Background())
+	_, cancelSocket := context.WithCancel(context.Background())
 	defer cancelSocket()
 
+	cl := &client{
+		writeCh: make(chan []byte, 32),
+		subs:    make(map[string]*pvSim),
+	}
+
 	var wg sync.WaitGroup
-	writeCh := make(chan []byte)
 
-	// map[PV]cancelFunc — guarded by a tiny mutex
-	subs := make(map[string]context.CancelFunc)
-	var subMu sync.Mutex
-
-	/* -------- writer goroutine ------------------------------------------- */
+	/* writer */
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for msg := range writeCh {
+		for msg := range cl.writeCh {
 			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-				log.Println("ws write:", err)
-				cancelSocket() // triggers shutdown
+				cancelSocket()
 				return
 			}
 		}
 	}()
 
-	/* -------- reader loop ------------------------------------------------- */
+	/* reader */
 	for {
 		_, raw, err := conn.ReadMessage()
 		if err != nil {
-			break // socket closed
+			break
 		}
-		var m RequestMessage
-		if json.Unmarshal(raw, &m) != nil {
-			log.Println("invalid payload")
+		var req RequestMessage
+		if json.Unmarshal(raw, &req) != nil {
 			continue
 		}
 
-		switch m.Type {
+		switch req.Type {
 		case "subscribe":
-			handleSubscribe(ctx, &wg, writeCh, m.PVs, subs, &subMu)
+			for _, pvName := range req.PVs {
+				pv := strings.TrimSpace(pvName)
+				if pv == "" || cl.subs[pv] != nil {
+					continue
+				}
+				ps := getOrCreateSim(pv)
+				ps.add(cl)
+				cl.subs[pv] = ps
+			}
 		case "unsubscribe":
-			handleUnsubscribe(m.PVs, subs, &subMu)
-		default:
-			log.Println("unknown type:", m.Type)
+			for _, pvName := range req.PVs {
+				pv := strings.TrimSpace(pvName)
+				if pv == "" {
+					continue
+				}
+				if ps := cl.subs[pv]; ps != nil {
+					ps.remove(cl)
+					delete(cl.subs, pv)
+				}
+			}
 		}
 	}
 
-	/* -------- teardown ---------------------------------------------------- */
-	subMu.Lock()
-	for _, cancel := range subs {
-		cancel() // stop any remaining PV goroutine
+	/* teardown */
+	for pv, ps := range cl.subs {
+		ps.remove(cl)
+		delete(cl.subs, pv)
 	}
-	subMu.Unlock()
-
-	close(writeCh)
+	close(cl.writeCh)
 	wg.Wait()
 	return nil
 }
 
-/* ========================== helpers ======================================= */
+/* ----------------------- manual set endpoint ----------------------------- */
 
-func handleSubscribe(
-	socketCtx context.Context,
-	wg *sync.WaitGroup,
-	writeCh chan<- []byte,
-	pvs []string,
-	subs map[string]context.CancelFunc,
-	mu *sync.Mutex,
-) {
-	const period = 400 * time.Millisecond
-	for _, rawPV := range pvs {
-		pv := strings.TrimSpace(rawPV)
-		if pv == "" {
-			continue
-		}
-		mu.Lock()
-		if _, already := subs[pv]; already {
-			mu.Unlock()
-			continue // ignore duplicate subscription
-		}
-		// new subscription: create a cancellable context for this PV
-		ctx, cancelPV := context.WithCancel(socketCtx)
-		subs[pv] = cancelPV
-		mu.Unlock()
-
-		wg.Add(1)
-		go func(name string, cancel context.CancelFunc) {
-			defer wg.Done()
-			defer cancel() // make sure map entry dies when loop exits
-
-			ticker := time.NewTicker(period)
-			defer ticker.Stop()
-
-			for {
-				select {
-				case t := <-ticker.C:
-					msg := ResponseMessage{
-						Type:      "pv",
-						Name:      name,
-						Value:     synthValue(name),
-						Severity:  0,
-						OK:        true,
-						Timestamp: float64(t.UnixNano()) / 1e9,
-						Units:     unitsFor(name),
-					}
-					if b, _ := json.Marshal(msg); b != nil {
-						select {
-						case writeCh <- b:
-						case <-ctx.Done():
-							return
-						}
-					}
-				case <-ctx.Done():
-					return
-				}
-			}
-		}(pv, cancelPV)
+func setPvHandler(c echo.Context) error {
+	name := strings.TrimSpace(c.Param("name"))
+	rawVal := strings.TrimSpace(c.Param("value"))
+	if name == "" {
+		return c.String(http.StatusBadRequest, "empty pv name")
 	}
+
+	var val interface{}
+	var err error
+	switch {
+	case strings.HasPrefix(name, "BI_"):
+		val, err = strconv.ParseBool(rawVal)
+		if err != nil {
+			return c.String(http.StatusBadRequest, "bool expected for BI_")
+		}
+	default: // treat as AI_ / number
+		val, err = strconv.ParseFloat(rawVal, 64)
+		if err != nil {
+			return c.String(http.StatusBadRequest, "number expected")
+		}
+	}
+
+	ps := getOrCreateSim(name)
+	ps.setManualValue(val)
+
+	return c.JSON(http.StatusOK, ResponseMessage{
+		Type:      "pv",
+		Name:      name,
+		Value:     val,
+		Severity:  0,
+		OK:        true,
+		Timestamp: float64(time.Now().UnixNano()) / 1e9,
+		Units:     unitsFor(name),
+	})
 }
 
-func handleUnsubscribe(
-	pvs []string,
-	subs map[string]context.CancelFunc,
-	mu *sync.Mutex,
-) {
-	for _, rawPV := range pvs {
-		pv := strings.TrimSpace(rawPV)
-		if pv == "" {
-			continue
-		}
-		mu.Lock()
-		if cancel, ok := subs[pv]; ok {
-			cancel()         // stop the goroutine
-			delete(subs, pv) // forget it
-			log.Println("unsubscribed", pv)
-		}
-		mu.Unlock()
-	}
-}
+/* ------------------------- helpers --------------------------------------- */
 
-/* -------- value + unit synthesis ----------------------------------------- */
+func getOrCreateSim(name string) *pvSim {
+	pvRegistryMu.Lock()
+	defer pvRegistryMu.Unlock()
+	if ps, ok := pvRegistry[name]; ok {
+		return ps
+	}
+	ps := newPVSim(name)
+	pvRegistry[name] = ps
+	return ps
+}
 
 func synthValue(name string) interface{} {
 	switch {
