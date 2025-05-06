@@ -1,10 +1,11 @@
 'use client'
 import { ClearButton, SettingsButton } from '@/components/ui/buttons'
+import { ContainerCard, ContentCard } from '@/components/ui/cards'
 import Dropdown from '@/components/ui/dropdown'
 
 export default function ExamplesPage() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ gap: '2rem', display: 'flex', flexDirection: 'column' }}>
       <h1>Examples Page</h1>
       <SettingsButton disabled />
       <SettingsButton />
@@ -19,16 +20,35 @@ export default function ExamplesPage() {
               onClick: () => console.log('Rough Vacuum clicked'),
             },
           ]}
-          width="250px"
         />
       </div>
-      <ClearButton tooltipContent="jedna dve" />
       <ClearButton tooltipContent="disabled" disabled />
       <ClearButton
         tooltipContent="Check/Clear"
         isProcessing={true}
         timeout={8}
       />
+      <ContainerCard
+        title="P3 Clean Dry Air"
+        controller={() => <ClearButton tooltipContent="jedna dve" disabled />}
+      >
+        <ContentCard>
+          <Dropdown
+            title="High Vacuum"
+            items={[
+              {
+                label: 'Standby',
+                onClick: () => console.log('Standby clicked'),
+              },
+              { label: 'Vented', onClick: () => console.log('Vented clicked') },
+              {
+                label: 'Rough Vacuum',
+                onClick: () => console.log('Rough Vacuum clicked'),
+              },
+            ]}
+          />
+        </ContentCard>
+      </ContainerCard>
     </div>
   )
 }

@@ -29,43 +29,36 @@ export default function Dropdown({
   width,
 }: DropdownProps) {
   const [open, setOpen] = useState(false)
+  
+  // Create a style object for the container with the width prop if provided
+  // Removed width style, the component will adapt to its parent
 
   return (
-    <div
-      className={containerStyles.container}
-      style={{ width: width || '100%' }}
-    >
-      <DropdownMenu.Root open={open} onOpenChange={setOpen}>
-        <DropdownMenu.Trigger asChild>
-          <div className={styles.trigger} aria-label="Dropdown menu">
-            <span className={styles.title}>{title}</span>
-            <SettingsButton />
-          </div>
-        </DropdownMenu.Trigger>
+    <div className={containerStyles.container}>
+      <div onClick={() => setOpen(!open)} className={styles.trigger} aria-label="Dropdown menu">
+        <span className={styles.title}>{title}</span>
+        <SettingsButton />
+      </div>
 
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            className={styles.content}
-            align="center"
-            alignOffset={0}
-            side={side}
-            sideOffset={0}
-            avoidCollisions={false}
-            loop={false}
-          >
+      {open && (
+        <div className={styles.popoverContainer}>
+          <div className={styles.content}>
             {items.map((item, index) => (
-              <DropdownMenu.Item
+              <button
                 key={index}
                 className={styles.item}
-                onClick={item.onClick}
+                onClick={() => {
+                  if (item.onClick) item.onClick();
+                  setOpen(false);
+                }}
                 disabled={item.disabled}
               >
                 {item.label}
-              </DropdownMenu.Item>
+              </button>
             ))}
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
