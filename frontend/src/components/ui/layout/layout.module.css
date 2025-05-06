@@ -1,0 +1,25 @@
+.layout {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  width: calc(100% - 3rem);
+  height: calc(100vh - 3rem);
+}
+
+.topContainer {
+  display: flex;
+  height: 26.25rem;
+  width: 100%;
+  justify-content: space-between;
+  align-items: flex-start;
+  align-self: stretch;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #9e9e9e;
+}
+
+.topContentContainer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  align-self: stretch;
+}

@@ -1,4 +1,4 @@
-import { withWebSocketData } from '@/app/components/withWebSocketData'
+import { withWebSocketData } from '@/app/ws-components/withWebSocketData'
 import { CheckIcon, CloseIcon } from '@/components/ui/icons'
 import { Message } from '@/lib/websocket-provider/message'
 import styles from './interlocks.module.css'

@@ -1,4 +1,4 @@
-import { Interlocks } from '@/app/components/interlocks/interlocks'
+import { Interlocks } from '@/app/ws-components/interlocks/interlocks'
 import { ClearButton } from '@/components/ui/buttons'
 import { ContainerCard, ContentCard } from '@/components/ui/cards'
 
