@@ -54,7 +54,8 @@ func main() {
 	e.Use(middleware.Logger(), middleware.Recover())
 
 	e.GET("/ws/pvs", wsHandler)
-	e.GET("/pv/:name/:value", setPvHandler) // manual setter
+	e.GET("/pv/:name/:value", setPvHandler)       // manual setter
+	e.GET("/mode/:name/:value", setPvModeHandler) // mode switcher
 
 	addr := ":8080"
 	log.Println("Sim gateway listening on", addr)
@@ -297,6 +298,24 @@ func setPvHandler(c echo.Context) error {
 		Timestamp: float64(time.Now().UnixNano()) / 1e9,
 		Units:     unitsFor(name),
 	})
+}
+
+/* --------------------------switch simulation/manual mode------------------ */
+
+func setPvModeHandler(c echo.Context) error {
+	modeName := c.Param("name")
+	modeValue := c.Param("value")
+
+	if modeValueInt, err := strconv.Atoi(modeValue); err == nil {
+		if strings.ToLower(modeName) == "ai" {
+			aiMode = modeValueInt
+		} else if strings.ToLower(modeName) == "bi" {
+			biMode = modeValueInt
+		}
+	} else {
+		return c.JSON(400, "Value param has to be 1 or 2. 1=simulation mode, 2=manual mode. Example: /mode/ai/2")
+	}
+	return c.JSON(200, map[string]interface{}{"aiMode": aiMode, "biMode": biMode})
 }
 
 /* ------------------------- helpers --------------------------------------- */
