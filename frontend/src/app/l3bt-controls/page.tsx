@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/layout'
 import { L3BTInterlocks } from './components/L3BTInterlock'
 import { L3BTMachineSafetyPermission } from './components/L3BTMachineSafetyPermission'
+import { Heading } from '@/components/ui/heading'
 
 export default function L3btPage() {
   return (
@@ -16,7 +17,7 @@ export default function L3btPage() {
           <L3BTInterlocks />
           <L3BTMachineSafetyPermission />
         </TopContentContainer>
-        <div>L3BT</div>
+        <Heading title="L3BT"></Heading>
       </TopContainer>
     </PageLayout>
   )
