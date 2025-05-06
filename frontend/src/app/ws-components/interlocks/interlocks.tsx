@@ -11,7 +11,6 @@ interface InterlockItemProps {
 const InterlockItem = ({ title, data }: InterlockItemProps) => {
   const value = data?.value
   const { isConnected } = useWebSocketProvider()
-  console.log(isConnected, 'interlock item')
   return <ListItem title={title} value={value} isConnected={isConnected} />
 }
 

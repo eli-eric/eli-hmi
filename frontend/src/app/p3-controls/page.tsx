@@ -1,13 +1,24 @@
 'use client'
 
-import { TestComp } from '../ws-components/test'
+import { Heading } from '@/components/ui/heading'
+import {
+  PageLayout,
+  TopContainer,
+  TopContentContainer,
+} from '@/components/ui/layout'
+import { P3Interlocks } from './components/P3Interlocks'
+import { P3MachineSafetyPermission } from './components/P3MachineSafetyPermission'
 
 export default function P3ControlsPage() {
   return (
-    <div>
-      <h1>P3 Controls</h1>
-      <p>Control panel for P3</p>
-      <TestComp pvname="AI1" />
-    </div>
+    <PageLayout>
+      <TopContainer>
+        <TopContentContainer>
+          <P3Interlocks />
+          <P3MachineSafetyPermission />
+        </TopContentContainer>
+        <Heading title="P3" />
+      </TopContainer>
+    </PageLayout>
   )
 }
