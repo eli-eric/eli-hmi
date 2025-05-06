@@ -12,4 +12,8 @@ export const navigationItems: NavigationItem[] = [
     text: 'L3BT Controls',
     href: '/l3bt-controls',
   },
+  {
+    text: 'UI',
+    href: '/examples-components',
+  },
 ]

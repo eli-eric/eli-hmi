@@ -6,6 +6,7 @@ import { useWebSocketProvider } from '@/app/providers/socket-provider'
 
 export const StatusBar = () => {
   const ws = useWebSocketProvider()
+  console.log('StatusBar', ws.isConnected)
   return (
     <div className={styles.container}>
       <div className={styles.content}>

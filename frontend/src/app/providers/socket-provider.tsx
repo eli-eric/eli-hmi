@@ -34,15 +34,21 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   const providerRef = useRef<WebSocketDataProvider | null>(null)
   const [isConnected, setIsConnected] = useState(false)
 
+  // Initialize provider only once
   if (!providerRef.current) {
     providerRef.current = createWsProvider(url)
-    providerRef.current.onConnectionStateChange = (connected: boolean) => {
-      console.log('Connection state updated:', connected)
-      setIsConnected(connected)
-    }
   }
 
   useEffect(() => {
+    // Set up connection state change handler inside useEffect
+    if (providerRef.current) {
+      providerRef.current.onConnectionStateChange = (connected: boolean) => {
+        console.log('Connection state updated:', connected)
+        setIsConnected(connected)
+      }
+    }
+
+    // Cleanup on unmount
     return () => {
       providerRef.current?.destroy()
     }

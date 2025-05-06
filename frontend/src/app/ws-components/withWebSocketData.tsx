@@ -7,14 +7,14 @@ interface WithWebSocketDataProps<T> {
   onDataUpdate?: (data: Message<T>) => void
 }
 
-export function withWebSocketData<T>(
-  WrappedComponent: React.ComponentType<{ data: Message<T> | null }>,
-): React.FC<WithWebSocketDataProps<T>> {
-  const HOC: React.FC<WithWebSocketDataProps<T>> = ({
+export function withWebSocketData<T, P>(
+  WrappedComponent: React.ComponentType<P & { data: Message<T> | null }>, // Allow additional props
+): React.FC<WithWebSocketDataProps<T> & P> {
+  const HOC: React.FC<WithWebSocketDataProps<T> & P> = ({
     pvname,
     onDataUpdate,
-    ...props
-  }: WithWebSocketDataProps<T>) => {
+    ...props // Collect additional props
+  }: WithWebSocketDataProps<T> & P) => {
     const { provider } = useWebSocketProvider()
     const [data, setData] = useState<Message<T> | null>(null)
 
@@ -26,19 +26,16 @@ export function withWebSocketData<T>(
           onDataUpdate(msg)
         }
       }
-      console.log(`Subscribing to ${pvname}`)
       provider.subscribe<T>(pvname, callback)
 
       return () => {
         provider.unsubscribe(pvname)
-        console.log(`Unsubscribed from ${pvname}`)
       }
-    }, [])
+    }, [pvname, provider, onDataUpdate])
 
-    return <WrappedComponent {...props} data={data} />
+    return <WrappedComponent {...(props as P)} data={data} /> // Pass all props, including `data`
   }
 
-  // Nastavení displayName
   HOC.displayName = `withWebSocketData(${
     WrappedComponent.displayName || WrappedComponent.name || 'Component'
   })`

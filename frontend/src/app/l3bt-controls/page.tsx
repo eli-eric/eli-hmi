@@ -1,15 +1,24 @@
 'use client'
 
-import { SettingsButton } from '@/components/ui/buttons/settings-btn'
-import { TestComp } from '../components/test'
-import DropdownExample from '@/components/ui/dropdown/example-usage'
+import {
+  PageLayout,
+  TopContainer,
+  TopContentContainer,
+} from '@/components/ui/layout'
+import { L3BTInterlocks } from './components/L3BTInterlock'
+import { L3BTMachineSafetyPermission } from './components/L3BTMachineSafetyPermission'
+import { Heading } from '@/components/ui/heading'
 
 export default function L3btPage() {
   return (
-    <div>
-      <TestComp pvname="AI_TEMP_2" />
-      <SettingsButton />
-      <DropdownExample />
-    </div>
+    <PageLayout>
+      <TopContainer>
+        <TopContentContainer>
+          <L3BTInterlocks />
+          <L3BTMachineSafetyPermission />
+        </TopContentContainer>
+        <Heading title="L3BT"></Heading>
+      </TopContainer>
+    </PageLayout>
   )
 }
