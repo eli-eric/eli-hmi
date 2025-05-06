@@ -1,5 +1,5 @@
 'use client'
-import { SettingsButton } from '@/components/ui/buttons'
+import { ClearButton, SettingsButton } from '@/components/ui/buttons'
 import Dropdown from '@/components/ui/dropdown'
 
 export default function ExamplesPage() {
@@ -22,6 +22,13 @@ export default function ExamplesPage() {
           width="250px"
         />
       </div>
+      <ClearButton tooltipContent="jedna dve" />
+      <ClearButton tooltipContent="disabled" disabled />
+      <ClearButton
+        tooltipContent="Check/Clear"
+        isProcessing={true}
+        timeout={8}
+      />
     </div>
   )
 }

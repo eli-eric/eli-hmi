@@ -1,0 +1,10 @@
+.tooltip {
+  position: absolute;
+  z-index: 1000;
+  display: none;
+  padding: 5px;
+  background-color: #333;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 12px;
+}
