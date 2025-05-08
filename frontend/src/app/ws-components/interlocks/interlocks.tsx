@@ -14,7 +14,7 @@ const InterlockItem = ({ title, data }: InterlockItemProps) => {
   return <ListItem title={title} value={value} isConnected={isConnected} />
 }
 
-const InterLockContainer = withWebSocketData(InterlockItem)
+export const InterLockContainer = withWebSocketData(InterlockItem)
 
 export const Interlocks = ({
   interlocks,

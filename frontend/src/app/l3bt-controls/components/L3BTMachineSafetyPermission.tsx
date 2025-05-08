@@ -1,5 +1,7 @@
+'use client'
 import { Interlocks } from '@/app/ws-components/interlocks/interlocks'
 import { ContainerCard, ContentCard } from '@/components/ui/cards'
+import { CardTitle } from '@/components/ui/cards/card-title'
 
 const interlocks = [
   {
@@ -18,7 +20,8 @@ const interlocks = [
 
 export const L3BTMachineSafetyPermission = () => {
   return (
-    <ContainerCard title="L3BT Machine Safety Permissions">
+    <ContainerCard>
+      <CardTitle label="L3BT Machine Safety Permissions" />
       <ContentCard>
         <Interlocks interlocks={interlocks} />
       </ContentCard>

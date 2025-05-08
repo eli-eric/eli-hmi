@@ -1,0 +1,33 @@
+.labelContainer {
+  display: flex;
+  padding: 0.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: stretch;
+  background: #d1d1d1;
+}
+
+.labelContainer span {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.cardTitle {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.sensorContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.sensorContainer:not(:last-child) {
+  border-bottom: 1px solid #b0b0b0;
+}

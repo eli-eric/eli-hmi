@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useWebSocketProvider } from '@/app/providers/socket-provider'
 import { Message } from '@/lib/websocket-provider/message'
 
@@ -17,9 +17,13 @@ export function withWebSocketData<T, P>(
   }: WithWebSocketDataProps<T> & P) => {
     const { provider } = useWebSocketProvider()
     const [data, setData] = useState<Message<T> | null>(null)
+    const isSubscribed = useRef(false)
 
     useEffect(() => {
-      if (!pvname) return
+      if (!pvname || isSubscribed.current) return
+      isSubscribed.current = true
+
+      console.log(`[withWebSocketData] Subscribing to PV: ${pvname}`)
       const callback = (msg: Message<T>) => {
         setData(msg)
         if (onDataUpdate) {
@@ -29,9 +33,11 @@ export function withWebSocketData<T, P>(
       provider.subscribe<T>(pvname, callback)
 
       return () => {
+        console.log(`[withWebSocketData] Unsubscribing from PV: ${pvname}`)
         provider.unsubscribe(pvname)
+        isSubscribed.current = false
       }
-    }, [pvname, provider, onDataUpdate])
+    }, [pvname])
 
     return <WrappedComponent {...(props as P)} data={data} /> // Pass all props, including `data`
   }

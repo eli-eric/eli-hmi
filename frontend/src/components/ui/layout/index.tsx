@@ -17,4 +17,14 @@ const BottomContainer: FC<PropsWithChildren> = ({ children }) => {
   return <div className={styles.bottomContainer}>{children}</div>
 }
 
-export { PageLayout, TopContainer, BottomContainer, TopContentContainer }
+const SectionContainer: FC<PropsWithChildren> = ({ children }) => {
+  return <div className={styles.sectionContainer}>{children}</div>
+}
+
+export {
+  PageLayout,
+  TopContainer,
+  BottomContainer,
+  TopContentContainer,
+  SectionContainer,
+}
