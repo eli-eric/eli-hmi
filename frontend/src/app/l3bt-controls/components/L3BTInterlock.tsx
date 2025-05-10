@@ -1,6 +1,8 @@
+'use client'
 import { Interlocks } from '@/app/ws-components/interlocks/interlocks'
 import { ClearButton } from '@/components/ui/buttons'
 import { ContainerCard, ContentCard } from '@/components/ui/cards'
+import { CardTitle } from '@/components/ui/cards/card-title'
 
 const interlocks = [
   {
@@ -23,10 +25,10 @@ const interlocks = [
 
 export const L3BTInterlocks = () => {
   return (
-    <ContainerCard
-      title="L3BT Interlocks"
-      controller={() => <ClearButton disabled />}
-    >
+    <ContainerCard>
+      <CardTitle label="L3BT Interlocks">
+        <ClearButton disabled />
+      </CardTitle>
       <ContentCard>
         <Interlocks interlocks={interlocks} />
       </ContentCard>

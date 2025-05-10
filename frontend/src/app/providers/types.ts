@@ -1,5 +1,28 @@
-export interface Attempt {
-  attempt: number
+export interface ConnectionState {
+  status: 'connecting' | 'connected' | 'disconnected'
+  reconnectAttempts: number
   lastAttempt: Date | null
-  nextAttempt: number | null
+  nextAttemptInSeconds: number | null
+  countdown: number | null
+}
+
+export interface WebSocketContextValue {
+  subscribe: <T>(
+    channel: string,
+    callback: (data: Message<T>) => void,
+  ) => () => void
+  send: (message: unknown) => boolean
+  reconnect: () => void
+  isConnected: boolean
+  connectionState: ConnectionState
+}
+
+export interface Message<T = unknown> {
+  type: string
+  name: string
+  value: T
+  severity: number
+  units?: string
+  timestamp: number
+  ok: boolean
 }

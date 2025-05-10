@@ -8,3 +8,8 @@
   border-radius: 4px;
   font-size: 12px;
 }
+
+.TooltipContent {
+  width: var(--radix-tooltip-trigger-width);
+  max-height: var(--radix-tooltip-content-available-height);
+}

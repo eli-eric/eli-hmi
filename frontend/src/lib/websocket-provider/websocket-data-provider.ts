@@ -1,6 +1,7 @@
 import { KeyedDataProvider } from './keyed-data-provider'
 import { Message } from './message'
 
+// DEPRECATED: use useWebSocket
 export class WebSocketDataProvider implements KeyedDataProvider {
   private subscribers: Map<string, Array<(data: unknown) => void>> = new Map()
   private ws: WebSocket | null = null

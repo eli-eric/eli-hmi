@@ -1,6 +1,7 @@
 import { Interlocks } from '@/app/ws-components/interlocks/interlocks'
 import { ClearButton } from '@/components/ui/buttons'
 import { ContainerCard, ContentCard } from '@/components/ui/cards'
+import { CardTitle } from '@/components/ui/cards/card-title'
 
 const interlocks = [
   {
@@ -35,10 +36,10 @@ const interlocks = [
 
 export const P3Interlocks = () => {
   return (
-    <ContainerCard
-      title="P3 Interlocks"
-      controller={() => <ClearButton disabled />}
-    >
+    <ContainerCard>
+      <CardTitle label="P3 Interlocks">
+        <ClearButton disabled />
+      </CardTitle>
       <ContentCard>
         <Interlocks interlocks={interlocks} />
       </ContentCard>

@@ -2,6 +2,7 @@
 import { ClearButton, SettingsButton } from '@/components/ui/buttons'
 import { ContainerCard, ContentCard } from '@/components/ui/cards'
 import Dropdown from '@/components/ui/dropdown'
+import { InterLockContainer } from '../ws-components/interlocks/interlocks'
 
 export default function ExamplesPage() {
   return (
@@ -13,6 +14,7 @@ export default function ExamplesPage() {
       }}
     >
       <h1>Examples Page</h1>
+      <InterLockContainer pvname="BI_P3_Chamber" title="test" />
       <SettingsButton disabled />
       <SettingsButton />
       <div style={{ width: '250px' }}>
@@ -29,10 +31,7 @@ export default function ExamplesPage() {
         />
       </div>
       <ClearButton tooltipContent="disabled" disabled />
-      <ContainerCard
-        title="P3 Clean Dry Air"
-        controller={() => <ClearButton tooltipContent="jedna dve" disabled />}
-      >
+      <ContainerCard>
         <Dropdown
           title="High Vacuum"
           items={[
