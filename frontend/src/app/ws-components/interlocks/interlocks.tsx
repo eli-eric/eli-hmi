@@ -1,7 +1,7 @@
-import { withWebSocketData } from '@/app/ws-components/withWebSocketData'
 import { Message } from '@/lib/websocket-provider/message'
 import { ListItem } from '@/components/ui/lists/list-item'
-import { useWebSocketProvider } from '@/app/providers/socket-provider'
+import { withReactWebSocketData } from '../with-websocket-data'
+import { useWebSocketContext } from '@/app/providers/socket-provider'
 
 interface InterlockItemProps {
   data?: Message<boolean> | null
@@ -10,11 +10,11 @@ interface InterlockItemProps {
 
 const InterlockItem = ({ title, data }: InterlockItemProps) => {
   const value = data?.value
-  const { isConnected } = useWebSocketProvider()
+  const { isConnected } = useWebSocketContext()
   return <ListItem title={title} value={value} isConnected={isConnected} />
 }
 
-export const InterLockContainer = withWebSocketData(InterlockItem)
+export const InterLockContainer = withReactWebSocketData(InterlockItem)
 
 export const Interlocks = ({
   interlocks,

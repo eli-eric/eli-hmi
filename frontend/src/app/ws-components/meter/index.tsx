@@ -11,8 +11,8 @@ import {
 } from 'react'
 
 import style from './meter.module.css'
-import { withWebSocketData } from '../withWebSocketData'
 import { Message } from '@/lib/websocket-provider/message'
+import { withReactWebSocketData } from '../with-websocket-data'
 
 const MeterContext = createContext<{ value: number | null }>({ value: null })
 
@@ -78,7 +78,7 @@ const Sensor: FC<SensorProps> = ({ label, data }) => {
     </div>
   )
 }
-const SensorPV = withWebSocketData(Sensor)
+const SensorPV = withReactWebSocketData(Sensor)
 
 export const Meter = Object.assign(MeterContainer, {
   Title,

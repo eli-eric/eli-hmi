@@ -1,104 +1,46 @@
 'use client'
-// WebSocketProviderContext.tsx
-import {
-  createWsProvider,
-  WebSocketDataProvider,
-} from '@/lib/websocket-provider/websocket-data-provider'
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  ReactNode,
-  useState,
-} from 'react'
-import { Attempt } from './types'
 
-interface WebSocketProviderContextValue {
-  provider: WebSocketDataProvider
-  connectionAttempt: Attempt
-  isConnected: boolean
-}
+import React, { createContext, useContext, ReactNode } from 'react'
+import { useWebSocket } from '@/lib/websocket-provider/useWebsocket'
+import { WebSocketContextValue } from './types'
 
-const WebSocketProviderContext =
-  createContext<WebSocketProviderContextValue | null>(null)
+// Types for context value
 
+// Create context with default values
+const WebSocketContext = createContext<WebSocketContextValue | undefined>(
+  undefined,
+)
+
+// Props for provider component
 interface WebSocketProviderProps {
   url: string
   children: ReactNode
 }
 
+// Provider component
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   url,
   children,
 }) => {
-  const providerRef = useRef<WebSocketDataProvider | null>(null)
-  const [isConnected, setIsConnected] = useState(false)
-  const [lastAttempt, setLastAttempt] = useState<Date | null>(null)
-  const [nextAttempt, setNextAttempt] = useState<number | null>(null)
-  const [attempt, setAttempt] = useState<number>(0)
-
-  // Initialize provider only once
-  if (!providerRef.current) {
-    providerRef.current = createWsProvider(url)
-  }
-
-  useEffect(() => {
-    // Set up connection state change handler inside useEffect
-    if (providerRef.current) {
-      providerRef.current.onConnectionStateChange = (connected: boolean) => {
-        console.log('Connection state updated:', connected)
-        setIsConnected(connected)
-      }
-      providerRef.current.onReconnectionProgress = (
-        attempt: number,
-        lastAttempt: Date | null,
-        nextAttemptIn: number,
-      ) => {
-        console.log(
-          'Reconnection progress:',
-          attempt,
-          lastAttempt,
-          nextAttemptIn,
-        )
-        setAttempt(attempt)
-        setLastAttempt(lastAttempt)
-        setNextAttempt(nextAttemptIn)
-      }
-    }
-    // Cleanup on unmount
-    return () => {
-      providerRef.current?.destroy()
-    }
-  }, [])
-
-  const value = useMemo(
-    () => ({
-      provider: providerRef.current!,
-      connectionAttempt: {
-        attempt,
-        lastAttempt,
-        nextAttempt,
-      },
-      isConnected,
-    }),
-    [isConnected, attempt, lastAttempt, nextAttempt],
-  )
+  // Use our custom hook to manage WebSocket connection
+  const websocket = useWebSocket(url)
 
   return (
-    <WebSocketProviderContext.Provider value={value}>
+    <WebSocketContext.Provider value={websocket}>
       {children}
-    </WebSocketProviderContext.Provider>
+    </WebSocketContext.Provider>
   )
 }
 
-export const useWebSocketProvider = (): WebSocketProviderContextValue => {
-  const context = useContext(WebSocketProviderContext)
-  if (!context) {
+// Hook for using WebSocket context
+export const useWebSocketContext = (): WebSocketContextValue => {
+  const context = useContext(WebSocketContext)
+
+  if (context === undefined) {
     throw new Error(
-      'useWebSocketProvider must be used within a WebSocketProvider',
+      'useWebSocketContext must be used within a WebSocketProvider',
     )
   }
+
   return context
 }
