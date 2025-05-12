@@ -28,6 +28,7 @@ export const Roughing = () => {
       </Meter.PumpContainer>
       <Meter.PumpContainer>
         <Meter.Label label="Used And Locked By" />
+        <Meter.PureValueConnected pvname="SI_LOCKED" />
       </Meter.PumpContainer>
     </Meter>
   )

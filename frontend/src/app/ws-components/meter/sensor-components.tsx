@@ -23,7 +23,7 @@ export const ValveStatus: FC<ValveStatusProps> = ({
   const value = isConnected ? (data?.value ? 'open' : 'closed') : 'N/A'
 
   return (
-    <div className={styles.labelContainer}>
+    <div className={styles.ValueContainer}>
       <span>{`Valve ${label} is ${value}`}</span>
     </div>
   )
@@ -49,10 +49,21 @@ export const PumpSpeed: FC<PumpSpeedProps> = ({ data, isConnected }) => {
   }
 
   const value = isConnected ? getSpeedLabel(data?.value) : 'N/A'
-  
+
   return (
-    <div className={styles.labelContainer}>
+    <div className={styles.ValueContainer}>
       <span>{value}</span>
+    </div>
+  )
+}
+/**
+ * Pump speed status component
+ */
+
+export const PureValue: FC<PumpSpeedProps> = ({ data, isConnected }) => {
+  return (
+    <div className={styles.ValueContainer}>
+      <span>{isConnected ? data?.value : 'N/A'}</span>
     </div>
   )
 }
@@ -67,3 +78,4 @@ export const PumpContainer: FC<PropsWithChildren> = ({ children }) => {
 // WebSocket-connected components
 export const ValveStatusConnected = withReactWebSocketData(ValveStatus)
 export const PumpSpeedConnected = withReactWebSocketData(PumpSpeed)
+export const PureValueConnected = withReactWebSocketData(PureValue)
