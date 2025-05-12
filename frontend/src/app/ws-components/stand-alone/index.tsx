@@ -1,16 +1,45 @@
-import { ValveIcon } from '@/components/ui/icons'
+import { PolygonIcon } from '@/components/ui/icons'
+import { State, useWebSocketMulti } from '@/hooks/useWebSocketData'
 
-const SUContainer = ({ children }) => {
-  return <div className={styles.SUContainer}>{children}</div>
+import styles from './su.module.css'
+import { useMemo } from 'react'
+
+interface SUValveStatusProps {
+  pvNames: string[]
+  label: string
+  onStatusChange?: (status: State<boolean>) => boolean
 }
 
-const SUValveStatus = ({ data, isConnected, label }) => {
+export const SUValveStatus = ({
+  pvNames,
+  label,
+  onStatusChange,
+}: SUValveStatusProps) => {
+  const { state, isConnected } = useWebSocketMulti<boolean>({
+    pvs: pvNames,
+    onDataUpdate: (data) => {
+      console.log('SU Valve Status Data Update', data)
+    },
+  })
+  const isOpen = useMemo(() => {
+    if (onStatusChange) {
+      return onStatusChange(state)
+    }
+    return pvNames.every((pv) => state[pv]?.value === true)
+  }, [state, pvNames, onStatusChange])
+
   return (
-    <div>
-      <div>
-        <div />
-        <ValveIcon />
-        <div />
+    <div className={styles.container}>
+      <div className={styles.label}>{label}</div>
+      <PolygonIcon />
+      <div className={styles.label}>
+        {isConnected ? (
+          <div>
+            Valve is <span>{isOpen ? 'OPEN' : 'CLOSED'}</span>
+          </div>
+        ) : (
+          <span>N/A</span>
+        )}
       </div>
     </div>
   )

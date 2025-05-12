@@ -9,7 +9,7 @@ interface PolygonIconProps {
 
 export const PolygonIcon: FC<PolygonIconProps> = ({ className }) => {
   return (
-    <div className={clsx(style.polygonIconContainer, className)}>
+    <div className={clsx(style.container, className)}>
       <div className={style.line} />
       <Image
         src="/images/polygon.svg"

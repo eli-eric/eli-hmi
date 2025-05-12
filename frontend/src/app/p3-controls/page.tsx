@@ -13,6 +13,7 @@ import { P3MachineSafetyPermission } from './components/P3MachineSafetyPermissio
 import { ClearDryAir } from './components/clean-dry-air'
 import { Backing } from './components/backing'
 import { Roughing } from './components/roughing'
+import { SUValveStatus } from '../ws-components/stand-alone'
 
 export default function P3ControlsPage() {
   return (
@@ -30,6 +31,7 @@ export default function P3ControlsPage() {
           <Backing />
           <Roughing />
         </SectionContainer>
+        <SUValveStatus pvNames={['BI_1', 'BI_2']} label="SU Valve Status" />
       </BottomContainer>
     </PageLayout>
   )
