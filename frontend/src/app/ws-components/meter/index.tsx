@@ -1,94 +1,58 @@
 'use client'
 
-import { ClearButton } from '@/components/ui/buttons'
-import { ContainerCard, ContentCard } from '@/components/ui/cards'
-import { CardTitle } from '@/components/ui/cards/card-title'
-import {
-  ButtonHTMLAttributes,
-  createContext,
-  FC,
-  PropsWithChildren,
-} from 'react'
-
-import style from './meter.module.css'
-import { Message } from '@/lib/websocket-provider/message'
 import { withReactWebSocketData } from '../with-websocket-data'
-import { Container, SensorPumpOpenPV, SensorPumpSpeedPV } from './sensor-pump'
+import { MeterContainer, SensorPressure } from './meter'
+import { 
+  MeterTitle, 
+  MeterLabel, 
+  MeterTitleButton, 
+  MeterCard, 
+  MeterCardLabel 
+} from './meter-ui'
+import { 
+  ValveStatus, 
+  PumpSpeed, 
+  PumpContainer, 
+  ValveStatusConnected, 
+  PumpSpeedConnected 
+} from './sensor-components'
 
-const MeterContext = createContext<{ value: number | null }>({ value: null })
+// Connected sensor components
+const SensorPressureConnected = withReactWebSocketData(SensorPressure)
 
-const MeterContainer: FC<PropsWithChildren> = ({ children }) => {
-  return (
-    <MeterContext.Provider value={{ value: null }}>
-      <ContainerCard>{children}</ContainerCard>
-    </MeterContext.Provider>
-  )
-}
-
-interface MeterProps {
-  label: string
-  children?: React.ReactNode
-}
-
-const Title: FC<MeterProps> = ({ label, children }) => {
-  return <CardTitle label={label}>{children}</CardTitle>
-}
-
-interface TitleButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  tooltipContent?: string
-  isProcessing?: boolean
-  timeout?: number
-}
-
-const TitleButton: FC<TitleButtonProps> = (props) => {
-  return <ClearButton {...props} />
-}
-
-interface LabelProps {
-  label: string
-}
-
-const Label: FC<LabelProps> = ({ label }) => {
-  return (
-    <div className={style.labelContainer}>
-      <span>{label}</span>
-    </div>
-  )
-}
-
-const Card: FC<PropsWithChildren> = ({ children }) => {
-  return <ContentCard>{children}</ContentCard>
-}
-
-const CardLabel: FC<PropsWithChildren> = ({ children }) => {
-  return <div className={style.cardTitle}>{children}</div>
-}
-
-interface SensorProps {
-  label?: string
-  data?: Message<number> | null
-  isConnected?: boolean
-}
-
-const SensorPressure: FC<SensorProps> = ({ label, data }) => {
-  return (
-    <div className={style.sensorContainer}>
-      <span className={style.sensorData}>{`${data?.value?.toExponential(2)} ${data?.units && data.units
-        }`}</span>
-      <span className={style.sensorLabel}>{label}</span>
-    </div>
-  )
-}
-const SensorPressurePV = withReactWebSocketData(SensorPressure)
-
+/**
+ * Meter component with compound pattern
+ * 
+ * Usage example:
+ * <Meter>
+ *   <Meter.Title label="Pressure Readings">
+ *     <Meter.TitleButton onClick={handleClick} />
+ *   </Meter.Title>
+ *   <Meter.Label label="System Status" />
+ *   <Meter.Card>
+ *     <Meter.CardLabel>Readings</Meter.CardLabel>
+ *     <Meter.SensorPressureConnected pvname="pressure" label="Chamber" />
+ *   </Meter.Card>
+ * </Meter>
+ */
 export const Meter = Object.assign(MeterContainer, {
-  Title,
-  Label,
-  TitleButton,
-  Card,
-  CardLabel,
-  SensorPressurePV,
-  SensorPumpOpenPV,
-  SensorPumpSpeedPV,
-  Container,
+  Title: MeterTitle,
+  Label: MeterLabel,
+  TitleButton: MeterTitleButton,
+  Card: MeterCard,
+  CardLabel: MeterCardLabel,
+  // Connected components
+  SensorPressureConnected,
+  ValveStatusConnected,
+  PumpSpeedConnected,
+  // Container components
+  PumpContainer,
 })
+
+// Re-export base components for direct use
+export {
+  SensorPressure,
+  ValveStatus,
+  PumpSpeed,
+  PumpContainer,
+}
