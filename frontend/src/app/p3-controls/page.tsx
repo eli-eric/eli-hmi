@@ -13,6 +13,7 @@ import { P3MachineSafetyPermission } from './components/P3MachineSafetyPermissio
 import { ClearDryAir } from './components/clean-dry-air'
 import { Backing } from './components/backing'
 import { Roughing } from './components/roughing'
+import { ValveIcon } from '@/components/ui/icons'
 
 export default function P3ControlsPage() {
   return (
@@ -29,6 +30,7 @@ export default function P3ControlsPage() {
           <ClearDryAir />
           <Backing />
           <Roughing />
+          <ValveIcon />
         </SectionContainer>
       </BottomContainer>
     </PageLayout>

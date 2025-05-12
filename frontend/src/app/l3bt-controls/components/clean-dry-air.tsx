@@ -1,7 +1,7 @@
 import { Meter } from '@/app/ws-components/meter'
 
 /**
- * Clean Dry Air component for P3 controls
+ * Clean Dry Air component for L3BT controls
  * Displays clean dry air pressure information
  */
 export const ClearDryAir = () => {
@@ -10,7 +10,13 @@ export const ClearDryAir = () => {
       <Meter.Title label="L3BT Clean Dry Air" />
       <Meter.Card>
         <Meter.CardLabel>Pressure</Meter.CardLabel>
-        <Meter.SensorPressureConnected pvname="AI_BAR_PPS801" label="PP511" />
+        <Meter.SensorPressureConnected
+          pvname="AI_BAR_PP511"
+          label="PP511"
+          onDataUpdate={(msg) => {
+            console.log('Clean Dry Air Data Update', msg)
+          }}
+        />
       </Meter.Card>
     </Meter>
   )
