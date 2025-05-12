@@ -50,12 +50,17 @@ export interface SensorProps {
 /**
  * Component for displaying sensor pressure data
  */
-export const SensorPressure: FC<SensorProps> = ({ label, data }) => {
+export const SensorPressure: FC<SensorProps> = ({
+  label,
+  data,
+  isConnected,
+}) => {
+  const value = isConnected ? data?.value.toExponential(2) : 'N/A'
+  const unit = data?.units || 'N/A'
+
   return (
     <div className={styles.sensorContainer}>
-      <span className={styles.sensorData}>
-        {`${data?.value?.toExponential(2)} ${data?.units || ''}`}
-      </span>
+      <span className={styles.sensorData}>{`${value} ${unit}`}</span>
       <span className={styles.sensorLabel}>{label}</span>
     </div>
   )

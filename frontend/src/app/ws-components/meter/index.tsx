@@ -2,19 +2,20 @@
 
 import { withReactWebSocketData } from '../with-websocket-data'
 import { MeterContainer, SensorPressure } from './meter'
-import { 
-  MeterTitle, 
-  MeterLabel, 
-  MeterTitleButton, 
-  MeterCard, 
-  MeterCardLabel 
+import {
+  MeterTitle,
+  MeterLabel,
+  MeterTitleButton,
+  MeterCard,
+  MeterCardLabel,
 } from './meter-ui'
-import { 
-  ValveStatus, 
-  PumpSpeed, 
-  PumpContainer, 
-  ValveStatusConnected, 
-  PumpSpeedConnected 
+import {
+  ValveStatus,
+  PumpSpeed,
+  PumpContainer,
+  ValveStatusConnected,
+  PumpSpeedConnected,
+  PureValueConnected,
 } from './sensor-components'
 
 // Connected sensor components
@@ -22,7 +23,7 @@ const SensorPressureConnected = withReactWebSocketData(SensorPressure)
 
 /**
  * Meter component with compound pattern
- * 
+ *
  * Usage example:
  * <Meter>
  *   <Meter.Title label="Pressure Readings">
@@ -45,14 +46,10 @@ export const Meter = Object.assign(MeterContainer, {
   SensorPressureConnected,
   ValveStatusConnected,
   PumpSpeedConnected,
+  PureValueConnected,
   // Container components
   PumpContainer,
 })
 
 // Re-export base components for direct use
-export {
-  SensorPressure,
-  ValveStatus,
-  PumpSpeed,
-  PumpContainer,
-}
+export { SensorPressure, ValveStatus, PumpSpeed, PumpContainer }
