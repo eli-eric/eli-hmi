@@ -35,7 +35,7 @@ export function useWebSocket(url: string) {
     nextAttemptInSeconds: null,
     countdown: null,
   })
-  
+
   // Store reconnect attempts in a ref to persist between renders and reconnections
   const reconnectAttemptsRef = useRef<number>(0)
 
@@ -155,9 +155,11 @@ export function useWebSocket(url: string) {
     const delay = Math.floor(exponentialDelay + jitter)
 
     console.log(
-      `Scheduling reconnection attempt ${reconnectAttempts} in ${delay}ms (${Math.round(delay/1000)}s)`,
+      `Scheduling reconnection attempt ${reconnectAttempts} in ${delay}ms (${Math.round(
+        delay / 1000,
+      )}s)`,
     )
-    
+
     // Log attempt details for debugging
     console.log(`WebSocket reconnection details:
       - Total attempts: ${reconnectAttempts}
@@ -217,9 +219,12 @@ export function useWebSocket(url: string) {
   // Helper to send subscription message
   const sendSubscription = useCallback(
     (channel: string) => {
+      const pvs = new Map<string, boolean>()
+      pvs.set(channel, true)
+      console.log(`MAP to ${pvs}`)
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         console.log(`Subscribing to ${channel}`)
-        send({ type: 'subscribe', pvs: [channel] })
+        send({ type: 'subscribe', pvs: { [channel]: true } })
       } else {
         console.log(
           `Not connected, will subscribe to ${channel} when connection is established`,
@@ -227,7 +232,7 @@ export function useWebSocket(url: string) {
 
         // Add one-time event listener for connection
         const onOpen = () => {
-          send({ type: 'subscribe', pvs: [channel] })
+          send({ type: 'subscribe', pvs: { [channel]: true } })
         }
 
         if (wsRef.current) {
@@ -249,7 +254,7 @@ export function useWebSocket(url: string) {
     (channel: string) => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         console.log(`Unsubscribing from ${channel}`)
-        send({ type: 'unsubscribe', pvs: [channel] })
+        send({ type: 'unsubscribe', pvs: { [channel]: true } })
       }
     },
     [send],
