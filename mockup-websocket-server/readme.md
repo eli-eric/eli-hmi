@@ -50,7 +50,7 @@ Connect to **`ws://localhost:8080/ws/pvs`**.
 // request
 {
   "type": "subscribe",
-  "pvs": ["AI_TEMP", "BI_DOOR"]
+  "pvs": { "AI_TEMP": true, "BI_DOOR": true }
 }
 ```
 
@@ -59,7 +59,16 @@ Connect to **`ws://localhost:8080/ws/pvs`**.
 ```jsonc
 {
   "type": "unsubscribe",
-  "pvs": ["BI_DOOR"]
+  "pvs": { "BI_DOOR": true }
+}
+```
+
+### Set PV (aka caput)
+
+```jsonc
+{
+  "type": "set",
+  "pvs": { "BI_DOOR": true, "AI_MOTOR_POS_X": 42.5 }
 }
 ```
 
@@ -85,9 +94,9 @@ A fresh message is broadcast roughly every **400 ms** (by default) for every PV 
 
 Even if a PV is in _auto_ mode you can override its value at any time; the change is broadcast immediately to every subscriber.
 
-| Verb | Path               | Value rules                                                                                                   |
-| ---- | ------------------ | ------------------------------------------------------------------------------------------------------------- |
-| GET  | `/pv/:name/:value` | _`AI\__`PV →`:value` is parsed as **float64**<br>*`BI\_\*`PV →`:value` is parsed as **bool** (`true`/`false`) |
+| Verb | Path               | Value rules                                                                                                     |
+| ---- | ------------------ | --------------------------------------------------------------------------------------------------------------- |
+| GET  | `/pv/:name/:value` | \_`AI\__`PV →`:value` is parsed as **float64**<br>\*`BI\_\*`PV →`:value` is parsed as **bool** (`true`/`false`) |
 
 Examples
 
