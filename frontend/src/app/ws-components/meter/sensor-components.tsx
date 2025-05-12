@@ -39,6 +39,7 @@ interface PumpSpeedProps {
 
 export const PumpSpeed: FC<PumpSpeedProps> = ({ data, isConnected }) => {
   const getSpeedLabel = (value?: number) => {
+    //TODO: Add a more sophisticated speed label
     if (value === undefined) return 'N/A'
     if (value > 80) return 'Full Speed'
     else if (value > 60) return 'High Speed'
