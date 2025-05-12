@@ -12,6 +12,7 @@ import { P3Interlocks } from './components/P3Interlocks'
 import { P3MachineSafetyPermission } from './components/P3MachineSafetyPermission'
 import { ClearDryAir } from './components/clean-dry-air'
 import { Backing } from './components/backing'
+import { Roughing } from './components/roughing'
 
 export default function P3ControlsPage() {
   return (
@@ -27,6 +28,7 @@ export default function P3ControlsPage() {
         <SectionContainer>
           <ClearDryAir />
           <Backing />
+          <Roughing />
         </SectionContainer>
       </BottomContainer>
     </PageLayout>

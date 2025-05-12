@@ -7,19 +7,15 @@ import { Meter } from '@/app/ws-components/meter'
 export const Backing = () => {
   return (
     <Meter>
-      <Meter.Title label="L3BT Backing" />
+      <Meter.Title label="P3 Backing" />
       {/* Backing line pressure section */}
       <Meter.PumpContainer>
         <Meter.Label label="P3 Backing line" />
         <Meter.Card>
           <Meter.CardLabel>Pressure</Meter.CardLabel>
           <Meter.SensorPressureConnected
-            pvname="AI_MBAR_APG512"
-            label="APG512 CH010"
-          />
-          <Meter.SensorPressureConnected
-            pvname="AI_MBAR_APG532"
-            label="APG532 CH055"
+            pvname="AI_MBAR_APG802"
+            label="APG802"
           />
         </Meter.Card>
       </Meter.PumpContainer>

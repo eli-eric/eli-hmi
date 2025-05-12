@@ -39,8 +39,12 @@ type ResponseMessage struct {
 var (
 	aiMode   = 2 // 1 = autosimulate, 2 = manual
 	biMode   = 2 // 1 = autosimulate, 2 = manual
+	pvMode   = 2 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
+	
+	// Random words for PV string mode
+	randomWords = []string{"quantum", "velocity", "catalyst", "fusion", "matrix", "nebula", "synergy", "vortex", "photon", "zephyr"}
 
 	// pvRegistry: pvName -> *pvSim
 	pvRegistry   = make(map[string]*pvSim)
@@ -117,6 +121,8 @@ func (ps *pvSim) shouldSimulate() bool {
 		return aiMode == 1
 	case strings.HasPrefix(ps.name, "BI_"):
 		return biMode == 1
+	case strings.HasPrefix(ps.name, "PV_"):
+		return pvMode == 1
 	default:
 		return true
 	}
@@ -278,6 +284,9 @@ func setPvHandler(c echo.Context) error {
 		if err != nil {
 			return c.String(http.StatusBadRequest, "bool expected for BI_")
 		}
+	case strings.HasPrefix(name, "PV_"):
+		// For PVs, just use the raw string value
+		val = rawVal
 	default: // treat as AI_ / number
 		val, err = strconv.ParseFloat(rawVal, 64)
 		if err != nil {
@@ -318,6 +327,8 @@ func synthValue(name string) interface{} {
 		return 50 + rng.NormFloat64()*5
 	case strings.HasPrefix(name, "BI_"):
 		return rng.Intn(2) == 0
+	case strings.HasPrefix(name, "PV_"):
+		return randomWords[rng.Intn(len(randomWords))]
 	default:
 		return rng.Float64()
 	}
