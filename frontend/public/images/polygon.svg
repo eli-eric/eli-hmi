@@ -1,0 +1,26 @@
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="40"
+    height="22"
+    viewBox="0 0 40 22"
+    >
+  <title>test2</title>
+  <g>
+    <path
+      stroke-width="1.4992501501074151"
+      stroke-miterlimit="4"
+      d="M1.4863 21.5277v-19.712l19.3236 9.856-19.3236 9.856z"
+      transform="translate(-0.77847498, -0.71226312)"
+      fill="none"
+      stroke="#000000"
+      />
+    <path
+      stroke-width="1.4990801693645157"
+      stroke-miterlimit="4"
+      d="M1.4735 21.3427v-19.5426l19.1575 9.7713-19.1575 9.7713z"
+      transform="translate(40.77150409, 22.54489263) rotate(180)"
+      fill="none"
+      stroke="#000000"
+      />
+  </g>
+</svg>
