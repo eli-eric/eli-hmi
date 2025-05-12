@@ -18,6 +18,7 @@
   font-size: 0.75rem;
   font-style: normal;
   font-weight: 400;
+  height: 100%;
   line-height: normal;
 }
 
@@ -26,6 +27,22 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.25rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.sensorData {
+  font-size: 0.875rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+}
+
+.sensorLabel {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
 }
 
 .sensorContainer:not(:last-child) {
