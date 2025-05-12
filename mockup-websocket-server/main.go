@@ -20,8 +20,8 @@ import (
 /* ----------------------------- payloads ---------------------------------- */
 
 type RequestMessage struct {
-	Type string   `json:"type"` // "subscribe" | "unsubscribe"
-	PVs  []string `json:"pvs"`
+	Type string                 `json:"type"` // "subscribe" | "unsubscribe"
+	PVs  map[string]interface{} `json:"pvs"`
 }
 
 type ResponseMessage struct {
@@ -42,7 +42,7 @@ var (
 	siMode   = 2 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
-	
+
 	// Random words for PV string mode
 	randomWords = []string{"quantum", "velocity", "catalyst", "fusion", "matrix", "nebula", "synergy", "vortex", "photon", "zephyr"}
 
@@ -237,7 +237,7 @@ func wsHandler(c echo.Context) error {
 
 		switch req.Type {
 		case "subscribe":
-			for _, pvName := range req.PVs {
+			for pvName, _ := range req.PVs {
 				pv := strings.TrimSpace(pvName)
 				if pv == "" || cl.subs[pv] != nil {
 					continue
@@ -247,7 +247,7 @@ func wsHandler(c echo.Context) error {
 				cl.subs[pv] = ps
 			}
 		case "unsubscribe":
-			for _, pvName := range req.PVs {
+			for pvName, _ := range req.PVs {
 				pv := strings.TrimSpace(pvName)
 				if pv == "" {
 					continue
