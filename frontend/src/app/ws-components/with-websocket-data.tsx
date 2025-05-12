@@ -11,7 +11,6 @@ interface WithWebSocketDataProps<T> {
 
 /**
  * Higher-Order Component that subscribes to WebSocket data
- * This is a React pattern version of the original withWebSocketData HOC
  */
 export function withReactWebSocketData<T, P>(
   WrappedComponent: React.ComponentType<P & { data: Message<T> | null }>,
@@ -21,7 +20,7 @@ export function withReactWebSocketData<T, P>(
     onDataUpdate,
     ...props
   }) => {
-    const { subscribe } = useWebSocketContext()
+    const { subscribe, isConnected } = useWebSocketContext()
     const [data, setData] = useState<Message<T> | null>(null)
     const [mounted, setMounted] = useState(false)
 
@@ -56,9 +55,9 @@ export function withReactWebSocketData<T, P>(
 
     if (!mounted) {
       // Return a simple placeholder during SSR to avoid hydration issues
-      return <WrappedComponent {...(props as P)} data={null} />
+      return <WrappedComponent {...(props as P)} data={null} isConnected={false} />
     }
-    return <WrappedComponent {...(props as P)} data={data} />
+    return <WrappedComponent {...(props as P)} data={data} isConnected={isConnected} />
   }
 
   HOC.displayName = `withReactWebSocketData(${

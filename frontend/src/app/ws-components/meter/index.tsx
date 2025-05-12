@@ -13,6 +13,7 @@ import {
 import style from './meter.module.css'
 import { Message } from '@/lib/websocket-provider/message'
 import { withReactWebSocketData } from '../with-websocket-data'
+import { Container, SensorPumpOpenPV, SensorPumpSpeedPV } from './sensor-pump'
 
 const MeterContext = createContext<{ value: number | null }>({ value: null })
 
@@ -66,19 +67,19 @@ const CardLabel: FC<PropsWithChildren> = ({ children }) => {
 interface SensorProps {
   label?: string
   data?: Message<number> | null
+  isConnected?: boolean
 }
 
-const Sensor: FC<SensorProps> = ({ label, data }) => {
+const SensorPressure: FC<SensorProps> = ({ label, data }) => {
   return (
     <div className={style.sensorContainer}>
-      <span>{`${data?.value?.toExponential(2)} ${
-        data?.units && data.units
-      }`}</span>
-      <span>{label}</span>
+      <span className={style.sensorData}>{`${data?.value?.toExponential(2)} ${data?.units && data.units
+        }`}</span>
+      <span className={style.sensorLabel}>{label}</span>
     </div>
   )
 }
-const SensorPV = withReactWebSocketData(Sensor)
+const SensorPressurePV = withReactWebSocketData(SensorPressure)
 
 export const Meter = Object.assign(MeterContainer, {
   Title,
@@ -86,5 +87,8 @@ export const Meter = Object.assign(MeterContainer, {
   TitleButton,
   Card,
   CardLabel,
-  SensorPV,
+  SensorPressurePV,
+  SensorPumpOpenPV,
+  SensorPumpSpeedPV,
+  Container,
 })

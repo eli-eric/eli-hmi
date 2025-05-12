@@ -3,9 +3,9 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.5rem;
   align-self: stretch;
   padding: 0.5rem;
+  min-height: 20rem;
   width: 100%;
   position: relative;
   overflow: visible;

@@ -37,8 +37,8 @@ type ResponseMessage struct {
 /* --------------------------- globals ------------------------------------- */
 
 var (
-	aiMode   = 1 // 1 = autosimulate, 2 = manual
-	biMode   = 1 // 1 = autosimulate, 2 = manual
+	aiMode   = 2 // 1 = autosimulate, 2 = manual
+	biMode   = 2 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -324,8 +324,19 @@ func synthValue(name string) interface{} {
 }
 
 func unitsFor(name string) string {
-	if strings.HasPrefix(name, "AI_TEMP") {
+	switch {
+	case strings.HasPrefix(name, "AI_TEMP"):
 		return "°C"
+	case strings.HasPrefix(name, "AI_BAR"):
+		return "bar"
+	case strings.HasPrefix(name, "AI_MBAR"):
+		return "mbar"
+	case strings.HasPrefix(name, "AI_K"):
+		return "K"
+	case strings.HasPrefix(name, "AI_RPM"):
+		return "RPM"
+	default:
+		return ""
 	}
-	return ""
+
 }
