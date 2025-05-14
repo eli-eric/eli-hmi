@@ -4,7 +4,7 @@ import { createContext, FC, useContext } from 'react'
 import { ContainerCard } from '@/components/ui/cards'
 import { Message } from '@/lib/websocket-provider/message'
 
-import styles from './VolumePanel.module.css'
+import styles from './volume-panel.module.css'
 
 // Context type for VolumePanel data
 interface VolumePanelContextValue {

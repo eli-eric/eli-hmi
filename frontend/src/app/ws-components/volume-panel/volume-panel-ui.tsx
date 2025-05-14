@@ -5,7 +5,7 @@ import { ContentCard } from '@/components/ui/cards'
 import { CardTitle } from '@/components/ui/cards/card-title'
 import { ClearButton } from '@/components/ui/buttons'
 
-import styles from './VolumePanel.module.css'
+import styles from './volume-panel.module.css'
 
 /**
  * Title component for VolumePanel displays
