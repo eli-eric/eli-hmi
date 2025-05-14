@@ -221,7 +221,7 @@ export function useWebSocket(url: string) {
     (channel: string) => {
       const pvs = new Map<string, boolean>()
       pvs.set(channel, true)
-      console.log(`MAP to ${pvs}`)
+      console.log(`Subscribing to ${pvs}`)
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         console.log(`Subscribing to ${channel}`)
         send({ type: 'subscribe', pvs: { [channel]: true } })

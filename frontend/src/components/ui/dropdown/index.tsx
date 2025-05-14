@@ -1,19 +1,14 @@
 'use client'
 
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { ReactNode, useState } from 'react'
+import React, { ReactNode, useRef } from 'react'
 import styles from './dropdown.module.css'
 import containerStyles from './dropdown-container.module.css'
-import { SettingsButton } from '../buttons'
 
 interface DropdownProps {
   items: DropdownItem[]
-  title?: string
-  trigger?: ReactNode
-  align?: 'start' | 'center' | 'end'
-  side?: 'top' | 'right' | 'bottom' | 'left'
-  className?: string
-  width?: string | number
+  renderTrigger: () => ReactNode
+  disabled?: boolean
 }
 
 export interface DropdownItem {
@@ -22,43 +17,54 @@ export interface DropdownItem {
   disabled?: boolean
 }
 
+const ItemWrapper = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>((props, forwardedRef) => (
+  <div ref={forwardedRef} {...props} className={styles.item} />
+))
+
+ItemWrapper.displayName = 'ItemWrapper'
+
 export default function Dropdown({
   items,
-  title = 'Settings',
-  side = 'bottom',
-  width,
+  renderTrigger,
+  disabled = false,
 }: DropdownProps) {
-  const [open, setOpen] = useState(false)
-  
-  // Create a style object for the container with the width prop if provided
-  // Removed width style, the component will adapt to its parent
+  const triggerRef = useRef<HTMLDivElement>(null)
 
   return (
-    <div className={containerStyles.container}>
-      <div onClick={() => setOpen(!open)} className={styles.trigger} aria-label="Dropdown menu">
-        <span className={styles.title}>{title}</span>
-        <SettingsButton />
-      </div>
-
-      {open && (
-        <div className={styles.popoverContainer}>
-          <div className={styles.content}>
-            {items.map((item, index) => (
-              <button
-                key={index}
-                className={styles.item}
-                onClick={() => {
-                  if (item.onClick) item.onClick();
-                  setOpen(false);
-                }}
-                disabled={item.disabled}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild disabled={disabled}>
+        <div
+          ref={triggerRef}
+          className={`${styles.trigger} ${containerStyles.container}`}
+          aria-label="Dropdown menu"
+        >
+          {renderTrigger()}
         </div>
-      )}
-    </div>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          className={styles.content}
+          align={'start'}
+          side={'bottom'}
+        >
+          {items.map((item, index) => (
+            <DropdownMenu.Item
+              key={index}
+              asChild
+              onSelect={() => {
+                item.onClick?.()
+              }}
+              disabled={item.disabled}
+            >
+              <ItemWrapper>{item.label}</ItemWrapper>
+            </DropdownMenu.Item>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   )
 }

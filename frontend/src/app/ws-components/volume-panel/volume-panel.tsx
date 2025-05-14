@@ -4,37 +4,43 @@ import { createContext, FC, useContext } from 'react'
 import { ContainerCard } from '@/components/ui/cards'
 import { Message } from '@/lib/websocket-provider/message'
 
-import styles from './meter.module.css'
+import styles from './volume-panel.module.css'
 
-// Context type for meter data
-interface MeterContextValue {
+// Context type for VolumePanel data
+interface VolumePanelContextValue {
   value: number | null
 }
 
 // Create context with default values
-const MeterContext = createContext<MeterContextValue>({ value: null })
+const VolumePanelContext = createContext<VolumePanelContextValue>({
+  value: null,
+})
 
-// Hook for using meter context
-export const useMeter = (): MeterContextValue => {
-  const context = useContext(MeterContext)
+// Hook for using VolumePanel context
+export const useVolumePanel = (): VolumePanelContextValue => {
+  const context = useContext(VolumePanelContext)
   if (!context) {
-    throw new Error('useMeter must be used within a Meter component')
+    throw new Error(
+      'useVolumePanel must be used within a VolumePanel component',
+    )
   }
   return context
 }
 
-interface MeterContainerProps {
+interface VolumePanelContainerProps {
   children: React.ReactNode
 }
 
 /**
- * Primary container component for meter UI elements
+ * Primary container component for VolumePanel UI elements
  */
-export const MeterContainer: FC<MeterContainerProps> = ({ children }) => {
+export const VolumePanelContainer: FC<VolumePanelContainerProps> = ({
+  children,
+}) => {
   return (
-    <MeterContext.Provider value={{ value: null }}>
+    <VolumePanelContext.Provider value={{ value: null }}>
       <ContainerCard width="10rem">{children}</ContainerCard>
-    </MeterContext.Provider>
+    </VolumePanelContext.Provider>
   )
 }
 
