@@ -50,24 +50,24 @@ export function useWebSocketMulti<T>({
 
   // 1) Create a ref to mirror state
   const stateRef = useRef<State<T>>(state)
+
   useEffect(() => {
     stateRef.current = state
   }, [state])
 
   // 2) Store onDataUpdate in a ref
   const callbackRef = useRef(onDataUpdate)
+
   useEffect(() => {
     callbackRef.current = onDataUpdate
   }, [onDataUpdate])
 
   useEffect(() => {
     if (!isConnected || pvs.length === 0) return
-
     const unsubscribes = pvs.map((pv) =>
       subscribe<T>(pv, (msg) => {
         // Update state
         dispatch({ type: 'UPDATE', pv, msg })
-
         // Read the freshest state from stateRef
         const allMessages = [
           ...Object.values(stateRef.current).filter((m) => m.name !== pv),
@@ -81,7 +81,7 @@ export function useWebSocketMulti<T>({
       unsubscribes.forEach((u) => u())
       dispatch({ type: 'RESET' })
     }
-    // now only depends on the *values* that truly matter:
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pvs.join(','), subscribe, isConnected])
 
   return { state, isConnected }

@@ -17,8 +17,19 @@ const BottomContainer: FC<PropsWithChildren> = ({ children }) => {
   return <div className={styles.bottomContainer}>{children}</div>
 }
 
-const SectionContainer: FC<PropsWithChildren> = ({ children }) => {
-  return <div className={styles.sectionContainer}>{children}</div>
+interface SectionContainerProps {
+  gap?: string
+}
+
+const SectionContainer: FC<PropsWithChildren<SectionContainerProps>> = ({
+  children,
+  gap,
+}) => {
+  return (
+    <div className={styles.sectionContainer} style={{ gap }}>
+      {children}
+    </div>
+  )
 }
 
 export {
