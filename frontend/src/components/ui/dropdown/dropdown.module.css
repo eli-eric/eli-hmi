@@ -32,6 +32,18 @@
   width: var(--radix-dropdown-menu-trigger-width); /* Match trigger width */
   min-width: var(--radix-dropdown-menu-trigger-width);
   max-width: 100%;
+  display: none; /* defaultně schované */
+}
+
+.content[data-state='open'] {
+  display: block;
+}
+
+/* (volitelné) animace jen na open stav */
+.content[data-state='open'] {
+  animation-duration: 0.2s;
+  animation-name: slideUpAndFade;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .content[data-side='top'] {

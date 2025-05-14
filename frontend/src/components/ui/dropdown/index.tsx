@@ -1,7 +1,7 @@
 'use client'
 
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import React, { ReactNode, useEffect, useRef, useState } from 'react'
+import React, { ReactNode, useRef } from 'react'
 import styles from './dropdown.module.css'
 import containerStyles from './dropdown-container.module.css'
 
@@ -32,13 +32,9 @@ export default function Dropdown({
   disabled = false,
 }: DropdownProps) {
   const triggerRef = useRef<HTMLDivElement>(null)
-  const [open, setOpen] = useState(false)
-  useEffect(() => {
-    console.log('open', open)
-  }, [open])
 
   return (
-    <DropdownMenu.Root open={open} onOpenChange={setOpen}>
+    <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild disabled={disabled}>
         <div
           ref={triggerRef}
@@ -60,7 +56,6 @@ export default function Dropdown({
               key={index}
               asChild
               onSelect={() => {
-                setOpen(false)
                 item.onClick?.()
               }}
               disabled={item.disabled}
