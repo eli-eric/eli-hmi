@@ -1,4 +1,4 @@
-import { Meter } from '@/app/ws-components/meter'
+import { VolumePanel } from '@/app/ws-components/VolumePanel'
 
 /**
  * Roughing component for P3 controls
@@ -6,34 +6,34 @@ import { Meter } from '@/app/ws-components/meter'
  */
 export const Roughing = () => {
   return (
-    <Meter>
-      <Meter.Title label="Roughing" />
+    <VolumePanel>
+      <VolumePanel.Title label="Roughing" />
       {/* Backing line pressure section */}
-      <Meter.PumpContainer>
-        <Meter.Label label="Roughing Line, P3 Outlet" />
-        <Meter.Card>
-          <Meter.CardLabel>Pressure</Meter.CardLabel>
-          <Meter.SensorPressureConnected
+      <VolumePanel.PumpContainer>
+        <VolumePanel.Label label="Roughing Line, P3 Outlet" />
+        <VolumePanel.Card>
+          <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
+          <VolumePanel.SensorPressureConnected
             pvname="AI_MBAR_APG501"
             label="APG501 CH030"
           />
-          <Meter.SensorPressureConnected
+          <VolumePanel.SensorPressureConnected
             pvname="AI_MBAR_APG531"
             label="APG531 CH040"
           />
-        </Meter.Card>
-      </Meter.PumpContainer>
+        </VolumePanel.Card>
+      </VolumePanel.PumpContainer>
 
       {/* Backing pump status section */}
-      <Meter.PumpContainer>
-        <Meter.Label label="Roughing Pump P04" />
-        <Meter.PumpSpeedConnected pvname="AI_RPM_SPEED_P04" />
-        <Meter.ValveStatusConnected pvname="BI_PUMP_P04" label="GV821" />
-      </Meter.PumpContainer>
-      <Meter.PumpContainer>
-        <Meter.Label label="Used And Locked By" />
-        <Meter.PureValueConnected pvname="SI_LOCKED" />
-      </Meter.PumpContainer>
-    </Meter>
+      <VolumePanel.PumpContainer>
+        <VolumePanel.Label label="Roughing Pump P04" />
+        <VolumePanel.PumpSpeedConnected pvname="AI_RPM_SPEED_P04" />
+        <VolumePanel.ValveStatusConnected pvname="BI_PUMP_P04" label="GV821" />
+      </VolumePanel.PumpContainer>
+      <VolumePanel.PumpContainer>
+        <VolumePanel.Label label="Used And Locked By" />
+        <VolumePanel.PureValueConnected pvname="SI_LOCKED" />
+      </VolumePanel.PumpContainer>
+    </VolumePanel>
   )
 }

@@ -1,4 +1,4 @@
-import { Meter } from '@/app/ws-components/meter'
+import { VolumePanel } from '@/app/ws-components/VolumePanel'
 
 /**
  * Clean Dry Air component for L3BT controls
@@ -6,18 +6,18 @@ import { Meter } from '@/app/ws-components/meter'
  */
 export const ClearDryAir = () => {
   return (
-    <Meter>
-      <Meter.Title label="L3BT Clean Dry Air" />
-      <Meter.Card>
-        <Meter.CardLabel>Pressure</Meter.CardLabel>
-        <Meter.SensorPressureConnected
+    <VolumePanel>
+      <VolumePanel.Title label="L3BT Clean Dry Air" />
+      <VolumePanel.Card>
+        <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
+        <VolumePanel.SensorPressureConnected
           pvname="AI_BAR_PP511"
           label="PP511"
           onDataUpdate={(msg) => {
             console.log('Clean Dry Air Data Update', msg)
           }}
         />
-      </Meter.Card>
-    </Meter>
+      </VolumePanel.Card>
+    </VolumePanel>
   )
 }

@@ -1,4 +1,4 @@
-import { Meter } from '@/app/ws-components/meter'
+import { VolumePanel } from '@/app/ws-components/volume-panel'
 
 /**
  * Backing component for P3 controls
@@ -6,26 +6,26 @@ import { Meter } from '@/app/ws-components/meter'
  */
 export const Backing = () => {
   return (
-    <Meter>
-      <Meter.Title label="P3 Backing" />
+    <VolumePanel>
+      <VolumePanel.Title label="P3 Backing" />
       {/* Backing line pressure section */}
-      <Meter.PumpContainer>
-        <Meter.Label label="P3 Backing line" />
-        <Meter.Card>
-          <Meter.CardLabel>Pressure</Meter.CardLabel>
-          <Meter.SensorPressureConnected
+      <VolumePanel.PumpContainer>
+        <VolumePanel.Label label="P3 Backing line" />
+        <VolumePanel.Card>
+          <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
+          <VolumePanel.SensorPressureConnected
             pvname="AI_MBAR_APG802"
             label="APG802"
           />
-        </Meter.Card>
-      </Meter.PumpContainer>
+        </VolumePanel.Card>
+      </VolumePanel.PumpContainer>
 
       {/* Backing pump status section */}
-      <Meter.PumpContainer>
-        <Meter.Label label="P3 Backing Pump P01" />
-        <Meter.PumpSpeedConnected pvname="AI_RPM_SPEED_P01" />
-        <Meter.ValveStatusConnected pvname="BI_PUMP_P01" label="GV154" />
-      </Meter.PumpContainer>
-    </Meter>
+      <VolumePanel.PumpContainer>
+        <VolumePanel.Label label="P3 Backing Pump P01" />
+        <VolumePanel.PumpSpeedConnected pvname="AI_RPM_SPEED_P01" />
+        <VolumePanel.ValveStatusConnected pvname="BI_PUMP_P01" label="GV154" />
+      </VolumePanel.PumpContainer>
+    </VolumePanel>
   )
 }

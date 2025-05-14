@@ -1,4 +1,4 @@
-import { Meter } from '@/app/ws-components/meter'
+import { VolumePanel } from '@/app/ws-components/volume-panel'
 
 /**
  * Clean Dry Air component for P3 controls
@@ -6,12 +6,15 @@ import { Meter } from '@/app/ws-components/meter'
  */
 export const ClearDryAir = () => {
   return (
-    <Meter>
-      <Meter.Title label="P3 Clean Dry Air" />
-      <Meter.Card>
-        <Meter.CardLabel>Pressure</Meter.CardLabel>
-        <Meter.SensorPressureConnected pvname="AI_BAR_PPS801" label="PPS801" />
-      </Meter.Card>
-    </Meter>
+    <VolumePanel>
+      <VolumePanel.Title label="P3 Clean Dry Air" />
+      <VolumePanel.Card>
+        <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
+        <VolumePanel.SensorPressureConnected
+          pvname="AI_BAR_PPS801"
+          label="PPS801"
+        />
+      </VolumePanel.Card>
+    </VolumePanel>
   )
 }
