@@ -55,8 +55,9 @@ export default function P3ControlsPage() {
           <Conector>
             <Conector.Line>
               <Conector.Valve label="SGV503">
-                <Conector.ValveStatus
-                  pvNames={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
+                <Conector.ValveControlStatus
+                  controlPvs={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
+                  statusPvs={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
                 />
               </Conector.Valve>
             </Conector.Line>

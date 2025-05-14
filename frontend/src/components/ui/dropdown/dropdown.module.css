@@ -4,33 +4,33 @@
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  background: #d9d9d9;
-  border: none;
-  width: 100%;
-  padding: 1.5rem;
+  width: 100%; /* Ensure the trigger takes full width */
+  padding: 0.5rem;
+  gap: 0.5rem;
   box-sizing: border-box;
 }
-
-.popoverContainer {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  width: 100%;
-  z-index: 9999;
-  box-sizing: border-box;
+.trigger:hover {
+  background-color: #f0f0f0; /* Highlight on hover */
 }
 
+.trigger[data-disabled] {
+  pointer-events: none;
+}
+.trigger[data-disabled]:hover {
+  pointer-events: none;
+  background-color: transparent;
+  color: #aaa; /* Disabled state color */
+}
 .content {
-  width: 100%;
-  background-color: #e6e6e6;
-  border-radius: 0;
+  background-color: #ffffff; /* Set a solid background color */
   padding: 0;
   margin: 0;
   box-sizing: border-box;
   animation-duration: 0.2s;
   animation-name: slideUpAndFade;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  width: var(--radix-dropdown-menu-trigger-width); /* Match trigger width */
+  min-width: var(--radix-dropdown-menu-trigger-width);
   max-width: 100%;
 }
 
@@ -48,108 +48,35 @@
   /* Remove any slight gap */
 }
 
-.content[data-side='left'] {
-  animation-name: slideRightAndFade;
-}
-
-.content[data-side='right'] {
-  animation-name: slideLeftAndFade;
-}
-
 .item {
   all: unset;
   display: flex;
   align-items: center;
   justify-content: left;
-  padding: 1.5rem;
+  padding: 0.5rem 0.5rem;
   position: relative;
   user-select: none;
-  line-height: 1;
   cursor: pointer;
-  color: #000;
+  color: #333;
+  width: var(--radix-dropdown-menu-trigger-width); /* Match trigger width */
+  box-sizing: border-box;
+  text-align: left;
+  background-color: #e6e6e6; /* Ensure a solid background color */
   font-size: 0.75rem;
   font-style: normal;
   font-weight: 400;
   line-height: normal;
-  width: 100%;
-  box-sizing: border-box;
-  text-align: center;
 }
 
 .item:hover {
-  background: #d9d9d9;
-}
-
-.item:first-child {
-  border-top: 0.5px solid #8d8d8d;
+  background-color: #f0f0f0; /* Highlight on hover */
 }
 
 .item:active {
-  background-color: #c1c1c1;
+  background-color: #c1c1c1; /* Active state background */
 }
 
 .item[data-disabled] {
   pointer-events: none;
-}
-
-.separator {
-  height: 0.1rem;
-  background-color: #d1d1d1;
-  margin: 0;
-}
-
-.title {
-  color: #000;
-  font-size: 0.875rem;
-  font-style: normal;
-  font-weight: 700;
-  line-height: normal;
-}
-
-@keyframes slideUpAndFade {
-  from {
-    opacity: 0;
-    transform: translateY(0.1rem);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideDownAndFade {
-  from {
-    opacity: 0;
-    transform: translateY(-0.1rem);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideRightAndFade {
-  from {
-    opacity: 0;
-    transform: translateX(-0.4rem);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slideLeftAndFade {
-  from {
-    opacity: 0;
-    transform: translateX(0.4rem);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  color: #aaa; /* Disabled state color */
 }
