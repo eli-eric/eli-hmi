@@ -1,0 +1,26 @@
+.trigger {
+  display: flex;
+  padding: 0.5rem;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.trigger:hover {
+  opacity: 0.6;
+}
+
+.triggerContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  align-self: stretch;
+}
+
+.triggerContainer span {
+  color: #000;
+  font-family: 'Roboto Condensed';
+  font-size: 0.875rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+}

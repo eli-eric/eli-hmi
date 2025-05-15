@@ -28,7 +28,6 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
             alignItems: 'center',
             padding: '0.5rem',
             gap: '0.5rem',
-            backgroundColor: isDisabled ? 'transparent' : '#B8B8B8',
           }}
         >
           <ValveStatus onStatusUpdate={onStatusUpdate} pvNames={statusPvs} />

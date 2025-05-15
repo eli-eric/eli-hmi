@@ -32,8 +32,13 @@ const SectionContainer: FC<PropsWithChildren<SectionContainerProps>> = ({
   )
 }
 
+const Row: FC<PropsWithChildren> = ({ children }) => {
+  return <div className={styles.row}>{children}</div>
+}
+
 export {
   PageLayout,
+  Row,
   TopContainer,
   BottomContainer,
   TopContentContainer,

@@ -1,7 +1,7 @@
-import { Message } from '@/lib/websocket-provider/message'
 import { ListItem } from '@/components/ui/lists/list-item'
 import { withReactWebSocketData } from '../with-websocket-data'
 import { useWebSocketContext } from '@/app/providers/socket-provider'
+import { Message } from '@/app/providers/types'
 
 interface InterlockItemProps {
   data?: Message<boolean> | null
