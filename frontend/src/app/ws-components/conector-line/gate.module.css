@@ -1,0 +1,36 @@
+.container {
+  display: inline-flex;
+  padding: 0.5rem;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.5rem;
+  background: #e6e6e6;
+  color: #000;
+  white-space: nowrap;
+}
+
+.container:hover {
+  opacity: 0.6;
+}
+
+.name {
+  font-size: 0.875rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.label {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.valueContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}

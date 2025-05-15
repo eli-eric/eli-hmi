@@ -17,6 +17,7 @@ import {
   PumpSpeedConnected,
   PureValueConnected,
 } from './sensor-components'
+import { StateControl } from './state-control'
 
 // Connected sensor components
 const SensorPressureConnected = withReactWebSocketData(SensorPressure)
@@ -49,6 +50,7 @@ export const VolumePanel = Object.assign(VolumePanelContainer, {
   PureValueConnected,
   // Container components
   PumpContainer,
+  StateControl: StateControl,
 })
 
 // Re-export base components for direct use

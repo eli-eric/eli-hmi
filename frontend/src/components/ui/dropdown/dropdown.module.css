@@ -9,9 +9,6 @@
   gap: 0.5rem;
   box-sizing: border-box;
 }
-.trigger:hover {
-  background-color: #f0f0f0; /* Highlight on hover */
-}
 
 .trigger[data-disabled] {
   pointer-events: none;
@@ -33,6 +30,11 @@
   min-width: var(--radix-dropdown-menu-trigger-width);
   max-width: 100%;
   display: none; /* defaultně schované */
+}
+
+.trigger[data-state='open'] {
+  background-color: #B8B8B8;
+
 }
 
 .content[data-state='open'] {

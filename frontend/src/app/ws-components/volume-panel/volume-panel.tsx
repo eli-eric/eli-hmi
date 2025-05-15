@@ -29,6 +29,7 @@ export const useVolumePanel = (): VolumePanelContextValue => {
 
 interface VolumePanelContainerProps {
   children: React.ReactNode
+  width?: string
 }
 
 /**
@@ -36,10 +37,11 @@ interface VolumePanelContainerProps {
  */
 export const VolumePanelContainer: FC<VolumePanelContainerProps> = ({
   children,
+  width = '10rem',
 }) => {
   return (
     <VolumePanelContext.Provider value={{ value: null }}>
-      <ContainerCard width="10rem">{children}</ContainerCard>
+      <ContainerCard width={width}>{children}</ContainerCard>
     </VolumePanelContext.Provider>
   )
 }

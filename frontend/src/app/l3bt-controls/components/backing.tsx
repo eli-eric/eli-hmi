@@ -1,4 +1,4 @@
-import { VolumePanel } from '@/app/ws-components/VolumePanel'
+import { VolumePanel } from '@/app/ws-components/volume-panel'
 
 /**
  * Backing component for L3BT controls
