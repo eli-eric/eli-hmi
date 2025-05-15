@@ -15,6 +15,7 @@ import { L3BTInterlocks } from './components/L3BTInterlock'
 import { L3BTMachineSafetyPermission } from './components/L3BTMachineSafetyPermission'
 import { Conector } from '../ws-components/conector-line'
 import { S1Volume } from './components/s1-volume'
+import { S3Volume } from './components/s3-volume'
 
 export default function L3btPage() {
   const BI_SGV501_OPEN = 'BI_SGV501_OPEN'
@@ -63,7 +64,7 @@ export default function L3btPage() {
               </Conector.Valve>
             </Conector.Line>
             <Conector.Line>
-              <Conector.Valve label="SGV503">
+              <Conector.Valve label="SGV502">
                 <Conector.ValveStatus
                   pvNames={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
                 />
@@ -71,7 +72,7 @@ export default function L3btPage() {
               <Conector.LabelValue label="E2" />
             </Conector.Line>
             <Conector.Line>
-              <Conector.Valve label="SGV503">
+              <Conector.Valve label="SGV504">
                 <Conector.ValveStatus
                   pvNames={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
                 />
@@ -79,7 +80,7 @@ export default function L3btPage() {
               <Conector.LabelValue label="E4" />
             </Conector.Line>
             <Conector.Line>
-              <Conector.Valve label="SGV503">
+              <Conector.Valve label="SGV505">
                 <Conector.ValveStatus
                   pvNames={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
                 />
@@ -87,10 +88,10 @@ export default function L3btPage() {
               <Conector.LabelValue label="E5" />
             </Conector.Line>
           </Conector>
-          <Roughing />
+          <S3Volume />
           <Conector>
             <Conector.Line>
-              <Conector.Valve label="SGV503">
+              <Conector.Valve label="EGV501">
                 <Conector.ValveControlStatus
                   controlPvs={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
                   statusPvs={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}

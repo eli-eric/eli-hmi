@@ -39,3 +39,10 @@
   gap: 1rem;
   align-self: stretch;
 }
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.0625rem;
+  align-self: stretch;
+}

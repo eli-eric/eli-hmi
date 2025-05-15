@@ -57,6 +57,17 @@ export const PumpSpeed: FC<PumpSpeedProps> = ({ data, isConnected }) => {
     </div>
   )
 }
+
+const ValueUnit: FC<PumpSpeedProps> = ({ data, isConnected }) => {
+  const value = isConnected ? data?.value.toFixed(2) : 'N/A'
+
+  return (
+    <div className={styles.ValueUnit}>
+      <span>{`${value} ${data?.units}`}</span>
+    </div>
+  )
+}
+
 /**
  * Pump speed status component
  */
@@ -72,7 +83,7 @@ export const PureValue: FC<PumpSpeedProps> = ({ data, isConnected }) => {
 /**
  * Container for pump components
  */
-export const PumpContainer: FC<PropsWithChildren> = ({ children }) => {
+export const Container: FC<PropsWithChildren> = ({ children }) => {
   return <div className={styles.pumpContainer}>{children}</div>
 }
 
@@ -80,3 +91,4 @@ export const PumpContainer: FC<PropsWithChildren> = ({ children }) => {
 export const ValveStatusConnected = withReactWebSocketData(ValveStatus)
 export const PumpSpeedConnected = withReactWebSocketData(PumpSpeed)
 export const PureValueConnected = withReactWebSocketData(PureValue)
+export const ValueUnitConnected = withReactWebSocketData(ValueUnit)

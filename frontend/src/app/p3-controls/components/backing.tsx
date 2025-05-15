@@ -9,7 +9,7 @@ export const Backing = () => {
     <VolumePanel>
       <VolumePanel.Title label="P3 Backing" />
       {/* Backing line pressure section */}
-      <VolumePanel.PumpContainer>
+      <VolumePanel.Container>
         <VolumePanel.Label label="P3 Backing line" />
         <VolumePanel.Card>
           <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
@@ -18,14 +18,14 @@ export const Backing = () => {
             label="APG802"
           />
         </VolumePanel.Card>
-      </VolumePanel.PumpContainer>
+      </VolumePanel.Container>
 
       {/* Backing pump status section */}
-      <VolumePanel.PumpContainer>
+      <VolumePanel.Container>
         <VolumePanel.Label label="P3 Backing Pump P01" />
         <VolumePanel.PumpSpeedConnected pvname="AI_RPM_SPEED_P01" />
         <VolumePanel.ValveStatusConnected pvname="BI_PUMP_P01" label="GV154" />
-      </VolumePanel.PumpContainer>
+      </VolumePanel.Container>
     </VolumePanel>
   )
 }

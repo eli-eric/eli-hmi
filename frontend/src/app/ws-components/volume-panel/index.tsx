@@ -10,14 +10,14 @@ import {
   VolumePanelCardLabel,
 } from './volume-panel-ui'
 import {
-  ValveStatus,
-  PumpSpeed,
-  PumpContainer,
+  Container,
   ValveStatusConnected,
   PumpSpeedConnected,
   PureValueConnected,
+  ValueUnitConnected,
 } from './sensor-components'
 import { StateControl } from './state-control'
+import { Row } from '@/components/ui/layout'
 
 // Connected sensor components
 const SensorPressureConnected = withReactWebSocketData(SensorPressure)
@@ -48,10 +48,9 @@ export const VolumePanel = Object.assign(VolumePanelContainer, {
   ValveStatusConnected,
   PumpSpeedConnected,
   PureValueConnected,
+  ValueUnitConnected,
   // Container components
-  PumpContainer,
+  Container: Container,
   StateControl: StateControl,
+  Row: Row,
 })
-
-// Re-export base components for direct use
-export { SensorPressure, ValveStatus, PumpSpeed, PumpContainer }
