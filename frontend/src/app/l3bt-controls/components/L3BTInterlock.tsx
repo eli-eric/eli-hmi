@@ -24,7 +24,7 @@ const interlocks = [
 
 export const L3BTInterlocks = () => {
   return (
-    <VolumePanel>
+    <VolumePanel width="16rem">
       <VolumePanel.Title label="L3BT Interlocks">
         <ClearButton disabled />
       </VolumePanel.Title>
