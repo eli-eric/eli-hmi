@@ -1,4 +1,4 @@
-import { VolumePanel } from '@/app/ws-components/volume-panel'
+import { VolumePanel } from '@/components/ws-components/volume-panel'
 
 /**
  * Roughing component for P3 controls

@@ -13,8 +13,8 @@ import { P3MachineSafetyPermission } from './components/P3MachineSafetyPermissio
 import { ClearDryAir } from './components/clean-dry-air'
 import { Backing } from './components/backing'
 import { Roughing } from './components/roughing'
-import { ConnectorLine } from '../ws-components/connector-line'
 import { P3Volumes } from './components/p3-volumes'
+import { ConnectorLine } from '@/components/ws-components/connector-line'
 
 export default function P3ControlsPage() {
   return (

@@ -1,4 +1,4 @@
-import { VolumePanel } from '@/app/ws-components/volume-panel'
+import { VolumePanel } from '@/components/ws-components/volume-panel'
 
 /**
  * Clean Dry Air component for L3BT controls

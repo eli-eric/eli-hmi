@@ -1,6 +1,6 @@
 'use client'
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip'
-import { WebSocketProvider } from './providers/socket-provider'
+import { WebSocketProvider } from './socket-provider'
 
 export const Providers = ({ children }: { children: React.ReactNode }) => {
   return (
