@@ -1,9 +1,9 @@
-import Dropdown from '@/components/ui/dropdown'
 import { FC, useState } from 'react'
-import { VALVE_STATE, ValveStatus } from './valve'
+import Dropdown from '@/components/ui/dropdown'
 import { SettingsButton } from '@/components/ui/buttons'
-import { useWebSocket } from '@/lib/websocket-provider/useWebsocket'
 import { useWebSocketContext } from '@/app/providers/socket-provider'
+import { VALVE_STATE, ValveStatus } from './Valve'
+import styles from '../styles/valve.module.css'
 
 interface ValveControlStatusProps {
   statusPvs: string[]
@@ -26,14 +26,7 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
   return (
     <Dropdown
       renderTrigger={() => (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0.5rem',
-            gap: '0.5rem',
-          }}
-        >
+        <div className={styles.valve__control}>
           <ValveStatus onStatusUpdate={onStatusUpdate} pvNames={statusPvs} />
           <SettingsButton disabled={isDisabled} />
         </div>
@@ -49,15 +42,15 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
               },
             ]
           : status === VALVE_STATE.OPEN
-            ? [
-                {
-                  label: 'Close Valve',
-                  onClick: () => {
-                    send({ pvname: controlPvs[1], value: 0 })
-                  },
+          ? [
+              {
+                label: 'Close Valve',
+                onClick: () => {
+                  send({ pvname: controlPvs[1], value: 0 })
                 },
-              ]
-            : []
+              },
+            ]
+          : []
       }
       disabled={isDisabled}
     />

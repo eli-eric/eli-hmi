@@ -13,16 +13,13 @@ import { Backing } from './components/backing'
 import { Roughing } from './components/roughing'
 import { L3BTInterlocks } from './components/L3BTInterlock'
 import { L3BTMachineSafetyPermission } from './components/L3BTMachineSafetyPermission'
-import { Conector } from '../ws-components/conector-line'
 import { S1Volume } from './components/s1-volume'
 import { S3Volume } from './components/s3-volume'
+import { L3BTBisConnector } from './components/l3bt-bis-connector'
+import { L3BTSgvConnector } from './components/l3bt-sgv-connector'
+import { L3BTEgvConnector } from './components/l3bt-egv-connector'
 
 export default function L3btPage() {
-  const BI_SGV501_OPEN = 'BI_SGV501_OPEN'
-  const BI_SGV501_CLOSE = 'BI_SGV501_CLOSE'
-  const BI_LN34_OPEN = 'BI_LN34_OPEN'
-  const BI_LN34_CLOSE = 'BI_LN34_CLOSE'
-
   return (
     <PageLayout>
       <TopContainer>
@@ -39,72 +36,11 @@ export default function L3btPage() {
           <Roughing />
         </SectionContainer>
         <SectionContainer gap="0rem">
-          <Conector>
-            <Conector.Line>
-              <Conector.LabelValue label="L3 BIS" />
-              <Conector.Valve label="SGV501">
-                <Conector.ValveStatus
-                  pvNames={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
-                />
-              </Conector.Valve>
-              <Conector.LabelValue label="L3 CMP" />
-              <Conector.Valve label="LN34">
-                <Conector.ValveStatus pvNames={[BI_LN34_OPEN, BI_LN34_CLOSE]} />
-              </Conector.Valve>
-            </Conector.Line>
-          </Conector>
+          <L3BTBisConnector />
           <S1Volume />
-          <Conector>
-            <Conector.Line>
-              <Conector.Valve label="SGV503">
-                <Conector.ValveControlStatus
-                  controlPvs={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
-                  statusPvs={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
-                />
-              </Conector.Valve>
-            </Conector.Line>
-            <Conector.Line>
-              <Conector.Valve label="SGV502">
-                <Conector.ValveStatus
-                  pvNames={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
-                />
-              </Conector.Valve>
-              <Conector.LabelValue label="E2" />
-            </Conector.Line>
-            <Conector.Line>
-              <Conector.Valve label="SGV504">
-                <Conector.ValveStatus
-                  pvNames={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
-                />
-              </Conector.Valve>
-              <Conector.LabelValue label="E4" />
-            </Conector.Line>
-            <Conector.Line>
-              <Conector.Valve label="SGV505">
-                <Conector.ValveStatus
-                  pvNames={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
-                />
-              </Conector.Valve>
-              <Conector.LabelValue label="E5" />
-            </Conector.Line>
-          </Conector>
+          <L3BTSgvConnector />
           <S3Volume />
-          <Conector>
-            <Conector.Line>
-              <Conector.Valve label="EGV501">
-                <Conector.ValveControlStatus
-                  controlPvs={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
-                  statusPvs={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
-                />
-              </Conector.Valve>
-              <Conector.Gate
-                label="WRG801"
-                pvname="AI_MBAR_WRG801"
-                href="/p3-controls"
-                name="P3"
-              />
-            </Conector.Line>
-          </Conector>
+          <L3BTEgvConnector />
         </SectionContainer>
       </BottomContainer>
     </PageLayout>

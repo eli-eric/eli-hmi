@@ -1,8 +1,7 @@
+import { FC, useMemo } from 'react'
 import { PolygonIcon } from '@/components/ui/icons'
 import { State, useWebSocketMulti } from '@/hooks/useWebSocketData'
-
-import styles from './valve.module.css'
-import { FC, PropsWithChildren, useMemo } from 'react'
+import styles from '../styles/valve.module.css'
 
 export enum VALVE_STATE {
   OPEN = 'OPEN',
@@ -11,23 +10,29 @@ export enum VALVE_STATE {
   ERROR = 'ERROR',
 }
 
-interface SUValveStatusProps {
+interface ValveStatusProps {
   pvNames: string[]
   onStatusChange?: (status: State<boolean>) => VALVE_STATE
   onStatusUpdate?: (status: VALVE_STATE) => void
 }
 
-export const ValveStatus = ({
+/**
+ * ValveStatus component
+ *
+ * Displays the current status of a valve based on PV values
+ */
+export const ValveStatus: FC<ValveStatusProps> = ({
   pvNames,
   onStatusChange,
   onStatusUpdate,
-}: SUValveStatusProps) => {
+}) => {
   const { state, isConnected } = useWebSocketMulti<boolean>({
     pvs: pvNames,
     onDataUpdate: (data) => {
-      console.log('SU Valve Status Data Update', data)
+      console.log('Valve Status Data Update', data)
     },
   })
+
   const PV_OPEN = pvNames.find((pv) => pv.includes('OPEN'))
   const PV_CLOSE = pvNames.find((pv) => pv.includes('CLOSE'))
 
@@ -36,7 +41,6 @@ export const ValveStatus = ({
     if (PV_OPEN && PV_CLOSE) {
       if (state[PV_OPEN]?.value && state[PV_CLOSE]?.value) {
         onStatusUpdate?.(VALVE_STATE.ERROR)
-
         return VALVE_STATE.ERROR
       }
       if (state[PV_OPEN]?.value && !state[PV_CLOSE]?.value) {
@@ -61,38 +65,41 @@ export const ValveStatus = ({
   switch (valveState) {
     case VALVE_STATE.OPEN:
       return (
-        <div>
-          Valve is <span>OPEN</span>
+        <div className={styles.valve__status}>
+          Valve is <span className={styles.valve__status__value}>OPEN</span>
         </div>
       )
     case VALVE_STATE.CLOSED:
       return (
-        <div>
-          Valve is <span>CLOSED</span>
+        <div className={styles.valve__status}>
+          Valve is <span className={styles.valve__status__value}>CLOSED</span>
         </div>
       )
     case VALVE_STATE.TRANSITIONING:
-      return <div>In Transition...</div>
+      return <div className={styles.valve__status}>In Transition...</div>
     case VALVE_STATE.ERROR:
-      return <span>N/A</span>
+      return <span className={styles.valve__status__error}>N/A</span>
     default:
-      return <div>Valve state unknown</div>
+      return <div className={styles.valve__status}>Valve state unknown</div>
   }
 }
 
 interface ValveProps {
   label: string
+  children: React.ReactNode
 }
 
-export const Valve: FC<PropsWithChildren<ValveProps>> = ({
-  children,
-  label,
-}) => {
+/**
+ * Valve component
+ *
+ * Displays a valve with label and status
+ */
+export const Valve: FC<ValveProps> = ({ children, label }) => {
   return (
-    <div className={styles.container}>
-      <div className={styles.label}>{label}</div>
+    <div className={styles.valve}>
+      <div className={styles.valve__label}>{label}</div>
       <PolygonIcon />
-      <div className={styles.label}>{children}</div>
+      <div className={styles.valve__content}>{children}</div>
     </div>
   )
 }
