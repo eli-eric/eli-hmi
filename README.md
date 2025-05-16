@@ -1,59 +1,21 @@
-# ELI
+# ELI Beamlines Control System GUI
 
-# Mockup websocket server
+This project is an application designed for **control system operators** and **control system engineers** at ELI Beamlines. It provides a user-friendly interface for operators and an easy-to-setup GUI framework for engineers who may not be web frontend developers.
 
-## Description
+# Project structure
 
-This mockup server emulates a websocket server that produce random EPICS data based on subscribed PVs.
+## Frontend
 
-## How to run
+folder: `frontend`
 
-Using Go
+The frontend is built using Next.js and TypeScript. It includes a set of reusable components for building GUIs for control system operators.
+The components are designed to be easy to use and can be combined to create complex UIs. The frontend communicates with the backend using WebSocket connections.
+The WebSocket API is designed to be simple and intuitive, allowing for easy integration with the frontend components.
 
-```bash
-go run main.go
-```
+## Mockup WebSocket Server
 
-This will start a websocket server on `localhost:8080`.
-You can change the port by modifying the `port` variable in the `main.go` file.
-
-Using Docker
-
-```bash
-docker build -t mockup-server .
-docker run -p 8080:8080 mockup-server
-```
-
-This will start a websocket server on `localhost:8080` as well.
-
-## Usage
-
-Subscribe to a PV - WS message:
-
-````json
-{
-  "pvs": ["PV1"],
-  "type": "subscribe"
-}
-Subscribe with defined interval - WS message:
-```json
-{
-  "pvs": ["PV1"],
-  "type": "subscribe",
-  "interval_ms": 500
-}
-````
-
-Then you will receive messages like this:
-
-```json
-{
-  "type": "pv",
-  "name": "AI_1",
-  "value": 46.486046048625724,
-  "severity": 0,
-  "ok": true,
-  "timestamp": 1746000001.7116504,
-  "units": "mA"
-}
-```
+folder: `mockup-websocket-server`
+The mockup WebSocket server is a simple Go application that simulates the behavior of a control system. It provides a WebSocket API for testing and development purposes.
+The server can be run in two modes: automatic simulation mode and manual mode. In automatic simulation mode, the server generates random data for the control system parameters. In manual mode, the server allows for manual input of data.
+The server is designed to be easy to use and can be run locally or in a Docker container. It provides a simple API for subscribing to control system parameters and sending commands to the server.
+The server is designed to be used for testing and development purposes only and should not be used in a production environment.
