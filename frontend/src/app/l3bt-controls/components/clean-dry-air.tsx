@@ -8,7 +8,7 @@ export const ClearDryAir = () => {
   return (
     <VolumePanel>
       <VolumePanel.Title label="L3BT Clean Dry Air" />
-      <VolumePanel.Card>
+      <VolumePanel.Card height="22rem">
         <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
         <VolumePanel.SensorPressureConnected
           pvname="AI_BAR_PP511"

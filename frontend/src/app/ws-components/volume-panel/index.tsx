@@ -8,6 +8,7 @@ import {
   VolumePanelTitleButton,
   VolumePanelCard,
   VolumePanelCardLabel,
+  MultiVolumePanel,
 } from './volume-panel-ui'
 import {
   Container,
@@ -53,4 +54,5 @@ export const VolumePanel = Object.assign(VolumePanelContainer, {
   Container: Container,
   StateControl: StateControl,
   Row: Row,
+  MultiVolumes: MultiVolumePanel,
 })

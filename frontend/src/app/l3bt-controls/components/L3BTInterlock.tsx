@@ -28,7 +28,7 @@ export const L3BTInterlocks = () => {
       <VolumePanel.Title label="L3BT Interlocks">
         <ClearButton disabled />
       </VolumePanel.Title>
-      <VolumePanel.Card>
+      <VolumePanel.Card height="20rem">
         <Interlocks interlocks={interlocks} />
       </VolumePanel.Card>
     </VolumePanel>

@@ -83,8 +83,18 @@ export const PureValue: FC<PumpSpeedProps> = ({ data, isConnected }) => {
 /**
  * Container for pump components
  */
-export const Container: FC<PropsWithChildren> = ({ children }) => {
-  return <div className={styles.pumpContainer}>{children}</div>
+interface ContainerProps {
+  width?: string
+}
+export const Container: FC<PropsWithChildren<ContainerProps>> = ({
+  children,
+  width,
+}) => {
+  return (
+    <div className={styles.pumpContainer} style={{ width }}>
+      {children}
+    </div>
+  )
 }
 
 // WebSocket-connected components

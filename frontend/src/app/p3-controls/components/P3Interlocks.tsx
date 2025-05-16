@@ -40,7 +40,7 @@ export const P3Interlocks = () => {
       <CardTitle label="P3 Interlocks">
         <ClearButton disabled />
       </CardTitle>
-      <ContentCard>
+      <ContentCard height="20rem">
         <Interlocks interlocks={interlocks} />
       </ContentCard>
     </ContainerCard>
