@@ -1,4 +1,4 @@
-import { ConnectorLine } from '@/app/ws-components/connector-line'
+import { ConnectorLine } from '@/components/ws-components/connector-line'
 
 /**
  * L3BTSgvConnector component

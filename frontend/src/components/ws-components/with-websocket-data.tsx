@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
-import { Message } from '@/lib/websocket-provider/message'
 import { useWebSocketContext } from '@/app/providers/socket-provider'
+import { Message } from '@/app/providers/types'
 
 interface WithWebSocketDataProps<T> {
   pvname: string
@@ -55,9 +55,17 @@ export function withReactWebSocketData<T, P>(
 
     if (!mounted) {
       // Return a simple placeholder during SSR to avoid hydration issues
-      return <WrappedComponent {...(props as P)} data={null} isConnected={false} />
+      return (
+        <WrappedComponent {...(props as P)} data={null} isConnected={false} />
+      )
     }
-    return <WrappedComponent {...(props as P)} data={data} isConnected={isConnected} />
+    return (
+      <WrappedComponent
+        {...(props as P)}
+        data={data}
+        isConnected={isConnected}
+      />
+    )
   }
 
   HOC.displayName = `withReactWebSocketData(${

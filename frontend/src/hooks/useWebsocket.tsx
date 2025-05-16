@@ -1,7 +1,7 @@
 'use client'
 
+import { Message } from '@/app/providers/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Message } from './message'
 
 // Types
 type SubscriptionCallback<T = unknown> = (data: Message<T>) => void

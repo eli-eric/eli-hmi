@@ -1,6 +1,6 @@
 'use client'
-import { VolumePanel } from '@/app/ws-components/volume-panel'
 import { ClearButton } from '@/components/ui/buttons'
+import { VolumePanel } from '@/components/ws-components/volume-panel'
 
 /**
  * P3Interlocks component

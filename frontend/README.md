@@ -29,7 +29,7 @@ The compound component pattern allows you to compose complex UI components by co
 #### Example: Setting Up a Volume Panel
 
 ```tsx
-import { VolumePanel } from '@/app/ws-components/volume-panel'
+import { VolumePanel } from '@/components/ws-components/volume-panel'
 
 export const ExamplePanel = () => {
   return (
@@ -75,7 +75,6 @@ The application uses a WebSocket connection to communicate with the control syst
 
      ```tsx
      import { WebSocketProvider } from '@/app/providers/socket-provider'
-
      ;<WebSocketProvider url="ws://localhost:8080/ws/pvs">
        <YourComponent />
      </WebSocketProvider>
