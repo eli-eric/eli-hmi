@@ -1,9 +1,9 @@
 'use client'
 
 import { FC } from 'react'
-import { Message } from '@/lib/websocket-provider/message'
 import styles from '../styles/sensors.module.css'
 import volumeStyles from '../styles/volume-panel.module.css'
+import { Message } from '@/app/providers/types'
 
 /**
  * Common props for sensor components
