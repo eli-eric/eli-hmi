@@ -16,8 +16,9 @@ import {
   PumpSpeedConnected,
   PureValueConnected,
   ValueUnitConnected,
+  SensorValueConnected,
 } from './sensor-components'
-import { StateControl } from './state-control'
+import { StateControl, WarningErrorControl } from './state-control'
 import { Row } from '@/components/ui/layout'
 
 // Connected sensor components
@@ -50,9 +51,11 @@ export const VolumePanel = Object.assign(VolumePanelContainer, {
   PumpSpeedConnected,
   PureValueConnected,
   ValueUnitConnected,
+  SensorValueConnected,
   // Container components
   Container: Container,
   StateControl: StateControl,
   Row: Row,
   MultiVolumes: MultiVolumePanel,
+  WarningErrorControl: WarningErrorControl,
 })

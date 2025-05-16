@@ -85,16 +85,28 @@ export const PureValue: FC<PumpSpeedProps> = ({ data, isConnected }) => {
  */
 interface ContainerProps {
   width?: string
+  gap?: string
 }
+
 export const Container: FC<PropsWithChildren<ContainerProps>> = ({
   children,
   width,
+  gap,
 }) => {
   return (
-    <div className={styles.pumpContainer} style={{ width }}>
+    <div className={styles.pumpContainer} style={{ width, gap }}>
       {children}
     </div>
   )
+}
+
+/**
+ *
+ */
+
+const SensorValue: FC<PumpSpeedProps> = ({ data, isConnected }) => {
+  const value = isConnected ? data?.value : 'N/A'
+  return <span className={styles.sensorValue}>{value}</span>
 }
 
 // WebSocket-connected components
@@ -102,3 +114,4 @@ export const ValveStatusConnected = withReactWebSocketData(ValveStatus)
 export const PumpSpeedConnected = withReactWebSocketData(PumpSpeed)
 export const PureValueConnected = withReactWebSocketData(PureValue)
 export const ValueUnitConnected = withReactWebSocketData(ValueUnit)
+export const SensorValueConnected = withReactWebSocketData(SensorValue)
