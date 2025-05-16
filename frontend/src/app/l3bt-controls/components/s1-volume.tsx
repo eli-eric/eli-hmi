@@ -7,7 +7,7 @@ export const S1Volume = () => {
       <VolumePanel.Container>
         <VolumePanel.Label label="L3BT S1 Volume" />
         <VolumePanel.StateControl />
-        <VolumePanel.Card>
+        <VolumePanel.Card height="20rem">
           <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
           <VolumePanel.SensorPressureConnected
             pvname="AI_MBAR_WRG511"

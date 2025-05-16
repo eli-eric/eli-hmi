@@ -11,8 +11,7 @@ export const Roughing = () => {
       {/* Backing line pressure section */}
       <VolumePanel.Container>
         <VolumePanel.Label label="Roughing Line, P3 Outlet" />
-        <VolumePanel.Card>
-          <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
+        <VolumePanel.Card title="Pressure">
           <VolumePanel.SensorPressureConnected
             pvname="AI_MBAR_APG501"
             label="APG501 CH030"
@@ -23,7 +22,6 @@ export const Roughing = () => {
           />
         </VolumePanel.Card>
       </VolumePanel.Container>
-
       {/* Backing pump status section */}
       <VolumePanel.Container>
         <VolumePanel.Label label="Roughing Pump P04" />

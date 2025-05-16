@@ -21,7 +21,7 @@ export const P3MachineSafetyPermission = () => {
   return (
     <ContainerCard>
       <CardTitle label="P3 Machine Safety Permissions" />
-      <ContentCard>
+      <ContentCard height="20rem">
         <Interlocks interlocks={interlocks} />
       </ContentCard>
     </ContainerCard>

@@ -37,7 +37,6 @@ export const VolumePanelTitleButton: FC<VolumePanelTitleButtonProps> = (
 ) => {
   return <ClearButton {...props} />
 }
-
 /**
  * Label component for VolumePanel displays
  */
@@ -56,8 +55,22 @@ export const VolumePanelLabel: FC<VolumePanelLabelProps> = ({ label }) => {
 /**
  * Card component for VolumePanel content
  */
-export const VolumePanelCard: FC<PropsWithChildren> = ({ children }) => {
-  return <ContentCard>{children}</ContentCard>
+interface VolumePanelCard {
+  title?: string
+  height?: string
+}
+
+export const VolumePanelCard: FC<PropsWithChildren<VolumePanelCard>> = ({
+  children,
+  title,
+  height,
+}) => {
+  return (
+    <ContentCard height={height}>
+      {title && <VolumePanelCardLabel>{title}</VolumePanelCardLabel>}
+      {children}
+    </ContentCard>
+  )
 }
 
 /**
@@ -65,4 +78,8 @@ export const VolumePanelCard: FC<PropsWithChildren> = ({ children }) => {
  */
 export const VolumePanelCardLabel: FC<PropsWithChildren> = ({ children }) => {
   return <div className={styles.cardTitle}>{children}</div>
+}
+
+export const MultiVolumePanel: FC<PropsWithChildren> = ({ children }) => {
+  return <div className={styles.multiVolume}>{children}</div>
 }

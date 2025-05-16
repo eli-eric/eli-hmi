@@ -21,7 +21,7 @@ export const L3BTMachineSafetyPermission = () => {
   return (
     <VolumePanel width="16rem">
       <VolumePanel.Title label="L3BT Machine Safety Permissions" />
-      <VolumePanel.Card>
+      <VolumePanel.Card height="20rem">
         <Interlocks interlocks={interlocks} />
       </VolumePanel.Card>
     </VolumePanel>
