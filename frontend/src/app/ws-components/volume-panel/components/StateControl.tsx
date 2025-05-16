@@ -1,16 +1,25 @@
+'use client'
+
+import { FC } from 'react'
 import { ClearButton, SettingsButton } from '@/components/ui/buttons'
 import Dropdown from '@/components/ui/dropdown'
-import styles from './state-control.module.css'
 import { useWebSocketMulti } from '@/hooks/useWebSocketData'
-import { FC } from 'react'
+import styles from '../styles/controls.module.css'
 
-//TODO PV Logic and state transitions
-export const StateControl = () => {
+/**
+ * StateControl - Dropdown control for volume state
+ *
+ * Displays a dropdown with state options and a settings button
+ */
+export const StateControl: FC = () => {
   const renderTrigger = () => {
     return (
-      <div className={styles.trigger} style={{ backgroundColor: '#D9D9D9' }}>
-        <div className={styles.triggerContainer}>
-          <span>High Vaccum</span>
+      <div
+        className={styles.control__trigger}
+        style={{ backgroundColor: '#D9D9D9' }}
+      >
+        <div className={styles.control__triggerContainer}>
+          <span>High Vacuum</span>
           <SettingsButton />
         </div>
       </div>
@@ -29,10 +38,21 @@ export const StateControl = () => {
   )
 }
 
+/**
+ * Props for the WarningErrorControl component
+ */
 interface WarningErrorControlProps {
+  /**
+   * Array of PV names to monitor for warnings and errors
+   */
   PVs: string[]
 }
 
+/**
+ * WarningErrorControl - Displays warning and error status
+ *
+ * Shows warning and error status based on PV values
+ */
 export const WarningErrorControl: FC<WarningErrorControlProps> = ({ PVs }) => {
   const { isConnected, state } = useWebSocketMulti<boolean>({ pvs: PVs })
 
@@ -46,9 +66,10 @@ export const WarningErrorControl: FC<WarningErrorControlProps> = ({ PVs }) => {
       ? 'no'
       : 'yes'
     : 'N/A'
+
   return (
-    <div className={styles.warningContainer}>
-      <div className={styles.warningBox}>
+    <div className={styles.control__warningContainer}>
+      <div className={styles.control__warningBox}>
         <span>{`Warning: ${warning}`}</span>
         <span>{`Error: ${error}`}</span>
       </div>

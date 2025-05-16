@@ -2,6 +2,8 @@ import Dropdown from '@/components/ui/dropdown'
 import { FC, useState } from 'react'
 import { VALVE_STATE, ValveStatus } from './valve'
 import { SettingsButton } from '@/components/ui/buttons'
+import { useWebSocket } from '@/lib/websocket-provider/useWebsocket'
+import { useWebSocketContext } from '@/app/providers/socket-provider'
 
 interface ValveControlStatusProps {
   statusPvs: string[]
@@ -9,8 +11,10 @@ interface ValveControlStatusProps {
 }
 export const ValveControlStatus: FC<ValveControlStatusProps> = ({
   statusPvs,
+  controlPvs,
 }) => {
   const [status, setStatus] = useState<VALVE_STATE>(VALVE_STATE.CLOSED)
+  const { send } = useWebSocketContext()
 
   const onStatusUpdate = (newStatus: VALVE_STATE) => {
     setStatus(newStatus)
@@ -40,20 +44,20 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
               {
                 label: 'Open Valve',
                 onClick: () => {
-                  console.log('Open Valve clicked')
+                  send({ pvname: controlPvs[0], value: 1 })
                 },
               },
             ]
           : status === VALVE_STATE.OPEN
-          ? [
-              {
-                label: 'Close Valve',
-                onClick: () => {
-                  console.log('Close Valve clicked')
+            ? [
+                {
+                  label: 'Close Valve',
+                  onClick: () => {
+                    send({ pvname: controlPvs[1], value: 0 })
+                  },
                 },
-              },
-            ]
-          : []
+              ]
+            : []
       }
       disabled={isDisabled}
     />

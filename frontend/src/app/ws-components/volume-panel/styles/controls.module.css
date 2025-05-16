@@ -1,22 +1,25 @@
-.trigger {
+/* Control Components Styles */
+
+/* State control trigger */
+.control__trigger {
   display: flex;
   padding: 0.5rem;
   flex-direction: column;
   justify-content: space-between;
 }
 
-.trigger:hover {
+.control__trigger:hover {
   opacity: 0.6;
 }
 
-.triggerContainer {
+.control__triggerContainer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   align-self: stretch;
 }
 
-.triggerContainer span {
+.control__triggerContainer span {
   color: #000;
   font-family: 'Roboto Condensed';
   font-size: 0.875rem;
@@ -25,7 +28,8 @@
   line-height: normal;
 }
 
-.warningContainer {
+/* Warning container */
+.control__warningContainer {
   display: flex;
   padding: 0.5rem;
   justify-content: space-between;
@@ -34,14 +38,14 @@
   background: #d9d9d9;
 }
 
-.warningContainer span {
+.control__warningContainer span {
   font-size: 0.75rem;
   font-style: normal;
   font-weight: 400;
   line-height: normal;
 }
 
-.warningBox {
+.control__warningBox {
   display: flex;
   flex-direction: column;
 }

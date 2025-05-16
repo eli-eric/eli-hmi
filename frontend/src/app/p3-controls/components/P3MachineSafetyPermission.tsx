@@ -1,29 +1,31 @@
-import { Interlocks } from '@/app/ws-components/interlocks/interlocks'
-import { ContainerCard, ContentCard } from '@/components/ui/cards'
-import { CardTitle } from '@/components/ui/cards/card-title'
+'use client'
+import { VolumePanel } from '@/app/ws-components/volume-panel'
 
-const interlocks = [
-  {
-    title: 'Roughing',
-    pvName: 'BI_L3BT_Roughing',
-  },
-  {
-    title: 'High Vacuum Pumping',
-    pvName: 'BI_L3BT_High_Vacuum_Pumping',
-  },
-  {
-    title: 'Venting',
-    pvName: 'BI_L3BT_Venting',
-  },
-]
-
+/**
+ * P3MachineSafetyPermission component
+ *
+ * Displays the P3 machine safety permissions using the refactored VolumePanel.Interlocks component
+ */
 export const P3MachineSafetyPermission = () => {
   return (
-    <ContainerCard>
-      <CardTitle label="P3 Machine Safety Permissions" />
-      <ContentCard height="20rem">
-        <Interlocks interlocks={interlocks} />
-      </ContentCard>
-    </ContainerCard>
+    <VolumePanel width="16rem">
+      <VolumePanel.Title label="P3 Machine Safety Permissions" />
+      <VolumePanel.Card height="20rem">
+        <VolumePanel.Interlocks>
+          <VolumePanel.InterlockConnected
+            pvname="BI_L3BT_Roughing"
+            title="Roughing"
+          />
+          <VolumePanel.InterlockConnected
+            pvname="BI_L3BT_High_Vacuum_Pumping"
+            title="High Vacuum Pumping"
+          />
+          <VolumePanel.InterlockConnected
+            pvname="BI_L3BT_Venting"
+            title="Venting"
+          />
+        </VolumePanel.Interlocks>
+      </VolumePanel.Card>
+    </VolumePanel>
   )
 }

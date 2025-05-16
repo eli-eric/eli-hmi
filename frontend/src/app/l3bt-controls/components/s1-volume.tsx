@@ -1,5 +1,10 @@
 import { VolumePanel } from '@/app/ws-components/volume-panel'
 
+/**
+ * S1Volume component
+ *
+ * Displays the L3BT S1 volume panel with pressure readings and turbopump information
+ */
 export const S1Volume = () => {
   return (
     <VolumePanel width="13rem">
