@@ -1,0 +1,65 @@
+/* Volume Panel - Main container styles */
+.volumePanel {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Volume Panel - Label container */
+.volumePanel__label {
+  display: flex;
+  padding: 0.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: stretch;
+  background: #d1d1d1;
+}
+
+.volumePanel__labelText {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+
+/* Volume Panel - Card title */
+.volumePanel__cardTitle {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+
+/* Volume Panel - Sensor container */
+.volumePanel__sensor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.volumePanel__sensorData {
+  font-size: 0.875rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+}
+
+.volumePanel__sensorLabel {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+
+/* Add border to all but last sensor */
+.volumePanel__sensor:not(:last-child) {
+  border-bottom: 1px solid #b0b0b0;
+}
+
+/* Volume Panel - Multi volume container */
+.volumePanel__multiVolume {
+  display: flex;
+  gap: 0.5rem;
+}

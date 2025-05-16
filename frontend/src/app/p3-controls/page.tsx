@@ -13,7 +13,7 @@ import { P3MachineSafetyPermission } from './components/P3MachineSafetyPermissio
 import { ClearDryAir } from './components/clean-dry-air'
 import { Backing } from './components/backing'
 import { Roughing } from './components/roughing'
-import { Conector } from '../ws-components/conector-line'
+import { ConnectorLine } from '../ws-components/connector-line'
 import { P3Volumes } from './components/p3-volumes'
 
 export default function P3ControlsPage() {
@@ -33,22 +33,22 @@ export default function P3ControlsPage() {
           <Roughing />
         </SectionContainer>
         <SectionContainer gap="0rem">
-          <Conector>
-            <Conector.Line>
-              <Conector.Gate
+          <ConnectorLine>
+            <ConnectorLine.Line>
+              <ConnectorLine.Gate
                 href="/l3bt-controls"
                 label="WRG531"
                 name="L3BT S3"
                 pvname="AI_MBAR_WRG531"
               />
-              <Conector.Valve label="EGV501">
-                <Conector.ValveControlStatus
+              <ConnectorLine.Valve label="EGV501">
+                <ConnectorLine.ValveControlStatus
                   controlPvs={['BI_OPEN_EGV501', 'BI_CLOSE_EGV502']}
                   statusPvs={['BI_OPEN_EGV501', 'BI_CLOSE_EGV502']}
                 />
-              </Conector.Valve>
-            </Conector.Line>
-          </Conector>
+              </ConnectorLine.Valve>
+            </ConnectorLine.Line>
+          </ConnectorLine>
           <P3Volumes />
         </SectionContainer>
       </BottomContainer>

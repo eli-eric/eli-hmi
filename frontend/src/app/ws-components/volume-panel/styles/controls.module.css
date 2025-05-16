@@ -1,0 +1,51 @@
+/* Control Components Styles */
+
+/* State control trigger */
+.control__trigger {
+  display: flex;
+  padding: 0.5rem;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.control__trigger:hover {
+  opacity: 0.6;
+}
+
+.control__triggerContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  align-self: stretch;
+}
+
+.control__triggerContainer span {
+  color: #000;
+  font-family: 'Roboto Condensed';
+  font-size: 0.875rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+}
+
+/* Warning container */
+.control__warningContainer {
+  display: flex;
+  padding: 0.5rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  align-self: stretch;
+  background: #d9d9d9;
+}
+
+.control__warningContainer span {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.control__warningBox {
+  display: flex;
+  flex-direction: column;
+}

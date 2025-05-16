@@ -1,0 +1,30 @@
+/* Interlocks Component Styles */
+
+/* Interlocks container */
+.interlocks__container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Interlock item */
+.interlocks__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0rem;
+}
+
+/* Add border to all but last item */
+.interlocks__item:not(:last-child) {
+  border-bottom: 1px solid #b0b0b0;
+}
+
+/* Item text */
+.interlocks__item span {
+  color: #000;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}

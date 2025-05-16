@@ -1,27 +1,12 @@
 'use client'
-import { Interlocks } from '@/app/ws-components/interlocks/interlocks'
 import { VolumePanel } from '@/app/ws-components/volume-panel'
 import { ClearButton } from '@/components/ui/buttons'
 
-const interlocks = [
-  {
-    title: 'L3BT S1 Volume',
-    pvName: 'BI_L3BT_S1_Volume',
-  },
-  {
-    title: 'L3BT S3 Volume',
-    pvName: 'BI_L3BT_S3_Volume',
-  },
-  {
-    title: 'Safety Valve SGV503',
-    pvName: 'BI_L3BT_SGV503',
-  },
-  {
-    title: 'Endstation Valve EGV501',
-    pvName: 'BI_L3BT_EGV501',
-  },
-]
-
+/**
+ * L3BTInterlocks component
+ *
+ * Displays the L3BT interlocks using the refactored VolumePanel.Interlocks component
+ */
 export const L3BTInterlocks = () => {
   return (
     <VolumePanel width="16rem">
@@ -29,7 +14,24 @@ export const L3BTInterlocks = () => {
         <ClearButton disabled />
       </VolumePanel.Title>
       <VolumePanel.Card height="20rem">
-        <Interlocks interlocks={interlocks} />
+        <VolumePanel.Interlocks>
+          <VolumePanel.InterlockConnected
+            pvname="BI_L3BT_S1_Volume"
+            title="L3BT S1 Volume"
+          />
+          <VolumePanel.InterlockConnected
+            pvname="BI_L3BT_S3_Volume"
+            title="L3BT S3 Volume"
+          />
+          <VolumePanel.InterlockConnected
+            pvname="BI_L3BT_SGV503"
+            title="Safety Valve SGV503"
+          />
+          <VolumePanel.InterlockConnected
+            pvname="BI_L3BT_EGV501"
+            title="Endstation Valve EGV501"
+          />
+        </VolumePanel.Interlocks>
       </VolumePanel.Card>
     </VolumePanel>
   )

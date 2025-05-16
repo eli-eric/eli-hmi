@@ -1,48 +1,50 @@
-import { Interlocks } from '@/app/ws-components/interlocks/interlocks'
+'use client'
+import { VolumePanel } from '@/app/ws-components/volume-panel'
 import { ClearButton } from '@/components/ui/buttons'
-import { ContainerCard, ContentCard } from '@/components/ui/cards'
-import { CardTitle } from '@/components/ui/cards/card-title'
 
-const interlocks = [
-  {
-    title: 'P3 Chamber',
-    pvName: 'BI_P3_Chamber',
-  },
-  {
-    title: 'P3 Cryopump CRYO1',
-    pvName: 'BI_P3_Cryo1',
-  },
-  {
-    title: 'P3 Cryopump CRYO2',
-    pvName: 'BI_P3_Cryo2',
-  },
-  {
-    title: 'P3 Doors',
-    pvName: 'BI_P3_Doors',
-  },
-  {
-    title: 'P3 Turbopump TMP801',
-    pvName: 'BI_P3_TMP801',
-  },
-  {
-    title: 'P3 Turbopump TMP802',
-    pvName: 'BI_P3_TMP802',
-  },
-  {
-    title: 'Endstation Valve EGV501',
-    pvName: 'BI_P3_EGV501',
-  },
-]
-
+/**
+ * P3Interlocks component
+ *
+ * Displays the P3 interlocks using the refactored VolumePanel.Interlocks component
+ */
 export const P3Interlocks = () => {
   return (
-    <ContainerCard>
-      <CardTitle label="P3 Interlocks">
+    <VolumePanel width="16rem">
+      <VolumePanel.Title label="P3 Interlocks">
         <ClearButton disabled />
-      </CardTitle>
-      <ContentCard height="20rem">
-        <Interlocks interlocks={interlocks} />
-      </ContentCard>
-    </ContainerCard>
+      </VolumePanel.Title>
+      <VolumePanel.Card height="20rem">
+        <VolumePanel.Interlocks>
+          <VolumePanel.InterlockConnected
+            pvname="BI_P3_Chamber"
+            title="P3 Chamber"
+          />
+          <VolumePanel.InterlockConnected
+            pvname="BI_P3_Cryo1"
+            title="P3 Cryopump CRYO1"
+          />
+          <VolumePanel.InterlockConnected
+            pvname="BI_P3_Cryo2"
+            title="P3 Cryopump CRYO2"
+          />
+          <VolumePanel.InterlockConnected
+            pvname="BI_P3_Doors"
+            title="P3 Doors"
+          />
+          <VolumePanel.InterlockConnected
+            pvname="BI_P3_TMP801"
+            title="P3 Turbopump TMP801"
+          />
+          <VolumePanel.InterlockConnected
+            pvname="BI_P3_TMP802"
+            title="P3 Turbopump TMP802"
+          />
+          <VolumePanel.InterlockConnected
+            pvname="BI_P3_EGV501"
+            title="Endstation Valve EGV501"
+          />
+        </VolumePanel.Interlocks>
+      </VolumePanel.Card>
+    </VolumePanel>
   )
 }
