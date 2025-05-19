@@ -42,7 +42,7 @@ docker run -p 8080:8080 mockup-ws-gateway
 
 ## WebSocket API
 
-Connect to **`ws://localhost:8080/ws/pvs`**.
+Connect to **`ws://localhost:8080/ws/pvs?auth=jwt_token_please`**.
 
 ### Subscribe
 
