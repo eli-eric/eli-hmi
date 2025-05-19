@@ -11,7 +11,8 @@ export enum VALVE_STATE {
 }
 
 interface ValveStatusProps {
-  pvNames: string[]
+  openPV: string
+  closePV: string
   onStatusChange?: (status: State<boolean>) => VALVE_STATE
   onStatusUpdate?: (status: VALVE_STATE) => void
 }
@@ -22,19 +23,20 @@ interface ValveStatusProps {
  * Displays the current status of a valve based on PV values
  */
 export const ValveStatus: FC<ValveStatusProps> = ({
-  pvNames,
+  openPV,
+  closePV,
   onStatusChange,
   onStatusUpdate,
 }) => {
   const { state, isConnected } = useWebSocketMulti<boolean>({
-    pvs: pvNames,
+    pvs: [openPV, closePV],
     onDataUpdate: (data) => {
       console.log('Valve Status Data Update', data)
     },
   })
 
-  const PV_OPEN = pvNames.find((pv) => pv.includes('OPEN'))
-  const PV_CLOSE = pvNames.find((pv) => pv.includes('CLOSE'))
+  const PV_OPEN = openPV
+  const PV_CLOSE = closePV
 
   const valveState = useMemo(() => {
     if (onStatusChange) return onStatusChange(state)

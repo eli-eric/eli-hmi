@@ -43,8 +43,10 @@ export default function P3ControlsPage() {
               />
               <ConnectorLine.Valve label="EGV501">
                 <ConnectorLine.ValveControlStatus
-                  controlPvs={['BI_OPEN_EGV501', 'BI_CLOSE_EGV502']}
-                  statusPvs={['BI_OPEN_EGV501', 'BI_CLOSE_EGV502']}
+                  statusOpenPV="BI_EGV501_OPEN_S"
+                  statusClosePV="BI_EGV501_CLOSE_S"
+                  controlOpenPV="BI_EGV501_OPEN_C"
+                  controlClosePV="BI_EGV501_CLOSE_C"
                 />
               </ConnectorLine.Valve>
             </ConnectorLine.Line>
