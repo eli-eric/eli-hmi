@@ -18,6 +18,29 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to view the 
 
 ---
 
+## Environment Variables Setup
+
+Before running the application, you need to set up your environment variables.  
+Create a file named `.env.local` in the root of the project (next to `package.json`) and add the following content:
+
+```env
+NEXTAUTH_SECRET=your_secret_key_here
+NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8080/ws/pvs
+```
+
+- **NEXTAUTH_SECRET**: Secret key for NextAuth authentication (use a strong, random value in production).
+- **NEXT_PUBLIC_WEBSOCKET_URL**: The WebSocket endpoint for your backend.
+
+You can use the provided `env.example` file as a template:
+
+```bash
+cp env.example .env.local
+```
+
+Then edit `.env.local` and fill in your actual values.
+
+---
+
 ## How to Set Up a GUI for Operators
 
 This application uses a **compound component pattern** to make it easy for engineers to set up GUIs without needing deep React knowledge. Below is a step-by-step guide:
