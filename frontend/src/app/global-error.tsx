@@ -15,14 +15,15 @@ export default function GlobalError({
   useEffect(() => {
     // Log error to console for debugging
     console.error('Application error:', error)
-    
     // Format error details for display
     const details = [
       `Message: ${error.message}`,
       `Stack: ${error.stack || 'No stack trace available'}`,
       error.digest ? `Digest: ${error.digest}` : '',
-    ].filter(Boolean).join('\n')
-    
+    ]
+      .filter(Boolean)
+      .join('\n')
+
     setErrorDetails(details)
   }, [error])
 
@@ -31,22 +32,17 @@ export default function GlobalError({
       <body>
         <div className={styles.errorContainer}>
           <h1 className={styles.errorHeader}>Error</h1>
-          
+
           <p className={styles.errorMessage}>
             Application crashed. {error.message}
           </p>
-          
-          <button
-            onClick={() => reset()}
-            className={styles.resetButton}
-          >
+
+          <button onClick={() => reset()} className={styles.resetButton}>
             Reload
           </button>
-          
+
           {errorDetails && (
-            <pre className={styles.errorCode}>
-              {errorDetails}
-            </pre>
+            <pre className={styles.errorCode}>{errorDetails}</pre>
           )}
         </div>
       </body>
