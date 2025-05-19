@@ -17,12 +17,16 @@ export const L3BTBisConnector = () => {
         <ConnectorLine.LabelValue label="L3 BIS" />
         <ConnectorLine.Valve label="SGV501">
           <ConnectorLine.ValveStatus
-            pvNames={[BI_SGV501_OPEN, BI_SGV501_CLOSE]}
+            openPV={BI_SGV501_OPEN}
+            closePV={BI_SGV501_CLOSE}
           />
         </ConnectorLine.Valve>
         <ConnectorLine.LabelValue label="L3 CMP" />
         <ConnectorLine.Valve label="LN34">
-          <ConnectorLine.ValveStatus pvNames={[BI_LN34_OPEN, BI_LN34_CLOSE]} />
+          <ConnectorLine.ValveStatus
+            openPV={BI_LN34_OPEN}
+            closePV={BI_LN34_CLOSE}
+          />
         </ConnectorLine.Valve>
       </ConnectorLine.Line>
     </ConnectorLine>

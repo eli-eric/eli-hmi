@@ -6,12 +6,16 @@ import { VALVE_STATE, ValveStatus } from './Valve'
 import styles from '../styles/valve.module.css'
 
 interface ValveControlStatusProps {
-  statusPvs: string[]
-  controlPvs: string[]
+  statusOpenPV: string
+  statusClosePV: string
+  controlOpenPV: string
+  controlClosePV: string
 }
 export const ValveControlStatus: FC<ValveControlStatusProps> = ({
-  statusPvs,
-  controlPvs,
+  statusOpenPV,
+  statusClosePV,
+  controlOpenPV,
+  controlClosePV,
 }) => {
   const [status, setStatus] = useState<VALVE_STATE>(VALVE_STATE.CLOSED)
   const { send } = useWebSocketContext()
@@ -27,7 +31,11 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
     <Dropdown
       renderTrigger={() => (
         <div className={styles.valve__control}>
-          <ValveStatus onStatusUpdate={onStatusUpdate} pvNames={statusPvs} />
+          <ValveStatus
+            onStatusUpdate={onStatusUpdate}
+            openPV={statusOpenPV}
+            closePV={statusClosePV}
+          />
           <SettingsButton disabled={isDisabled} />
         </div>
       )}
@@ -37,20 +45,20 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
               {
                 label: 'Open Valve',
                 onClick: () => {
-                  send({ pvname: controlPvs[0], value: 1 })
+                  send({ type: 'set', pvs: { [controlOpenPV]: true } })
                 },
               },
             ]
           : status === VALVE_STATE.OPEN
-          ? [
-              {
-                label: 'Close Valve',
-                onClick: () => {
-                  send({ pvname: controlPvs[1], value: 0 })
+            ? [
+                {
+                  label: 'Close Valve',
+                  onClick: () => {
+                    send({ type: 'set', pvs: { [controlClosePV]: true } })
+                  },
                 },
-              },
-            ]
-          : []
+              ]
+            : []
       }
       disabled={isDisabled}
     />
