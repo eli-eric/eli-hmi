@@ -189,13 +189,18 @@ func (ps *pvSim) setManualValue(v interface{}) {
 /* ---------------------- per-connection state ----------------------------- */
 
 type client struct {
-	writeCh chan []byte
-	subs    map[string]*pvSim
+	writeCh   chan []byte
+	subs      map[string]*pvSim
+	authInfo  string
+	clientKey string
 }
 
 /* ------------------------ WebSocket handler ------------------------------ */
 
+const errorWsUnathorized = "error: unathorized ws connection request"
+
 func wsHandler(c echo.Context) error {
+
 	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		return err
@@ -205,69 +210,85 @@ func wsHandler(c echo.Context) error {
 	_, cancelSocket := context.WithCancel(context.Background())
 	defer cancelSocket()
 
-	cl := &client{
-		writeCh: make(chan []byte, 32),
-		subs:    make(map[string]*pvSim),
-	}
+	authToken := c.QueryParam("auth")
+	clientKey := c.Request().Header.Get("Sec-Websocket-Key")
 
-	var wg sync.WaitGroup
+	if authToken == "" {
+		log.Println(errorWsUnathorized)
+		conn.WriteMessage(websocket.TextMessage, []byte(errorWsUnathorized))
 
-	/* writer */
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for msg := range cl.writeCh {
-			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-				cancelSocket()
-				return
-			}
+		cancelSocket()
+		conn.Close()
+		return nil
+	} else {
+
+		cl := &client{
+			writeCh:   make(chan []byte, 32),
+			subs:      make(map[string]*pvSim),
+			authInfo:  authToken,
+			clientKey: clientKey,
 		}
-	}()
+		log.Println("New WS client connected: ", cl)
 
-	/* reader */
-	for {
-		_, raw, err := conn.ReadMessage()
-		if err != nil {
-			break
-		}
-		var req RequestMessage
-		if json.Unmarshal(raw, &req) != nil {
-			continue
-		}
+		var wg sync.WaitGroup
 
-		switch req.Type {
-		case "subscribe":
-			for pvName, _ := range req.PVs {
-				pv := strings.TrimSpace(pvName)
-				if pv == "" || cl.subs[pv] != nil {
-					continue
-				}
-				ps := getOrCreateSim(pv)
-				ps.add(cl)
-				cl.subs[pv] = ps
-			}
-		case "unsubscribe":
-			for pvName, _ := range req.PVs {
-				pv := strings.TrimSpace(pvName)
-				if pv == "" {
-					continue
-				}
-				if ps := cl.subs[pv]; ps != nil {
-					ps.remove(cl)
-					delete(cl.subs, pv)
+		/* writer */
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for msg := range cl.writeCh {
+				if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+					cancelSocket()
+					return
 				}
 			}
-		}
-	}
+		}()
 
-	/* teardown */
-	for pv, ps := range cl.subs {
-		ps.remove(cl)
-		delete(cl.subs, pv)
+		/* reader */
+		for {
+			_, raw, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+			var req RequestMessage
+			if json.Unmarshal(raw, &req) != nil {
+				continue
+			}
+
+			switch req.Type {
+			case "subscribe":
+				for pvName, _ := range req.PVs {
+					pv := strings.TrimSpace(pvName)
+					if pv == "" || cl.subs[pv] != nil {
+						continue
+					}
+					ps := getOrCreateSim(pv)
+					ps.add(cl)
+					cl.subs[pv] = ps
+				}
+			case "unsubscribe":
+				for pvName, _ := range req.PVs {
+					pv := strings.TrimSpace(pvName)
+					if pv == "" {
+						continue
+					}
+					if ps := cl.subs[pv]; ps != nil {
+						ps.remove(cl)
+						delete(cl.subs, pv)
+					}
+				}
+			}
+		}
+
+		/* teardown */
+		for pv, ps := range cl.subs {
+			ps.remove(cl)
+			delete(cl.subs, pv)
+		}
+		close(cl.writeCh)
+		wg.Wait()
+		return nil
 	}
-	close(cl.writeCh)
-	wg.Wait()
-	return nil
 }
 
 /* ----------------------- manual set endpoint ----------------------------- */
