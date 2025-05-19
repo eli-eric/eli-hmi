@@ -1,4 +1,4 @@
-import { FC, useMemo } from 'react'
+import { FC, useMemo, useEffect } from 'react'
 import { PolygonIcon } from '@/components/ui/icons'
 import { State, useWebSocketMulti } from '@/hooks/useWebSocketData'
 import styles from '../styles/valve.module.css'
@@ -42,23 +42,26 @@ export const ValveStatus: FC<ValveStatusProps> = ({
     if (onStatusChange) return onStatusChange(state)
     if (PV_OPEN && PV_CLOSE) {
       if (state[PV_OPEN]?.value && state[PV_CLOSE]?.value) {
-        onStatusUpdate?.(VALVE_STATE.ERROR)
         return VALVE_STATE.ERROR
       }
       if (state[PV_OPEN]?.value && !state[PV_CLOSE]?.value) {
-        onStatusUpdate?.(VALVE_STATE.OPEN)
         return VALVE_STATE.OPEN
       }
       if (!state[PV_OPEN]?.value && state[PV_CLOSE]?.value) {
-        onStatusUpdate?.(VALVE_STATE.CLOSED)
         return VALVE_STATE.CLOSED
       }
       if (!state[PV_OPEN]?.value && !state[PV_CLOSE]?.value) {
-        onStatusUpdate?.(VALVE_STATE.TRANSITIONING)
         return VALVE_STATE.TRANSITIONING
       }
     }
-  }, [state, onStatusChange, PV_OPEN, PV_CLOSE, onStatusUpdate])
+  }, [state, onStatusChange, PV_OPEN, PV_CLOSE])
+
+  // Use useEffect to call onStatusUpdate when valveState changes
+  useEffect(() => {
+    if (valveState && onStatusUpdate) {
+      onStatusUpdate(valveState)
+    }
+  }, [valveState, onStatusUpdate])
 
   if (!isConnected) {
     return <span>N/A</span>

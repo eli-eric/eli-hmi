@@ -7,7 +7,7 @@ import type { NextAuthOptions } from 'next-auth'
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
-      id: 'Credetials',
+      id: 'Credentials',
       credentials: {
         username: {
           label: 'Username',
@@ -39,7 +39,7 @@ export const authOptions: NextAuthOptions = {
             id: '1',
             name: 'Test User',
             email: 'test@eli-beams.eu',
-            token: token,
+            accessToken: token, // Add accessToken directly to the User object
           }
         }
 
@@ -48,4 +48,32 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  callbacks: {
+    async jwt({ token, user }) {
+      // If user is defined, it means this is the first time the JWT is created
+      if (user) {
+        token.id = user.id
+        token.name = user.name
+        token.email = user.email
+        token.accessToken = user.accessToken // <-- OPRAVA zde
+      }
+      return token
+    },
+    async session({ session, token }) {
+      // Add the JWT to the session object
+      session.user.id = token.id as string
+      session.user.name = token.name as string
+      session.user.email = token.email as string
+      session.accessToken = token.accessToken as string // Add accessToken to session
+      return session
+    },
+    async redirect({ url, baseUrl }) {
+      console.log('Redirect URL:', url, 'Base URL:', baseUrl)
+      // Redirect to a specific page after login
+      if (url === '/api/auth/callback/Credentials') {
+        return `${baseUrl}/p3-controls`
+      }
+      return url.startsWith(baseUrl) ? url : baseUrl
+    },
+  },
 }

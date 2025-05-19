@@ -13,18 +13,14 @@ const WebSocketContext = createContext<WebSocketContextValue | undefined>(
 
 // Props for provider component
 interface WebSocketProviderProps {
-  url: string
   children: ReactNode
 }
 
 // Provider component
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
-  url,
   children,
 }) => {
-  // Use our custom hook to manage WebSocket connection
-  const websocket = useWebSocket(url)
-
+  const websocket = useWebSocket()
   return (
     <WebSocketContext.Provider value={websocket}>
       {children}

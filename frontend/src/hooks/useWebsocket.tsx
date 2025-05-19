@@ -1,7 +1,8 @@
 'use client'
 
 import { Message } from '@/app/providers/types'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // Types
 type SubscriptionCallback<T = unknown> = (data: Message<T>) => void
@@ -18,7 +19,7 @@ interface WebSocketState {
 /**
  * React hook for WebSocket connection management
  */
-export function useWebSocket(url: string) {
+export function useWebSocket() {
   // WebSocket instance ref
   const wsRef = useRef<WebSocket | null>(null)
   // Manage subscriptions
@@ -35,6 +36,15 @@ export function useWebSocket(url: string) {
     nextAttemptInSeconds: null,
     countdown: null,
   })
+  const { data } = useSession()
+  const accessToken = data?.accessToken
+
+  const url = useMemo(() => {
+    if (!accessToken) return null
+    const wsUrl = `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}?auth=${accessToken}`
+    console.log('WebSocket URL:', wsUrl)
+    return wsUrl
+  }, [accessToken])
 
   // Store reconnect attempts in a ref to persist between renders and reconnections
   const reconnectAttemptsRef = useRef<number>(0)
@@ -43,95 +53,92 @@ export function useWebSocket(url: string) {
   const reconnectIntervalRef = useRef<number>(5000) // Initial reconnect interval
 
   // Initialize or reconnect
-  const connect = useCallback(
-    (resubscribe = false) => {
-      // Clean up any existing connection
-      if (wsRef.current) {
-        try {
-          // Remove all event listeners
-          wsRef.current.onopen = null
-          wsRef.current.onclose = null
-          wsRef.current.onerror = null
-          wsRef.current.onmessage = null
-
-          // Close connection if open
-          if (
-            wsRef.current.readyState === WebSocket.OPEN ||
-            wsRef.current.readyState === WebSocket.CONNECTING
-          ) {
-            wsRef.current.close(1000, 'Clean close')
-          }
-        } catch (e) {
-          console.error('Error closing WebSocket:', e)
-        }
-        wsRef.current = null
-      }
-
-      // Clear any reconnect timer
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current)
-        reconnectTimerRef.current = null
-      }
-
-      // Create new WebSocket
+  const connect = useCallback(() => {
+    if (!url) {
+      console.warn('No accessToken, skipping WebSocket connection')
+      return
+    }
+    // Clean up any existing connection
+    if (wsRef.current) {
       try {
-        console.log(`Connecting to ${url}...`)
-        setState((prev) => ({ ...prev, status: 'connecting' }))
-        wsRef.current = new WebSocket(url)
+        // Remove all event listeners
+        wsRef.current.onopen = null
+        wsRef.current.onclose = null
+        wsRef.current.onerror = null
+        wsRef.current.onmessage = null
 
-        // Setup event handlers
-        wsRef.current.onopen = () => {
-          console.log('WebSocket connected successfully')
-          // Reset reconnection attempts only on successful connection
-          reconnectAttemptsRef.current = 0
-          setState((prev) => ({
-            ...prev,
-            status: 'connected',
-            reconnectAttempts: 0,
-            lastAttempt: null,
-            nextAttemptInSeconds: null,
-            countdown: null,
-          }))
-
-          // Resubscribe to all channels if reconnecting
-          if (resubscribe) {
-            subscriptionsRef.current.forEach((_, channel) => {
-              sendSubscription(channel)
-            })
-          }
-        }
-
-        wsRef.current.onclose = (event) => {
-          console.log(`WebSocket closed: ${event.code} ${event.reason}`)
-          setState((prev) => ({ ...prev, status: 'disconnected' }))
-          scheduleReconnect()
-        }
-
-        wsRef.current.onerror = (event) => {
-          console.error('WebSocket error:', event)
-          setState((prev) => ({ ...prev, status: 'disconnected' }))
-          scheduleReconnect()
-        }
-
-        wsRef.current.onmessage = (event) => {
-          try {
-            const message: Message = JSON.parse(event.data)
-            const callbacks = subscriptionsRef.current.get(message.name)
-            if (callbacks) {
-              callbacks.forEach((callback) => callback(message))
-            }
-          } catch (e) {
-            console.error('Error processing message:', e)
-          }
+        // Close connection if open
+        if (
+          wsRef.current.readyState === WebSocket.OPEN ||
+          wsRef.current.readyState === WebSocket.CONNECTING
+        ) {
+          wsRef.current.close(1000, 'Clean close')
         }
       } catch (e) {
-        console.error('Error creating WebSocket:', e)
+        console.error('Error closing WebSocket:', e)
+      }
+      wsRef.current = null
+    }
+
+    // Clear any reconnect timer
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current)
+      reconnectTimerRef.current = null
+    }
+
+    // Create new WebSocket
+    try {
+      console.log(`Connecting to ${url}...`)
+      setState((prev) => ({ ...prev, status: 'connecting' }))
+      wsRef.current = new WebSocket(url)
+
+      // Setup event handlers
+      wsRef.current.onopen = () => {
+        console.log('WebSocket connected successfully')
+        reconnectAttemptsRef.current = 0
+        setState((prev) => ({
+          ...prev,
+          status: 'connected',
+          reconnectAttempts: 0,
+          lastAttempt: null,
+          nextAttemptInSeconds: null,
+          countdown: null,
+        }))
+        // VŽDY po připojení pošli subscriby na všechny kanály
+        subscriptionsRef.current.forEach((_, channel) => {
+          send({ type: 'subscribe', pvs: { [channel]: true } })
+        })
+      }
+
+      wsRef.current.onclose = (event) => {
+        console.log(`WebSocket closed: ${event.code} ${event.reason}`)
         setState((prev) => ({ ...prev, status: 'disconnected' }))
         scheduleReconnect()
       }
-    },
-    [url],
-  )
+
+      wsRef.current.onerror = (event) => {
+        console.error('WebSocket error:', event)
+        setState((prev) => ({ ...prev, status: 'disconnected' }))
+        scheduleReconnect()
+      }
+
+      wsRef.current.onmessage = (event) => {
+        try {
+          const message: Message = JSON.parse(event.data)
+          const callbacks = subscriptionsRef.current.get(message.name)
+          if (callbacks) {
+            callbacks.forEach((callback) => callback(message))
+          }
+        } catch (e) {
+          console.error('Error processing message:', e)
+        }
+      }
+    } catch (e) {
+      console.error('Error creating WebSocket:', e)
+      setState((prev) => ({ ...prev, status: 'disconnected' }))
+      scheduleReconnect()
+    }
+  }, [url])
 
   // Schedule a reconnection attempt
   const scheduleReconnect = useCallback(() => {
@@ -196,7 +203,7 @@ export function useWebSocket(url: string) {
     reconnectTimerRef.current = setTimeout(() => {
       reconnectTimerRef.current = null
       clearInterval(countdownInterval) // Clear the countdown interval
-      connect(true) // Resubscribe on reconnect
+      connect() // Resubscribe on reconnect
     }, delay)
   }, [connect])
 
@@ -219,25 +226,21 @@ export function useWebSocket(url: string) {
   // Helper to send subscription message
   const sendSubscription = useCallback(
     (channel: string) => {
-      const pvs = new Map<string, boolean>()
-      pvs.set(channel, true)
-      console.log(`Subscribing to ${pvs}`)
       if (wsRef.current?.readyState === WebSocket.OPEN) {
-        console.log(`Subscribing to ${channel}`)
+        // Pokud je otevřeno, pošli hned
+        console.log(`Subscribing to ${channel} (immediately)`)
         send({ type: 'subscribe', pvs: { [channel]: true } })
       } else {
+        // Pokud není otevřeno, nastav listener na otevření
         console.log(
           `Not connected, will subscribe to ${channel} when connection is established`,
         )
-
-        // Add one-time event listener for connection
         const onOpen = () => {
+          console.log(`Subscribing to ${channel} (on open)`)
           send({ type: 'subscribe', pvs: { [channel]: true } })
         }
-
         if (wsRef.current) {
           wsRef.current.addEventListener('open', onOpen, { once: true })
-
           // Store event listener for cleanup
           if (!eventListenersRef.current.has('open')) {
             eventListenersRef.current.set('open', new Set())
@@ -295,12 +298,13 @@ export function useWebSocket(url: string) {
   // Force reconnection
   const reconnect = useCallback(() => {
     console.log('Manual reconnection requested')
-    connect(true)
+    connect()
   }, [connect])
 
   // Initialize connection on mount
   useEffect(() => {
-    connect(false)
+    if (!url) return
+    connect()
     // Cleanup function
     return () => {
       // Clear any reconnect timer

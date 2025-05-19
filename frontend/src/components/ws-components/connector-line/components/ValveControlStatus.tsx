@@ -1,3 +1,4 @@
+'use client'
 import { FC, useState } from 'react'
 import Dropdown from '@/components/ui/dropdown'
 import { SettingsButton } from '@/components/ui/buttons'
@@ -21,7 +22,9 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
   const { send } = useWebSocketContext()
 
   const onStatusUpdate = (newStatus: VALVE_STATE) => {
-    setStatus(newStatus)
+    if (status !== newStatus) {
+      setStatus(newStatus)
+    }
   }
 
   const isDisabled =
@@ -50,15 +53,15 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
               },
             ]
           : status === VALVE_STATE.OPEN
-            ? [
-                {
-                  label: 'Close Valve',
-                  onClick: () => {
-                    send({ type: 'set', pvs: { [controlClosePV]: true } })
-                  },
+          ? [
+              {
+                label: 'Close Valve',
+                onClick: () => {
+                  send({ type: 'set', pvs: { [controlClosePV]: true } })
                 },
-              ]
-            : []
+              },
+            ]
+          : []
       }
       disabled={isDisabled}
     />
