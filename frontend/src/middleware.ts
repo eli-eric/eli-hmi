@@ -17,13 +17,16 @@ export async function middleware(request: NextRequest) {
 
   if (!token) {
     // Redirect to login if no token and not on login page
-    if (pathname !== 'api/auth/signin') {
-      return NextResponse.redirect(new URL('/api/auth/signin', request.url))
+    if (pathname !== '/auth/signin' && !pathname.startsWith('/api/auth')) {
+      return NextResponse.redirect(new URL('/auth/signin', request.url))
     }
   }
 
   // Redirect to home if token exists and user is on login page
-  if (pathname === 'api/auth/signin' && token) {
+  if (
+    (pathname === '/auth/signin' || pathname === '/api/auth/signin') &&
+    token
+  ) {
     return NextResponse.redirect(new URL('/p3-controls', request.url))
   }
 

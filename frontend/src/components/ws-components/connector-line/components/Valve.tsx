@@ -13,7 +13,7 @@ export enum VALVE_STATE {
 interface ValveStatusProps {
   openPV: string
   closePV: string
-  onStatusChange?: (status: State<boolean>) => VALVE_STATE
+  onStateChange?: (status: State<boolean>) => VALVE_STATE
   onStatusUpdate?: (status: VALVE_STATE) => void
 }
 
@@ -25,7 +25,7 @@ interface ValveStatusProps {
 export const ValveStatus: FC<ValveStatusProps> = ({
   openPV,
   closePV,
-  onStatusChange,
+  onStateChange,
   onStatusUpdate,
 }) => {
   const { state, isConnected } = useWebSocketMulti<boolean>({
@@ -39,7 +39,7 @@ export const ValveStatus: FC<ValveStatusProps> = ({
   const PV_CLOSE = closePV
 
   const valveState = useMemo(() => {
-    if (onStatusChange) return onStatusChange(state)
+    if (onStateChange) return onStateChange(state)
     if (PV_OPEN && PV_CLOSE) {
       if (state[PV_OPEN]?.value && state[PV_CLOSE]?.value) {
         return VALVE_STATE.ERROR
@@ -54,7 +54,7 @@ export const ValveStatus: FC<ValveStatusProps> = ({
         return VALVE_STATE.TRANSITIONING
       }
     }
-  }, [state, onStatusChange, PV_OPEN, PV_CLOSE])
+  }, [state, onStateChange, PV_OPEN, PV_CLOSE])
 
   // Use useEffect to call onStatusUpdate when valveState changes
   useEffect(() => {

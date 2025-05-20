@@ -29,7 +29,7 @@ export const Gate: FC<GateProps> = ({
     : 'N/A'
 
   return (
-    <Link href={href}>
+    <Link href={href} className={styles.container}>
       <div className={styles.gate}>
         <div className={styles.gate__name}>{name}</div>
         <div className={styles.gate__valueContainer}>
