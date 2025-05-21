@@ -1,6 +1,7 @@
 // lib/auth/auth-options.ts
 import CredentialsProvider from 'next-auth/providers/credentials'
 import jwt from 'jsonwebtoken'
+import { ldapAuthenticate } from './ldap-auth'
 
 import type { NextAuthOptions } from 'next-auth'
 
@@ -21,24 +22,27 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        if (
-          credentials.username === 'test' &&
-          credentials.password === 'test'
-        ) {
+        // Authenticate using LDAP (will use test user in dev mode)
+        const user = await ldapAuthenticate(
+          credentials.username,
+          credentials.password,
+        )
+
+        if (user) {
           const token = jwt.sign(
             {
-              username: credentials.username,
-              exp: Math.floor(Date.now() / 1000) + 60 * 60 * 36, // 24 hours expiration
+              username: user.username,
+              exp: Math.floor(Date.now() / 1000) + 60 * 60 * 36, // 36 hours expiration
             },
             process.env.NEXTAUTH_SECRET || 'default',
           )
 
-          console.log('Generated token:', token)
+          console.log('Generated token for user:', user.username)
 
           return {
-            id: '1',
-            name: 'Test User',
-            email: 'test@eli-beams.eu',
+            id: user.id,
+            name: user.name,
+            email: user.email,
             accessToken: token, // Add accessToken directly to the User object
           }
         }
