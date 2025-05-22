@@ -4,6 +4,7 @@ This module contains the WebSocketManager class, which manages WebSocket connect
 
 import logging
 from typing import Any
+from dataclasses import dataclass
 from fastapi import WebSocket, WebSocketDisconnect
 import aioca
 
@@ -136,31 +137,36 @@ class WebSocketPVsManager:
             "severity": last_value.severity,
             "ok": last_value.ok,
         }
+        if hasattr(last_value, "units"):
+            data["units"] = last_value.units
         await self.broadcast(data)
 
     async def _fetch_and_broadcast_value(self, pv):
         try:
             val = await aioca.caget(pv, format=2)
+            # Convert ca_array to a list if necessary
+            if hasattr(val, "tolist"):
+                serializable_value = val.tolist()
+            else:
+                serializable_value = val
+
             self.logger.info("Fetched value for PV %s: %s", pv, val)
             self.last_values_cache[pv] = val
             data = {
                 "type": "pv",
                 "name": pv,
-                "value": val,  # Ensure it's JSON serializable
+                "value": serializable_value,  # Ensure it's JSON serializable
                 "severity": val.severity,
                 "ok": val.ok,
+                "units": "",
             }
+            if hasattr(val, "units"):
+                data["units"] = val.units
             await self.broadcast(data)
         except Exception as e:
             self.logger.error("Failed to fetch PV %s: %s", pv, str(e))
 
-            data = {
-                "type": "pv",
-                "name": pv,
-                "value": None,
-                "severity": 0,
-                "ok": False,
-            }
+            data = {"type": "pv", "name": pv, "value": None, "severity": 0, "ok": False, "units": ""}
             await self.broadcast(data)
 
     async def _handle_disconnection(self, websocket):
@@ -287,7 +293,7 @@ class WebSocketPVsManager:
                 self.logger.info("Incremented subscription count for PV: %s, count: %d", pv_name, sub_exists.cnt)
                 return sub_exists
             # Attempt to create a new subscription
-            subscription = aioca.camonitor(pv_name, self.pv_callback, format=1, notify_disconnect=True)
+            subscription = aioca.camonitor(pv_name, self.pv_callback, format=2, notify_disconnect=True)
             self.subscriptions[pv_name] = SubRecord(subscription)
             self.logger.info("Added new subscription for PV: %s", pv_name)
 
@@ -403,24 +409,25 @@ class WebSocketPVsManager:
 
             self.last_values_cache[value.name] = value
 
+            self.logger.info(value)
+
             data = {
                 "type": "pv",
                 "name": value.name,
                 "value": serializable_value,  # Convert value to string to ensure it's JSON serializable
                 "severity": value.severity,
                 "ok": value.ok,
+                "units": "",
             }
+
+            if hasattr(value, "units"):
+                data["units"] = value.units
+
             await self.broadcast(data)
         else:
             # logging the error
             self.logger.error("Error in PV callback: %s", value)
 
-            data = {
-                "type": "pv",
-                "name": value.name,
-                "value": None,
-                "severity": 0,
-                "ok": False,
-            }
+            data = {"type": "pv", "name": value.name, "value": None, "severity": 0, "ok": False, "units": ""}
 
             await self.broadcast(data)
