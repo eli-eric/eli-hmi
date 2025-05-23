@@ -5,5 +5,5 @@
   align-items: center;
   gap: 3rem;
   align-self: stretch;
-  background: #454545;
+  background: var(--color-nav-background);
 }

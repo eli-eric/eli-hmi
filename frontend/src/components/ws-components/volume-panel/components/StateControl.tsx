@@ -16,7 +16,7 @@ export const StateControl: FC = () => {
     return (
       <div
         className={styles.control__trigger}
-        style={{ backgroundColor: '#D9D9D9' }}
+        style={{ backgroundColor: 'var(--color-surface-light)' }}
       >
         <div className={styles.control__triggerContainer}>
           <span>High Vacuum</span>

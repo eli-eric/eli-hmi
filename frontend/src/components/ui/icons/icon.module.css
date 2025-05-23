@@ -18,9 +18,9 @@
   width: 0.875rem;
   height: 0.875rem;
   flex-shrink: 0;
-  color: #ff3b30;
+  color: var(--color-error);
 }
 
 .errorIcon:hover {
-  color: #e91004;
+  color: var(--color-error-dark);
 }

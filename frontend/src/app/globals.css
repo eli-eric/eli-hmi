@@ -1,4 +1,84 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap');
+@import './accessibility.css';
+
+:root {
+  /* Základní barvy - odstupňovaná šedá paleta */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e6e6e6;
+  --color-gray-300: #d9d9d9;
+  --color-gray-400: #d1d1d1;
+  --color-gray-500: #b0b0b0;
+  --color-gray-600: #9e9e9e;
+  --color-gray-700: #757575;
+  --color-gray-800: #454545;
+  --color-gray-900: #212121;
+  --color-black: #000;
+
+  /* Sémantické barvy založené na odstupňované paletě */
+  --color-background: var(--color-gray-500);
+  --color-surface-lighter: var(--color-gray-200);
+  --color-surface-light: var(--color-gray-300);
+  --color-surface: var(--color-gray-400);
+  --color-border: var(--color-gray-500);
+  --color-text: var(--color-black);
+  --color-text-secondary: var(--color-gray-600);
+  --color-nav-background: var(--color-gray-800);
+
+  /* Stavové barvy - s variantami */
+  --color-primary-light: #3b91d2;
+  --color-primary: #0284c7;
+  --color-primary-dark: #0369a1;
+
+  --color-info-light: #38bdf8;
+  --color-info: #0284c7;
+  --color-info-dark: #0369a1;
+
+  --color-warning-light: #fbbf24;
+  --color-warning: #f59e0b;
+  --color-warning-dark: #d97706;
+
+  --color-error-light: #ff5c52;
+  --color-error: #ff3b30;
+  --color-error-dark: #e91004;
+
+  --color-success-light: #34d399;
+  --color-success: #10b981;
+  --color-success-dark: #059669;
+
+  /* Barvy pro interakce */
+  --color-focus: rgba(
+    2,
+    132,
+    199,
+    0.5
+  ); /* Modrá s průhledností pro focus stavy */
+  --color-hover-overlay: rgba(0, 0, 0, 0.05); /* Overlay pro hover stavy */
+
+  /* Zaoblení rohů */
+  --border-radius-none: 0;
+  --border-radius-sm: 0.125rem;
+  --border-radius-md: 0.25rem;
+  --border-radius-lg: 0.5rem;
+  --border-radius-xl: 1rem;
+  --border-radius-full: 9999px;
+
+  /* Stíny */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* Přechody a animace */
+  --transition-fast: 150ms;
+  --transition-normal: 300ms;
+  --transition-slow: 500ms;
+  --timing-function-default: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Mezery a rozvržení */
+  --spacing-unit: 0.25rem; /* Základní jednotka pro mezery, 1 = 0.25rem = 4px */
+}
 
 body {
   display: flex;
@@ -23,7 +103,7 @@ a {
 html {
   font-size: 14px;
   font-family: 'Roboto Condensed', sans-serif;
-  background: #b0b0b0;
+  background: var(--color-background);
 }
 
 .page-container {
@@ -33,5 +113,149 @@ html {
   gap: 2rem;
   flex: 1 0 0;
   align-self: stretch;
-  background: #b0b0b0;
+  background: var(--color-background);
+}
+
+/* Utility třídy */
+
+/* Flexbox */
+.flex {
+  display: flex;
+}
+.flex-col {
+  flex-direction: column;
+}
+.flex-row {
+  flex-direction: row;
+}
+.items-center {
+  align-items: center;
+}
+.justify-between {
+  justify-content: space-between;
+}
+.justify-center {
+  justify-content: center;
+}
+.gap-1 {
+  gap: calc(var(--spacing-unit) * 1);
+}
+.gap-2 {
+  gap: calc(var(--spacing-unit) * 2);
+}
+.gap-4 {
+  gap: calc(var(--spacing-unit) * 4);
+}
+.gap-8 {
+  gap: calc(var(--spacing-unit) * 8);
+}
+
+/* Marginy a paddingy */
+.m-0 {
+  margin: 0;
+}
+.p-0 {
+  padding: 0;
+}
+.p-1 {
+  padding: calc(var(--spacing-unit) * 1);
+}
+.p-2 {
+  padding: calc(var(--spacing-unit) * 2);
+}
+.p-4 {
+  padding: calc(var(--spacing-unit) * 4);
+}
+
+/* Stíny */
+.shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+.shadow-md {
+  box-shadow: var(--shadow-md);
+}
+.shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Přechody */
+.transition {
+  transition: all var(--transition-normal) var(--timing-function-default);
+}
+.transition-fast {
+  transition: all var(--transition-fast) var(--timing-function-default);
+}
+.transition-slow {
+  transition: all var(--transition-slow) var(--timing-function-default);
+}
+
+/* Zaoblení */
+.rounded-none {
+  border-radius: var(--border-radius-none);
+}
+.rounded-sm {
+  border-radius: var(--border-radius-sm);
+}
+.rounded-md {
+  border-radius: var(--border-radius-md);
+}
+.rounded-lg {
+  border-radius: var(--border-radius-lg);
+}
+.rounded-full {
+  border-radius: var(--border-radius-full);
+}
+
+/* Další užitečné utility */
+.hidden {
+  display: none;
+}
+.block {
+  display: block;
+}
+.inline-block {
+  display: inline-block;
+}
+.w-full {
+  width: 100%;
+}
+.h-full {
+  height: 100%;
+}
+.text-center {
+  text-align: center;
+}
+.text-left {
+  text-align: left;
+}
+.text-right {
+  text-align: right;
+}
+
+/* Utility pro barvy pozadí */
+.bg-surface {
+  background-color: var(--color-surface);
+}
+.bg-surface-light {
+  background-color: var(--color-surface-light);
+}
+.bg-surface-lighter {
+  background-color: var(--color-surface-lighter);
+}
+
+/* Utility pro barvy textu */
+.text-primary {
+  color: var(--color-primary);
+}
+.text-error {
+  color: var(--color-error);
+}
+.text-warning {
+  color: var(--color-warning);
+}
+.text-success {
+  color: var(--color-success);
+}
+.text-info {
+  color: var(--color-info);
 }

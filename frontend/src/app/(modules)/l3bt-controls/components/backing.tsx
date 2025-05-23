@@ -14,7 +14,7 @@ export const Backing = () => {
         <VolumePanel.Card height="20rem">
           <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
           <VolumePanel.SensorPressureConnected
-            pvname="AI_MBAR_APG802"
+            pvname="AI_MBAR_APG512"
             label="APG512 CH010"
           />
           <VolumePanel.SensorPressureConnected

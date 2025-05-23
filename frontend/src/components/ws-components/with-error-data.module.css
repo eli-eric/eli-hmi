@@ -8,37 +8,64 @@
   right: -0.7rem;
 }
 
-/* Simple loading animation with fading dots */
+/* Modern loading animation with fading dots */
 .loadingDots {
   gap: 0.3rem;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .loadingDots span {
   display: inline-block;
-  color: var(--color-primary);
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--border-radius-full);
+  background-color: var(--color-primary);
   opacity: 0.6;
 }
 
+.loadingDots span {
+  animation: dotPulse 1.5s infinite ease-in-out;
+}
+
 .loadingDots span:nth-child(1) {
-  animation: dotFade 1.5s infinite;
+  animation-delay: 0s;
 }
 
 .loadingDots span:nth-child(2) {
-  animation: dotFade 1.5s infinite 0.3s;
+  animation-delay: 0.3s;
 }
 
 .loadingDots span:nth-child(3) {
-  animation: dotFade 1.5s infinite 0.6s;
+  animation-delay: 0.6s;
 }
 
-@keyframes dotFade {
+@keyframes dotPulse {
   0%,
   80%,
   100% {
     opacity: 0.4;
+    transform: scale(0.8);
   }
   40% {
     opacity: 1;
+    transform: scale(1);
   }
 }
+
+/* Severity levels */
+.severityInfo {
+  color: var(--color-info);
+}
+
+.severityWarning {
+  color: var(--color-warning);
+}
+
+.severityError {
+  color: var(--color-error);
+}
+
+/* severityNone - Default color, no specific styling */

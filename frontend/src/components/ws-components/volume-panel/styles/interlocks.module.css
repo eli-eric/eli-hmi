@@ -17,12 +17,12 @@
 
 /* Add border to all but last item */
 .interlocks__item:not(:last-child) {
-  border-bottom: 1px solid #b0b0b0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 /* Item text */
 .interlocks__item span {
-  color: #000;
+  color: var(--color-text);
   font-size: 0.75rem;
   font-style: normal;
   font-weight: 400;
