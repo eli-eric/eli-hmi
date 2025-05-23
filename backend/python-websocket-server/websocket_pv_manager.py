@@ -143,7 +143,7 @@ class WebSocketPVsManager:
 
     async def _fetch_and_broadcast_value(self, pv):
         try:
-            val = await aioca.caget(pv, format=2)
+            val = await aioca.caget(pv, format=2, timeout=2.0)
             # Convert ca_array to a list if necessary
             if hasattr(val, "tolist"):
                 serializable_value = val.tolist()
@@ -293,7 +293,7 @@ class WebSocketPVsManager:
                 self.logger.info("Incremented subscription count for PV: %s, count: %d", pv_name, sub_exists.cnt)
                 return sub_exists
             # Attempt to create a new subscription
-            subscription = aioca.camonitor(pv_name, self.pv_callback, format=2, notify_disconnect=True)
+            subscription = aioca.camonitor(pv_name, self.pv_callback, format=2, notify_disconnect=True, connect_timeout=2.0)
             self.subscriptions[pv_name] = SubRecord(subscription)
             self.logger.info("Added new subscription for PV: %s", pv_name)
 
@@ -408,8 +408,6 @@ class WebSocketPVsManager:
                 serializable_value = value
 
             self.last_values_cache[value.name] = value
-
-            self.logger.info(value)
 
             data = {
                 "type": "pv",

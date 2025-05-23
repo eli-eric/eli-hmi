@@ -12,18 +12,12 @@ export const L3BTMachineSafetyPermission = () => {
       <VolumePanel.Title label="L3BT Machine Safety Permissions" />
       <VolumePanel.Card height="20rem">
         <VolumePanel.Interlocks>
+          <VolumePanel.InterlockConnected pvname="BI_1" title="Roughing" />
           <VolumePanel.InterlockConnected
-            pvname="BI_L3BT_Roughing"
-            title="Roughing"
-          />
-          <VolumePanel.InterlockConnected
-            pvname="BI_L3BT_High_Vacuum_Pumping"
+            pvname="BI_1"
             title="High Vacuum Pumping"
           />
-          <VolumePanel.InterlockConnected
-            pvname="BI_L3BT_Venting"
-            title="Venting"
-          />
+          <VolumePanel.InterlockConnected pvname="BI_1" title="Venting" />
         </VolumePanel.Interlocks>
       </VolumePanel.Card>
     </VolumePanel>

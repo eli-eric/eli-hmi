@@ -38,8 +38,8 @@ type ResponseMessage struct {
 /* --------------------------- globals ------------------------------------- */
 
 var (
-	aiMode   = 1 // 1 = autosimulate, 2 = manual
-	biMode   = 1 // 1 = autosimulate, 2 = manual
+	aiMode   = 2 // 1 = autosimulate, 2 = manual
+	biMode   = 2 // 1 = autosimulate, 2 = manual
 	siMode   = 2 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -72,11 +72,12 @@ func main() {
 /* ---------------------- per-PV simulator --------------------------------- */
 
 type pvSim struct {
-	name   string
-	value  interface{}
-	subs   map[*client]struct{}
-	mu     sync.Mutex
-	cancel context.CancelFunc
+	name     string
+	value    interface{}
+	errorMsg string
+	subs     map[*client]struct{}
+	mu       sync.Mutex
+	cancel   context.CancelFunc
 }
 
 func newPVSim(name string) *pvSim {
@@ -125,6 +126,8 @@ func (ps *pvSim) shouldSimulate() bool {
 		return aiMode == 1
 	case strings.HasPrefix(ps.name, "BI_"):
 		return biMode == 1
+	case strings.HasPrefix(ps.name, "SI_"):
+		return siMode == 1
 	case strings.HasPrefix(ps.name, "PV_"):
 		return siMode == 1
 	default:
@@ -138,8 +141,9 @@ func (ps *pvSim) encodeLocked() []byte {
 		Type:      "pv",
 		Name:      ps.name,
 		Value:     ps.value,
+		Error:     ps.errorMsg,
 		Severity:  0,
-		OK:        true,
+		OK:        ps.errorMsg == "",
 		Timestamp: float64(time.Now().UnixNano()) / 1e9,
 		Units:     unitsFor(ps.name),
 	}
@@ -174,9 +178,10 @@ func (ps *pvSim) remove(cl *client) {
 	}
 }
 
-func (ps *pvSim) setManualValue(v interface{}) {
+func (ps *pvSim) setManualValue(v interface{}, errorMsg string) {
 	ps.mu.Lock()
 	ps.value = v
+	ps.errorMsg = errorMsg
 	b := ps.encodeLocked()
 	for cl := range ps.subs {
 		select {
@@ -297,6 +302,8 @@ func wsHandler(c echo.Context) error {
 func setPvHandler(c echo.Context) error {
 	name := strings.TrimSpace(c.Param("name"))
 	rawVal := strings.TrimSpace(c.Param("value"))
+	errorMsg := c.QueryParam("error")
+
 	if name == "" {
 		return c.String(http.StatusBadRequest, "empty pv name")
 	}
@@ -305,7 +312,7 @@ func setPvHandler(c echo.Context) error {
 	var err error
 	switch {
 	case strings.HasPrefix(name, "BI_"):
-		val, err = strconv.ParseBool(rawVal)
+		val, err = strconv.Atoi(rawVal)
 		if err != nil {
 			return c.String(http.StatusBadRequest, "bool expected for BI_")
 		}
@@ -320,7 +327,19 @@ func setPvHandler(c echo.Context) error {
 	}
 
 	ps := getOrCreateSim(name)
-	ps.setManualValue(val)
+	ps.setManualValue(val, errorMsg)
+
+	if errorMsg != "" {
+		return c.JSON(http.StatusOK, ResponseMessage{
+			Type:      "pv",
+			Name:      name,
+			Value:     nil,
+			Severity:  0,
+			OK:        false,
+			Timestamp: float64(time.Now().UnixNano()) / 1e9,
+			Error:     errorMsg,
+		})
+	}
 
 	return c.JSON(http.StatusOK, ResponseMessage{
 		Type:      "pv",
