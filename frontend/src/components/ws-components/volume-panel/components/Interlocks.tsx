@@ -1,7 +1,7 @@
 'use client'
 
 import { FC, PropsWithChildren } from 'react'
-import { CheckIcon, CloseIcon } from '@/components/ui/icons'
+import { CheckIcon, CloseIcon, ErrorIcon } from '@/components/ui/icons'
 import { withReactWebSocketData } from '../../with-websocket-data'
 import { Message } from '@/app/providers/types'
 import styles from '../styles/interlocks.module.css'
@@ -56,11 +56,13 @@ export const InterlockItem: FC<InterlockItemProps> = ({
   isConnected = false,
 }) => {
   const value = data?.value
-
   return (
     <div className={styles.interlocks__item}>
       <span>{title}</span>
-      <IconsStatus value={value} isConnected={isConnected} />
+      <div>
+        <IconsStatus value={value} isConnected={isConnected} />
+        {!data?.ok && <ErrorIcon message={data?.error} />}
+      </div>
     </div>
   )
 }
