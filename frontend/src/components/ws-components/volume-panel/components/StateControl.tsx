@@ -54,15 +54,15 @@ interface WarningErrorControlProps {
  * Shows warning and error status based on PV values
  */
 export const WarningErrorControl: FC<WarningErrorControlProps> = ({ PVs }) => {
-  const { isConnected, state } = useWebSocketMulti<boolean>({ pvs: PVs })
+  const { isConnected, state } = useWebSocketMulti<1 | 0 | null>({ pvs: PVs })
 
   const warning = isConnected
-    ? state[PVs[0]]?.value === false
+    ? state[PVs[0]]?.value === 0
       ? 'no'
       : 'yes'
     : 'N/A'
   const error = isConnected
-    ? state[PVs[1]]?.value === false
+    ? state[PVs[1]]?.value === 0
       ? 'no'
       : 'yes'
     : 'N/A'

@@ -33,7 +33,7 @@ export const SensorPressure: FC<SensorProps> = ({
   data,
   isConnected,
 }) => {
-  const value = isConnected ? data?.value.toExponential(2) : 'N/A'
+  const value = isConnected ? data?.value?.toExponential(2) : 'N/A'
   const unit = data?.units || 'N/A'
 
   return (
@@ -63,8 +63,8 @@ export const ValveStatus: FC<SensorProps> = ({ label, data, isConnected }) => {
  * PumpSpeed - Displays pump speed status
  */
 export const PumpSpeed: FC<SensorProps> = ({ data, isConnected }) => {
-  const getSpeedLabel = (value?: number) => {
-    if (value === undefined) return 'N/A'
+  const getSpeedLabel = (value: number | null) => {
+    if (value === null) return 'N/A'
     if (value > 80) return 'Full Speed'
     else if (value > 60) return 'High Speed'
     else if (value > 40) return 'Medium Speed'
@@ -73,7 +73,7 @@ export const PumpSpeed: FC<SensorProps> = ({ data, isConnected }) => {
     else return 'Off'
   }
 
-  const value = isConnected ? getSpeedLabel(data?.value) : 'N/A'
+  const value = isConnected ? getSpeedLabel(data?.value || null) : 'N/A'
 
   return (
     <div className={styles.sensor__valueContainer}>
@@ -86,7 +86,7 @@ export const PumpSpeed: FC<SensorProps> = ({ data, isConnected }) => {
  * ValueUnit - Displays a value with its unit
  */
 export const ValueUnit: FC<SensorProps> = ({ data, isConnected }) => {
-  const value = isConnected ? data?.value.toFixed(2) : 'N/A'
+  const value = isConnected ? data?.value?.toFixed(2) : 'N/A'
 
   return (
     <div className={styles.sensor__valueUnit}>

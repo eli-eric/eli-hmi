@@ -20,9 +20,10 @@ export interface WebSocketContextValue {
 export interface Message<T = unknown> {
   type: string
   name: string
-  value: T
+  value: T | null
   severity: number
-  units?: string
+  units: string | null
   timestamp: number
   ok: boolean
+  error: string | null
 }

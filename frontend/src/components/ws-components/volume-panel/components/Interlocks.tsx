@@ -10,16 +10,16 @@ import styles from '../styles/interlocks.module.css'
  * IconsStatus - Displays status icons based on value
  */
 const IconsStatus: FC<{
-  value?: boolean
+  value?: 1 | 0 | null
   isConnected: boolean
 }> = ({ value, isConnected }) => {
   if (isConnected === false) {
     return <span>N/A</span>
   }
-  if (value === true) {
+  if (value === 1) {
     return <CheckIcon />
   }
-  if (value === false) {
+  if (value === 0) {
     return <CloseIcon />
   }
   return <span>N/A</span>
@@ -32,7 +32,7 @@ interface InterlockItemProps {
   /**
    * Data from the WebSocket
    */
-  data?: Message<boolean> | null
+  data?: Message<1 | 0 | null>
 
   /**
    * Title of the interlock

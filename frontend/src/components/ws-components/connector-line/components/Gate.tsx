@@ -25,7 +25,7 @@ export const Gate: FC<GateProps> = ({
   label,
 }) => {
   const value = isConnected
-    ? `${data?.value.toExponential(2)} ${data?.units}`
+    ? `${data?.value?.toExponential(2) || 'N/A'} ${data?.units || ''}`
     : 'N/A'
 
   return (

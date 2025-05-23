@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 
-import '../globals.css'
+import './globals.css'
+import { Providers } from './providers/providers'
 
 export const metadata: Metadata = {
   title: 'ELI - HMI',
@@ -13,8 +14,10 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <main className="layout-container">
-      <div className="page-container">{children}</div>
-    </main>
+    <html lang="en">
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
   )
 }
