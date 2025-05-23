@@ -20,6 +20,8 @@ const TooltipContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={clsx(styles.TooltipContent, className)}
+      collisionPadding={8}
+      avoidCollisions={true}
       {...props}
     />
   </TooltipPrimitive.Portal>
@@ -29,14 +31,18 @@ TooltipContent.displayName = TooltipPrimitive.Content.displayName
 const Tooltip = ({
   content,
   children,
+  delayDuration = 300,
+  side = 'top',
 }: {
   content: React.ReactNode | string
   children: React.ReactNode
+  delayDuration?: number
+  side?: 'top' | 'right' | 'bottom' | 'left'
 }) => {
   return (
-    <TooltipRoot>
+    <TooltipRoot delayDuration={delayDuration}>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent>{content}</TooltipContent>
+      <TooltipContent side={side}>{content}</TooltipContent>
     </TooltipRoot>
   )
 }

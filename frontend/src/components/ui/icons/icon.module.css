@@ -13,3 +13,14 @@
   padding-left: 0.05rem;
   background-color: transparent;
 }
+
+.errorIcon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  color: #ff3b30;
+}
+
+.errorIcon:hover {
+  color: #e91004;
+}

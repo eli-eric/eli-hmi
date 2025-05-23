@@ -38,19 +38,44 @@ export const SensorPressure: FC<SensorProps> = ({
 
   return (
     <div className={volumeStyles.volumePanel__sensor}>
-      <span
-        className={volumeStyles.volumePanel__sensorData}
-      >{`${value} ${unit}`}</span>
+      <div>
+        <span
+          className={volumeStyles.volumePanel__sensorData}
+        >{`${value} ${unit}`}</span>
+      </div>
       <span className={volumeStyles.volumePanel__sensorLabel}>{label}</span>
     </div>
   )
 }
 
+interface ValveStatusProps {
+  label: string
+  data: Message<1 | 0 | null> | null
+  isConnected: boolean
+}
+
 /**
  * ValveStatus - Displays valve open/closed status
  */
-export const ValveStatus: FC<SensorProps> = ({ label, data, isConnected }) => {
-  const value = isConnected ? (data?.value ? 'open' : 'closed') : 'N/A'
+export const ValveStatus: FC<ValveStatusProps> = ({
+  label,
+  data,
+  isConnected,
+}) => {
+  const getValue = (value: number | null | undefined) => {
+    switch (value) {
+      case 1:
+        return 'open'
+      case 0:
+        return 'closed'
+      case null:
+        return 'N/A'
+      default:
+        return 'N/A'
+    }
+  }
+
+  const value = isConnected ? getValue(data?.value) : 'N/A'
 
   return (
     <div className={styles.sensor__valueContainer}>
@@ -86,11 +111,11 @@ export const PumpSpeed: FC<SensorProps> = ({ data, isConnected }) => {
  * ValueUnit - Displays a value with its unit
  */
 export const ValueUnit: FC<SensorProps> = ({ data, isConnected }) => {
-  const value = isConnected ? data?.value?.toFixed(2) : 'N/A'
+  const value = isConnected ? data?.value?.toFixed(2) || 'N/A' : 'N/A'
 
   return (
     <div className={styles.sensor__valueUnit}>
-      <span>{`${value} ${data?.units}`}</span>
+      <span>{`${value} ${data?.units || ''}`}</span>
     </div>
   )
 }
@@ -101,7 +126,7 @@ export const ValueUnit: FC<SensorProps> = ({ data, isConnected }) => {
 export const PureValue: FC<SensorProps> = ({ data, isConnected }) => {
   return (
     <div className={styles.sensor__valueContainer}>
-      <span>{isConnected ? data?.value : 'N/A'}</span>
+      <span>{isConnected ? data?.value || 'N/A' : 'N/A'}</span>
     </div>
   )
 }
@@ -110,6 +135,6 @@ export const PureValue: FC<SensorProps> = ({ data, isConnected }) => {
  * SensorValue - Displays a sensor value
  */
 export const SensorValue: FC<SensorProps> = ({ data, isConnected }) => {
-  const value = isConnected ? data?.value : 'N/A'
+  const value = isConnected ? data?.value || 'N/A' : 'N/A'
   return <span className={styles.sensor__value}>{value}</span>
 }
