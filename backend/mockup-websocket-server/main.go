@@ -32,13 +32,14 @@ type ResponseMessage struct {
 	OK        bool        `json:"ok"`
 	Timestamp float64     `json:"timestamp"`
 	Units     string      `json:"units"`
+	Error     string      `json:"error"`
 }
 
 /* --------------------------- globals ------------------------------------- */
 
 var (
 	aiMode   = 1 // 1 = autosimulate, 2 = manual
-	biMode   = 2 // 1 = autosimulate, 2 = manual
+	biMode   = 1 // 1 = autosimulate, 2 = manual
 	siMode   = 2 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -368,7 +369,7 @@ func synthValue(name string) interface{} {
 	case strings.HasPrefix(name, "AI_"):
 		return 50 + rng.NormFloat64()*5
 	case strings.HasPrefix(name, "BI_"):
-		return rng.Intn(2) == 0
+		return rng.Intn(2)
 	case strings.HasPrefix(name, "SI_"):
 		return randomWords[rng.Intn(len(randomWords))]
 	default:

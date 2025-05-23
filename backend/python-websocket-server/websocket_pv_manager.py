@@ -166,7 +166,7 @@ class WebSocketPVsManager:
         except Exception as e:
             self.logger.error("Failed to fetch PV %s: %s", pv, str(e))
 
-            data = {"type": "pv", "name": pv, "value": None, "severity": 0, "ok": False, "units": ""}
+            data = {"type": "pv", "name": pv, "value": None, "severity": 0, "ok": False, "units": "", "error": str(e)}
             await self.broadcast(data)
 
     async def _handle_disconnection(self, websocket):
