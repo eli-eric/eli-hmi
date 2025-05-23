@@ -61,7 +61,7 @@ export const InterlockItem: FC<InterlockItemProps> = ({
       <span>{title}</span>
       <div>
         <IconsStatus value={value} isConnected={isConnected} />
-        {!data?.ok && <ErrorIcon message={data?.error} />}
+        {data?.ok === false && <ErrorIcon message={data?.error} />}
       </div>
     </div>
   )
