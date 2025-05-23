@@ -25,7 +25,7 @@ export const Roughing = () => {
       {/* Backing pump status section */}
       <VolumePanel.Container>
         <VolumePanel.Label label="Roughing Pump P04" />
-        <VolumePanel.PumpSpeedConnected pvname="AI_RPM_SPEED_P04" />
+        <VolumePanel.PumpSpeedConnected pvname="AI_SPEED_P04" />
         <VolumePanel.ValveStatusConnected pvname="BI_PUMP_P04" label="GV821" />
       </VolumePanel.Container>
       <VolumePanel.Container>

@@ -27,7 +27,7 @@ export const Backing = () => {
       {/* Backing pump status section */}
       <VolumePanel.Container>
         <VolumePanel.Label label="L3BT Backing Pump P06" />
-        <VolumePanel.PumpSpeedConnected pvname="AI_RPM_SPEED_P06" />
+        <VolumePanel.PumpSpeedConnected pvname="AI_SPEED_P06" />
         <VolumePanel.ValveStatusConnected pvname="BI_PUMP_P06" label="GV220" />
       </VolumePanel.Container>
     </VolumePanel>

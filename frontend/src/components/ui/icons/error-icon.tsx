@@ -3,19 +3,24 @@
 import React from 'react'
 import styles from './icon.module.css'
 import { Tooltip } from '../tooltip/tooltip'
+import clsx from 'clsx'
 
 interface ErrorIconProps {
   message?: string | null
+  className?: string
 }
 
-export const ErrorIcon: React.FC<ErrorIconProps> = ({ message = 'Error' }) => {
+export const ErrorIcon: React.FC<ErrorIconProps> = ({
+  message = 'Error',
+  className,
+}) => {
   return (
     <Tooltip content={message} delayDuration={200} side="top">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="10"
         height="10"
-        className={styles.errorIcon}
+        className={clsx(styles.errorIcon, className)}
         viewBox="0 0 24 24"
         fill="none"
       >

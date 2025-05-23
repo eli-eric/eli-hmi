@@ -1,28 +1,24 @@
 'use client'
 
 import { FC, PropsWithChildren } from 'react'
-import { CheckIcon, CloseIcon, ErrorIcon } from '@/components/ui/icons'
+import { CheckIcon, CloseIcon } from '@/components/ui/icons'
 import { withReactWebSocketData } from '../../with-websocket-data'
 import { Message } from '@/app/providers/types'
 import styles from '../styles/interlocks.module.css'
+import { WithErrorData } from '../../with-error-data'
 
 /**
  * IconsStatus - Displays status icons based on value
  */
 const IconsStatus: FC<{
   value?: 1 | 0 | null
-  isConnected: boolean
-}> = ({ value, isConnected }) => {
-  if (isConnected === false) {
-    return <span>N/A</span>
-  }
+}> = ({ value }) => {
   if (value === 1) {
     return <CheckIcon />
   }
   if (value === 0) {
     return <CloseIcon />
   }
-  return <span>N/A</span>
 }
 
 /**
@@ -60,8 +56,9 @@ export const InterlockItem: FC<InterlockItemProps> = ({
     <div className={styles.interlocks__item}>
       <span>{title}</span>
       <div>
-        <IconsStatus value={value} isConnected={isConnected} />
-        {data?.ok === false && <ErrorIcon message={data?.error} />}
+        <WithErrorData data={data} isConnected={isConnected}>
+          <IconsStatus value={value} />
+        </WithErrorData>
       </div>
     </div>
   )

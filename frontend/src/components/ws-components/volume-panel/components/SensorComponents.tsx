@@ -4,6 +4,7 @@ import { FC } from 'react'
 import styles from '../styles/sensors.module.css'
 import volumeStyles from '../styles/volume-panel.module.css'
 import { Message } from '@/app/providers/types'
+import { WithErrorData } from '../../with-error-data'
 
 /**
  * Common props for sensor components
@@ -33,15 +34,16 @@ export const SensorPressure: FC<SensorProps> = ({
   data,
   isConnected,
 }) => {
-  const value = isConnected ? data?.value?.toExponential(2) : 'N/A'
-  const unit = data?.units || 'N/A'
-
   return (
     <div className={volumeStyles.volumePanel__sensor}>
       <div>
-        <span
-          className={volumeStyles.volumePanel__sensorData}
-        >{`${value} ${unit}`}</span>
+        <span className={volumeStyles.volumePanel__sensorData}>
+          <WithErrorData
+            data={data}
+            formatValue={(v) => v.toExponential(2)}
+            isConnected={isConnected}
+          />
+        </span>
       </div>
       <span className={volumeStyles.volumePanel__sensorLabel}>{label}</span>
     </div>
@@ -50,8 +52,8 @@ export const SensorPressure: FC<SensorProps> = ({
 
 interface ValveStatusProps {
   label: string
-  data: Message<1 | 0 | null> | null
-  isConnected: boolean
+  data?: Message<1 | 0 | null> | null
+  isConnected?: boolean
 }
 
 /**
@@ -65,9 +67,9 @@ export const ValveStatus: FC<ValveStatusProps> = ({
   const getValue = (value: number | null | undefined) => {
     switch (value) {
       case 1:
-        return 'open'
+        return 'OPEN'
       case 0:
-        return 'closed'
+        return 'CLOSED'
       case null:
         return 'N/A'
       default:
@@ -79,7 +81,9 @@ export const ValveStatus: FC<ValveStatusProps> = ({
 
   return (
     <div className={styles.sensor__valueContainer}>
-      <span>{`Valve ${label} is ${value}`}</span>
+      <WithErrorData data={data} isConnected={isConnected}>
+        <span>{`Valve ${label} is ${value}`}</span>
+      </WithErrorData>
     </div>
   )
 }
@@ -88,8 +92,7 @@ export const ValveStatus: FC<ValveStatusProps> = ({
  * PumpSpeed - Displays pump speed status
  */
 export const PumpSpeed: FC<SensorProps> = ({ data, isConnected }) => {
-  const getSpeedLabel = (value: number | null) => {
-    if (value === null) return 'N/A'
+  const getSpeedLabel = (value: number) => {
     if (value > 80) return 'Full Speed'
     else if (value > 60) return 'High Speed'
     else if (value > 40) return 'Medium Speed'
@@ -98,11 +101,13 @@ export const PumpSpeed: FC<SensorProps> = ({ data, isConnected }) => {
     else return 'Off'
   }
 
-  const value = isConnected ? getSpeedLabel(data?.value || null) : 'N/A'
-
   return (
     <div className={styles.sensor__valueContainer}>
-      <span>{value}</span>
+      <WithErrorData
+        data={data}
+        isConnected={isConnected}
+        formatValue={getSpeedLabel}
+      />
     </div>
   )
 }
@@ -111,11 +116,13 @@ export const PumpSpeed: FC<SensorProps> = ({ data, isConnected }) => {
  * ValueUnit - Displays a value with its unit
  */
 export const ValueUnit: FC<SensorProps> = ({ data, isConnected }) => {
-  const value = isConnected ? data?.value?.toFixed(2) || 'N/A' : 'N/A'
-
   return (
     <div className={styles.sensor__valueUnit}>
-      <span>{`${value} ${data?.units || ''}`}</span>
+      <WithErrorData
+        data={data}
+        isConnected={isConnected}
+        formatValue={(v) => v.toPrecision(2)}
+      />
     </div>
   )
 }
@@ -126,7 +133,7 @@ export const ValueUnit: FC<SensorProps> = ({ data, isConnected }) => {
 export const PureValue: FC<SensorProps> = ({ data, isConnected }) => {
   return (
     <div className={styles.sensor__valueContainer}>
-      <span>{isConnected ? data?.value || 'N/A' : 'N/A'}</span>
+      <WithErrorData data={data} isConnected={isConnected} />
     </div>
   )
 }
