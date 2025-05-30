@@ -27,6 +27,5 @@ WORKDIR /app
 COPY --from=builder /app/ws-mockup-server ./ws-mockup-server
 
 # Expose REST/WebSocket port
-EXPOSE 8080
 
 ENTRYPOINT ["./ws-mockup-server"]
