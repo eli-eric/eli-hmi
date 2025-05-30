@@ -3,7 +3,7 @@
 ############################
 # Builder stage            #
 ############################
-FROM golang:1.22-alpine AS builder
+FROM harbor.eli-beams.eu/proxy-dockerhub/golang:1.22-alpine AS builder
 WORKDIR /app
 
 # Install git & certs (needed for go modules)
@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ws-mockup-server ./main.go
 ############################
 # Runtime stage            #
 ############################
-FROM alpine:latest AS runtime
+FROM harbor.eli-beams.eu/proxy-dockerhub/alpine:latest AS runtime
 WORKDIR /app
 COPY --from=builder /app/ws-mockup-server ./ws-mockup-server
 

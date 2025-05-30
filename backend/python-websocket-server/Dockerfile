@@ -1,4 +1,4 @@
-FROM harbor.eli-beams.eu/dockerhub/python:3.12.1
+FROM harbor.eli-beams.eu/proxy-dockerhub/python:3.12.1
 
 RUN mkdir -p /usr/app
 
