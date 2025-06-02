@@ -38,7 +38,10 @@ docker-build-job:
     - docker info
     #- cat /etc/docker/daemon.json
     #- cat /etc/docker/certs.d/harbor.eli-beams.eu/ca.crt
-    - docker pull harbor.eli-beams.eu/dockerhub/alpine:3.20.2 # this fixes a SSL verify error when running docker build
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/node:18-alpine # this fixes a SSL verify error when running docker build
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/golang:1.22-alpine # this fixes a SSL verify error when running docker build
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/alpine:latest # this fixes a SSL verify error when running docker build
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/python:3.12.1 # this fixes a SSL verify error when running docker build
     - docker image ls --all
     - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
     - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest -f frontend/Dockerfile
