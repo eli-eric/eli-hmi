@@ -1,0 +1,56 @@
+# default section explanation: You can set global defaults for some keywords. Each default keyword is copied to every job that doesn’t already have it defined. If the job already has a keyword defined, that default is not used.
+default:
+  # tags not needed in default section because specified at each stage
+  #tags:
+  #- docker-in-docker  # run on the runner that can do docker-in-docker
+  services: # start a container as a service available to the container that runs the pipeline
+    # this docker container will run the docker daemon and will be used by the docker cli container
+    - name: harbor.eli-beams.eu/dockerhub/docker:27.1.2
+      alias: docker # this has to here because in fixes: https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#docker-no-such-host-error
+      command: ["--insecure-registry=harbor.eli-beams.eu"] # fixes docker in docker container not trusting self signed cert: https://stackoverflow.com/questions/50133073/gitlab-ci-docker-in-docker-access-to-insecure-registry
+
+variables:
+  # When you use the dind service, you must instruct Docker to talk with
+  # the daemon started inside of the service. The daemon is available
+  # with a network connection instead of the default
+  # /var/run/docker.sock socket. Docker 19.03 does this automatically
+  # by setting the DOCKER_HOST in
+  # https://github.com/docker-library/docker/blob/d45051476babc297257df490d22cbd806f1b11e4/19.03/docker-entrypoint.sh#L23-L29
+  #
+  # The 'docker' hostname is the alias of the service container as described at
+  # https://docs.gitlab.com/ee/ci/services/#accessing-the-services.
+  #
+  # Specify to Docker where to create the certificates. Docker
+  # creates them automatically on boot, and creates
+  # `/certs/client` to share between the service and job
+  # container, thanks to volume mount from config.toml
+  DOCKER_TLS_CERTDIR: "/certs"
+
+docker-build-job:
+  stage: build
+  # all commands in this stage will run in this docker container that will provide the docker cli
+  image: harbor.eli-beams.eu/dockerhub/docker:27.1.2
+  tags:
+    - docker-in-docker # run on the runner that can do docker-in-docker
+  script:
+    - whoami
+    - id
+    - docker info
+    #- cat /etc/docker/daemon.json
+    #- cat /etc/docker/certs.d/harbor.eli-beams.eu/ca.crt
+    - docker pull harbor.eli-beams.eu/dockerhub/alpine:3.20.2 # this fixes a SSL verify error when running docker build
+    - docker image ls --all
+    - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
+    - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest -f frontend/Dockerfile
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest
+    - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest -f backend/mockup-websocket-server/Dockerfile
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest
+    - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest -f backend/python-websocket-server/Dockerfile
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest
+# this will not work because the image is not available in this stage
+# docker-test-job:
+#   stage: test
+#   tags:
+#   - docker-in-docker
+#   script:
+#   - docker run --rm my-docker-image
