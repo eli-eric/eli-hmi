@@ -1,5 +1,7 @@
 FROM harbor.eli-beams.eu/proxy-dockerhub/python:3.12.1
 
+COPY pip.conf /etc
+
 RUN mkdir -p /usr/app
 
 WORKDIR /usr/app
