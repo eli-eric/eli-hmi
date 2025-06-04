@@ -48,6 +48,7 @@ docker-build-job:
     # - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest
     # - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest -f backend/mockup-websocket-server/Dockerfile
     # - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest
+    - cd backend/python-websocket-server
     - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest -f backend/python-websocket-server/Dockerfile
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest
 # this will not work because the image is not available in this stage
