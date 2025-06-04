@@ -36,8 +36,6 @@ docker-build-job:
     - whoami
     - id
     - docker info
-    - ls -l
-    - pwd
     #- cat /etc/docker/daemon.json
     #- cat /etc/docker/certs.d/harbor.eli-beams.eu/ca.crt
     - docker pull harbor.eli-beams.eu/proxy-dockerhub/node:18-alpine # this fixes a SSL verify error when running docker build
@@ -51,7 +49,7 @@ docker-build-job:
     # - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest -f backend/mockup-websocket-server/Dockerfile
     # - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest
     - cd backend/python-websocket-server
-    - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest -f backend/python-websocket-server/Dockerfile
+    - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest -f Dockerfile
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest
 # this will not work because the image is not available in this stage
 # docker-test-job:
