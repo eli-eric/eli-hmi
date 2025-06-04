@@ -36,6 +36,8 @@ docker-build-job:
     - whoami
     - id
     - docker info
+    - ls -l
+    - pwd
     #- cat /etc/docker/daemon.json
     #- cat /etc/docker/certs.d/harbor.eli-beams.eu/ca.crt
     - docker pull harbor.eli-beams.eu/proxy-dockerhub/node:18-alpine # this fixes a SSL verify error when running docker build
