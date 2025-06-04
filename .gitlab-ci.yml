@@ -44,10 +44,10 @@ docker-build-job:
     - docker pull harbor.eli-beams.eu/proxy-dockerhub/python:3.12.1 # this fixes a SSL verify error when running docker build
     - docker image ls --all
     - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
-    - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest -f frontend/Dockerfile
-    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest
-    - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest -f backend/mockup-websocket-server/Dockerfile
-    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest
+    # - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest -f frontend/Dockerfile
+    # - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest
+    # - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest -f backend/mockup-websocket-server/Dockerfile
+    # - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest
     - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest -f backend/python-websocket-server/Dockerfile
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest
 # this will not work because the image is not available in this stage
