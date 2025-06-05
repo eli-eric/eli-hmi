@@ -1,0 +1,16 @@
+/* Local font definitions */
+@font-face {
+  font-family: 'Roboto Condensed';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/roboto-condensed-regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Roboto Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/roboto-condensed-bold.woff2') format('woff2');
+}
