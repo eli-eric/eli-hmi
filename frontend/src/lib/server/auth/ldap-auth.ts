@@ -53,9 +53,6 @@ export async function ldapAuthenticate(
       },
       userDn: userPrincipal,
       userPassword: password,
-      userSearchBase: LDAP_BASE_DN,
-      usernameAttribute: 'sAMAccountName',
-      attributes: ['cn', 'mail', 'sAMAccountName'],
     })
     console.log('LDAP Authentication response:', user)
     console.log('LDAP Authentication successful')
