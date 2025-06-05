@@ -15,6 +15,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Preload font files */}
+        <link
+          rel="preload"
+          href="/fonts/RobotoCondensed-Regular.ttf"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/RobotoCondensed-Bold.ttf"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <Providers>{children}</Providers>
       </body>
