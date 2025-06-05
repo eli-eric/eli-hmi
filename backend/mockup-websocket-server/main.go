@@ -38,9 +38,9 @@ type ResponseMessage struct {
 /* --------------------------- globals ------------------------------------- */
 
 var (
-	aiMode   = 2 // 1 = autosimulate, 2 = manual
+	aiMode   = 1 // 1 = autosimulate, 2 = manual
 	biMode   = 2 // 1 = autosimulate, 2 = manual
-	siMode   = 2 // 1 = autosimulate, 2 = manual
+	siMode   = 1 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
 
