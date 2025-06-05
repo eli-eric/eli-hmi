@@ -7,20 +7,26 @@ const P3Chamber = () => {
       <VolumePanel.StateControl />
       <VolumePanel.Card title="Pressure" height="20rem">
         <VolumePanel.SensorPressureConnected
+          format="exponencial"
           label="WRG801"
           pvname="AI_MBAR_WRG801"
         />
         <VolumePanel.SensorPressureConnected
           label="WRG802"
+          format="exponencial"
           pvname="AI_MBAR_WRG802"
         />
         <VolumePanel.SensorPressureConnected
           label="WRG803"
+          format="exponencial"
           pvname="AI_MBAR_WRG803"
         />
       </VolumePanel.Card>
       <VolumePanel.Card title="Total Pump Cycles" height="13.7rem">
-        <VolumePanel.SensorValueConnected pvname="AI_PUMP_CYCLES_P3" />
+        <VolumePanel.SensorValueConnected
+          format="precision"
+          pvname="AI_PUMP_CYCLES_P3"
+        />
       </VolumePanel.Card>
     </VolumePanel.Container>
   )
@@ -31,16 +37,18 @@ const P3CRYO1 = () => {
     <VolumePanel.Container width="12rem">
       <VolumePanel.Label label="P3 CRYO1" />
       <VolumePanel.StateControl />
-      <VolumePanel.Card title="Pressure" height="20rem">
+      <VolumePanel.Card title="Tempenture" height="20rem">
         <VolumePanel.SensorPressureConnected
+          format="precision"
           label="XYZ000"
           pvname="AI_K_XYZ000"
         />
       </VolumePanel.Card>
-      <VolumePanel.Card title="Total Pump Cycles" height="13.7rem">
+      <VolumePanel.Card title="Pressure" height="13.7rem">
         <VolumePanel.SensorPressureConnected
           label="APG804"
           pvname="AI_MBAR_APG804"
+          format="exponencial"
         />
       </VolumePanel.Card>
     </VolumePanel.Container>
@@ -52,15 +60,16 @@ const P3CRYO2 = () => {
     <VolumePanel.Container width="12rem">
       <VolumePanel.Label label="P3 CRYO2" />
       <VolumePanel.StateControl />
-      <VolumePanel.Card title="Pressure" height="20rem">
+      <VolumePanel.Card title="Tempenture" height="20rem">
         <VolumePanel.SensorPressureConnected
           label="XYZ001"
           pvname="AI_K_XYZ001"
         />
       </VolumePanel.Card>
-      <VolumePanel.Card title="Total Pump Cycles" height="13.7rem">
+      <VolumePanel.Card title="Pressure" height="13.7rem">
         <VolumePanel.SensorPressureConnected
           label="APG805"
+          format="exponencial"
           pvname="AI_MBAR_APG805"
         />
       </VolumePanel.Card>

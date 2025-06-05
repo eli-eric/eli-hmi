@@ -24,6 +24,15 @@ export interface SensorProps {
    * Whether the WebSocket is connected
    */
   isConnected?: boolean
+
+  /**
+   * Optional format enum for formatting the sensor value
+   */
+
+  format?: 'exponencial' | 'precision' | 'raw'
+
+  toPrecision?: number
+  toExponential?: number
 }
 
 /**
@@ -33,6 +42,9 @@ export const SensorPressure: FC<SensorProps> = ({
   label,
   data,
   isConnected,
+  format = 'precision',
+  toExponential = 2,
+  toPrecision = 4,
 }) => {
   return (
     <div className={volumeStyles.volumePanel__sensor}>
@@ -40,7 +52,18 @@ export const SensorPressure: FC<SensorProps> = ({
         <span className={volumeStyles.volumePanel__sensorData}>
           <WithErrorData
             data={data}
-            formatValue={(v) => v.toExponential(2)}
+            formatValue={(v) => {
+              switch (format) {
+                case 'exponencial':
+                  return v.toExponential(toExponential)
+                case 'precision':
+                  return v.toPrecision(toPrecision)
+                case 'raw':
+                  return v.toString()
+                default:
+                  return v.toString()
+              }
+            }}
             isConnected={isConnected}
           />
         </span>
@@ -141,7 +164,26 @@ export const PureValue: FC<SensorProps> = ({ data, isConnected }) => {
 /**
  * SensorValue - Displays a sensor value
  */
-export const SensorValue: FC<SensorProps> = ({ data, isConnected }) => {
-  const value = isConnected ? data?.value || 'N/A' : 'N/A'
+export const SensorValue: FC<SensorProps> = ({
+  data,
+  isConnected,
+  format,
+  toExponential = 2,
+  toPrecision = 4,
+}) => {
+  const getValue = (value: number | null | undefined) => {
+    switch (format) {
+      case 'exponencial':
+        return value?.toExponential(toExponential) || 'N/A'
+      case 'precision':
+        return value?.toPrecision(toPrecision) || 'N/A'
+      case 'raw':
+        return value?.toString() || 'N/A'
+      default:
+        return value?.toString() || 'N/A'
+    }
+  }
+  const value = isConnected ? getValue(data?.value) || 'N/A' : 'N/A'
+
   return <span className={styles.sensor__value}>{value}</span>
 }

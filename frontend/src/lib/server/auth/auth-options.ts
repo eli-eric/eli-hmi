@@ -40,9 +40,9 @@ export const authOptions: NextAuthOptions = {
           console.log('Generated token for user:', user.username)
 
           return {
-            id: user.id,
-            name: user.name,
-            email: user.email,
+            id: user.username,
+            name: user.username,
+            email: user.username, // Assuming username is used as email
             accessToken: token, // Add accessToken directly to the User object
           }
         }

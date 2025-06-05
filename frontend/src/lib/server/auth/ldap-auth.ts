@@ -11,9 +11,6 @@ const LDAP_BASE_DN = process.env.LDAP_BASE_DN || 'dc=lcs,dc=local'
 const LDAP_USE_TLS = process.env.LDAP_USE_TLS === 'true'
 
 export interface LdapUser {
-  id: string
-  name: string
-  email: string
   username: string
 }
 
@@ -36,9 +33,6 @@ export async function ldapAuthenticate(
   ) {
     console.log('Development mode: Using test user')
     return {
-      id: '1',
-      name: 'Test User',
-      email: 'test@eli-beams.eu',
       username: 'test',
     }
   }
@@ -63,15 +57,10 @@ export async function ldapAuthenticate(
       usernameAttribute: 'sAMAccountName',
       attributes: ['cn', 'mail', 'sAMAccountName'],
     })
-
-    if (user) {
-      console.log('LDAP Authentication successful')
-      return {
-        id: user.sAMAccountName || username,
-        name: user.cn || username,
-        email: user.mail || `${username}@eli-beams.eu`,
-        username: username,
-      }
+    console.log('LDAP Authentication response:', user)
+    console.log('LDAP Authentication successful')
+    return {
+      username,
     }
   } catch (error) {
     console.error('LDAP Authentication failed:', error)

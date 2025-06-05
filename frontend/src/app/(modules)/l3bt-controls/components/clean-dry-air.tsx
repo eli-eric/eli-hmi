@@ -1,9 +1,23 @@
 import { VolumePanel } from '@/components/ws-components/volume-panel'
+import { ENV } from '@/types/constants'
 
 /**
  * Clean Dry Air component for L3BT controls
  * Displays clean dry air pressure information
  */
+
+const PV_SETTINGS = {
+  development: {
+    pressurePV: 'AI_BAR_L3BT-VCS-PPS511:PRESSURE',
+  },
+  production: {
+    pressurePV: 'L3BT-VCS-PPS511:PRESSURE',
+  },
+  test: {
+    pressurePV: 'AI_BAR_L3BT-VCS-PPS511:PRESSURE',
+  },
+}
+
 export const ClearDryAir = () => {
   return (
     <VolumePanel>
@@ -11,8 +25,8 @@ export const ClearDryAir = () => {
       <VolumePanel.Card height="22rem">
         <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
         <VolumePanel.SensorPressureConnected
-          pvname="AI_BAR_PP511"
-          label="PP511"
+          pvname={PV_SETTINGS[ENV].pressurePV}
+          label="PPS511"
           onDataUpdate={(msg) => {
             console.log('Clean Dry Air Data Update', msg)
           }}
