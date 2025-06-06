@@ -24,6 +24,7 @@ import {
   InterlockItem,
   InterlockConnected,
 } from './components/Interlocks'
+import { TurbopumpBasic } from './components/TurboPumpBasic'
 
 // Connected sensor components
 const SensorPressureConnected = withReactWebSocketData(SensorPressure)
@@ -77,6 +78,7 @@ export const VolumePanel: FC<VolumePanelProps> & {
   Interlocks: typeof Interlocks
   InterlockItem: typeof InterlockItem
   InterlockConnected: typeof InterlockConnected
+  TurbopumpBasic: typeof TurbopumpBasic
 } = ({ children, width = '10rem' }) => {
   return (
     <VolumePanelProvider>
@@ -104,3 +106,4 @@ VolumePanel.WarningErrorControl = WarningErrorControl
 VolumePanel.Interlocks = Interlocks
 VolumePanel.InterlockItem = InterlockItem
 VolumePanel.InterlockConnected = InterlockConnected
+VolumePanel.TurbopumpBasic = TurbopumpBasic
