@@ -9,8 +9,6 @@ import { authenticate } from 'ldap-authentication'
 // LDAP server configuration
 // These should be set in the environment variables
 const LDAP_SERVER_URL = process.env.LDAP_SERVER_URL || 'ldap://10.78.0.11'
-//const LDAP_BASE_DN = process.env.LDAP_BASE_DN || 'dc=lcs,dc=local'
-const LDAP_USE_TLS = process.env.LDAP_USE_TLS === 'true'
 
 export interface LdapUser {
   username: string
