@@ -7,24 +7,24 @@ const P3Chamber = () => {
       <VolumePanel.StateControl />
       <VolumePanel.Card title="Pressure" height="20rem">
         <VolumePanel.SensorPressureConnected
-          format="exponencial"
+          options={{ format: 'exponencial' }}
           label="WRG801"
           pvname="AI_MBAR_WRG801"
         />
         <VolumePanel.SensorPressureConnected
+          options={{ format: 'exponencial' }}
           label="WRG802"
-          format="exponencial"
           pvname="AI_MBAR_WRG802"
         />
         <VolumePanel.SensorPressureConnected
+          options={{ format: 'exponencial' }}
           label="WRG803"
-          format="exponencial"
           pvname="AI_MBAR_WRG803"
         />
       </VolumePanel.Card>
       <VolumePanel.Card title="Total Pump Cycles" height="13.7rem">
         <VolumePanel.SensorValueConnected
-          format="precision"
+          options={{ format: 'precision' }}
           pvname="AI_PUMP_CYCLES_P3"
         />
       </VolumePanel.Card>
@@ -39,7 +39,7 @@ const P3CRYO1 = () => {
       <VolumePanel.StateControl />
       <VolumePanel.Card title="Tempenture" height="20rem">
         <VolumePanel.SensorPressureConnected
-          format="precision"
+          options={{ format: 'precision' }}
           label="XYZ000"
           pvname="AI_K_XYZ000"
         />
@@ -48,7 +48,7 @@ const P3CRYO1 = () => {
         <VolumePanel.SensorPressureConnected
           label="APG804"
           pvname="AI_MBAR_APG804"
-          format="exponencial"
+          options={{ format: 'exponencial' }}
         />
       </VolumePanel.Card>
     </VolumePanel.Container>
@@ -69,7 +69,7 @@ const P3CRYO2 = () => {
       <VolumePanel.Card title="Pressure" height="13.7rem">
         <VolumePanel.SensorPressureConnected
           label="APG805"
-          format="exponencial"
+          options={{ format: 'exponencial' }}
           pvname="AI_MBAR_APG805"
         />
       </VolumePanel.Card>

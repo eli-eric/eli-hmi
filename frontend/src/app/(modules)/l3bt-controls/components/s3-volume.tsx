@@ -23,22 +23,18 @@ export const S3Volume = () => {
           />
         </VolumePanel.Card>
       </VolumePanel.Container>
-      <VolumePanel.Container>
-        <VolumePanel.Label label="L3BT S1 Turbopump TMP532, Pipe" />
-        <VolumePanel.PumpSpeedConnected pvname="AI_TMP532" />
-        <VolumePanel.Row>
-          <VolumePanel.ValueUnitConnected pvname="AI_RPM_TMP532" />
-          <VolumePanel.ValueUnitConnected pvname="AI_TEMP_TMP532" />
-        </VolumePanel.Row>
-      </VolumePanel.Container>
-      <VolumePanel.Container>
-        <VolumePanel.Label label="L3BT S1 Turbopump TMP531, CH504" />
-        <VolumePanel.PumpSpeedConnected pvname="AI_TMP531" />
-        <VolumePanel.Row>
-          <VolumePanel.ValueUnitConnected pvname="AI_RPM_TMP531" />
-          <VolumePanel.ValueUnitConnected pvname="AI_TEMP_TMP531" />
-        </VolumePanel.Row>
-      </VolumePanel.Container>
+      <VolumePanel.TurbopumpBasic
+        label="L3BT S1 Turbopump TMP532, Pipe"
+        statusPV="AI_TMP532"
+        rpmPV="AI_RPM_TMP532"
+        tempPV="AI_TEMP_TMP532"
+      />
+      <VolumePanel.TurbopumpBasic
+        label="L3BT S1 Turbopump TMP531, CH504"
+        statusPV="AI_TMP531"
+        rpmPV="AI_RPM_TMP531"
+        tempPV="AI_TEMP_TMP531"
+      />
     </VolumePanel>
   )
 }

@@ -5,6 +5,7 @@ import styles from '../styles/sensors.module.css'
 import volumeStyles from '../styles/volume-panel.module.css'
 import { Message } from '@/app/providers/types'
 import { WithErrorData } from '../../with-error-data'
+import { getFormattedValue, ValueFormatOptions } from '@/lib/utils/pv-helpers'
 
 /**
  * Common props for sensor components
@@ -29,10 +30,7 @@ export interface SensorProps {
    * Optional format enum for formatting the sensor value
    */
 
-  format?: 'exponencial' | 'precision' | 'raw'
-
-  toPrecision?: number
-  toExponential?: number
+  options?: ValueFormatOptions
 }
 
 /**
@@ -42,9 +40,7 @@ export const SensorPressure: FC<SensorProps> = ({
   label,
   data,
   isConnected,
-  format = 'precision',
-  toExponential = 2,
-  toPrecision = 4,
+  options,
 }) => {
   return (
     <div className={volumeStyles.volumePanel__sensor}>
@@ -52,18 +48,7 @@ export const SensorPressure: FC<SensorProps> = ({
         <span className={volumeStyles.volumePanel__sensorData}>
           <WithErrorData
             data={data}
-            formatValue={(v) => {
-              switch (format) {
-                case 'exponencial':
-                  return v.toExponential(toExponential)
-                case 'precision':
-                  return v.toPrecision(toPrecision)
-                case 'raw':
-                  return v.toString()
-                default:
-                  return v.toString()
-              }
-            }}
+            formatValue={(v) => getFormattedValue({ value: v, options })}
             isConnected={isConnected}
           />
         </span>
@@ -167,23 +152,14 @@ export const PureValue: FC<SensorProps> = ({ data, isConnected }) => {
 export const SensorValue: FC<SensorProps> = ({
   data,
   isConnected,
-  format,
-  toExponential = 2,
-  toPrecision = 4,
+  options,
 }) => {
-  const getValue = (value: number | null | undefined) => {
-    switch (format) {
-      case 'exponencial':
-        return value?.toExponential(toExponential) || 'N/A'
-      case 'precision':
-        return value?.toPrecision(toPrecision) || 'N/A'
-      case 'raw':
-        return value?.toString() || 'N/A'
-      default:
-        return value?.toString() || 'N/A'
-    }
-  }
-  const value = isConnected ? getValue(data?.value) || 'N/A' : 'N/A'
+  const value = isConnected
+    ? getFormattedValue({
+        value: data?.value,
+        options,
+      }) || 'N/A'
+    : 'N/A'
 
   return <span className={styles.sensor__value}>{value}</span>
 }

@@ -1,6 +1,8 @@
 /**
- * This module provides functions to authenticate users against an LDAP server
- * It can be used in both development and production environments
+ * This module provides a function to authenticate users against an LDAP server using the provided
+ * username and password. The LDAP server's address and the username should be configured in the
+ * LDAP_SERVER_URL variable. The function returns the username if authentication is successful,
+ * and null otherwise. The function logs various stages of the LDAP authentication process.
  */
 import { authenticate } from 'ldap-authentication'
 
@@ -43,24 +45,34 @@ export async function ldapAuthenticate(
       ? username
       : `${username}@lcs.local`
 
-    console.log(`Attempting LDAP authentication for user: ${username}`)
+    console.log('Setting up LDAP server...')
 
-    // Authenticate with LDAP
-    const user = await authenticate({
+    console.log(`Attempting to connect to LDAP server for user: ${username}`)
+
+    // Create auth options for ldap-authentication
+    const options = {
       ldapOpts: {
         url: LDAP_SERVER_URL,
-        tlsOptions: LDAP_USE_TLS ? { rejectUnauthorized: false } : undefined,
+        tlsOptions: {
+          rejectUnauthorized: true,
+        },
       },
       userDn: userPrincipal,
       userPassword: password,
-    })
-    console.log('LDAP Authentication response:', user)
-    console.log('LDAP Authentication successful')
+    }
+
+    // Authenticate with LDAP
+    await authenticate(options)
+
+    console.log('Successfully authenticated with LDAP server.')
+
+    // Return the username as requested - server doesn't return anything useful
     return {
       username,
     }
   } catch (error) {
-    console.error('LDAP Authentication failed:', error)
+    console.error('An unexpected error occurred during LDAP operation.')
+    console.error('Error details:', error)
   }
 
   return null

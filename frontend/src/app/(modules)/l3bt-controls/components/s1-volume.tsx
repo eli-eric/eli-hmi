@@ -66,27 +66,18 @@ export const S1Volume = () => {
           />
         </VolumePanel.Card>
       </VolumePanel.Container>
-      <VolumePanel.Container>
-        <VolumePanel.Label label="L3BT S1 Turbopump TMP511, CH501" />
-        <VolumePanel.PumpSpeedConnected pvname={PV_SETTINGS[ENV].pumpTMP511} />
-        <VolumePanel.Row>
-          <VolumePanel.ValueUnitConnected pvname={PV_SETTINGS[ENV].rpmTMP511} />
-
-          <VolumePanel.ValueUnitConnected
-            pvname={PV_SETTINGS[ENV].tempTMP511}
-          />
-        </VolumePanel.Row>
-      </VolumePanel.Container>
-      <VolumePanel.Container>
-        <VolumePanel.Label label="L3BT S1 Turbopump TMP512, CH503" />
-        <VolumePanel.PumpSpeedConnected pvname={PV_SETTINGS[ENV].pumpTMP512} />
-        <VolumePanel.Row>
-          <VolumePanel.ValueUnitConnected pvname={PV_SETTINGS[ENV].rpmTMP512} />
-          <VolumePanel.ValueUnitConnected
-            pvname={PV_SETTINGS[ENV].tempTMP512}
-          />
-        </VolumePanel.Row>
-      </VolumePanel.Container>
+      <VolumePanel.TurbopumpBasic
+        label="L3BT S1 Turbopump TMP511, CH501"
+        statusPV={PV_SETTINGS[ENV].pumpTMP511}
+        rpmPV={PV_SETTINGS[ENV].rpmTMP511}
+        tempPV={PV_SETTINGS[ENV].tempTMP511}
+      />
+      <VolumePanel.TurbopumpBasic
+        label="L3BT S1 Turbopump TMP512, CH503"
+        statusPV={PV_SETTINGS[ENV].pumpTMP512}
+        rpmPV={PV_SETTINGS[ENV].rpmTMP512}
+        tempPV={PV_SETTINGS[ENV].tempTMP512}
+      />
     </VolumePanel>
   )
 }
