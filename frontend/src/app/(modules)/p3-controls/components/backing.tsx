@@ -6,26 +6,21 @@ import { VolumePanel } from '@/components/ws-components/volume-panel'
  */
 export const Backing = () => {
   return (
-    <VolumePanel>
-      <VolumePanel.Title label="P3 Backing" />
-      {/* Backing line pressure section */}
-      <VolumePanel.Container>
-        <VolumePanel.Label label="P3 Backing line" />
-        <VolumePanel.Card height="20rem">
-          <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
-          <VolumePanel.SensorPressureConnected
-            pvname="AI_MBAR_APG802"
-            label="APG802"
-          />
-        </VolumePanel.Card>
-      </VolumePanel.Container>
+    <VolumePanel title="P3 Backing">
+      <VolumePanel.SensorBar
+        height="20rem"
+        label="Pressure"
+        title="P3 Backing Line"
+        sensorPVs={[{ pvName: 'AI_MBAR_APG802', label: 'APG802' }]}
+      />
 
       {/* Backing pump status section */}
-      <VolumePanel.Container>
-        <VolumePanel.Label label="P3 Backing Pump P01" />
-        <VolumePanel.PumpSpeedConnected pvname="AI_RPM_SPEED_P01" />
-        <VolumePanel.ValveStatusConnected pvname="BI_PUMP_P01" label="GV154" />
-      </VolumePanel.Container>
+      <VolumePanel.Pump
+        label="P3 Backing Pump P01"
+        rpmPV="AI_RPM_SPEED_P01"
+        valvePv="BI_PUMP_P01"
+        valveLabel="GV154"
+      />
     </VolumePanel>
   )
 }

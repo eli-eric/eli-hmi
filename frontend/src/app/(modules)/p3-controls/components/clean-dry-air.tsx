@@ -6,15 +6,13 @@ import { VolumePanel } from '@/components/ws-components/volume-panel'
  */
 export const ClearDryAir = () => {
   return (
-    <VolumePanel>
-      <VolumePanel.Title label="P3 Clean Dry Air" />
-      <VolumePanel.Card height="22rem">
-        <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
-        <VolumePanel.SensorPressureConnected
-          pvname="AI_BAR_PPS801"
-          label="PPS801"
-        />
-      </VolumePanel.Card>
+    <VolumePanel title="P3 Clean Dry Air">
+      <VolumePanel.SensorBar
+        title="P3 Clean Dry Air"
+        label="Pressure"
+        height="22rem"
+        sensorPVs={[{ pvName: 'AI_BAR_PPS801', label: 'PPS801' }]}
+      />
     </VolumePanel>
   )
 }

@@ -6,19 +6,14 @@ import { VolumePanel } from '@/components/ws-components/volume-panel'
  */
 export const Roughing = () => {
   return (
-    <VolumePanel>
-      <VolumePanel.Title label="Roughing" />
+    <VolumePanel title="Roughing">
       {/* Backing line pressure section */}
-      <VolumePanel.Container>
-        <VolumePanel.Label label="Roughing Line, P3 Outlet" />
-        <VolumePanel.Card height="20rem">
-          <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
-          <VolumePanel.SensorPressureConnected
-            pvname="AI_MBAR_APG801"
-            label="APG801"
-          />
-        </VolumePanel.Card>
-      </VolumePanel.Container>
+      <VolumePanel.SensorBar
+        title="Roughing Line, P3 Outlet"
+        label="Pressure"
+        height="20rem"
+        sensorPVs={[{ pvName: 'AI_MBAR_APG801', label: 'APG801' }]}
+      />
 
       {/* Backing pump status section */}
       <VolumePanel.Container>

@@ -25,6 +25,8 @@ import {
   InterlockConnected,
 } from './components/Interlocks'
 import { TurbopumpBasic } from './components/TurboPumpBasic'
+import { Pump } from './components/Pump'
+import { SensorBar } from './components/external/SensorBar'
 
 // Connected sensor components
 const SensorPressureConnected = withReactWebSocketData(SensorPressure)
@@ -36,6 +38,7 @@ const SensorValueConnected = withReactWebSocketData(SensorValue)
 
 interface VolumePanelProps {
   width?: string
+  title?: string
   children: React.ReactNode
 }
 
@@ -79,10 +82,14 @@ export const VolumePanel: FC<VolumePanelProps> & {
   InterlockItem: typeof InterlockItem
   InterlockConnected: typeof InterlockConnected
   TurbopumpBasic: typeof TurbopumpBasic
-} = ({ children, width = '10rem' }) => {
+  Pump: typeof Pump
+  SensorBar: typeof SensorBar
+} = ({ children, width = '10rem', title }) => {
   return (
     <VolumePanelProvider>
-      <ContainerCard width={width}>{children}</ContainerCard>
+      <ContainerCard width={width} title={title}>
+        {children}
+      </ContainerCard>
     </VolumePanelProvider>
   )
 }
@@ -107,3 +114,5 @@ VolumePanel.Interlocks = Interlocks
 VolumePanel.InterlockItem = InterlockItem
 VolumePanel.InterlockConnected = InterlockConnected
 VolumePanel.TurbopumpBasic = TurbopumpBasic
+VolumePanel.Pump = Pump
+VolumePanel.SensorBar = SensorBar

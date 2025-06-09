@@ -45,27 +45,35 @@ const PV_SETTINGS = {
 
 export const S1Volume = () => {
   return (
-    <VolumePanel width="13rem">
-      <VolumePanel.Title label="L3BT S1" />
-      <VolumePanel.Container>
-        <VolumePanel.Label label="L3BT S1 Volume" />
-        <VolumePanel.StateControl />
-        <VolumePanel.Card height="20rem">
-          <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
-          <VolumePanel.SensorPressureConnected
-            pvname={PV_SETTINGS[ENV].pressureWRG511}
-            label="WRG511 CH010"
-          />
-          <VolumePanel.SensorPressureConnected
-            pvname={PV_SETTINGS[ENV].pressureWRG512}
-            label="WRG512 CH030"
-          />
-          <VolumePanel.SensorPressureConnected
-            pvname={PV_SETTINGS[ENV].pressureWRG513}
-            label="WRG513 CH010"
-          />
-        </VolumePanel.Card>
-      </VolumePanel.Container>
+    <VolumePanel width="13rem" title="L3BT S1">
+      <VolumePanel.SensorBar
+        title="L3BT S1 Volume"
+        label="Pressure"
+        stateControl={{
+          pvName: PV_SETTINGS[ENV].pressureWRG511,
+          controlPvs: [
+            {
+              label: 'Roughing Valve',
+              pvName: PV_SETTINGS[ENV].pressureWRG511,
+            },
+          ],
+        }}
+        sensorPVs={[
+          {
+            pvName: PV_SETTINGS[ENV].pressureWRG511,
+            label: 'WRG511 CH010',
+          },
+          {
+            pvName: PV_SETTINGS[ENV].pressureWRG512,
+            label: 'WRG512 CH030',
+          },
+          {
+            pvName: PV_SETTINGS[ENV].pressureWRG513,
+            label: 'WRG513 CH010',
+          },
+        ]}
+      />
+
       <VolumePanel.TurbopumpBasic
         label="L3BT S1 Turbopump TMP511, CH501"
         statusPV={PV_SETTINGS[ENV].pumpTMP511}

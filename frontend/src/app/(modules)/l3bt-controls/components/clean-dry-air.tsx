@@ -20,18 +20,12 @@ const PV_SETTINGS = {
 
 export const ClearDryAir = () => {
   return (
-    <VolumePanel>
-      <VolumePanel.Title label="L3BT Clean Dry Air" />
-      <VolumePanel.Card height="22rem">
-        <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
-        <VolumePanel.SensorPressureConnected
-          pvname={PV_SETTINGS[ENV].pressurePV}
-          label="PPS511"
-          onDataUpdate={(msg) => {
-            console.log('Clean Dry Air Data Update', msg)
-          }}
-        />
-      </VolumePanel.Card>
+    <VolumePanel title="L3BT Clean Dry Air" width="9rem">
+      <VolumePanel.SensorBar
+        label="Pressure"
+        height="22rem"
+        sensorPVs={[{ pvName: PV_SETTINGS[ENV].pressurePV, label: 'PPS511' }]}
+      />
     </VolumePanel>
   )
 }

@@ -2,7 +2,7 @@
 import { FC, useState } from 'react'
 import Dropdown from '@/components/ui/dropdown'
 import { SettingsButton } from '@/components/ui/buttons'
-import { useWebSocketContext } from '@/app/providers/socket-provider'
+// import { useWebSocketContext } from '@/app/providers/socket-provider'
 import { VALVE_STATE, ValveStatus } from './Valve'
 import styles from '../styles/valve.module.css'
 
@@ -19,7 +19,7 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
   controlClosePV,
 }) => {
   const [status, setStatus] = useState<VALVE_STATE>(VALVE_STATE.CLOSED)
-  const { send } = useWebSocketContext()
+  // const { send } = useWebSocketContext()
 
   const onStatusUpdate = (newStatus: VALVE_STATE) => {
     if (status !== newStatus) {
@@ -48,7 +48,14 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
               {
                 label: 'Open Valve',
                 onClick: () => {
-                  send({ type: 'set', pvs: { [controlOpenPV]: true } })
+                  // send({ type: 'set', pvs: { [controlOpenPV]: true } })
+                  fetch(`${process.env.NEXT_PUBLIC_API_URL}/${controlOpenPV}`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ value: true }),
+                  })
                 },
               },
             ]
@@ -57,7 +64,17 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
               {
                 label: 'Close Valve',
                 onClick: () => {
-                  send({ type: 'set', pvs: { [controlClosePV]: true } })
+                  // send({ type: 'set', pvs: { [controlClosePV]: true } })
+                  fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL}/${controlClosePV}`,
+                    {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ value: true }),
+                    },
+                  )
                 },
               },
             ]

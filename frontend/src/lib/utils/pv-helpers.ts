@@ -18,7 +18,7 @@ export const PV_PREFIX_CONFIG: Record<PVType, string> = {
   [PVType.STATUS]: 'SI_',
   [PVType.PRESSURE]: 'AI_MBAR_',
   [PVType.TEMP]: 'AI_K_',
-  [PVType.ACTUAL_FREQUENCY]: 'AI_RMP_',
+  [PVType.ACTUAL_FREQUENCY]: 'AI_RPM_',
   [PVType.ACTUAL_TEMPERATURE]: 'AI_TEMP_',
   [PVType.CLOSED]: 'BI_CLOSED_',
   [PVType.OPEN]: 'BI_OPEN_',
@@ -93,6 +93,6 @@ export const getFormattedValue = ({
     case 'raw':
       return value?.toString() || 'N/A'
     default:
-      return value?.toString() || 'N/A'
+      return value?.toExponential(toExponential) || 'N/A'
   }
 }

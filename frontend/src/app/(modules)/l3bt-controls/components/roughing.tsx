@@ -38,31 +38,22 @@ const PV_SETTINGS = {
 
 export const Roughing = () => {
   return (
-    <VolumePanel>
-      <VolumePanel.Title label="Roughing" />
-      {/* Backing line pressure section */}
-      <VolumePanel.Container>
-        <VolumePanel.Label label="Roughing Line, P3 Outlet" />
-        <VolumePanel.Card title="Pressure">
-          <VolumePanel.SensorPressureConnected
-            pvname={PV_SETTINGS[ENV].pressureAPG511}
-            label="APG511 CH030"
-          />
-          <VolumePanel.SensorPressureConnected
-            pvname={PV_SETTINGS[ENV].pressureAPG531}
-            label="APG531 CH040"
-          />
-        </VolumePanel.Card>
-      </VolumePanel.Container>
-      {/* Backing pump status section */}
-      <VolumePanel.Container>
-        <VolumePanel.Label label="Roughing Pump P04" />
-        <VolumePanel.PumpSpeedConnected pvname={PV_SETTINGS[ENV].p04Pump} />
-        <VolumePanel.ValveStatusConnected
-          pvname={PV_SETTINGS[ENV].p04Valve}
-          label="GV821"
-        />
-      </VolumePanel.Container>
+    <VolumePanel title="Roughing">
+      <VolumePanel.SensorBar
+        title="Roughing Line, P3 Outlet"
+        label="Pressure"
+        sensorPVs={[
+          { pvName: PV_SETTINGS[ENV].pressureAPG511, label: 'APG511 CH030' },
+          { pvName: PV_SETTINGS[ENV].pressureAPG531, label: 'APG531 CH040' },
+        ]}
+      />
+      <VolumePanel.Pump
+        label="Roughing Pump P04"
+        rpmPV={PV_SETTINGS[ENV].p04Pump}
+        valvePv={PV_SETTINGS[ENV].p04Valve}
+        valveLabel="GV821"
+      />
+      {/* TODO Locked comp */}
       <VolumePanel.Container>
         <VolumePanel.Label label="Used And Locked By" />
         <VolumePanel.PureValueConnected pvname={PV_SETTINGS[ENV].lockedBy} />
