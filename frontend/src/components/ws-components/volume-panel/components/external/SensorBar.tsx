@@ -16,7 +16,8 @@ interface SensorBarProps {
     options?: ValueFormatOptions
   }[]
   stateControl?: {
-    pvName: string
+    pvCurrentState: string
+    pvTargetState: string
     controlPvs: {
       pvName: string
       label: string
@@ -57,7 +58,8 @@ export const SensorBar: FC<SensorBarProps> = ({
               pvName: getPrefixedPV(pv.pvName),
               label: pv.label,
             })),
-            pvName: getPrefixedPV(stateControl.pvName),
+            pvNameCurrent: getPrefixedPV(stateControl.pvCurrentState),
+            pvNameTarget: getPrefixedPV(stateControl.pvTargetState),
           }}
         />
       )}

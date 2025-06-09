@@ -6,32 +6,58 @@ import Dropdown from '@/components/ui/dropdown'
 import { useWebSocketMulti } from '@/hooks/useWebSocketData'
 import styles from '../styles/controls.module.css'
 import { Message } from '@/app/providers/types'
-import { withReactWebSocketData } from '@/components/ws-components/with-websocket-data'
+import Image from 'next/image'
 
 type TriggerProps = {
-  data?: Message<string> | null
-  isConnected?: boolean
+  currentStatePv: string
+  targetStatePv: string
 }
 
-const Trigger = ({ data }: TriggerProps) => {
+const Trigger = ({ currentStatePv, targetStatePv }: TriggerProps) => {
+  const { state } = useWebSocketMulti({
+    pvs: [targetStatePv, currentStatePv],
+  })
+
+  const currentState = state[currentStatePv] as Message<string> | null
+  const currentValue = currentState?.value || 'N/A'
+  const targetState = state[targetStatePv] as Message<string> | null
+  const targetValue = targetState?.value || 'N/A'
+
+  const showTarget = targetValue !== currentValue
+
   return (
     <div
       className={styles.control__trigger}
       style={{ backgroundColor: 'var(--color-surface-light)' }}
     >
       <div className={styles.control__triggerContainer}>
-        <span>{data?.value}</span>
+        <div className={styles.control__triggerStatus}>
+          <span className={styles.control__triggerContainerText}>
+            {currentValue}
+          </span>
+          {showTarget && (
+            <div className={styles.control__targetContainer}>
+              <Image
+                src={'/images/arrow-right.svg'}
+                alt="Target Icon"
+                width={16}
+                height={16}
+                className={styles.control__targetIcon}
+              />
+              <span className={styles.control__targetLabel}>{targetValue}</span>
+            </div>
+          )}
+        </div>
         <SettingsButton />
       </div>
     </div>
   )
 }
 
-const ConnectedTrigger = withReactWebSocketData(Trigger)
-
 interface ControlProps {
-  pvName?: string
-  controlPvs?: {
+  pvNameCurrent: string
+  pvNameTarget: string
+  controlPvs: {
     pvName: string
     label: string
   }[]
@@ -43,9 +69,18 @@ interface ControlProps {
  * Displays a dropdown with state options and a settings button
  */
 //TODO
-export const StateControl: FC<ControlProps> = ({ pvName, controlPvs }) => {
+export const StateControl: FC<ControlProps> = ({
+  controlPvs,
+  pvNameCurrent,
+  pvNameTarget,
+}) => {
   const renderTrigger = () => {
-    return <ConnectedTrigger pvname={pvName || 'SI_DUMMY'} />
+    return (
+      <Trigger
+        currentStatePv={pvNameCurrent || 'SI_DUMMY'}
+        targetStatePv={pvNameTarget || 'SI_DUMMY'}
+      />
+    )
   }
 
   return (

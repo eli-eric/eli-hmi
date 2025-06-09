@@ -1,6 +1,5 @@
 'use client'
 import { VolumePanel } from '@/components/ws-components/volume-panel'
-import { ENV } from '@/types/constants'
 
 /**
  * L3BTMachineSafetyPermission component
@@ -8,23 +7,6 @@ import { ENV } from '@/types/constants'
  * Displays the L3BT machine safety permissions using the refactored VolumePanel.Interlocks component
  */
 
-const PV_SETTINGS = {
-  development: {
-    ROUGHING: 'BI_L3BT_MACHINE_SAFETY_PERMISSION_1',
-    HIGH_VACCUM: 'BI_L3BT_MACHINE_SAFETY_PERMISSION_2',
-    VENTING: 'BI_L3BT_MACHINE_SAFETY_PERMISSION_3',
-  },
-  production: {
-    ROUGHING: 'L3BT-MACHINE-SAFETY-PERMISSION-1',
-    HIGH_VACCUM: 'L3BT-MACHINE-SAFETY-PERMISSION-2',
-    VENTING: 'L3BT-MACHINE-SAFETY-PERMISSION-3',
-  },
-  test: {
-    ROUGHING: 'BI_L3BT_MACHINE_SAFETY_PERMISSION_1_TEST',
-    HIGH_VACCUM: 'BI_L3BT_MACHINE_SAFETY_PERMISSION_2_TEST',
-    VENTING: 'BI_L3BT_MACHINE_SAFETY_PERMISSION_3_TEST',
-  },
-}
 export const L3BTMachineSafetyPermission = () => {
   return (
     <VolumePanel width="16rem">
@@ -32,16 +14,20 @@ export const L3BTMachineSafetyPermission = () => {
       <VolumePanel.Card height="20rem">
         <VolumePanel.Interlocks>
           <VolumePanel.InterlockConnected
-            pvname={PV_SETTINGS[ENV].ROUGHING}
-            title="Roughing"
+            pvname={'L3BT-MSS:S1_ROUGHING_PERMISSION'}
+            title="S1 Roughing"
           />
           <VolumePanel.InterlockConnected
-            pvname={PV_SETTINGS[ENV].HIGH_VACCUM}
-            title="High Vacuum Pumping"
+            pvname={'L3BT-MSS:S1_HIGH_VAC_PERMISSION'}
+            title="S1 high vacuum pumping"
           />
           <VolumePanel.InterlockConnected
-            pvname={PV_SETTINGS[ENV].VENTING}
-            title="Venting"
+            pvname={'L3BT-MSS:S3_ROUGHING_PERMISSION'}
+            title="S3 roughing"
+          />
+          <VolumePanel.InterlockConnected
+            pvname={'L3BT-MSS:S3_HIGH_VAC_PERMISSION'}
+            title="S3 high vacuum pumping"
           />
         </VolumePanel.Interlocks>
       </VolumePanel.Card>

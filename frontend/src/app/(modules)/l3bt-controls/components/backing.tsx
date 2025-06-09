@@ -7,23 +7,18 @@ import { VolumePanel } from '@/components/ws-components/volume-panel'
 
 export const Backing = () => {
   return (
-    <VolumePanel>
-      <VolumePanel.Title label="L3BT Backing" />
+    <VolumePanel title="L3BT Backing">
       {/* Backing line pressure section */}
-      <VolumePanel.Container>
-        <VolumePanel.Label label="L3BT Backing line" />
-        <VolumePanel.Card height="20rem">
-          <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
-          <VolumePanel.SensorPressureConnected
-            pvname={'L3BT-VCS-APG512:PRESSURE'}
-            label="APG512 CH010"
-          />
-          <VolumePanel.SensorPressureConnected
-            pvname={'AI_MBAR_L3BT-VCS-APG532:PRESSURE'}
-            label="APG532 CH055"
-          />
-        </VolumePanel.Card>
-      </VolumePanel.Container>
+
+      <VolumePanel.SensorBar
+        title="L3BT Backing Line"
+        label="Pressure"
+        height="20rem"
+        sensorPVs={[
+          { pvName: 'L3BT-VCS-APG512:PRESSURE', label: 'APG512 CH010' },
+          { pvName: 'L3BT-VCS-APG532:PRESSURE', label: 'APG532 CH055' },
+        ]}
+      />
 
       {/* Backing pump status section */}
       <VolumePanel.Pump

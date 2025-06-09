@@ -8,8 +8,6 @@ import { ENV } from '@/types/constants'
 
 const PV_SETTINGS = {
   development: {
-    pressureAPG511: 'AI_MBAR_L3BT-VCS-APG511:PRESSURE',
-    pressureAPG531: 'AI_MBAR_L3BT-VCS-APG531:PRESSURE',
     pumpSpeed: 'AI_SPEED_P04', // TODO
     valveStatus: 'BI_PUMP_P04', // TODO
     lockedBy: 'SI_LOCKED', // TODO
@@ -17,8 +15,6 @@ const PV_SETTINGS = {
     p04Valve: 'BI_p04valve', // TODO
   },
   production: {
-    pressureAPG511: 'L3BT-VCS-APG511:PRESSURE',
-    pressureAPG531: 'L3BT-VCS-APG531:PRESSURE',
     pumpSpeed: 'L3BT-PUMP-P04:SPEED', // TODO
     valveStatus: 'L3BT-PUMP-P04:VALVE_STATUS', // TODO
     lockedBy: 'L3BT-LOCKED:SENSOR', // TODO
@@ -26,8 +22,6 @@ const PV_SETTINGS = {
     p04Valve: 'L3BT-PUMP-P04:VALVE', // TODO
   },
   test: {
-    pressureAPG511: 'AI_MBAR_L3BT-VCS-APG511:PRESSURE',
-    pressureAPG531: 'AI_MBAR_L3BT-VCS-APG531:PRESSURE',
     pumpSpeed: 'AI_SPEED_P04_TEST', // TODO
     valveStatus: 'BI_PUMP_P04_TEST', // TODO
     lockedBy: 'SI_LOCKED_TEST', // TODO
@@ -43,8 +37,8 @@ export const Roughing = () => {
         title="Roughing Line, P3 Outlet"
         label="Pressure"
         sensorPVs={[
-          { pvName: PV_SETTINGS[ENV].pressureAPG511, label: 'APG511 CH030' },
-          { pvName: PV_SETTINGS[ENV].pressureAPG531, label: 'APG531 CH040' },
+          { pvName: 'L3BT-VCS-APG511:PRESSURE', label: 'APG511 CH030' },
+          { pvName: 'L3BT-VCS-APG531:PRESSURE', label: 'APG531 CH040' },
         ]}
       />
       <VolumePanel.Pump

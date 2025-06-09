@@ -19,6 +19,7 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
   controlClosePV,
 }) => {
   const [status, setStatus] = useState<VALVE_STATE>(VALVE_STATE.CLOSED)
+  const [fetching, setFetching] = useState(false)
   // const { send } = useWebSocketContext()
 
   const onStatusUpdate = (newStatus: VALVE_STATE) => {
@@ -28,7 +29,9 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
   }
 
   const isDisabled =
-    status === VALVE_STATE.TRANSITIONING || status === VALVE_STATE.ERROR
+    fetching ||
+    status === VALVE_STATE.TRANSITIONING ||
+    status === VALVE_STATE.ERROR
 
   return (
     <Dropdown
@@ -49,6 +52,7 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
                 label: 'Open Valve',
                 onClick: () => {
                   // send({ type: 'set', pvs: { [controlOpenPV]: true } })
+                  setFetching(true)
                   fetch(`${process.env.NEXT_PUBLIC_API_URL}/${controlOpenPV}`, {
                     method: 'PUT',
                     headers: {
@@ -56,6 +60,10 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
                     },
                     body: JSON.stringify({ value: true }),
                   })
+                    .then()
+                    .finally(() => {
+                      setFetching(false)
+                    })
                 },
               },
             ]
@@ -65,6 +73,7 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
                 label: 'Close Valve',
                 onClick: () => {
                   // send({ type: 'set', pvs: { [controlClosePV]: true } })
+                  setFetching(true)
                   fetch(
                     `${process.env.NEXT_PUBLIC_API_URL}/${controlClosePV}`,
                     {
@@ -75,6 +84,10 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
                       body: JSON.stringify({ value: true }),
                     },
                   )
+                    .then()
+                    .finally(() => {
+                      setFetching(false)
+                    })
                 },
               },
             ]

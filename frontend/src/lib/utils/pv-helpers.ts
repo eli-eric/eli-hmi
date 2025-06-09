@@ -9,6 +9,9 @@ export enum PVType {
   ACTUAL_TEMPERATURE = 'ActualConverterTemperature',
   CLOSED = 'CLOSED',
   OPEN = 'OPEN',
+
+  INTERLOCK = 'INTERLOCK',
+  PERMISSION = 'PERMISSION',
 }
 
 /**
@@ -22,6 +25,8 @@ export const PV_PREFIX_CONFIG: Record<PVType, string> = {
   [PVType.ACTUAL_TEMPERATURE]: 'AI_TEMP_',
   [PVType.CLOSED]: 'BI_CLOSED_',
   [PVType.OPEN]: 'BI_OPEN_',
+  [PVType.INTERLOCK]: 'BI_INTERLOCK_',
+  [PVType.PERMISSION]: 'BI_PERMISSION_',
 }
 
 export function getPrefixedPV(pv: string): string {

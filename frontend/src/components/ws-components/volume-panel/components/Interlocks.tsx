@@ -6,6 +6,7 @@ import { withReactWebSocketData } from '../../with-websocket-data'
 import { Message } from '@/app/providers/types'
 import styles from '../styles/interlocks.module.css'
 import { WithErrorData } from '../../with-error-data'
+import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 
 /**
  * IconsStatus - Displays status icons based on value
@@ -64,12 +65,25 @@ export const InterlockItem: FC<InterlockItemProps> = ({
   )
 }
 
+const InterlockConnectedIntern = withReactWebSocketData(InterlockItem)
+
+interface InterlockConnectedProps {
+  pvname: string
+  title: string
+}
 /**
  * InterLockConnected - Connected interlock item
  *
  * Wraps the InterlockItem with WebSocket data
  */
-export const InterlockConnected = withReactWebSocketData(InterlockItem)
+export const InterlockConnected = ({
+  title,
+  pvname,
+}: InterlockConnectedProps) => {
+  return (
+    <InterlockConnectedIntern title={title} pvname={getPrefixedPV(pvname)} />
+  )
+}
 
 /**
  * Interlocks - Container for interlock items
