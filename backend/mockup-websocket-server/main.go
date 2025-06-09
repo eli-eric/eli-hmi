@@ -35,6 +35,16 @@ type ResponseMessage struct {
 	Error     string      `json:"error"`
 }
 
+type SetPvResponseMessage struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+}
+
+type SetPvrequestBody struct {
+	Type  string      `json:"type"`
+	Value interface{} `json:"value"`
+}
+
 /* --------------------------- globals ------------------------------------- */
 
 var (
@@ -59,6 +69,7 @@ func main() {
 	e.Use(middleware.Logger(), middleware.Recover())
 
 	e.GET("/ws/pvs", wsHandler) // main ws route
+	e.PUT("/pv/:name", setRealLikePVHandler)
 
 	// using GET for set methods to be able to easily set everything from the browser
 	e.GET("/pv/:name/:value", setPvHandler)       // manual setter
@@ -295,6 +306,38 @@ func wsHandler(c echo.Context) error {
 		wg.Wait()
 		return nil
 	}
+}
+
+/* --------------------- simulate real-like set PV value ------------------- */
+
+func setRealLikePVHandler(c echo.Context) error {
+	name := strings.TrimSpace(c.Param("name"))
+
+	if name == "" {
+		return c.String(http.StatusBadRequest, "empty pv name")
+	}
+
+	requestBody := new(SetPvrequestBody)
+
+	if err := c.Bind(requestBody); err == nil {
+
+		log.Println("BODY: ", requestBody)
+
+		// simulate random waiting time
+		time.Sleep(time.Duration(rng.Intn(3000)) * time.Millisecond)
+
+		//randomly simulate error
+		errOccures := rng.Intn(5) == 1
+
+		if errOccures {
+			return c.JSON(200, SetPvResponseMessage{OK: false, Error: "Some error on EPICS..."})
+		}
+
+		return c.JSON(200, SetPvResponseMessage{OK: true})
+	}
+
+	return echo.ErrInternalServerError
+
 }
 
 /* ----------------------- manual set endpoint ----------------------------- */
