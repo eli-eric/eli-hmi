@@ -4,14 +4,39 @@
 .control__trigger {
   display: flex;
   padding: 0.5rem;
+  height: 2.125rem;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
 }
 
 .control__trigger:hover {
   opacity: 0.6;
 }
 
+.control__triggerStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.control__targetContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.control__targetLabel {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+.control__targetIcon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
 .control__triggerContainer {
   display: flex;
   justify-content: space-between;
@@ -19,8 +44,7 @@
   align-self: stretch;
 }
 
-.control__triggerContainer span {
-  color: var(--color-text);
+.control__triggerContainerText {
   font-size: 0.875rem;
   font-style: normal;
   font-weight: 700;

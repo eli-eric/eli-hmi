@@ -50,7 +50,7 @@ type SetPvrequestBody struct {
 var (
 	aiMode   = 1 // 1 = autosimulate, 2 = manual
 	biMode   = 2 // 1 = autosimulate, 2 = manual
-	siMode   = 1 // 1 = autosimulate, 2 = manual
+	siMode   = 2 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -67,6 +67,13 @@ var (
 func main() {
 	e := echo.New()
 	e.Use(middleware.Logger(), middleware.Recover())
+	
+	// Add CORS middleware
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodOptions},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+	}))
 
 	e.GET("/ws/pvs", wsHandler) // main ws route
 	e.PUT("/pv/:name", setRealLikePVHandler)
