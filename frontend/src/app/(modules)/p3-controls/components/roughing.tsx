@@ -12,10 +12,10 @@ export const Roughing = () => {
         title="Roughing Line, P3 Outlet"
         label="Pressure"
         height="20rem"
-        sensorPVs={[{ pvName: 'AI_MBAR_APG801', label: 'APG801' }]}
+        sensorPVs={[{ pvName: 'E3-P3-APG802:PRESSURE', label: 'APG801' }]}
       />
 
-      {/* Backing pump status section */}
+      {/* TODO nevime PVcka */}
       <VolumePanel.Container>
         <VolumePanel.Label label="Roughing Pump P04" />
         <VolumePanel.PumpSpeedConnected pvname="AI_RPM_SPEED_P04" />

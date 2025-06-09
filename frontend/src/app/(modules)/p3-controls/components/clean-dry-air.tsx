@@ -11,7 +11,13 @@ export const ClearDryAir = () => {
         title="P3 Clean Dry Air"
         label="Pressure"
         height="22rem"
-        sensorPVs={[{ pvName: 'AI_BAR_PPS801', label: 'PPS801' }]}
+        sensorPVs={[
+          {
+            pvName: 'E3-P3-PPS801:CDA_PRESSURE',
+            label: 'PPS801',
+            options: { format: 'precision' },
+          },
+        ]}
       />
     </VolumePanel>
   )

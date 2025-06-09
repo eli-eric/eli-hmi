@@ -7,6 +7,7 @@ import { VolumePanel } from '@/components/ws-components/volume-panel'
  *
  * Displays the P3 machine safety permissions using the refactored VolumePanel.Interlocks component
  */
+// TODO PVs
 export const P3MachineSafetyPermission = () => {
   return (
     <VolumePanel width="16rem">

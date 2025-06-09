@@ -21,6 +21,32 @@ const P3Chamber = () => {
             label: 'WRG803',
           },
         ]}
+        stateControl={{
+          pvCurrentState: 'E3-P3-P3_CHAMBER:STATUS',
+          pvTargetState: 'E3-P3-P3_CHAMBER:STATUS', // TODO zatim nevim
+          controlPvs: [
+            {
+              label: 'Standby',
+              pvName: 'E3-P3-P3:SET_STANDBY',
+            },
+            {
+              label: 'High vacuum',
+              pvName: 'E3-P3-P3:SET_HIGH_VACUUM',
+            },
+            {
+              label: 'Silent mode',
+              pvName: 'E3-P3-P3:SET_HV_SILENT',
+            },
+            {
+              label: 'Gas inject mode',
+              pvName: 'E3-P3-P3:SET_HV_GAS_INJECT',
+            },
+            {
+              label: 'Vent',
+              pvName: 'E3-P3-P3:SET_VENTED',
+            },
+          ],
+        }}
       />
 
       <VolumePanel.Card title="Total Pump Cycles" height="13.7rem">
@@ -48,7 +74,8 @@ const P3CRYO1 = () => {
           },
         ]}
         stateControl={{
-          pvName: 'E3-P3-CRYO1:STATUS',
+          pvCurrentState: 'E3-P3-CRYO1:STATUS',
+          pvTargetState: 'E3-P3-CRYO1:STATUS', // TODO zatim nevime
           controlPvs: [
             {
               pvName: 'E3-P3-CRYO1:START_COOLING',
@@ -99,7 +126,8 @@ const P3CRYO2 = () => {
           },
         ]}
         stateControl={{
-          pvName: 'E3-P3-CRYO2:STATUS',
+          pvCurrentState: 'E3-P3-CRYO2:STATUS',
+          pvTargetState: 'E3-P3-CRYO2:STATUS', // TODO zatim nevime
           controlPvs: [
             {
               pvName: 'E3-P3-CRYO2:START_COOLING',
@@ -139,27 +167,56 @@ const P3CRYO2 = () => {
 const P3Configuration = () => {
   return (
     <VolumePanel.Container width="12rem" gap="0.3rem">
+      {/* TODO refactor na komponenty a pro konfiguraci nevim PVs */}
       <VolumePanel.Container>
         <VolumePanel.Label label="P3 Configuration" />
-        <VolumePanel.StateControl />
+        <VolumePanel.StateControl
+          pvNameCurrent="SI_???"
+          pvNameTarget="SI_???"
+          controlPvs={[]}
+        />
       </VolumePanel.Container>
+      {/* TODO Reafctor to Door compponent */}
       <VolumePanel.Container>
         <VolumePanel.Label label="P3 Doors" />
+        <VolumePanel.StateControl
+          pvNameCurrent="SI_???"
+          pvNameTarget="SI_???"
+          controlPvs={[
+            {
+              label: 'Standby',
+              pvName: 'E3-P3-DOOR_LINE:STANDBY',
+            },
+            {
+              label: 'Pump',
+              pvName: 'E3-P3-DOOR_LINE:PUMP',
+            },
+          ]}
+        />
         <VolumePanel.Card>
           <VolumePanel.SensorPressureConnected
             label="APG809"
-            pvname="AI_MBAR_APG809"
+            pvname="E3-P3-APG809:PRESSURE" // TODO
           />
         </VolumePanel.Card>
-        <VolumePanel.StateControl />
         <VolumePanel.Card>
-          <div>All Doors are Closed</div>
+          <div
+            style={{
+              fontSize: '0.75rem',
+              fontStyle: 'normal',
+              fontWeight: '400',
+            }}
+          >
+            All Doors are Closed
+          </div>
         </VolumePanel.Card>
       </VolumePanel.Container>
+      {/* TODO Reafctor to MAster Key comp */}
       <VolumePanel.Container>
         <VolumePanel.Label label="P3 Master Key" />
         <VolumePanel.PureValueConnected pvname="SI_PURE_KEY_P3" />
       </VolumePanel.Container>
+      {/* TODO Reafctor to MAster TurboPump Detailed */}
       <VolumePanel.Container>
         <VolumePanel.Label label="P3 Turbopump TMP801" />
         <VolumePanel.PumpSpeedConnected pvname="AI_TMP801" />

@@ -11,7 +11,7 @@ export const Backing = () => {
         height="20rem"
         label="Pressure"
         title="P3 Backing Line"
-        sensorPVs={[{ pvName: 'AI_MBAR_APG802', label: 'APG802' }]}
+        sensorPVs={[{ pvName: 'E3-P3-APG802:PRESSURE', label: 'APG802' }]}
       />
 
       {/* Backing pump status section */}
