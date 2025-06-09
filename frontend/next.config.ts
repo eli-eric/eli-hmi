@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   env: {
     NEXT_PUBLIC_WEBSOCKET_URL: process.env.NEXT_PUBLIC_WEBSOCKET_URL,
-    NODE_ENV: process.env.NODE_ENV,
   },
 }
 
