@@ -63,7 +63,7 @@ ENV PORT=3000
 # https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
 ENV HOSTNAME="0.0.0.0"
 ENV NEXTAUTH_SECRET=your_secret_key_here
-ENV NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8080/ws/pvs
+ENV NEXT_PUBLIC_WEBSOCKET_URL=ws://10.79.3.22:8081/ws/pvs
 
 # LDAP Authentication Settings
 ENV LDAP_SERVER_URL=ldap://10.78.0.11
