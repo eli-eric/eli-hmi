@@ -5,6 +5,7 @@ import { SettingsButton } from '@/components/ui/buttons'
 // import { useWebSocketContext } from '@/app/providers/socket-provider'
 import { VALVE_STATE, ValveStatus } from './Valve'
 import styles from '../styles/valve.module.css'
+import { API_URL } from '@/types/constants'
 
 interface ValveControlStatusProps {
   statusOpenPV: string
@@ -53,7 +54,7 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
                 onClick: () => {
                   // send({ type: 'set', pvs: { [controlOpenPV]: true } })
                   setFetching(true)
-                  fetch(`${process.env.NEXT_PUBLIC_API_URL}/${controlOpenPV}`, {
+                  fetch(`${API_URL}/${controlOpenPV}`, {
                     method: 'PUT',
                     headers: {
                       'Content-Type': 'application/json',
@@ -74,16 +75,13 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
                 onClick: () => {
                   // send({ type: 'set', pvs: { [controlClosePV]: true } })
                   setFetching(true)
-                  fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/${controlClosePV}`,
-                    {
-                      method: 'PUT',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({ value: true }),
+                  fetch(`${API_URL}/${controlClosePV}`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
                     },
-                  )
+                    body: JSON.stringify({ value: true }),
+                  })
                     .then()
                     .finally(() => {
                       setFetching(false)

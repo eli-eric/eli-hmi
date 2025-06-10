@@ -1,6 +1,7 @@
 'use client'
 
 import { Message } from '@/app/providers/types'
+import { WS_URL } from '@/types/constants'
 import { useSession } from 'next-auth/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -41,7 +42,7 @@ export function useWebSocket() {
 
   const url = useMemo(() => {
     if (!accessToken) return null
-    const wsUrl = `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}?auth=${accessToken}`
+    const wsUrl = `${WS_URL}?auth=${accessToken}`
     console.log('WebSocket URL:', wsUrl)
     return wsUrl
   }, [accessToken])

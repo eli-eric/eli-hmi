@@ -7,6 +7,7 @@ import { useWebSocketMulti } from '@/hooks/useWebSocketData'
 import styles from '../styles/controls.module.css'
 import { Message } from '@/app/providers/types'
 import Image from 'next/image'
+import { API_URL } from '@/types/constants'
 
 type TriggerProps = {
   currentStatePv: string
@@ -90,8 +91,8 @@ export const StateControl: FC<ControlProps> = ({
           label: control.label,
           onClick: () => {
             // Handle control item click
-            console.log(`${process.env.NEXT_PUBLIC_API_URL}/${control.pvName}`)
-            fetch(`${process.env.NEXT_PUBLIC_API_URL}/${control.pvName}`, {
+            console.log(`${API_URL}/${control.pvName}`)
+            fetch(`${API_URL}/${control.pvName}`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
