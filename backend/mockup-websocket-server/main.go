@@ -75,7 +75,7 @@ func main() {
 	e.GET("/pv/:name/:value", setPvHandler)       // manual setter
 	e.GET("/mode/:name/:value", setPvModeHandler) // mode switcher
 
-	addr := ":8080"
+	addr := ":8081"
 	log.Println("Sim gateway listening on", addr)
 	e.Logger.Fatal(e.Start(addr))
 }

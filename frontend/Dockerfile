@@ -27,6 +27,15 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV HOSTNAME="0.0.0.0"
+ENV NEXTAUTH_SECRET=your_secret_key_here
+ENV NEXT_PUBLIC_WEBSOCKET_URL=ws://10.79.3.22:8081/ws/pvs
+
+# LDAP Authentication Settings
+ENV LDAP_SERVER_URL=ldap://10.78.0.11
+ENV LDAP_BASE_DN=dc=lcs,dc=local
+ENV LDAP_USE_TLS=false
+
 
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \
@@ -55,9 +64,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 8082
 
-ENV PORT=3000
+ENV PORT=8082
 
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
