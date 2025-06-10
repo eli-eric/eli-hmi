@@ -33,8 +33,19 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+#package-lock.json
+# yarn
+# pnpm-lock.yaml
+# lock files
+# Uncomment the following lines if you want to commit lock files
+/package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+# local env files
+
 # vercel
 .vercel
+
 
 # typescript
 *.tsbuildinfo
