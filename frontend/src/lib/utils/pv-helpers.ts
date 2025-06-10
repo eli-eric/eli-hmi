@@ -13,6 +13,7 @@ export enum PVType {
   INTERLOCK = 'INTERLOCK',
   PERMISSION = 'PERMISSION',
   CDA_PRESSURE = 'CDA_PRESSURE',
+  TARGET = 'TARGET',
 }
 
 /**
@@ -29,6 +30,7 @@ export const PV_PREFIX_CONFIG: Record<PVType, string> = {
   [PVType.INTERLOCK]: 'BI_INTERLOCK_',
   [PVType.PERMISSION]: 'BI_PERMISSION_',
   [PVType.CDA_PRESSURE]: 'AI_BAR_',
+  [PVType.TARGET]: 'SI_',
 }
 
 export function getPrefixedPV(pv: string): string {

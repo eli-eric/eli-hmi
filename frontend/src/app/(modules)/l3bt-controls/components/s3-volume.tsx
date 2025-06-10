@@ -9,7 +9,7 @@ export const S3Volume = () => {
         label="Pressure"
         stateControl={{
           pvCurrentState: 'L3BT-VCS-S3:STATUS',
-          pvTargetState: 'BI_L3BT_S3_Volume_Target', // TODO
+          pvTargetState: 'L3BT-VCS-S3:TARGET', // TODO
           controlPvs: [
             {
               label: 'Standby',

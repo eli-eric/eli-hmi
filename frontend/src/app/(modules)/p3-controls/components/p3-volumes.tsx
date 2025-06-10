@@ -75,7 +75,7 @@ const P3CRYO1 = () => {
         ]}
         stateControl={{
           pvCurrentState: 'E3-P3-CRYO1:STATUS',
-          pvTargetState: 'SI_E3-P3-CRYO1:Target', // TODO zatim nevime
+          pvTargetState: 'E3-P3-CRYO1:TARGET', // TODO zatim nevime
           controlPvs: [
             {
               pvName: 'E3-P3-CRYO1:START_COOLING',
@@ -127,7 +127,7 @@ const P3CRYO2 = () => {
         ]}
         stateControl={{
           pvCurrentState: 'E3-P3-CRYO2:STATUS',
-          pvTargetState: 'SI_E3-P3-CRYO2:Target', // TODO zatim nevime
+          pvTargetState: 'E3-P3-CRYO2:TARGET', // TODO zatim nevime
           controlPvs: [
             {
               pvName: 'E3-P3-CRYO2:START_COOLING',
