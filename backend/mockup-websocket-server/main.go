@@ -53,9 +53,12 @@ var (
 	siMode   = 2 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
+	
+	// Update period in milliseconds
+	updatePeriodMs = 3000
 
 	// Random words for PV string mode
-	randomWords = []string{"quantum", "velocity", "catalyst", "fusion", "matrix", "nebula", "synergy", "vortex", "photon", "zephyr"}
+	randomWords = []string{"High Vacuum Pumping", "High Vacuum", "Cooling", "Low Temp", "Default", "Rough Vacuum"}
 
 	// pvRegistry: pvName -> *pvSim
 	pvRegistry   = make(map[string]*pvSim)
@@ -113,7 +116,7 @@ func newPVSim(name string) *pvSim {
 const period = 400 * time.Millisecond
 
 func (ps *pvSim) loop(ctx context.Context) {
-	ticker := time.NewTicker(period)
+	ticker := time.NewTicker(time.Duration(updatePeriodMs) * time.Millisecond)
 	defer ticker.Stop()
 
 	for {
@@ -436,13 +439,15 @@ func getOrCreateSim(name string) *pvSim {
 func synthValue(name string) interface{} {
 	switch {
 	case strings.HasPrefix(name, "AI_"):
-		return 50 + rng.NormFloat64()*5
+		// Use a smaller deviation (1-3 units) to make changes less dramatic
+		return 50 + float64(rng.Intn(3) - 1) // Changes between -1, 0, +1 added to base value
 	case strings.HasPrefix(name, "BI_"):
 		return rng.Intn(2)
 	case strings.HasPrefix(name, "SI_"):
 		return randomWords[rng.Intn(len(randomWords))]
 	default:
-		return rng.Float64()
+		// Smaller changes for default numeric values too
+		return rng.Float64() * 3 // Limit to 0-3 range
 	}
 }
 
