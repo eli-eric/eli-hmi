@@ -1,14 +1,13 @@
 /**
- * This module provides a function to authenticate users against an LDAP server using the provided
- * username and password. The LDAP server's address and the username should be configured in the
- * LDAP_SERVER_URL variable. The function returns the username if authentication is successful,
- * and null otherwise. The function logs various stages of the LDAP authentication process.
+ * This module provides functions to authenticate users against an LDAP server
+ * It can be used in both development and production environments
  */
 import { authenticate } from 'ldap-authentication'
 
 // LDAP server configuration
 // These should be set in the environment variables
 const LDAP_SERVER_URL = process.env.LDAP_SERVER_URL || 'ldap://10.78.0.11'
+const LDAP_USE_TLS = process.env.LDAP_USE_TLS === 'true'
 
 export interface LdapUser {
   username: string
@@ -43,34 +42,24 @@ export async function ldapAuthenticate(
       ? username
       : `${username}@lcs.local`
 
-    console.log('Setting up LDAP server...')
+    console.log(`Attempting LDAP authentication for user: ${username}`)
 
-    console.log(`Attempting to connect to LDAP server for user: ${username}`)
-
-    // Create auth options for ldap-authentication
-    const options = {
+    // Authenticate with LDAP
+    const user = await authenticate({
       ldapOpts: {
         url: LDAP_SERVER_URL,
-        tlsOptions: {
-          rejectUnauthorized: true,
-        },
+        tlsOptions: LDAP_USE_TLS ? { rejectUnauthorized: false } : undefined,
       },
       userDn: userPrincipal,
       userPassword: password,
-    }
-
-    // Authenticate with LDAP
-    await authenticate(options)
-
-    console.log('Successfully authenticated with LDAP server.')
-
-    // Return the username as requested - server doesn't return anything useful
+    })
+    console.log('LDAP Authentication response:', user)
+    console.log('LDAP Authentication successful')
     return {
       username,
     }
   } catch (error) {
-    console.error('An unexpected error occurred during LDAP operation.')
-    console.error('Error details:', error)
+    console.error('LDAP Authentication failed:', error)
   }
 
   return null
