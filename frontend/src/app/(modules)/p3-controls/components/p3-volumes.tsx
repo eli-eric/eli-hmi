@@ -6,7 +6,7 @@ const P3Chamber = () => {
       <VolumePanel.SensorBar
         title="P3 Chamber"
         label="Pressure"
-        height="23rem"
+        height="23.1rem"
         sensorPVs={[
           {
             pvName: 'AI_MBAR_WRG801',
@@ -23,7 +23,7 @@ const P3Chamber = () => {
         ]}
         stateControl={{
           pvCurrentState: 'E3-P3-P3_CHAMBER:STATUS',
-          pvTargetState: 'E3-P3-P3_CHAMBER:STATUS', // TODO zatim nevim
+          pvTargetState: 'E3-P3-P3_CHAMBER:TARGET', // TODO zatim nevim
           controlPvs: [
             {
               label: 'Standby',
@@ -65,7 +65,7 @@ const P3CRYO1 = () => {
       <VolumePanel.SensorBar
         label="Temperature"
         title="P3 CRYO1"
-        height="20rem"
+        height="23.1rem"
         sensorPVs={[
           {
             pvName: 'E3-P3-CRYO801:TEMP',
@@ -75,7 +75,7 @@ const P3CRYO1 = () => {
         ]}
         stateControl={{
           pvCurrentState: 'E3-P3-CRYO1:STATUS',
-          pvTargetState: 'E3-P3-CRYO1:STATUS', // TODO zatim nevime
+          pvTargetState: 'SI_E3-P3-CRYO1:Target', // TODO zatim nevime
           controlPvs: [
             {
               pvName: 'E3-P3-CRYO1:START_COOLING',
@@ -117,7 +117,7 @@ const P3CRYO2 = () => {
       <VolumePanel.SensorBar
         label="Temperature"
         title="P3 CRYO2"
-        height="20rem"
+        height="23.1rem"
         sensorPVs={[
           {
             pvName: 'E3-P3-CRYO802:TEMP',
@@ -127,7 +127,7 @@ const P3CRYO2 = () => {
         ]}
         stateControl={{
           pvCurrentState: 'E3-P3-CRYO2:STATUS',
-          pvTargetState: 'E3-P3-CRYO2:STATUS', // TODO zatim nevime
+          pvTargetState: 'SI_E3-P3-CRYO2:Target', // TODO zatim nevime
           controlPvs: [
             {
               pvName: 'E3-P3-CRYO2:START_COOLING',
