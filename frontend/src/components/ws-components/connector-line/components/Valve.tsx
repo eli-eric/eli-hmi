@@ -2,6 +2,7 @@ import { FC, useMemo, useEffect } from 'react'
 import { PolygonIcon } from '@/components/ui/icons'
 import { State, useWebSocketMulti } from '@/hooks/useWebSocketData'
 import styles from '../styles/valve.module.css'
+import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 
 export enum VALVE_STATE {
   OPEN = 'OPEN',
@@ -29,28 +30,34 @@ export const ValveStatus: FC<ValveStatusProps> = ({
   onStatusUpdate,
 }) => {
   const { state, isConnected } = useWebSocketMulti<1 | 0 | null>({
-    pvs: [openPV, closePV],
+    pvs: [getPrefixedPV(openPV), getPrefixedPV(closePV)],
     onDataUpdate: (data) => {
       console.log('Valve Status Data Update', data)
     },
   })
 
-  const PV_OPEN = openPV
-  const PV_CLOSE = closePV
+  const PV_OPEN = getPrefixedPV(openPV)
+  const PV_CLOSE = getPrefixedPV(closePV)
 
   const valveState = useMemo(() => {
+    console.log(
+      'Valve Status State',
+      getPrefixedPV(openPV),
+      getPrefixedPV(closePV),
+      state,
+    )
     if (onStateChange) return onStateChange(state)
     if (PV_OPEN && PV_CLOSE) {
-      if (state[PV_OPEN]?.value && state[PV_CLOSE]?.value) {
+      if (state[PV_OPEN]?.value === 1 && state[PV_CLOSE]?.value === 1) {
         return VALVE_STATE.ERROR
       }
-      if (state[PV_OPEN]?.value && !state[PV_CLOSE]?.value) {
+      if (state[PV_OPEN]?.value === 1 && state[PV_CLOSE]?.value === 0) {
         return VALVE_STATE.OPEN
       }
-      if (!state[PV_OPEN]?.value && state[PV_CLOSE]?.value) {
+      if (state[PV_OPEN]?.value === 0 && state[PV_CLOSE]?.value === 1) {
         return VALVE_STATE.CLOSED
       }
-      if (!state[PV_OPEN]?.value && !state[PV_CLOSE]?.value) {
+      if (state[PV_OPEN]?.value === 0 && state[PV_CLOSE]?.value === 0) {
         return VALVE_STATE.TRANSITIONING
       }
     }

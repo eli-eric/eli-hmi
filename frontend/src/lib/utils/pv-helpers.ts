@@ -8,6 +8,7 @@ export enum PVType {
   ACTUAL_FREQUENCY = 'ActualFrequency',
   ACTUAL_TEMPERATURE = 'ActualConverterTemperature',
   CLOSED = 'CLOSED',
+  CLOSE = 'CLOSE',
   OPEN = 'OPEN',
 
   INTERLOCK = 'INTERLOCK',
@@ -25,12 +26,13 @@ export const PV_PREFIX_CONFIG: Record<PVType, string> = {
   [PVType.TEMP]: 'AI_K_',
   [PVType.ACTUAL_FREQUENCY]: 'AI_RPM_',
   [PVType.ACTUAL_TEMPERATURE]: 'AI_TEMP_',
-  [PVType.CLOSED]: 'BI_CLOSED_',
-  [PVType.OPEN]: 'BI_OPEN_',
-  [PVType.INTERLOCK]: 'BI_INTERLOCK_',
-  [PVType.PERMISSION]: 'BI_PERMISSION_',
+  [PVType.CLOSED]: 'BI_',
+  [PVType.OPEN]: 'BI_',
+  [PVType.INTERLOCK]: 'BI_',
+  [PVType.PERMISSION]: 'BI_',
   [PVType.CDA_PRESSURE]: 'AI_BAR_',
   [PVType.TARGET]: 'SI_',
+  [PVType.CLOSE]: 'BI_',
 }
 
 export function getPrefixedPV(pv: string): string {

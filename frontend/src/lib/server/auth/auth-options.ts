@@ -52,6 +52,9 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  pages: {
+    signIn: '/auth/signin', // Custom sign-in page
+  },
   callbacks: {
     async jwt({ token, user }) {
       // If user is defined, it means this is the first time the JWT is created
@@ -59,7 +62,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id
         token.name = user.name
         token.email = user.email
-        token.accessToken = user.accessToken // <-- OPRAVA zde
+        token.accessToken = user.accessToken
       }
       return token
     },
@@ -68,16 +71,8 @@ export const authOptions: NextAuthOptions = {
       session.user.id = token.id as string
       session.user.name = token.name as string
       session.user.email = token.email as string
-      session.accessToken = token.accessToken as string // Add accessToken to session
+      session.accessToken = token.accessToken as string
       return session
-    },
-    async redirect({ url, baseUrl }) {
-      console.log('Redirect URL:', url, 'Base URL:', baseUrl)
-      // Redirect to a specific page after login
-      if (url === '/api/auth/callback/Credentials') {
-        return `${baseUrl}/p3-controls`
-      }
-      return url.startsWith(baseUrl) ? url : baseUrl
     },
   },
 }
