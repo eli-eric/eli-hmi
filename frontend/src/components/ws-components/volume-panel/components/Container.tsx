@@ -1,7 +1,7 @@
 'use client'
 
 import { FC, PropsWithChildren } from 'react'
-import styles from './Container.module.css'
+import commonStyles from '../styles/common.module.css'
 
 /**
  * Props for the Container component
@@ -34,7 +34,7 @@ export const Container: FC<PropsWithChildren<ContainerProps>> = ({
   gap,
 }) => {
   return (
-    <div className={styles.sensor__pumpContainer} style={{ width, gap }}>
+    <div className={commonStyles.panelContainer} style={{ width, gap }}>
       {children}
     </div>
   )

@@ -5,7 +5,7 @@ import { ClearButton } from '@/components/ui/buttons'
 import { useWebSocketMulti } from '@/hooks/useWebSocketData'
 import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 import { API_URL } from '@/types/constants'
-import styles from './WarningErrorControl.module.css'
+import commonStyles from '../styles/common.module.css'
 
 /**
  * Props for the WarningErrorControl component
@@ -33,7 +33,7 @@ export const WarningErrorControl: FC<WarningErrorControlProps> = ({
     pvs: [
       getPrefixedPV(warningPv),
       getPrefixedPV(checkClearPv),
-      getPrefixedPV(checkClearPv),
+      getPrefixedPV(errorPv),
     ],
   })
 
@@ -41,16 +41,20 @@ export const WarningErrorControl: FC<WarningErrorControlProps> = ({
   const error = state[getPrefixedPV(errorPv)]?.value === 1 ? 'Yes' : 'No'
 
   return (
-    <div className={styles.control__warningContainer}>
-      <div className={styles.control__warningBox}>
-        <span>{`Warning: ${isConnected ? warning : 'N/A'}`}</span>
-        <span>{`Error: ${isConnected ? error : 'N/A'}`}</span>
+    <div className={commonStyles.warningContainer}>
+      <div className={commonStyles.flexColumn}>
+        <span className={commonStyles.textNormal}>{`Warning: ${
+          isConnected ? warning : 'N/A'
+        }`}</span>
+        <span className={commonStyles.textNormal}>{`Error: ${
+          isConnected ? error : 'N/A'
+        }`}</span>
       </div>
       <div>
         <ClearButton
           disabled
           onClick={() => {
-            fetch(`${API_URL}/ ${getPrefixedPV(checkClearPv)}`, {
+            fetch(`${API_URL}/${getPrefixedPV(checkClearPv)}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

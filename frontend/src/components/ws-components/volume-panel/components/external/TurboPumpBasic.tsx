@@ -13,14 +13,25 @@ import { TextContent } from '../internal/TextContent'
 import WithErrorData from '@/components/ws-components/with-error-data'
 import { useWebSocketMulti } from '@/hooks/useWebSocketData'
 
+/**
+ * Props for the TurbopumpBasic component
+ */
 interface TurbopumpBasicProps {
+  /** PV name for the turbopump status */
   statusPV: string
+  /** PV name for the turbopump RPM reading */
   rpmPV: string
+  /** PV name for the turbopump temperature reading */
   tempPV: string
+  /** Display label for the turbopump */
   label: string
+  /** Optional state control for warnings and errors */
   stateControl?: {
+    /** PV name for warnings */
     warningPv: string
+    /** PV name for errors */
     errorPv: string
+    /** PV name for clearing warnings/errors */
     checkClearPv: string
   }
 }
@@ -28,8 +39,26 @@ interface TurbopumpBasicProps {
 /**
  * TurbopumpBasic component
  *
- * Displays turbopump data including status, RPM and temperature
- * Uses prefixed PV names for development environment to ensure proper mock server data types
+ * Displays detailed turbopump monitoring information including status, RPM, and temperature.
+ * This component provides a comprehensive view of a turbopump's operational state with
+ * optional warning/error status reporting.
+ *
+ * The component automatically determines the speed status label based on the RPM percentage.
+ *
+ * @example
+ * ```tsx
+ * <TurbopumpBasic
+ *   statusPV="TURBO_STATUS"
+ *   rpmPV="TURBO_RPM"
+ *   tempPV="TURBO_TEMP"
+ *   label="Main Turbopump"
+ *   stateControl={{
+ *     warningPv: "TURBO_WARNING",
+ *     errorPv: "TURBO_ERROR",
+ *     checkClearPv: "TURBO_CLEAR"
+ *   }}
+ * />
+ * ```
  */
 export const TurbopumpBasic: FC<TurbopumpBasicProps> = ({
   statusPV: sPv,
@@ -51,6 +80,11 @@ export const TurbopumpBasic: FC<TurbopumpBasicProps> = ({
 
   const formatValue = (value: number) => getFormattedValue({ value, options })
 
+  /**
+   * Determines the speed label based on the RPM percentage
+   * @param value - The RPM percentage (0-100)
+   * @returns A descriptive label for the current speed
+   */
   const getSpeedLabel = (value: number) => {
     if (value > 80) return 'Full Speed'
     else if (value > 60) return 'High Speed'

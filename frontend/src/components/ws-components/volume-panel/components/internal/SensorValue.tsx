@@ -2,21 +2,20 @@ import { Message } from '@/app/providers/types'
 import WithErrorData from '@/components/ws-components/with-error-data'
 import { getFormattedValue, ValueFormatOptions } from '@/lib/utils/pv-helpers'
 import { FC } from 'react'
-import volumeStyles from './SensorValue.module.css'
+import commonStyles from '../../styles/common.module.css'
+
 /**
  * Common props for sensor components
  */
 export interface SensorProps {
   label?: string
-
   data?: Message<number> | null
-
   isConnected?: boolean
   options?: ValueFormatOptions
 }
 
 /**
- * SensorPressure - Displays pressure sensor data
+ * SensorValue - Displays sensor data with appropriate formatting
  */
 export const SensorValue: FC<SensorProps> = ({
   label,
@@ -25,9 +24,9 @@ export const SensorValue: FC<SensorProps> = ({
   options,
 }) => {
   return (
-    <div className={volumeStyles.volumePanel__sensor}>
+    <div className={commonStyles.sensorItem}>
       <div>
-        <span className={volumeStyles.volumePanel__sensorData}>
+        <span className={commonStyles.textBold}>
           <WithErrorData
             data={data}
             formatValue={(v) => getFormattedValue({ value: v, options })}
@@ -35,7 +34,7 @@ export const SensorValue: FC<SensorProps> = ({
           />
         </span>
       </div>
-      <span className={volumeStyles.volumePanel__sensorLabel}>{label}</span>
+      {label && <span className={commonStyles.textNormal}>{label}</span>}
     </div>
   )
 }

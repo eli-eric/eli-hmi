@@ -1,5 +1,5 @@
 import { FC, PropsWithChildren } from 'react'
-import styles from './VolumeContainer.module.css'
+import commonStyles from '../../styles/common.module.css'
 import { ClearButton } from '@/components/ui/buttons'
 import { CardTitle } from './card-title'
 
@@ -8,6 +8,7 @@ interface ContainerCardProps {
   title?: string
   checkClearPv?: string
 }
+
 export const VolumeContainer: FC<PropsWithChildren<ContainerCardProps>> = ({
   children,
   width = '100%',
@@ -15,12 +16,9 @@ export const VolumeContainer: FC<PropsWithChildren<ContainerCardProps>> = ({
   checkClearPv,
 }) => {
   return (
-    <div className={styles.card} style={{ width }}>
+    <div className={commonStyles.card} style={{ width }}>
       {title && (
-        <CardTitle label={title}>
-          {/* TODO PUT pv function */}
-          {checkClearPv && <ClearButton />}
-        </CardTitle>
+        <CardTitle label={title}>{checkClearPv && <ClearButton />}</CardTitle>
       )}
       {children}
     </div>

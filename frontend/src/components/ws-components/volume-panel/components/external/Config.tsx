@@ -4,26 +4,51 @@ import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 import { VolumeTitle } from '../internal/VolumeTitle'
 import { DropDownStateControl } from '../internal/DropDownStateControl'
 
-interface SensorBarProps {
+/**
+ * Props for the Config component
+ */
+interface ConfigProps {
+  /** Optional state control configuration */
   stateControl?: {
+    /** PV name for the current configuration state */
     pvCurrentState: string
+    /** PV name for the target configuration state */
     pvTargetState: string
+    /** Array of control options for the configuration */
     controlPvs: {
+      /** PV name to activate when this option is selected */
       pvName: string
+      /** Display label for this option */
       label: string
     }[]
   }
+  /** Title for the configuration section */
   title: string
 }
 
 /**
  * Config component
  *
- * @param stateControl - Optional state control with PV name and control PVs
- * @param title - Optional title for the sensor bar
- * @return JSX.Element
- *  */
-export const Config: FC<SensorBarProps> = ({ title, stateControl }) => {
+ * Provides a configuration panel with a dropdown for selecting system parameters.
+ * This component allows users to view and change system configuration settings
+ * through a dropdown interface.
+ *
+ * @example
+ * ```tsx
+ * <Config
+ *   title="System Configuration"
+ *   stateControl={{
+ *     pvCurrentState: "CONFIG_CURRENT",
+ *     pvTargetState: "CONFIG_TARGET",
+ *     controlPvs: [
+ *       { pvName: "CONFIG_OPTION_1", label: "Low Pressure Mode" },
+ *       { pvName: "CONFIG_OPTION_2", label: "High Pressure Mode" }
+ *     ]
+ *   }}
+ * />
+ * ```
+ */
+export const Config: FC<ConfigProps> = ({ title, stateControl }) => {
   return (
     <Container>
       <VolumeTitle title={title} />

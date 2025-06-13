@@ -8,5 +8,4 @@
  */
 
 export { VolumePanel } from './VolumePanel'
-
 export { useVolumePanel } from './context/VolumePanelContext'

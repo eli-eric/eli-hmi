@@ -1,7 +1,7 @@
 'use client'
 
 import { FC, PropsWithChildren } from 'react'
-import styles from './VolumeCard.module.css'
+import commonStyles from '../../styles/common.module.css'
 
 /**
  * Props for the VolumeCard component
@@ -22,7 +22,7 @@ interface VolumeCardProps {
  * VolumeCardLabel - Label component for VolumePanel cards
  */
 export const VolumeCardLabel: FC<PropsWithChildren> = ({ children }) => {
-  return <div className={styles.volumePanel__cardTitle}>{children}</div>
+  return <div className={commonStyles.textTitle}>{children}</div>
 }
 
 /**
@@ -36,7 +36,7 @@ export const VolumeCard: FC<PropsWithChildren<VolumeCardProps>> = ({
   height,
 }) => {
   return (
-    <div className={styles.card} style={{ height }}>
+    <div className={commonStyles.innerCard} style={{ height }}>
       {label && <VolumeCardLabel>{label}</VolumeCardLabel>}
       {children}
     </div>

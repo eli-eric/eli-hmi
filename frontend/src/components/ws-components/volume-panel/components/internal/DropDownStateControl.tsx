@@ -4,7 +4,7 @@ import { FC } from 'react'
 import { SettingsButton } from '@/components/ui/buttons'
 import Dropdown from '@/components/ui/dropdown'
 import { useWebSocketMulti } from '@/hooks/useWebSocketData'
-import styles from './DropDownStateControl.module.css'
+import commonStyles from '../../styles/common.module.css'
 import { Message } from '@/app/providers/types'
 import Image from 'next/image'
 import { API_URL } from '@/types/constants'
@@ -28,24 +28,22 @@ const Trigger = ({ currentStatePv, targetStatePv }: TriggerProps) => {
 
   return (
     <div
-      className={styles.control__trigger}
+      className={commonStyles.dropdownTrigger}
       style={{ backgroundColor: 'var(--color-surface-light)' }}
     >
-      <div className={styles.control__triggerContainer}>
-        <div className={styles.control__triggerStatus}>
-          <span className={styles.control__triggerContainerText}>
-            {currentValue}
-          </span>
+      <div className={commonStyles.flexBetween}>
+        <div className={commonStyles.flexColumn}>
+          <span className={commonStyles.textBold}>{currentValue}</span>
           {showTarget && (
-            <div className={styles.control__targetContainer}>
+            <div className={commonStyles.targetContainer}>
               <Image
                 src={'/images/arrow-right.svg'}
                 alt="Target Icon"
                 width={16}
                 height={16}
-                className={styles.control__targetIcon}
+                className={commonStyles.targetIcon}
               />
-              <span className={styles.control__targetLabel}>{targetValue}</span>
+              <span className={commonStyles.textNormal}>{targetValue}</span>
             </div>
           )}
         </div>
@@ -65,7 +63,7 @@ interface ControlProps {
 }
 
 /**
- * StateControl - Dropdown control for volume state
+ * DropDownStateControl - Dropdown control for volume state
  *
  * Displays a dropdown with state options and a settings button
  *

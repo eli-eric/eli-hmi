@@ -6,27 +6,40 @@ import { VolumeTitle } from '../internal/VolumeTitle'
 import { useWebSocketMulti } from '@/hooks/useWebSocketData'
 import { TextContent } from '../internal/TextContent'
 
+/**
+ * Props for the MasterKey component
+ */
 interface MasterKeyProps {
+  /** Title for the master key section */
   title: string
+  /** PV name for the master key status */
   pvName: string
 }
 
 /**
  * MasterKey component
  *
+ * Displays and controls the master key system access state.
+ * This component monitors a process variable that indicates whether
+ * the master key is active, showing different status text based on the value:
  *
- * Displays the state of the master key
- * - "Enabled" if the master key is on (value 1)
- * - "Blocked" if the master key is off (value 0)
- * - "Master Key state is unknown" if the value is null
- * * @param title - Title of the master key component
- * * @param pvName - Process variable name for the master key state
- * * @returns {JSX.Element} The rendered master key component
+ * - "Enabled" when master key is on (value = 1)
+ * - "Blocked" when master key is off (value = 0)
+ * - "Master Key state is unknown" when value is null or undefined
  *
- * This component uses WebSocket to fetch the state of the master key
- *  */
+ * The master key typically serves as a high-level override or access control
+ * for critical system functions.
+ *
+ * @example
+ * ```tsx
+ * <MasterKey
+ *   title="System Access"
+ *   pvName="MASTER_KEY_STATUS"
+ * />
+ * ```
+ */
 export const MasterKey: FC<MasterKeyProps> = ({ title, pvName }) => {
-  const { state } = useWebSocketMulti<1 | 0 | null>({
+  const { state, isConnected } = useWebSocketMulti<1 | 0 | null>({
     pvs: [getPrefixedPV(pvName)],
   })
 
@@ -43,7 +56,7 @@ export const MasterKey: FC<MasterKeyProps> = ({ title, pvName }) => {
     <Container>
       <VolumeTitle title={title} />
       <VolumeCard>
-        <TextContent>{content}</TextContent>
+        <TextContent>{isConnected ? content : 'N/A'}</TextContent>
       </VolumeCard>
     </Container>
   )

@@ -10,40 +10,67 @@ import { useWebSocketMulti } from '@/hooks/useWebSocketData'
 
 const SensorPressureConnected = withReactWebSocketData(SensorValue)
 
-interface SensorBarProps {
+/**
+ * Props for the Doors component
+ */
+interface DoorsProps {
+  /** Sensor PV configuration */
   sensorPV: {
+    /** PV name for the sensor */
     pvName: string
+    /** Display label for the sensor */
     label: string
+    /** Optional formatting options for the sensor value */
     options?: ValueFormatOptions
   }
+  /** Optional state control configuration */
   stateControl?: {
+    /** PV name for current door state */
     pvCurrentState: string
+    /** PV name for target door state */
     pvTargetState: string
+    /** Array of control options for the doors */
     controlPvs: {
+      /** PV name to activate when this option is selected */
       pvName: string
+      /** Display label for this option */
       label: string
     }[]
   }
-
+  /** Array of PV names for monitoring door status */
   doorsPVs: string[]
-
+  /** Optional title for the doors section */
   title?: string
 }
 
 /**
- * SensorBar component
+ * Doors component
  *
- * Displays a bar with multiple sensor pressure readings
- *  and an optional state control.
+ * Displays and controls chamber door status. This component shows the state of multiple
+ * doors and provides controls for locking/unlocking and opening/closing doors.
+ * The component will show a doors closed indicator only when all monitored doors are closed.
  *
- * @param sensorPVs - Array of sensor PVs with names and labels
- * @param stateControl - Optional state control with PV name and control PVs
- * @param label - Label for the sensor bar
- * @param title - Optional title for the sensor bar
- * @param height - Optional height for the sensor bar
- * @return JSX.Element
- *  */
-export const Doors: FC<SensorBarProps> = ({
+ * @example
+ * ```tsx
+ * <Doors
+ *   title="Chamber Access"
+ *   sensorPV={{
+ *     pvName: "DOOR_PRESSURE",
+ *     label: "Chamber Pressure"
+ *   }}
+ *   doorsPVs={["DOOR_FRONT", "DOOR_REAR"]}
+ *   stateControl={{
+ *     pvCurrentState: "DOOR_STATE",
+ *     pvTargetState: "DOOR_TARGET",
+ *     controlPvs: [
+ *       { pvName: "DOOR_LOCK", label: "Lock Doors" },
+ *       { pvName: "DOOR_UNLOCK", label: "Unlock Doors" }
+ *     ]
+ *   }}
+ * />
+ * ```
+ */
+export const Doors: FC<DoorsProps> = ({
   sensorPV,
   title,
   stateControl,
@@ -53,7 +80,10 @@ export const Doors: FC<SensorBarProps> = ({
     pvs: doorsPVs.map(getPrefixedPV),
   })
 
-  // all value must be 0 to be considered closed it should be && thrue all values
+  /**
+   * Determines if all doors are closed (value === 0)
+   * @returns true if all door PVs report 0 (closed), false otherwise
+   */
   const isDoorsClosed = doorsPVs.every((pv) => {
     const value = state[getPrefixedPV(pv)]?.value
     return value === 0

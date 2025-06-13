@@ -8,22 +8,40 @@ import WithErrorData from '@/components/ws-components/with-error-data'
 import { useWebSocketMulti } from '@/hooks/useWebSocketData'
 import { VolumeCard } from '../internal/VolumeCard'
 
-const IconsStatus: FC<{
+/**
+ * Props for the IconsStatus component
+ */
+interface IconsStatusProps {
+  /** The value to display (1 = check, 0 = cross, null/undefined = nothing) */
   value?: 1 | 0 | null
-}> = ({ value }) => {
+}
+
+/**
+ * IconsStatus - Displays a check or cross icon based on the interlock value
+ */
+const IconsStatus: FC<IconsStatusProps> = ({ value }) => {
   if (value === 1) {
     return <CheckIcon />
   }
   if (value === 0) {
     return <CloseIcon />
   }
+  return null
 }
 
+/**
+ * Props for the InterlockItem component
+ */
 interface InterlockItemProps {
+  /** The PV name for the interlock */
   pvname: string
+  /** The display title for the interlock */
   title: string
 }
 
+/**
+ * InterlockItem - Displays a single interlock item with status
+ */
 const InterlockItem: FC<InterlockItemProps> = ({ title, pvname }) => {
   const { state, isConnected } = useWebSocketMulti<1 | 0 | null>({
     pvs: [pvname],
@@ -42,22 +60,39 @@ const InterlockItem: FC<InterlockItemProps> = ({ title, pvname }) => {
   )
 }
 
+/**
+ * Props for the InterlockConnected component
+ */
 interface InterlockConnectedProps {
+  /** The PV name for the interlock */
   pvname: string
+  /** The display title for the interlock */
   title: string
 }
 
+/**
+ * Props for the Interlocks component
+ */
 interface InterlocksProps {
+  /** Array of interlock PVs to display */
   interlocksPVs?: InterlockConnectedProps[]
 }
 
 /**
- * Interlocks - Container for interlock items
+ * Interlocks component
  *
- * Renders children (typically InterlockConnected components)
- * following the compound pattern used in VolumePanel
- * * @interface InterlocksProps
- * @property {InterlockConnectedProps[]} [interlocksPVs] - Array of interlock PVs to render
+ * Displays a group of system interlocks with visual status indicators.
+ * Each interlock shows a check icon (✓) when active/OK or a cross icon (✗) when inactive/error.
+ *
+ * @example
+ * ```tsx
+ * <Interlocks
+ *   interlocksPVs={[
+ *     { pvname: "DOOR_INTERLOCK", title: "Door Interlock" },
+ *     { pvname: "PRESSURE_INTERLOCK", title: "Pressure Interlock" }
+ *   ]}
+ * />
+ * ```
  * @returns {JSX.Element} The rendered interlocks component
  */
 export const Interlocks: FC<InterlocksProps> = ({ interlocksPVs }) => {

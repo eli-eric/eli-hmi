@@ -9,29 +9,42 @@ import { useWebSocketMulti } from '@/hooks/useWebSocketData'
 import { Message } from '@/app/providers/types'
 import { TextContent } from '../internal/TextContent'
 
-interface TurbopumpBasicProps {
+/**
+ * Props for the Pump component
+ */
+interface PumpProps {
+  /** PV name for the valve status */
   valvePv: string
+  /** PV name for the pump RPM reading */
   rpmPV: string
+  /** Display label for the valve */
   valveLabel: string
+  /** Title for the pump section */
   title: string
 }
 
 /**
- * TurbopumpBasic component
+ * Pump component
  *
- * Displays turbopump data including status, RPM and temperature
- * Uses prefixed PV names for development environment to ensure proper mock server data types
+ * Displays pump status information including RPM readings and valve status.
+ * This component monitors real-time data from process variables and displays
+ * the current state of a pump system.
+ *
+ * @example
+ * ```tsx
+ * <Pump
+ *   title="Roughing Pump"
+ *   rpmPV="PUMP_RPM"
+ *   valvePv="VALVE_STATUS"
+ *   valveLabel="Isolation Valve"
+ * />
+ * ```
  */
-export const Pump: FC<TurbopumpBasicProps> = ({
-  rpmPV,
-  valvePv,
-  title,
-  valveLabel,
-}) => {
+export const Pump: FC<PumpProps> = ({ rpmPV, valvePv, title, valveLabel }) => {
   const { state, isConnected } = useWebSocketMulti({
     pvs: [getPrefixedPV(rpmPV), getPrefixedPV(valvePv)],
   })
-  console.log('Pump state:', state)
+
   return (
     <Container>
       <VolumeTitle title={title} />
