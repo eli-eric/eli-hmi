@@ -16,7 +16,7 @@ export const Backing = () => {
 
       {/* Backing pump status section */}
       <VolumePanel.Pump
-        label="P3 Backing Pump P01"
+        title="P3 Backing Pump P01"
         rpmPV="AI_RPM_SPEED_P01"
         valvePv="BI_PUMP_P01"
         valveLabel="GV154"

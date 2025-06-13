@@ -1,0 +1,16 @@
+/* Volume Panel - Label container */
+.volumePanel__title {
+  display: flex;
+  padding: 0.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: stretch;
+  background: var(--color-surface);
+}
+
+.volumePanel__titleText {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}

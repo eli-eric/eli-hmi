@@ -1,7 +1,7 @@
 'use client'
 
 import { FC, PropsWithChildren } from 'react'
-import styles from '../styles/volume-panel.module.css'
+import styles from './MultiVolumePanel.module.css'
 
 /**
  * MultiVolumePanel - Container for multiple volume panels

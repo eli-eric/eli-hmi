@@ -6,15 +6,16 @@ import { getPrefixedPV, ValueFormatOptions } from '@/lib/utils/pv-helpers'
 import { VolumeTitle } from '../internal/VolumeTitle'
 import { DropDownStateControl } from '../internal/DropDownStateControl'
 import { SensorValue } from '../internal/SensorValue'
+import { useWebSocketMulti } from '@/hooks/useWebSocketData'
 
 const SensorPressureConnected = withReactWebSocketData(SensorValue)
 
 interface SensorBarProps {
-  sensorPVs: {
+  sensorPV: {
     pvName: string
     label: string
     options?: ValueFormatOptions
-  }[]
+  }
   stateControl?: {
     pvCurrentState: string
     pvTargetState: string
@@ -23,10 +24,10 @@ interface SensorBarProps {
       label: string
     }[]
   }
-  pumpCyclePv?: string
-  label: string
+
+  doorsPVs: string[]
+
   title?: string
-  height?: string
 }
 
 /**
@@ -42,14 +43,24 @@ interface SensorBarProps {
  * @param height - Optional height for the sensor bar
  * @return JSX.Element
  *  */
-export const SensorBar: FC<SensorBarProps> = ({
-  sensorPVs,
+export const Doors: FC<SensorBarProps> = ({
+  sensorPV,
   title,
-  label,
   stateControl,
-  height,
-  pumpCyclePv,
+  doorsPVs,
 }) => {
+  const { state } = useWebSocketMulti<1 | 0 | null>({
+    pvs: doorsPVs.map(getPrefixedPV),
+  })
+
+  // all value must be 0 to be considered closed it should be && thrue all values
+  const isDoorsClosed = doorsPVs.every((pv) => {
+    const value = state[getPrefixedPV(pv)]?.value
+    return value === 0
+  })
+
+  console.log('Doors state:', isDoorsClosed, state)
+
   return (
     <Container>
       {title && <VolumeTitle title={title} />}
@@ -65,24 +76,25 @@ export const SensorBar: FC<SensorBarProps> = ({
           }}
         />
       )}
-      <VolumeCard label={label} height={height}>
-        {sensorPVs.map((sensor) => (
-          <SensorPressureConnected
-            key={sensor.pvName}
-            options={sensor.options}
-            pvname={getPrefixedPV(sensor.pvName)}
-            label={sensor.label}
-          />
-        ))}
+      <VolumeCard>
+        <SensorPressureConnected
+          key={sensorPV.pvName}
+          options={sensorPV.options}
+          pvname={getPrefixedPV(sensorPV.pvName)}
+          label={sensorPV.label}
+        />
       </VolumeCard>
-      {pumpCyclePv && (
-        <VolumeCard label="Total PumpCycles" height="10.3rem">
-          <SensorPressureConnected
-            pvname={getPrefixedPV(pumpCyclePv)}
-            options={{ format: 'precision' }}
-          />
-        </VolumeCard>
-      )}
+      <VolumeCard>
+        <div
+          style={{
+            fontSize: '0.75rem',
+            fontStyle: 'normal',
+            fontWeight: '400',
+          }}
+        >
+          {isDoorsClosed ? 'All Doors are CLOSED' : 'Some Doors are OPENED'}
+        </div>
+      </VolumeCard>
     </Container>
   )
 }

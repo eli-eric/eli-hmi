@@ -36,22 +36,19 @@ export const Roughing = () => {
       <VolumePanel.SensorBar
         title="Roughing Line, P3 Outlet"
         label="Pressure"
+        height="20rem"
         sensorPVs={[
           { pvName: 'L3BT-VCS-APG511:PRESSURE', label: 'APG511 CH030' },
           { pvName: 'L3BT-VCS-APG531:PRESSURE', label: 'APG531 CH040' },
         ]}
       />
       <VolumePanel.Pump
-        label="Roughing Pump P04"
+        title="Roughing Pump P04"
         rpmPV={PV_SETTINGS[ENV].p04Pump}
         valvePv={PV_SETTINGS[ENV].p04Valve}
         valveLabel="GV821"
       />
-      {/* TODO Locked comp */}
-      <VolumePanel.Container>
-        <VolumePanel.Label label="Used And Locked By" />
-        <VolumePanel.PureValueConnected pvname={PV_SETTINGS[ENV].lockedBy} />
-      </VolumePanel.Container>
+      <VolumePanel.Locking label="Used And Locked By" pvName="SI_LOCKED_TEST" />
     </VolumePanel>
   )
 }

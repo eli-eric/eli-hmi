@@ -16,15 +16,14 @@ export const Roughing = () => {
       />
 
       {/* TODO nevime PVcka */}
-      <VolumePanel.Container>
-        <VolumePanel.Label label="Roughing Pump P04" />
-        <VolumePanel.PumpSpeedConnected pvname="AI_RPM_SPEED_P04" />
-        <VolumePanel.ValveStatusConnected pvname="BI_PUMP_P01" label="GV821" />
-      </VolumePanel.Container>
-      <VolumePanel.Container>
-        <VolumePanel.Label label="Used And Locked By" />
-        <VolumePanel.PureValueConnected pvname="SI_LOCKED" />
-      </VolumePanel.Container>
+      <VolumePanel.Pump
+        title="Roughing Pump P04"
+        rpmPV="AI_RPM_SPEED_P04"
+        valvePv="BI_PUMP_P01"
+        valveLabel="GV821"
+      />
+
+      <VolumePanel.Locking label="Used And Locked By" pvName="SI_LOCKED" />
     </VolumePanel>
   )
 }

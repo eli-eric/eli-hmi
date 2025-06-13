@@ -1,0 +1,15 @@
+.valveStatus__container {
+  display: flex;
+  padding: 0.5rem;
+  align-items: center;
+  gap: 0.625rem;
+  align-self: stretch;
+  background: var(--color-surface-light);
+}
+
+.valveStatus__container span {
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}

@@ -1,7 +1,7 @@
 'use client'
 
 import { FC } from 'react'
-import styles from '../styles/volume-panel.module.css'
+import styles from './VolumeTitle.module.css'
 
 /**
  * Props for the VolumeLabel component
@@ -10,7 +10,7 @@ interface VolumeLabelProps {
   /**
    * The label text to display
    */
-  label: string
+  title: string
 }
 
 /**
@@ -18,10 +18,10 @@ interface VolumeLabelProps {
  *
  * Displays a label with a consistent style
  */
-export const VolumeLabel: FC<VolumeLabelProps> = ({ label }) => {
+export const VolumeTitle: FC<VolumeLabelProps> = ({ title }) => {
   return (
-    <div className={styles.volumePanel__label}>
-      <span className={styles.volumePanel__labelText}>{label}</span>
+    <div className={styles.volumePanel__title}>
+      <span className={styles.volumePanel__titleText}>{title}</span>
     </div>
   )
 }
