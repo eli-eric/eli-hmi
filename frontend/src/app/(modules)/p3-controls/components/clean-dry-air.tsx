@@ -8,7 +8,6 @@ export const ClearDryAir = () => {
   return (
     <VolumePanel title="P3 Clean Dry Air">
       <VolumePanel.SensorBar
-        title="P3 Clean Dry Air"
         label="Pressure"
         height="22rem"
         sensorPVs={[

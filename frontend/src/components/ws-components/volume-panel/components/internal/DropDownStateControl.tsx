@@ -1,10 +1,10 @@
 'use client'
 
 import { FC } from 'react'
-import { ClearButton, SettingsButton } from '@/components/ui/buttons'
+import { SettingsButton } from '@/components/ui/buttons'
 import Dropdown from '@/components/ui/dropdown'
 import { useWebSocketMulti } from '@/hooks/useWebSocketData'
-import styles from '../styles/controls.module.css'
+import commonStyles from '../../styles/common.module.css'
 import { Message } from '@/app/providers/types'
 import Image from 'next/image'
 import { API_URL } from '@/types/constants'
@@ -28,24 +28,22 @@ const Trigger = ({ currentStatePv, targetStatePv }: TriggerProps) => {
 
   return (
     <div
-      className={styles.control__trigger}
+      className={commonStyles.dropdownTrigger}
       style={{ backgroundColor: 'var(--color-surface-light)' }}
     >
-      <div className={styles.control__triggerContainer}>
-        <div className={styles.control__triggerStatus}>
-          <span className={styles.control__triggerContainerText}>
-            {currentValue}
-          </span>
+      <div className={commonStyles.flexBetween}>
+        <div className={commonStyles.flexColumn}>
+          <span className={commonStyles.textBold}>{currentValue}</span>
           {showTarget && (
-            <div className={styles.control__targetContainer}>
+            <div className={commonStyles.targetContainer}>
               <Image
                 src={'/images/arrow-right.svg'}
                 alt="Target Icon"
                 width={16}
                 height={16}
-                className={styles.control__targetIcon}
+                className={commonStyles.targetIcon}
               />
-              <span className={styles.control__targetLabel}>{targetValue}</span>
+              <span className={commonStyles.textNormal}>{targetValue}</span>
             </div>
           )}
         </div>
@@ -65,12 +63,16 @@ interface ControlProps {
 }
 
 /**
- * StateControl - Dropdown control for volume state
+ * DropDownStateControl - Dropdown control for volume state
  *
  * Displays a dropdown with state options and a settings button
+ *
+ * @param pvNameCurrent - PV name for the current state
+ * @param pvNameTarget - PV name for the target state
+ * @param controlPvs - Array of control PVs with names and labels
+ * @returns JSX.Element
  */
-//TODO
-export const StateControl: FC<ControlProps> = ({
+export const DropDownStateControl: FC<ControlProps> = ({
   controlPvs,
   pvNameCurrent,
   pvNameTarget,
@@ -104,47 +106,5 @@ export const StateControl: FC<ControlProps> = ({
       }
       renderTrigger={renderTrigger}
     />
-  )
-}
-
-/**
- * Props for the WarningErrorControl component
- */
-interface WarningErrorControlProps {
-  /**
-   * Array of PV names to monitor for warnings and errors
-   */
-  PVs: string[]
-}
-
-/**
- * WarningErrorControl - Displays warning and error status
- *
- * Shows warning and error status based on PV values
- */
-export const WarningErrorControl: FC<WarningErrorControlProps> = ({ PVs }) => {
-  const { isConnected, state } = useWebSocketMulti<1 | 0 | null>({ pvs: PVs })
-
-  const warning = isConnected
-    ? state[PVs[0]]?.value === 0
-      ? 'no'
-      : 'yes'
-    : 'N/A'
-  const error = isConnected
-    ? state[PVs[1]]?.value === 0
-      ? 'no'
-      : 'yes'
-    : 'N/A'
-
-  return (
-    <div className={styles.control__warningContainer}>
-      <div className={styles.control__warningBox}>
-        <span>{`Warning: ${warning}`}</span>
-        <span>{`Error: ${error}`}</span>
-      </div>
-      <div>
-        <ClearButton disabled />
-      </div>
-    </div>
   )
 }

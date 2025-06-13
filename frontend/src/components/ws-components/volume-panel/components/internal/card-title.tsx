@@ -1,5 +1,5 @@
 import { FC, PropsWithChildren, ReactNode } from 'react'
-import styles from './container-card.module.css'
+import commonStyles from '../../styles/common.module.css'
 
 interface ContainerCardProps {
   label: string
@@ -10,9 +10,9 @@ export const CardTitle: FC<PropsWithChildren<ContainerCardProps>> = ({
   children,
 }) => {
   return (
-    <div className={styles.card} style={{ width: '100%' }}>
-      <div className={styles.titleContainer}>
-        <span className={styles.title}>{label}</span>
+    <div className={commonStyles.card} style={{ width: '100%' }}>
+      <div className={commonStyles.titleContainer}>
+        <span className={commonStyles.textTitle}>{label}</span>
         {children}
       </div>
     </div>
