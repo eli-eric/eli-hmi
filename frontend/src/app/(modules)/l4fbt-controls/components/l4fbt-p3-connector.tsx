@@ -1,9 +1,9 @@
 import { ConnectorLine } from '@/components/ws-components/connector-line'
 
 /**
- * L4fBTS1Connector component
+ * L4fBTP3Connector component
  *
- * Displays the connector line between L4fBT S1 and L4fBT S3 with SGV404 as valve
+ * Displays the connector line between L4fBT S3 and P3 with EGV802 as valve
  */
 
 export const L4fBTP3Connector = () => {
@@ -12,10 +12,10 @@ export const L4fBTP3Connector = () => {
       <ConnectorLine.Line>
         <ConnectorLine.Valve label="EGV802">
           <ConnectorLine.ValveControlStatus
-            statusOpenPV={'L3BT-VCS-EGV501:OPEN'}
-            statusClosePV={'L3BT-VCS-EGV501:CLOSED'}
-            controlOpenPV={'L3BT-VCS-EGV501:SET_OPEN'}
-            controlClosePV={'L3BT-VCS-EGV501:SET_CLOSED'}
+            statusOpenPV={'undefined1:OPEN'} //Add PV
+            statusClosePV={'undefined2:CLOSED'} //Add PV
+            controlOpenPV={'undefined3:SET_OPEN'} //Add PV
+            controlClosePV={'undefined4:SET_CLOSED'} //Add PV
           />
         </ConnectorLine.Valve>
         <ConnectorLine.Gate

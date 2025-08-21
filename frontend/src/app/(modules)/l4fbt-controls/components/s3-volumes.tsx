@@ -52,10 +52,6 @@ export const S3Doors = () => {
     <VolumePanel.Container width="12rem">
       <VolumePanel.Doors
         title="P3 Doors"
-        sensorPV={{
-          label: 'APG809',
-          pvName: 'E3-P3-APG809:PRESSURE', // TODO zatim nevim
-        }}
         stateControl={{
           pvCurrentState: 'SI_???', // TODO zatim nevim
           pvTargetState: 'SI_???', // TODO zatim nevim
@@ -70,7 +66,6 @@ export const S3Doors = () => {
             },
           ],
         }}
-        doorsPVs={['E3-P3-D1:CLOSED', 'E3-P3-D2:CLOSED', 'E3-P3-D3:CLOSED']}
       />
       <VolumePanel.TurbopumpBasic
         label="P3 Turbopump TMP801"

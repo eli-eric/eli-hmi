@@ -11,12 +11,7 @@ export const L4fBTS1Connector = () => {
     <ConnectorLine>
       <ConnectorLine.Line>
         <ConnectorLine.LabelValue label="L4fBT S1" />
-        <ConnectorLine.Valve label="SGV404">
-          <ConnectorLine.ValveStatus
-            openPV={'undefined1:OPEN'} //Add PV
-            closePV={'undefined2:CLOSE'} //Add PV
-          />
-        </ConnectorLine.Valve>
+        <ConnectorLine.Valve label="SGV404" />
       </ConnectorLine.Line>
     </ConnectorLine>
   )
