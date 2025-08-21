@@ -8,7 +8,7 @@ import {
   TopContainer,
   TopContentContainer,
 } from '@/components/ui/layout'
-import { ClearDryAir } from './components/clean-dry-air'
+import { CleanDryAir } from './components/clean-dry-air'
 import { Backing } from './components/backing'
 import { Roughing } from './components/roughing'
 import { L3BTInterlocks } from './components/L3BTInterlock'
@@ -31,7 +31,7 @@ export default function L3btPage() {
       </TopContainer>
       <BottomContainer>
         <SectionContainer>
-          <ClearDryAir />
+          <CleanDryAir />
           <Backing />
           <Roughing />
         </SectionContainer>

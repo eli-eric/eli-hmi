@@ -4,7 +4,7 @@ import { VolumePanel } from '@/components/ws-components/volume-panel'
  * Clean Dry Air component for P3 controls
  * Displays clean dry air pressure information
  */
-export const ClearDryAir = () => {
+export const CleanDryAir = () => {
   return (
     <VolumePanel title="P3 Clean Dry Air">
       <VolumePanel.SensorBar
