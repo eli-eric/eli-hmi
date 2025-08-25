@@ -51,7 +51,7 @@ export const S3Doors = () => {
   return (
     <VolumePanel.Container width="12rem">
       <VolumePanel.Doors
-        title="P3 Doors"
+        title="L4fBT S3 Doors"
         stateControl={{
           pvCurrentState: 'SI_???', // TODO zatim nevim
           pvTargetState: 'SI_???', // TODO zatim nevim
@@ -68,7 +68,7 @@ export const S3Doors = () => {
         }}
       />
       <VolumePanel.TurbopumpBasic
-        label="P3 Turbopump TMP801"
+        label="L4FBT Turbopump TMP583"
         statusPV="E3-P3-TMP801:STATUS"
         stateControl={{
           checkClearPv: 'E3-P3-TMP801:RESET',
@@ -79,7 +79,7 @@ export const S3Doors = () => {
         tempPV="AI_TEMP_P04" // TODO zatim nevim
       />
       <VolumePanel.TurbopumpBasic
-        label="P3 Turbopump TMP802"
+        label="L4fBT Turbopump TMP584"
         statusPV="E3-P3-TMP802:STATUS"
         stateControl={{
           checkClearPv: 'E3-P3-TMP802:RESET',
@@ -96,7 +96,10 @@ export const S3Doors = () => {
 export const S3SafetyKey = () => {
   return (
     <VolumePanel.Container width="12rem">
-      <VolumePanel.MasterKey title="P3 Master Key" pvName="BI_PURE_KEY_P3" />
+      <VolumePanel.MasterKey
+        title="L4fBT Safety Key TKEY805"
+        pvName="BI_PURE_KEY_P3"
+      />
     </VolumePanel.Container>
   )
 }
