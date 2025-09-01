@@ -15,7 +15,7 @@ const SensorPressureConnected = withReactWebSocketData(SensorValue)
  */
 interface DoorsProps {
   /** Sensor PV configuration */
-  sensorPV: {
+  sensorPV?: {
     /** PV name for the sensor */
     pvName: string
     /** Display label for the sensor */
@@ -38,7 +38,7 @@ interface DoorsProps {
     }[]
   }
   /** Array of PV names for monitoring door status */
-  doorsPVs: string[]
+  doorsPVs?: string[]
   /** Optional title for the doors section */
   title?: string
 }
@@ -77,17 +77,19 @@ export const Doors: FC<DoorsProps> = ({
   doorsPVs,
 }) => {
   const { state } = useWebSocketMulti<1 | 0 | null>({
-    pvs: doorsPVs.map(getPrefixedPV),
+    pvs: doorsPVs ? doorsPVs.map(getPrefixedPV) : [], //Add error messages instead of empty/undefined?
   })
 
   /**
    * Determines if all doors are closed (value === 0)
    * @returns true if all door PVs report 0 (closed), false otherwise
    */
-  const isDoorsClosed = doorsPVs.every((pv) => {
-    const value = state[getPrefixedPV(pv)]?.value
-    return value === 0
-  })
+  const isDoorsClosed = doorsPVs
+    ? doorsPVs.every((pv) => {
+        const value = state[getPrefixedPV(pv)]?.value
+        return value === 0
+      })
+    : undefined //Add error messages instead of empty/undefined?
 
   console.log('Doors state:', isDoorsClosed, state)
 
@@ -106,25 +108,29 @@ export const Doors: FC<DoorsProps> = ({
           }}
         />
       )}
-      <VolumeCard>
-        <SensorPressureConnected
-          key={sensorPV.pvName}
-          options={sensorPV.options}
-          pvname={getPrefixedPV(sensorPV.pvName)}
-          label={sensorPV.label}
-        />
-      </VolumeCard>
-      <VolumeCard>
-        <div
-          style={{
-            fontSize: '0.75rem',
-            fontStyle: 'normal',
-            fontWeight: '400',
-          }}
-        >
-          {isDoorsClosed ? 'All Doors are CLOSED' : 'Some Doors are OPENED'}
-        </div>
-      </VolumeCard>
+      {sensorPV ? (
+        <VolumeCard>
+          <SensorPressureConnected
+            key={sensorPV.pvName}
+            options={sensorPV.options}
+            pvname={getPrefixedPV(sensorPV.pvName)}
+            label={sensorPV.label}
+          />
+        </VolumeCard>
+      ) : null}
+      {doorsPVs ? (
+        <VolumeCard>
+          <div
+            style={{
+              fontSize: '0.75rem',
+              fontStyle: 'normal',
+              fontWeight: '400',
+            }}
+          >
+            {isDoorsClosed ? 'All Doors are CLOSED' : 'Some Doors are OPENED'}
+          </div>
+        </VolumeCard>
+      ) : null}
     </Container>
   )
 }

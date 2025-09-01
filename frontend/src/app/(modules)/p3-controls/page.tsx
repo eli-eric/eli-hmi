@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/layout'
 import { P3Interlocks } from './components/P3Interlocks'
 import { P3MachineSafetyPermission } from './components/P3MachineSafetyPermission'
-import { ClearDryAir } from './components/clean-dry-air'
+import { CleanDryAir } from './components/clean-dry-air'
 import { Backing } from './components/backing'
 import { Roughing } from './components/roughing'
 import { P3Volumes } from './components/p3-volumes'
@@ -28,7 +28,7 @@ export default function P3ControlsPage() {
       </TopContainer>
       <BottomContainer>
         <SectionContainer>
-          <ClearDryAir />
+          <CleanDryAir />
           <Backing />
           <Roughing />
         </SectionContainer>
