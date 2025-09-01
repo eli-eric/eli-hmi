@@ -28,20 +28,12 @@ export const P3Interlocks = () => {
             title: 'P3 Cryopump CRYO2',
           },
           {
-            pvname: 'BI_P3_Doors', // TODO
-            title: 'P3 Doors',
+            pvname: 'L3BT-VCS-EGV501:INTERLOCK', //Add PV
+            title: 'Valve EGV501',
           },
           {
-            pvname: 'BI_P3_TMP801', // TODO
-            title: 'P3 Turbopump TMP801',
-          },
-          {
-            pvname: 'BI_P3_TMP802', // TODO
-            title: 'P3 Turbopump TMP802',
-          },
-          {
-            pvname: 'L3BT-VCS-EGV501:INTERLOCK',
-            title: 'Endstation Valve EGV501',
+            pvname: 'L3BT-VCS-EGV501:INTERLOCK', //Add PV
+            title: 'Valve SGV503',
           },
         ]}
       />

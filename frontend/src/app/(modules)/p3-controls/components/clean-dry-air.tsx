@@ -25,7 +25,7 @@ export const CleanDryAir = () => {
           sensorPVs={[
             {
               pvName: 'E3-P3-PPS801:FLOW', //Add PV
-              label: 'PPS801',
+              label: 'PPFS801',
               options: { format: 'precision' },
             },
           ]}

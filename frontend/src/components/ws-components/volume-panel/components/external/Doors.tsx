@@ -145,7 +145,8 @@ export const Doors: FC<DoorsProps> = ({
                     fontWeight: '400',
                   }}
                 >
-                  {door.label}:{' '}
+                  {door.label}
+                  {' is '}
                   {doorState === 0
                     ? 'CLOSED'
                     : doorState === 1
