@@ -37,8 +37,12 @@ interface DoorsProps {
       label: string
     }[]
   }
-  /** Array of PV names for monitoring door status */
-  doorsPVs?: string[]
+  /**
+   * Array of PVs for monitoring door status.
+   * Can be an array of strings (PV names) for a summary view,
+   * or an array of objects with pvName and label for a detailed view.
+   */
+  doorsPVs?: string[] | { pvName: string; label: string }[]
   /** Optional title for the doors section */
   title?: string
 }
@@ -46,27 +50,24 @@ interface DoorsProps {
 /**
  * Doors component
  *
- * Displays and controls chamber door status. This component shows the state of multiple
- * doors and provides controls for locking/unlocking and opening/closing doors.
- * The component will show a doors closed indicator only when all monitored doors are closed.
+ * Displays and controls chamber door status. This component can show a summary
+ * status for multiple doors or a detailed list of each door's status.
  *
  * @example
  * ```tsx
+ * // Summary view
  * <Doors
  *   title="Chamber Access"
- *   sensorPV={{
- *     pvName: "DOOR_PRESSURE",
- *     label: "Chamber Pressure"
- *   }}
  *   doorsPVs={["DOOR_FRONT", "DOOR_REAR"]}
- *   stateControl={{
- *     pvCurrentState: "DOOR_STATE",
- *     pvTargetState: "DOOR_TARGET",
- *     controlPvs: [
- *       { pvName: "DOOR_LOCK", label: "Lock Doors" },
- *       { pvName: "DOOR_UNLOCK", label: "Unlock Doors" }
- *     ]
- *   }}
+ * />
+ *
+ * // Detailed view
+ * <Doors
+ *   title="Chamber Access"
+ *   doorsPVs={[
+ *     { pvName: "DOOR_FRONT", label: "Front Door" },
+ *     { pvName: "DOOR_REAR", label: "Rear Door" }
+ *   ]}
  * />
  * ```
  */
@@ -76,22 +77,35 @@ export const Doors: FC<DoorsProps> = ({
   stateControl,
   doorsPVs,
 }) => {
+  // Type guard to check if the array contains objects with labels
+  const hasLabels =
+    !!doorsPVs &&
+    doorsPVs.length > 0 &&
+    typeof doorsPVs[0] === 'object' &&
+    doorsPVs[0] !== null
+
+  const pvsToWatch =
+    doorsPVs?.map((pv) =>
+      hasLabels
+        ? getPrefixedPV((pv as { pvName: string }).pvName)
+        : getPrefixedPV(pv as string),
+    ) ?? []
+
   const { state } = useWebSocketMulti<1 | 0 | null>({
-    pvs: doorsPVs ? doorsPVs.map(getPrefixedPV) : [], //Add error messages instead of empty/undefined?
+    pvs: pvsToWatch,
   })
 
   /**
    * Determines if all doors are closed (value === 0)
-   * @returns true if all door PVs report 0 (closed), false otherwise
+   * This is only used for the summary view (when hasLabels is false)
    */
-  const isDoorsClosed = doorsPVs
-    ? doorsPVs.every((pv) => {
-        const value = state[getPrefixedPV(pv)]?.value
-        return value === 0
-      })
-    : undefined //Add error messages instead of empty/undefined?
-
-  console.log('Doors state:', isDoorsClosed, state)
+  const isDoorsClosed =
+    doorsPVs && !hasLabels
+      ? (doorsPVs as string[]).every((pv) => {
+          const value = state[getPrefixedPV(pv)]?.value
+          return value === 0
+        })
+      : undefined
 
   return (
     <Container>
@@ -118,18 +132,42 @@ export const Doors: FC<DoorsProps> = ({
           />
         </VolumeCard>
       ) : null}
-      {doorsPVs ? (
-        <VolumeCard>
-          <div
-            style={{
-              fontSize: '0.75rem',
-              fontStyle: 'normal',
-              fontWeight: '400',
-            }}
-          >
-            {isDoorsClosed ? 'All Doors are CLOSED' : 'Some Doors are OPENED'}
-          </div>
-        </VolumeCard>
+      {doorsPVs && doorsPVs.length > 0 ? (
+        hasLabels ? (
+          (doorsPVs as { pvName: string; label: string }[]).map((door) => {
+            const doorState = state[getPrefixedPV(door.pvName)]?.value
+            return (
+              <VolumeCard key={door.pvName}>
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    fontStyle: 'normal',
+                    fontWeight: '400',
+                  }}
+                >
+                  {door.label}:{' '}
+                  {doorState === 0
+                    ? 'CLOSED'
+                    : doorState === 1
+                      ? 'OPENED'
+                      : 'UNKNOWN'}
+                </div>
+              </VolumeCard>
+            )
+          })
+        ) : (
+          <VolumeCard>
+            <div
+              style={{
+                fontSize: '0.75rem',
+                fontStyle: 'normal',
+                fontWeight: '400',
+              }}
+            >
+              {isDoorsClosed ? 'All Doors are CLOSED' : 'Some Doors are OPENED'}
+            </div>
+          </VolumeCard>
+        )
       ) : null}
     </Container>
   )

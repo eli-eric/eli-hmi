@@ -190,7 +190,12 @@ const P3Configuration = () => {
             },
           ],
         }}
-        doorsPVs={['E3-P3-D1:CLOSED', 'E3-P3-D2:CLOSED', 'E3-P3-D3:CLOSED']}
+        doorsPVs={[
+          { pvName: 'E3-P3-D1:CLOSED', label: 'Door 01' }, //Add PV
+          { pvName: 'E3-P3-D2:CLOSED', label: 'Door 02' }, //Add PV
+          { pvName: 'E3-P3-D3:CLOSED', label: 'Door 03' }, //Add PV
+          { pvName: 'E3-P3-D4:CLOSED', label: 'Door 04' }, //Add PV
+        ]}
       />
       <VolumePanel.MasterKey title="P3 Master Key" pvName="BI_PURE_KEY_P3" />
       <VolumePanel.TurbopumpBasic
