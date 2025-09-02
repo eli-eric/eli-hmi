@@ -17,7 +17,7 @@
 
 /* Add border to all but last item */
 .interlocks__item:not(:last-child) {
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid #c8c6c6;
 }
 
 /* Item text */

@@ -140,3 +140,7 @@
   width: 0.875rem;
   height: 0.875rem;
 }
+
+.sensorItem:not(:last-child) {
+  border-bottom: 1px solid #c8c6c6;
+}
