@@ -43,7 +43,7 @@ export const VolumePanel: FC<VolumePanelProps> & {
   Config: typeof Config
   Doors: typeof Doors
   MasterKey: typeof MasterKey
-} = ({ children, width = '10rem',title, checkClearPv }) => {
+} = ({ children, width = '10rem', title, checkClearPv }) => {
   return (
     <VolumePanelProvider>
       <VolumeContainer width={width} title={title} checkClearPv={checkClearPv}>

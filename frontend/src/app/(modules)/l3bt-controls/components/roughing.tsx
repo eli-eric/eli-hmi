@@ -43,10 +43,10 @@ export const Roughing = () => {
         ]}
       />
       <VolumePanel.Pump
-        title="Roughing Pump P04"
-        rpmPV={PV_SETTINGS[ENV].p04Pump}
-        valvePv={PV_SETTINGS[ENV].p04Valve}
-        valveLabel="GV821"
+        title="Roughing Pump P000"
+        rpmPV={PV_SETTINGS[ENV].p04Pump} //Add PV
+        valvePv={PV_SETTINGS[ENV].p04Valve} //Add PV
+        valveLabel="GV000"
       />
       <VolumePanel.Locking label="Used And Locked By" pvName="SI_LOCKED_TEST" />
     </VolumePanel>
