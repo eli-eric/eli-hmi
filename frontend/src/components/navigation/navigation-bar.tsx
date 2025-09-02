@@ -6,6 +6,7 @@ import navItemStyles from './navigation-item.module.css'
 import clsx from 'clsx'
 import { TextButton } from '../ui/buttons'
 import { signOut } from 'next-auth/react'
+import Link from 'next/link'
 
 export default function NavigationBar() {
   function handleSignOut() {
@@ -17,9 +18,11 @@ export default function NavigationBar() {
   return (
     <nav className={styles.container}>
       <div>
-        <span className={clsx(navItemStyles.item, navItemStyles.active)}>
-          E3 VACUUM SYSTEM
-        </span>
+        <Link href="/p3-controls">
+          <span className={clsx(navItemStyles.item, navItemStyles.active)}>
+            E3 VACUUM SYSTEM
+          </span>
+        </Link>
         <TextButton text="sign out" onClick={handleSignOut}></TextButton>
       </div>
       {navigationItems.map((item) => (
