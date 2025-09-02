@@ -14,19 +14,27 @@ export const L3BTMachineSafetyPermission = () => {
         interlocksPVs={[
           {
             pvname: 'L3BT-MSS:S1_ROUGHING_PERMISSION',
-            title: 'S1 Roughing',
+            title: 'L3BT S1 Volume Roughing',
           },
           {
             pvname: 'L3BT-MSS:S1_HIGH_VAC_PERMISSION',
-            title: 'S1 High Vacuum Pumping',
+            title: 'L3BT S1 Volume High Vacuum Pumping',
           },
           {
             pvname: 'L3BT-MSS:S3_ROUGHING_PERMISSION',
-            title: 'S3 Roughing',
+            title: 'L3BT S3 Volume Roughing',
           },
           {
             pvname: 'L3BT-MSS:S3_HIGH_VAC_PERMISSION',
-            title: 'S3 High Vacuum Pumping',
+            title: 'L3BT S3 Volume High Vacuum Pumping',
+          },
+          {
+            pvname: 'L3BT-VCS-SGV503_toOpen:INTERLOCK', //Add PV
+            title: 'Valve SGV503 to Open',
+          },
+          {
+            pvname: 'L3BT-VCS-EGV501_toOpen:INTERLOCK', //Add PV
+            title: 'Valve EGV501 to Open',
           },
         ]}
       />
