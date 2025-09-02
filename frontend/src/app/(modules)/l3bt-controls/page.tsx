@@ -32,8 +32,10 @@ export default function L3btPage() {
       <BottomContainer>
         <SectionContainer>
           <CleanDryAir />
-          <Backing />
-          <Roughing />
+          <SectionContainer>
+            <Backing />
+            <Roughing />
+          </SectionContainer>
         </SectionContainer>
         <SectionContainer gap="0rem">
           <L3BTBisConnector />
