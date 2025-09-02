@@ -6,7 +6,7 @@
   margin: 0%;
   background: none;
   border: none;
-  color: var(--color-text);
+  color: var(--color-text-secondary);
   cursor: pointer;
 }
 
@@ -63,7 +63,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 0.0625rem solid #000;
+  border: 0.0625rem solid var(--color-text-secondary);
 }
 
 .icon span {
