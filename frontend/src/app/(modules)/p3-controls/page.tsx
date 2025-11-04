@@ -32,7 +32,6 @@ export default function P3ControlsPage() {
           <Backing />
           <Roughing />
         </SectionContainer>
-        {/* TODO pro connector line nevime Pvcka */}
         <SectionContainer gap="0rem">
           <P3EGVConnector />
           <P3Volumes />

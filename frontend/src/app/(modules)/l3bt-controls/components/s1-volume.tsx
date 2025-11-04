@@ -9,6 +9,7 @@ export const S1Volume = () => {
   return (
     <VolumePanel width="13rem" title="L3BT S1">
       <VolumePanel.SensorBar
+        height="20rem"
         title="L3BT S1 Volume"
         label="Pressure"
         stateControl={{

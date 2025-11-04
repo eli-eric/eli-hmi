@@ -26,11 +26,11 @@ export const L3BTInterlocks = () => {
           },
           {
             pvname: 'L3BT-VCS-SGV503:INTERLOCK',
-            title: 'Safety Valve SGV503',
+            title: 'Valve SGV503',
           },
           {
             pvname: 'L3BT-VCS-EGV501:INTERLOCK',
-            title: 'Endstation Valve EGV501',
+            title: 'Valve EGV501',
           },
         ]}
       />
