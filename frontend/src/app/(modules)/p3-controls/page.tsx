@@ -14,7 +14,7 @@ import { CleanDryAir } from './components/clean-dry-air'
 import { Backing } from './components/backing'
 import { Roughing } from './components/roughing'
 import { P3Volumes } from './components/p3-volumes'
-import { ConnectorLine } from '@/components/ws-components/connector-line'
+import { P3EGVConnector } from './components/p3-egv-connector'
 
 export default function P3ControlsPage() {
   return (
@@ -34,24 +34,7 @@ export default function P3ControlsPage() {
         </SectionContainer>
         {/* TODO pro connector line nevime Pvcka */}
         <SectionContainer gap="0rem">
-          <ConnectorLine>
-            <ConnectorLine.Line>
-              <ConnectorLine.Gate
-                href="/l3bt-controls"
-                label="WRG531"
-                name="L3BT S3"
-                pvname="AI_MBAR_WRG531"
-              />
-              <ConnectorLine.Valve label="EGV501">
-                <ConnectorLine.ValveControlStatus
-                  statusOpenPV="BI_EGV501_OPEN_S"
-                  statusClosePV="BI_EGV501_CLOSE_S"
-                  controlOpenPV="BI_EGV501_OPEN_C"
-                  controlClosePV="BI_EGV501_CLOSE_C"
-                />
-              </ConnectorLine.Valve>
-            </ConnectorLine.Line>
-          </ConnectorLine>
+          <P3EGVConnector />
           <P3Volumes />
         </SectionContainer>
       </BottomContainer>

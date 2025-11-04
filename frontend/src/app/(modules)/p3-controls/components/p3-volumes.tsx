@@ -18,7 +18,7 @@ const P3Chamber = () => {
           },
           {
             pvName: 'AI_MBAR_WRG803',
-            label: 'WRG803',
+            label: 'APG803',
           },
         ]}
         stateControl={{
@@ -58,7 +58,7 @@ const P3CRYO1 = () => {
     <VolumePanel.Container width="12rem">
       <VolumePanel.SensorBar
         label="Temperature"
-        title="P3 CRYO1"
+        title="P3 Cryopump CRYO1"
         height="23.1rem"
         sensorPVs={[
           {
@@ -110,7 +110,7 @@ const P3CRYO2 = () => {
     <VolumePanel.Container width="12rem">
       <VolumePanel.SensorBar
         label="Temperature"
-        title="P3 CRYO2"
+        title="P3 Cryopump CRYO2"
         height="23.1rem"
         sensorPVs={[
           {
@@ -190,9 +190,24 @@ const P3Configuration = () => {
             },
           ],
         }}
-        doorsPVs={['E3-P3-D1:CLOSED', 'E3-P3-D2:CLOSED', 'E3-P3-D3:CLOSED']}
+        doorsPVs={[
+          { pvName: 'E3-P3-D1:CLOSED', label: 'Door 01' }, //Add PV
+          { pvName: 'E3-P3-D2:CLOSED', label: 'Door 02' }, //Add PV
+          { pvName: 'E3-P3-D3:CLOSED', label: 'Door 03' }, //Add PV
+          { pvName: 'E3-P3-D4:CLOSED', label: 'Door 04' }, //Add PV
+        ]}
       />
-      <VolumePanel.MasterKey title="P3 Master Key" pvName="BI_PURE_KEY_P3" />
+      <VolumePanel.MasterKey
+        title="P3 Safety Key TKEY801"
+        pvName="BI_PURE_KEY_P3"
+      />
+    </VolumePanel.Container>
+  )
+}
+
+const P3Turbopump = () => {
+  return (
+    <VolumePanel.Container width="12rem" gap="0.3rem">
       <VolumePanel.TurbopumpBasic
         label="P3 Turbopump TMP801"
         statusPV="E3-P3-TMP801:STATUS"
@@ -236,6 +251,7 @@ export const P3Volumes = () => {
         <P3CRYO1 />
         <P3CRYO2 />
         <P3Configuration />
+        <P3Turbopump />
       </VolumePanel.MultiVolumes>
     </VolumePanel>
   )
