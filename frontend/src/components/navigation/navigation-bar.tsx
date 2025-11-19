@@ -10,9 +10,7 @@ import Link from 'next/link'
 
 export default function NavigationBar() {
   function handleSignOut() {
-    // Implement sign out logic here
-    console.log('Signing out...')
-    signOut()
+    signOut({ callbackUrl: '/auth/signin' })
   }
 
   return (

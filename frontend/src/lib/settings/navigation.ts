@@ -1,19 +1,12 @@
+import { getNavigationItems } from './zone-service'
+
 export interface NavigationItem {
   text: string
   href: string
 }
 
-export const navigationItems: NavigationItem[] = [
-  {
-    text: 'P3 Controls',
-    href: '/p3-controls',
-  },
-  {
-    text: 'L3BT Controls',
-    href: '/l3bt-controls',
-  },
-  {
-    text: 'L4fBT Controls',
-    href: '/l4fbt-controls'
-  }
-]
+/**
+ * Get navigation items for the current zone
+ * This is dynamically determined based on ZONE_CODE environment variable
+ */
+export const navigationItems: NavigationItem[] = getNavigationItems()

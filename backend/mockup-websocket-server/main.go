@@ -53,7 +53,7 @@ var (
 	siMode   = 2 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
-	
+
 	// Update period in milliseconds
 	updatePeriodMs = 3000
 
@@ -70,7 +70,7 @@ var (
 func main() {
 	e := echo.New()
 	e.Use(middleware.Logger(), middleware.Recover())
-	
+
 	// Add CORS middleware
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
@@ -85,7 +85,7 @@ func main() {
 	e.GET("/pv/:name/:value", setPvHandler)       // manual setter
 	e.GET("/mode/:name/:value", setPvModeHandler) // mode switcher
 
-	addr := ":8081"
+	addr := ":8080"
 	log.Println("Sim gateway listening on", addr)
 	e.Logger.Fatal(e.Start(addr))
 }
@@ -440,7 +440,7 @@ func synthValue(name string) interface{} {
 	switch {
 	case strings.HasPrefix(name, "AI_"):
 		// Use a smaller deviation (1-3 units) to make changes less dramatic
-		return 50 + float64(rng.Intn(3) - 1) // Changes between -1, 0, +1 added to base value
+		return 50 + float64(rng.Intn(3)-1) // Changes between -1, 0, +1 added to base value
 	case strings.HasPrefix(name, "BI_"):
 		return rng.Intn(2)
 	case strings.HasPrefix(name, "SI_"):
