@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { isRouteAllowed, getDefaultRoute } from './lib/settings/zone-service'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -31,12 +32,26 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect to home if token exists and user is on login page
+  // Zone-based route authorization for authenticated users
+  if (token) {
+    // Routes that bypass zone checks
+    const bypassRoutes = ['/no-access', '/auth/signin']
+    const shouldBypassZoneCheck =
+      bypassRoutes.includes(pathname) || pathname.startsWith('/api/auth')
+
+    // Check if the route is allowed for the current zone
+    if (!shouldBypassZoneCheck && !isRouteAllowed(pathname)) {
+      return NextResponse.redirect(new URL('/no-access', request.url))
+    }
+  }
+
+  // Redirect to default route if token exists and user is on login page
   if (
     (pathname === '/auth/signin' || pathname === '/api/auth/signin') &&
     token
   ) {
-    return NextResponse.redirect(new URL('/p3-controls', request.url))
+    const defaultRoute = getDefaultRoute() ?? '/no-access'
+    return NextResponse.redirect(new URL(defaultRoute, request.url))
   }
 
   return NextResponse.next()

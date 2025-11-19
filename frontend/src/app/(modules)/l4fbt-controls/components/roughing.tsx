@@ -32,23 +32,25 @@ const PV_SETTINGS = {
 
 export const Roughing = () => {
   return (
-    <VolumePanel title="Roughing">
-      <VolumePanel.SensorBar
-        title="Roughing Line, P3 Outlet"
-        label="Pressure"
-        height="20rem"
-        sensorPVs={[
-          { pvName: 'L3BT-VCS-APG511:PRESSURE', label: 'APG511 CH030' },
-          { pvName: 'L3BT-VCS-APG531:PRESSURE', label: 'APG531 CH040' },
-        ]}
-      />
-      <VolumePanel.Pump
-        title="Roughing Pump P000"
-        rpmPV={PV_SETTINGS[ENV].p04Pump} //Add PV
-        valvePv={PV_SETTINGS[ENV].p04Valve} //Add PV
-        valveLabel="GV000"
-      />
-      <VolumePanel.Locking label="Used And Locked By" pvName="SI_LOCKED_TEST" />
+    <VolumePanel title="Roughing" width="100%">
+      <VolumePanel.Container width="9rem">
+        <VolumePanel.SensorBar
+          title="Roughing Line L4fBT Outlet"
+          label="Pressure"
+          height="20rem"
+          sensorPVs={[{ pvName: 'undefined1:PRESSURE', label: 'APG584' }]} //Add PV
+        />
+        <VolumePanel.Pump
+          title="Roughing Pump P00"
+          rpmPV={PV_SETTINGS[ENV].p04Pump}
+          valvePv={PV_SETTINGS[ENV].p04Valve}
+          valveLabel="GV000"
+        />
+        <VolumePanel.Locking
+          label="Used And Locked By"
+          pvName="SI_LOCKED_TEST"
+        />
+      </VolumePanel.Container>
     </VolumePanel>
   )
 }

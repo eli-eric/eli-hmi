@@ -1,0 +1,58 @@
+.centered {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100%;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: #c8c6c6;
+  box-shadow: none;
+  width: 450px;
+}
+
+.header {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #000;
+}
+
+.message {
+  color: #333;
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.subtitle {
+  margin-top: 1rem !important;
+  font-size: 0.875rem;
+  color: #555;
+}
+
+.signOutButton {
+  width: 100%;
+  padding: 0.75rem;
+  background: #666666;
+  color: white;
+  border: none;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.signOutButton:hover {
+  background: #555555;
+}

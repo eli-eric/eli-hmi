@@ -15,15 +15,27 @@ export const P3MachineSafetyPermission = () => {
         interlocksPVs={[
           {
             pvname: 'L3BT_ROUGNING:INTERLOCK', // TODO
-            title: 'Roughing',
+            title: 'P3 Chamber Roughing',
           },
           {
-            pvname: 'L3BT_HIGH_VACUUM_PUMPING:INTERLOCK', // TODO
-            title: 'High Vacuum Pumping',
+            pvname: 'L3BT_HIGH_VACUUM:INTERLOCK', // TODO
+            title: 'P3 Chamber High Vacuum Pumping',
           },
           {
-            pvname: 'L3BT_VENTING:INTERLOCK', // TODO
-            title: 'Venting',
+            pvname: 'E3-P3-CRYO1_Cooling:INTERLOCK', //Add PV
+            title: 'P3 Cryopump CRYO1 Cooling',
+          },
+          {
+            pvname: 'E3-P3-CRYO2_Cooling:INTERLOCK', //Add PV
+            title: 'P3 Cryopump CRYO2 Cooling',
+          },
+          {
+            pvname: 'L3BT-VCS-EGV501_TOOPEN:INTERLOCK', //Add PV
+            title: 'Valve EGV501 to Open',
+          },
+          {
+            pvname: 'L3BT-VCS-EGV501_TOOPEN:INTERLOCK', //Add PV
+            title: 'Valve SGV503 to Open',
           },
         ]}
       />

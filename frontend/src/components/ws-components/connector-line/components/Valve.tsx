@@ -98,7 +98,7 @@ export const ValveStatus: FC<ValveStatusProps> = ({
 
 interface ValveProps {
   label: string
-  children: React.ReactNode
+  children?: React.ReactNode
 }
 
 /**
