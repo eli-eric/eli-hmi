@@ -1,38 +1,101 @@
-# Websocket server
+# EPICS WebSocket Server
 
-This websocket server is a simple `fastapi` application that provides a WebSocket API for testing and development purposes. It is designed to be used in conjunction with the ELI Beamlines Control System GUI project. It will connect directly to the EPICS layer using `aioca`
+This service exposes a production-oriented FastAPI gateway in front of EPICS using aioca. The current scope is read and monitor operations only.
 
-# How to use
+## HTTP API
 
-1. Create virtual environment
+`GET /pv/{pv_name}` returns a stable envelope with the selected detail level.
 
-```bash
-python -m venv venv
-```
-
-2. Activate virtual environment
+Example:
 
 ```bash
-# Windows
-venv\Scripts\activate
-# Linux
-source venv/bin/activate
+curl "http://localhost:8080/pv/DEVICE:PV?detail=control&timeout=2.5"
 ```
 
-3. Install dependencies
+Supported query parameters:
+
+- `detail`: `value`, `time`, `control`
+- `datatype`: `native`, `string`, `integer`, `float`, `enum_string`, `char_string`, `char_bytes`, `char_unicode`, `class_name`, `stsack_string`
+- `count`: `0`, `-1`, or a positive integer
+- `timeout`: bounded by server configuration
+
+## WebSocket API
+
+Connect to `ws://localhost:8080/ws/pvs`.
+
+Subscribe example:
+
+```json
+{
+  "type": "subscribe",
+  "subscription_id": "main",
+  "pvs": ["DEVICE:PV1", "DEVICE:PV2"],
+  "detail": "time",
+  "timeout": 2.0,
+  "all_updates": false,
+  "notify_disconnect": true
+}
+```
+
+Unsubscribe example:
+
+```json
+{
+  "type": "unsubscribe",
+  "subscription_id": "main"
+}
+```
+
+Ping example:
+
+```json
+{
+  "type": "ping",
+  "nonce": "123"
+}
+```
+
+The server emits `connected`, `subscribed`, `snapshot`, `event`, `unsubscribed`, `pong`, and `error` messages.
+
+## Health Endpoints
+
+- `GET /health/live`
+- `GET /health/ready`
+
+## Configuration
+
+Environment variables:
+
+- `HOST`
+- `PORT`
+- `LOG_LEVEL`
+- `LOG_JSON`
+- `DEFAULT_TIMEOUT`
+- `MAX_TIMEOUT`
+- `MAX_PVS_PER_SUBSCRIPTION`
+- `MAX_SUBSCRIPTIONS_PER_CONNECTION`
+- `ENABLE_DOCS`
+
+## Local Run
 
 ```bash
-pip install -r requirements.txt
+make install
+make dev
 ```
 
-4. Run the server in dev mode
+Production-style local run:
 
 ```bash
-fastapi dev server.py
+make run
 ```
 
-5. Run the server in prod mode
+## Docker
 
 ```bash
-fastapi run server.py
+make docker-build
+make docker-run
 ```
+
+The container entrypoint uses `fastapi run server.py`, which is enough here because `fastapi-cli` already provides the production ASGI server integration.
+
+If you need different bind settings, override them on the command line, for example `make dev HOST=127.0.0.1 PORT=8090`.
