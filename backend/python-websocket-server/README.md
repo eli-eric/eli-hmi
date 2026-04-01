@@ -62,6 +62,27 @@ The server emits `connected`, `subscribed`, `snapshot`, `event`, `unsubscribed`,
 - `GET /health/live`
 - `GET /health/ready`
 
+## Diagnostics Endpoint
+
+- `GET /stats`
+- `GET /stats/ui`
+
+These endpoints are intended for internal diagnostics.
+
+`GET /stats` returns a point-in-time JSON snapshot of:
+
+- server readiness
+- active websocket connection count
+- active shared monitor count
+- total client subscription count
+- total subscriber references across all monitors
+- per-connection subscriptions and requested PVs
+- per-monitor subscriber lists and the cached last value when one is available
+
+`GET /stats/ui` serves a simple responsive HTML dashboard from the API process itself and refreshes its data from `GET /stats`.
+
+Because the response is a live snapshot, the data can change immediately after the response is generated.
+
 ## Configuration
 
 Environment variables:

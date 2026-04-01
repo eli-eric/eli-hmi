@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -76,3 +76,76 @@ InboundMessage = Annotated[
     Union[SubscribeMessage, UnsubscribeMessage, PingMessage],
     Field(discriminator="type"),
 ]
+
+
+class ErrorInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str | int | None = None
+    message: str
+
+
+class CachedMonitorValue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ok: bool
+    value: Any | None = None
+    metadata: dict[str, Any] | None = None
+    error: ErrorInfo | None = None
+
+
+class MonitorSubscriberSnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    connection_id: str
+    subscription_id: str
+
+
+class ConnectionSubscriptionSnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    subscription_id: str
+    pvs: list[str]
+    detail: DetailLevel
+    datatype: DatatypeAlias | None = None
+    count: int
+    timeout: float | None = None
+    all_updates: bool
+    notify_disconnect: bool
+    monitor_count: int
+
+
+class ConnectionSnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    connection_id: str
+    subscription_count: int
+    subscriptions: list[ConnectionSubscriptionSnapshot]
+
+
+class MonitorSnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pv_name: str
+    detail: DetailLevel
+    datatype: str | None = None
+    count: int
+    timeout: float | None = None
+    all_updates: bool
+    notify_disconnect: bool
+    subscriber_count: int
+    subscribers: list[MonitorSubscriberSnapshot]
+    has_cached_value: bool
+    last_value: CachedMonitorValue | None = None
+
+
+class StatsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ready: bool
+    active_connections: int
+    active_monitors: int
+    total_client_subscriptions: int
+    total_subscribers: int
+    connections: list[ConnectionSnapshot]
+    monitors: list[MonitorSnapshot]

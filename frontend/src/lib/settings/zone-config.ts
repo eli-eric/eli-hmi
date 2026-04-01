@@ -1,4 +1,3 @@
-import { NavigationItem } from './navigation'
 import { ZoneConfigMap, EMPTY_ZONE_CONFIG } from './zone-config.types'
 
 /**
@@ -39,7 +38,9 @@ export const ZONE_CONFIGS: ZoneConfigMap = {
  * Get configuration for a specific zone
  * Returns empty config if zone is not found
  */
-export function getConfigForZone(zoneCode: string | undefined): typeof EMPTY_ZONE_CONFIG {
+export function getConfigForZone(
+  zoneCode: string | undefined,
+): typeof EMPTY_ZONE_CONFIG {
   if (!zoneCode) {
     return EMPTY_ZONE_CONFIG
   }

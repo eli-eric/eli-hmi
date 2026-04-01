@@ -11,7 +11,20 @@ from fastapi import WebSocket, WebSocketDisconnect
 from pydantic import TypeAdapter, ValidationError
 
 from aioca_api import ResolvedReadOptions, get_once, resolve_read_options
-from api_contract import DetailLevel, InboundMessage, PingMessage, SubscribeMessage, UnsubscribeMessage
+from api_contract import (
+    CachedMonitorValue,
+    ConnectionSnapshot,
+    ConnectionSubscriptionSnapshot,
+    DetailLevel,
+    ErrorInfo,
+    InboundMessage,
+    MonitorSnapshot,
+    MonitorSubscriberSnapshot,
+    PingMessage,
+    StatsResponse,
+    SubscribeMessage,
+    UnsubscribeMessage,
+)
 from app_settings import AppSettings
 from pv_serialization import build_pv_payload, build_pv_response, error_payload, generic_error_payload
 
@@ -98,6 +111,91 @@ class WebSocketPVsManager:
             self.logger.exception("Failed to purge aioca channel caches")
 
         self.logger.info("WebSocket PV manager shut down")
+
+    async def get_stats_snapshot(self) -> StatsResponse:
+        async with self._lock:
+            connections: list[ConnectionSnapshot] = []
+            total_client_subscriptions = 0
+
+            for connection_id, connection in sorted(self.connections.items()):
+                subscriptions: list[ConnectionSubscriptionSnapshot] = []
+                for subscription_id, client_subscription in sorted(connection.subscriptions.items()):
+                    options = client_subscription.options
+                    subscriptions.append(
+                        ConnectionSubscriptionSnapshot(
+                            subscription_id=subscription_id,
+                            pvs=list(client_subscription.request.pvs),
+                            detail=options.detail,
+                            datatype=options.datatype_alias,
+                            count=options.count,
+                            timeout=options.timeout,
+                            all_updates=options.all_updates,
+                            notify_disconnect=options.notify_disconnect,
+                            monitor_count=len(client_subscription.monitor_keys),
+                        )
+                    )
+
+                total_client_subscriptions += len(subscriptions)
+                connections.append(
+                    ConnectionSnapshot(
+                        connection_id=connection_id,
+                        subscription_count=len(subscriptions),
+                        subscriptions=subscriptions,
+                    )
+                )
+
+            monitors: list[MonitorSnapshot] = []
+            total_subscribers = 0
+            monitor_items = sorted(
+                self.monitors.items(),
+                key=lambda item: (
+                    item[0].pv_name,
+                    item[0].detail.value,
+                    item[0].datatype_alias or "",
+                    item[0].count,
+                    item[0].timeout if item[0].timeout is not None else -1.0,
+                    item[0].all_updates,
+                    item[0].notify_disconnect,
+                ),
+            )
+            for key, record in monitor_items:
+                subscribers = sorted(
+                    record.subscribers,
+                    key=lambda subscriber: (subscriber.connection_id, subscriber.subscription_id),
+                )
+                subscriber_snapshots = [
+                    MonitorSubscriberSnapshot(
+                        connection_id=subscriber.connection_id,
+                        subscription_id=subscriber.subscription_id,
+                    )
+                    for subscriber in subscribers
+                ]
+                total_subscribers += len(subscriber_snapshots)
+                monitors.append(
+                    MonitorSnapshot(
+                        pv_name=key.pv_name,
+                        detail=key.detail,
+                        datatype=key.datatype_alias,
+                        count=key.count,
+                        timeout=key.timeout,
+                        all_updates=key.all_updates,
+                        notify_disconnect=key.notify_disconnect,
+                        subscriber_count=len(subscriber_snapshots),
+                        subscribers=subscriber_snapshots,
+                        has_cached_value=record.last_value is not None,
+                        last_value=self._build_cached_monitor_value(key, record.last_value),
+                    )
+                )
+
+            return StatsResponse(
+                ready=self.ready,
+                active_connections=len(connections),
+                active_monitors=len(monitors),
+                total_client_subscriptions=total_client_subscriptions,
+                total_subscribers=total_subscribers,
+                connections=connections,
+                monitors=monitors,
+            )
 
     async def websocket_handler(self, websocket: WebSocket) -> None:
         connection = await self._accept_connection(websocket)
@@ -406,6 +504,24 @@ class WebSocketPVsManager:
             detail=key.detail,
             ok=False,
             payload=error_payload(value),
+        )
+
+    def _build_cached_monitor_value(self, key: MonitorKey, value: Any | None) -> CachedMonitorValue | None:
+        if value is None:
+            return None
+
+        if value.ok:
+            payload = build_pv_payload(value, detail=key.detail)
+            return CachedMonitorValue(
+                ok=True,
+                value=payload["value"],
+                metadata=payload["metadata"],
+            )
+
+        error = error_payload(value)["error"]
+        return CachedMonitorValue(
+            ok=False,
+            error=ErrorInfo(code=error["code"], message=error["message"]),
         )
 
     async def _send_snapshot(

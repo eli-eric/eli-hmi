@@ -4,13 +4,14 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Query, WebSocket
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from aioca_api import get_once, resolve_read_options
-from api_contract import DatatypeAlias, DetailLevel, ReadRequestOptions, validate_pv_name
+from api_contract import DatatypeAlias, DetailLevel, ReadRequestOptions, StatsResponse, validate_pv_name
 from app_settings import AppSettings
 from logging_utils import configure_logging
 from pv_serialization import build_pv_response, generic_error_payload
+from stats_dashboard import render_stats_dashboard_html
 from websocket_pv_manager import WebSocketPVsManager
 
 
@@ -48,6 +49,16 @@ async def health_live() -> dict[str, str]:
 @app.get("/health/ready")
 async def health_ready() -> dict[str, str]:
     return {"status": "ready" if ws_manager.ready else "starting"}
+
+
+@app.get("/stats", response_model=StatsResponse)
+async def get_stats() -> StatsResponse:
+    return await ws_manager.get_stats_snapshot()
+
+
+@app.get("/stats/ui", response_class=HTMLResponse)
+async def get_stats_ui() -> HTMLResponse:
+    return HTMLResponse(render_stats_dashboard_html())
 
 
 @app.websocket("/ws/pvs")
