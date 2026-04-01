@@ -11,6 +11,7 @@ from api_contract import DatatypeAlias, DetailLevel, ReadRequestOptions, StatsRe
 from app_settings import AppSettings
 from logging_utils import configure_logging
 from pv_serialization import build_pv_response, generic_error_payload
+from root_docs_page import render_root_docs_html
 from stats_dashboard import render_stats_dashboard_html
 from websocket_pv_manager import WebSocketPVsManager
 
@@ -39,6 +40,11 @@ app = FastAPI(
     redoc_url="/redoc" if settings.enable_docs else None,
     lifespan=lifespan,
 )
+
+
+@app.get("/", response_class=HTMLResponse)
+async def get_root_page() -> HTMLResponse:
+    return HTMLResponse(render_root_docs_html(enable_docs=settings.enable_docs))
 
 
 @app.get("/health/live")

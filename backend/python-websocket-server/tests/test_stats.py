@@ -106,6 +106,22 @@ class StatsEndpointTests(unittest.TestCase):
             },
         )
 
+    def test_root_page_returns_html_docs_with_links(self) -> None:
+        server.ws_manager = make_manager()
+
+        with TestClient(app) as client:
+            response = client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/html", response.headers["content-type"])
+        self.assertIn("ELI HMI EPICS Gateway", response.text)
+        self.assertIn('href="/docs"', response.text)
+        self.assertIn('href="/redoc"', response.text)
+        self.assertIn('href="/stats/ui"', response.text)
+        self.assertIn('href="/stats"', response.text)
+        self.assertIn('href="/health/live"', response.text)
+        self.assertIn('href="/health/ready"', response.text)
+
     def test_stats_ui_returns_html_dashboard(self) -> None:
         server.ws_manager = make_manager()
 
