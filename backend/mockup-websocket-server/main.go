@@ -55,7 +55,7 @@ var (
 	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// Update period in milliseconds
-	updatePeriodMs = 3000
+	updatePeriodMs = 300
 
 	// Random words for PV string mode
 	randomWords = []string{"High Vacuum Pumping", "High Vacuum", "Cooling", "Low Temp", "Default", "Rough Vacuum"}

@@ -7,6 +7,7 @@ from typing import Any
 from dataclasses import dataclass
 from fastapi import WebSocket, WebSocketDisconnect
 import aioca
+from pv_serialization import to_json_safe_value
 
 
 @dataclass
@@ -133,7 +134,7 @@ class WebSocketPVsManager:
         data = {
             "type": "pv",
             "name": pv,
-            "value": last_value,  # Ensure it's JSON serializable
+            "value": to_json_safe_value(last_value),
             "severity": last_value.severity,
             "ok": last_value.ok,
         }
@@ -144,11 +145,7 @@ class WebSocketPVsManager:
     async def _fetch_and_broadcast_value(self, pv):
         try:
             val = await aioca.caget(pv, format=2, timeout=2.0)
-            # Convert ca_array to a list if necessary
-            if hasattr(val, "tolist"):
-                serializable_value = val.tolist()
-            else:
-                serializable_value = val
+            serializable_value = to_json_safe_value(val)
 
             self.logger.info("Fetched value for PV %s: %s", pv, val)
             self.last_values_cache[pv] = val

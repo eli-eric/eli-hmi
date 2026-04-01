@@ -1,9 +1,8 @@
-from typing import Union
-
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import PlainTextResponse
 import logging
 import aioca
+from pv_serialization import to_json_safe_value
 from websocket_pv_manager import WebSocketPVsManager
 
 app = FastAPI()
@@ -56,7 +55,7 @@ async def get_pv(pv_name: str):
 
         if value.ok:
 
-            result = {"name": pv_name, "value": value}
+            result = {"name": pv_name, "value": to_json_safe_value(value)}
 
             if hasattr(value, "units"):
                 result["units"] = value.units
