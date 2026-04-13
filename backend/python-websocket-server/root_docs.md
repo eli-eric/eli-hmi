@@ -1,11 +1,10 @@
 # ELI HMI EPICS Gateway
 
-A production-oriented FastAPI gateway in front of EPICS using aioca. This service exposes read and monitor operations over HTTP and WebSocket.
+FastAPI gateway in front of EPICS using aioca. This service exposes read and monitor operations over HTTP and WebSockets.
 
 ## Quick Links
 
 - [Swagger UI](/docs)
-- [ReDoc](/redoc)
 - [Stats Dashboard](/stats/ui)
 - [Stats JSON](/stats)
 - [Live Health](/health/live)

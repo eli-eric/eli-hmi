@@ -303,12 +303,7 @@ def render_root_docs_html(*, enable_docs: bool) -> str:
         <span class=\"link-label\">Interactive API Docs</span>
         <span class=\"link-target\">/docs</span>
         <span class=\"link-hint\">Swagger UI for the OpenAPI surface.</span>
-      </a>
-      <a class=\"link-card\" href=\"/redoc\">
-        <span class=\"link-label\">Reference Docs</span>
-        <span class=\"link-target\">/redoc</span>
-        <span class=\"link-hint\">ReDoc view of the same API schema.</span>
-      </a>
+      </a>     
       <a class=\"link-card\" href=\"/stats/ui\">
         <span class=\"link-label\">Diagnostics UI</span>
         <span class=\"link-target\">/stats/ui</span>
