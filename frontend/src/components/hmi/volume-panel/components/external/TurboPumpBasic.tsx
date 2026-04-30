@@ -1,6 +1,5 @@
 import { FC } from 'react'
 
-import { Row } from '@/components/ui/layout'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { PVDisplay } from '@/lib/websocket/pv-display'
 import {
@@ -66,7 +65,14 @@ export const TurbopumpBasic: FC<TurbopumpBasicProps> = ({
         </TextContent>
       </VolumeCard>
       {stateControl && <WarningErrorControl {...stateControl} />}
-      <Row>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '0.5rem',
+          alignSelf: 'stretch',
+        }}
+      >
         <VolumeCard>
           <TextContent>
             <PVDisplay
@@ -85,7 +91,7 @@ export const TurbopumpBasic: FC<TurbopumpBasicProps> = ({
             />
           </TextContent>
         </VolumeCard>
-      </Row>
+      </div>
     </Container>
   )
 }
