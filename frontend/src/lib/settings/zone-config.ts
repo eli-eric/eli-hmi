@@ -3,8 +3,8 @@ import { ZoneConfigMap, EMPTY_ZONE_CONFIG } from './zone-config.types'
 /**
  * Zone code constants
  */
-export const ZONE_CODE_TEST = 'test'
-export const ZONE_CODE_PRODUCTION = 'production'
+export const ZONE_CODE_TEST = 'test' as const
+export const ZONE_CODE_PRODUCTION = 'production' as const
 
 /**
  * Zone configurations map
