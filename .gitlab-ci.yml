@@ -51,10 +51,30 @@ docker-build-job:
     - cd backend/python-websocket-server
     - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest -f Dockerfile
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest
-# this will not work because the image is not available in this stage
-# docker-test-job:
-#   stage: test
-#   tags:
-#   - docker-in-docker
-#   script:
-#   - docker run --rm my-docker-image
+frontend-test:
+  stage: test
+  image: harbor.eli-beams.eu/proxy-dockerhub/node:20-alpine
+  # No docker-in-docker needed; this job just runs `npm test`.
+  services: []
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm test -- --run --coverage
+  artifacts:
+    when: always
+    paths:
+      - frontend/coverage/lcov-report/
+      - frontend/coverage/lcov.info
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: frontend/coverage/cobertura-coverage.xml
+    expire_in: 1 week
+  coverage: '/Lines\s+:\s+([\d.]+)%/'
+
+stages:
+  - test
+  - build

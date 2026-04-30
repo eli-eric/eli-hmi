@@ -1,187 +1,144 @@
-# ELI Beamlines Control System GUI
+# ELI Beamlines Control System GUI (frontend)
 
-This project is a [Next.js](https://nextjs.org) application designed for **control system operators** and **control system engineers** at ELI Beamlines. It provides a user-friendly interface for operators and an easy-to-setup GUI framework for engineers who may not be React developers.
+Next.js 15 / React 19 / TypeScript app for **control-system operators** and **control-system engineers** at ELI Beamlines.
 
----
+The audience for new pages is engineers who may not know React. Pages are composed from a typed **module config** + a small set of **compound HMI components**.
 
-## Getting Started
-
-### 1. Run the Development Server
-
-To start the application locally, run:
+## Quick start
 
 ```bash
-npm run dev
+cp env.example .env.local                  # set NEXTAUTH_SECRET, NEXT_PUBLIC_WEBSOCKET_URL, NEXT_PUBLIC_ZONE_CODE
+npm install
+npm run dev                                # http://localhost:8082  (port 8082, not 3000)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser to view the application.
+In a second terminal, start the mock backend (otherwise the WebSocket layer reconnects forever):
 
----
+```bash
+cd ../backend/mockup-websocket-server && go run main.go      # :8080
+```
 
-## Environment Variables Setup
+Login `test` / `test` (LDAP bypass; see `src/lib/server/auth/ldap-auth.ts`).
 
-Before running the application, you need to set up your environment variables.  
-Create a file named `.env.local` in the root of the project (next to `package.json`) and add the following content:
+## Environment variables
 
 ```env
-NEXTAUTH_SECRET=your_secret_key_here
+NEXTAUTH_SECRET=...                         # any strong random value
 NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8080/ws/pvs
+NEXT_PUBLIC_ZONE_CODE=test                  # see "Zones in production" below
+LDAP_SERVER_URL=ldap://10.78.0.11           # only used in prod auth
+LDAP_BASE_DN=dc=lcs,dc=local
 ```
 
-- **NEXTAUTH_SECRET**: Secret key for NextAuth authentication (use a strong, random value in production).
-- **NEXT_PUBLIC_WEBSOCKET_URL**: The WebSocket endpoint for your backend.
+`env.example` carries a template.
 
-You can use the provided `env.example` file as a template:
+## Adding a control module
 
-```bash
-cp env.example .env.local
-```
+See [`src/lib/modules/README.md`](src/lib/modules/README.md). TL;DR:
 
-Then edit `.env.local` and fill in your actual values.
+1. Drop a `<m>.config.ts` next to the others.
+2. Add bespoke `parts/` (volumes + connectors) under `src/app/(modules)/<m>-controls/`.
+3. The page is ~5 lines:
 
----
+   ```tsx
+   'use client'
+   import { ModuleControlPage } from '@/components/module-page/module-control-page'
+   import { myConfig } from '@/lib/modules/my.config'
 
-## How to Set Up a GUI for Operators
+   export default () => <ModuleControlPage config={myConfig} bottomRow={<MyVolumes />} />
+   ```
 
-This application uses a **compound component pattern** to make it easy for engineers to set up GUIs without needing deep React knowledge. Below is a step-by-step guide:
+4. Register the route in `src/lib/settings/zone-config.ts`.
 
-### 1. Understand the Compound Component Pattern
+## Reusable HMI components
 
-The compound component pattern allows you to compose complex UI components by combining smaller, reusable components. For example, the `VolumePanel` component is a container that can include titles, labels, cards, and connected WebSocket data components.
+Compound components for vacuum-system UIs live under `src/components/hmi/`:
 
-#### Example: Setting Up a Volume Panel
+- `VolumePanel` + `VolumePanel.{SensorBar, Pump, TurbopumpBasic, Locking, Doors, Config, MasterKey, Interlocks, MultiVolumes, Container, WarningErrorControl}`
+- `ConnectorLine` + `ConnectorLine.{Line, Valve, Gate, GateConnected, LabelValue, ValveStatus, ValveControlStatus}`
+- `StatusBar`
+
+Engineers compose pages declaratively. State is managed inside the compound components — you wire PV names, not React state.
+
+## WebSocket data
+
+A single app-wide WebSocket connection is established by `useWebSocket` (`src/lib/websocket/use-websocket.ts`) and exposed via `WebSocketProvider` / `useWebSocketContext` (`src/app/providers/socket-provider.tsx`). The NextAuth JWT (`session.accessToken`) is sent as a `?auth=` query param. Reconnect uses exponential backoff with jitter.
+
+Subscribe to PVs via `useWebSocketData` (`src/lib/websocket/use-websocket-data.ts`). One overloaded hook covers single and multi:
 
 ```tsx
-import { VolumePanel } from '@/components/ws-components/volume-panel'
+import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
+import { PVDisplay } from '@/lib/websocket/pv-display'
 
-export const ExamplePanel = () => {
+// Single PV
+const Pressure = ({ pv }: { pv: string }) => {
+  const { data, isConnected } = useWebSocketData<number>(pv)
+  return <PVDisplay data={data} isConnected={isConnected} />
+}
+
+// Multiple PVs
+const Pump = ({ rpmPV, valvePV }: { rpmPV: string; valvePV: string }) => {
+  const { byPv, isConnected } = useWebSocketData({ pvs: [rpmPV, valvePV] })
   return (
-    <VolumePanel>
-      <VolumePanel.Title label="Example Panel" />
-      <VolumePanel.Label label="System Status" />
-      <VolumePanel.Card>
-        <VolumePanel.CardLabel>Pressure</VolumePanel.CardLabel>
-        <VolumePanel.SensorPressureConnected
-          pvname="AI_PRESSURE_SENSOR"
-          label="Pressure Sensor"
-        />
-      </VolumePanel.Card>
-    </VolumePanel>
+    <>
+      <PVDisplay data={byPv(rpmPV)} isConnected={isConnected} />
+      <PVDisplay data={byPv(valvePV)} isConnected={isConnected} />
+    </>
   )
 }
 ```
 
-### 2. Use Pre-Built Components
+The hook **buries** the dev-vs-prod PV-name prefix mapping (`getPrefixedPV`). Pass logical names; the hook resolves them on subscribe and on lookup. The only direct `getPrefixedPV` call sites left are write-side `fetch()` calls.
 
-The application provides pre-built components for common control system elements like:
+`PVDisplay` renders `Message<T>` with sensible loading / error / disconnected fallbacks (with optional `formatValue`, `errorComponent`, `loadingComponent`, `onError`).
 
-- **Pressure Sensors**: `SensorPressureConnected`
-- **Valve Status**: `ValveStatusConnected`
-- **Pump Speed**: `PumpSpeed`
-- **Interlocks**: `Interlocks`
+Wire protocol: client sends `{ type: 'subscribe', pvs: { NAME: true } }`; server pushes `{ type: 'pv', name, value, severity, units, timestamp, ok }`.
 
-These components are already connected to the WebSocket system and can be used directly in your pages.
+## Zones in production
 
----
+`NEXT_PUBLIC_ZONE_CODE` selects a zone at **build time** from `src/lib/settings/zone-config.ts`. Each zone declares `navigationItems` and `allowedRoutes`. The middleware (`src/middleware.ts`) blocks unauthorized routes.
 
-## How WebSocket Connection Works
+The shipped `production` zone is **intentionally empty**. To deploy:
 
-The application uses a WebSocket connection to communicate with the control system backend. This is managed by the `WebSocketProvider` and `useWebSocket` hook.
+1. **Recommended:** add a per-site zone (e.g. `e3`, `p3-hall`) with the routes the site operates, then build with `NEXT_PUBLIC_ZONE_CODE=p3-hall`. Use `docker build --build-arg`, a GitLab CI variable, or `.env.production`.
+2. Alternatively, override the empty `production` entry in a fork or deploy-time patch of `zone-config.ts`.
 
-### Key Components:
+`NEXT_PUBLIC_*` is baked at build time — switching zones means a rebuild. There is no runtime toggle.
 
-1. **WebSocketProvider**  
-   The `WebSocketProvider` is a React context provider that wraps the application and provides WebSocket connection state and methods to all components.
+## Testing
 
-   - **File**: [`src/app/providers/socket-provider.tsx`](src/app/providers/socket-provider.tsx)
-   - **Usage**:
+```bash
+npm test                  # watch
+npm run test:run          # one-shot
+npm run test:coverage     # CI gate (70/70/70/60 on lib/websocket, lib/settings, middleware, module-page)
+```
 
-     ```tsx
-     import { WebSocketProvider } from '@/app/providers/socket-provider'
-     ;<WebSocketProvider url="ws://localhost:8080/ws/pvs">
-       <YourComponent />
-     </WebSocketProvider>
-     ```
+Two WebSocket test seams:
+- `mockWebSocketServer()` (`src/test/ws-mock-server.ts`) — replaces `globalThis.WebSocket`. Use for connection-lifecycle and integration tests. Honors the real wire protocol.
+- `<TestWebSocketProvider value={fakeContext}>` (`src/test/ws-test-provider.tsx`) — short-circuits the connection layer for fast component tests.
 
-   - **How It Works**:
-     - The `WebSocketProvider` uses the `useWebSocket` hook to manage the WebSocket connection.
-     - It provides the WebSocket state and methods (e.g., `send`, `subscribe`) to all child components via React context.
+## Project structure (highlights)
 
-2. **useWebSocket Hook**  
-   The `useWebSocket` hook handles the WebSocket connection logic, including reconnection, subscriptions, and message handling.
+```
+src/
+  app/                                 Next.js App Router (routes, providers, layouts, middleware)
+    (modules)/<m>-controls/page.tsx    5-line config render
+    (modules)/<m>-controls/parts/      bespoke volumes + connectors
+  components/
+    hmi/                               VolumePanel, ConnectorLine, StatusBar (compound components)
+    module-page/                       ModuleControlPage shell + 5 config-driven panels
+    navigation/                        top nav bar
+    ui/                                generic primitives (buttons, icons, dropdown, tooltip, heading)
+  lib/
+    modules/                           ModuleConfig types + per-module configs
+    settings/                          zone-config + helpers
+    server/auth/                       NextAuth + LDAP
+    utils/                             pv-helpers (getPrefixedPV, getFormattedValue)
+    websocket/                         useWebSocket, useWebSocketData, WebSocketProvider, PVDisplay, debug
+  test/                                Vitest setup + the two WS test adapters
+  middleware.ts                        zone + auth gate
+```
 
-   - **File**: [`src/lib/websocket-provider/useWebsocket.tsx`](src/lib/websocket-provider/useWebsocket.tsx)
-   - **Features**:
+## Where to ask
 
-     - Automatic reconnection with exponential backoff and jitter.
-     - Subscription management for specific channels.
-     - Sending and receiving messages.
-
-   - **Example Usage**:
-
-     ```tsx
-     import { useWebSocketContext } from '@/app/providers/socket-provider'
-
-     const MyComponent = () => {
-       const { send, subscribe, isConnected, status } = useWebSocketContext()
-
-       // Subscribe to a channel
-       useEffect(() => {
-         const unsubscribe = subscribe('CHANNEL_NAME', (message) => {
-           console.log('Received message:', message)
-         })
-
-         return () => unsubscribe()
-       }, [subscribe])
-
-       // Send a message
-       const sendMessage = () => {
-         if (isConnected) {
-           send({ type: 'example', data: 'Hello, WebSocket!' })
-         }
-       }
-
-       return (
-         <div>
-           <p>Connection Status: {status}</p>
-           <button onClick={sendMessage}>Send Message</button>
-         </div>
-       )
-     }
-     ```
-
-3. **WebSocket Context**  
-   The `WebSocketContext` is a React context that provides WebSocket state and methods to components.
-
-   - **File**: [`src/app/providers/socket-provider.tsx`](src/app/providers/socket-provider.tsx)
-   - **How to Access**:
-     Use the `useWebSocketContext` hook to access the context:
-
-     ```tsx
-     import { useWebSocketContext } from '@/app/providers/socket-provider'
-
-     const { send, subscribe, isConnected, status } = useWebSocketContext()
-     ```
-
----
-
-## Missing Components or Issues?
-
-If you encounter any missing components or issues while setting up the GUI or WebSocket logic, please contact the **support team** for assistance. Provide the following details when reaching out:
-
-1. The component or feature you are trying to use.
-2. Any error messages or unexpected behavior.
-3. Steps to reproduce the issue.
-
----
-
-## Summary for Engineers
-
-1. **Use the Compound Component Pattern**: Combine pre-built components to create GUIs without writing complex React code.
-2. **Leverage WebSocketProvider**: Automatically manage WebSocket connections and subscriptions.
-3. **Focus on Business Logic**: Use the provided hooks and components to focus on control system logic, not React internals.
-
-For more details, refer to the code in:
-
-- `src/app/providers/socket-provider.tsx`
-- `src/lib/websocket-provider/useWebsocket.tsx`
+If you're stuck on a missing component or unexpected WebSocket behavior, contact the support team with: the component/feature, the error, and reproduction steps.

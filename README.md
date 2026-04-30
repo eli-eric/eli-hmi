@@ -1,26 +1,52 @@
 # ELI Beamlines Control System GUI
 
-This project is an application designed for **control system operators** and **control system engineers** at ELI Beamlines. It provides a user-friendly interface for operators and an easy-to-setup GUI framework for engineers who may not be web frontend developers.
+Application for **control system operators** and **control system engineers** at ELI Beamlines: a user-friendly operator interface backed by an easy-to-extend GUI framework for engineers who may not be web-frontend developers.
 
-# Project structure
+## Project structure
+
+```
+frontend/                            Next.js 15 / React 19 / TS app (port 8082)
+backend/mockup-websocket-server/     Go simulator (Echo + Gorilla); port 8080
+backend/python-websocket-server/     FastAPI + aioca gateway to a real EPICS network
+```
+
+The two backends speak the **same WebSocket protocol** (`/ws/pvs`); the frontend doesn't know which is on the other end.
 
 ## Frontend
 
-folder: `frontend`
+Next.js 15, App Router, TypeScript, CSS Modules. Operator pages are composed from a per-module **config object** (`src/lib/modules/<m>.config.ts`) that drives a shared `<ModuleControlPage>` shell. WebSocket data flows through a single hook `useWebSocketData(pv | { pvs })` that buries the dev-vs-prod PV-name prefix.
 
-The frontend is built using Next.js and TypeScript. It includes a set of reusable components for building GUIs for control system operators.
-The components are designed to be easy to use and can be combined to create complex UIs. The frontend communicates with the backend using WebSocket connections.
-The WebSocket API is designed to be simple and intuitive, allowing for easy integration with the frontend components.
+See [frontend/README.md](frontend/README.md) for setup, environment variables, the WebSocket pub/sub protocol, and how to add a new control module.
 
 ## Backend
 
-folder: `backend`
+### Mockup WebSocket Server (`backend/mockup-websocket-server`)
 
-## Mockup WebSocket Server
+Go application that simulates a control system. Two modes per PV-prefix:
+- **automatic simulation** — generates random data
+- **manual** — accepts values via REST helpers (`GET /pv/:name/:value`, `GET /mode/:prefix/:value`)
 
-folder: `backend\mockup-websocket-server`
+For development and testing only. Not a production target.
 
-The mockup WebSocket server is a simple Go application that simulates the behavior of a control system. It provides a WebSocket API for testing and development purposes.
-The server can be run in two modes: automatic simulation mode and manual mode. In automatic simulation mode, the server generates random data for the control system parameters. In manual mode, the server allows for manual input of data.
-The server is designed to be easy to use and can be run locally or in a Docker container. It provides a simple API for subscribing to control system parameters and sending commands to the server.
-The server is designed to be used for testing and development purposes only and should not be used in a production environment.
+### Python WebSocket Server (`backend/python-websocket-server`)
+
+FastAPI + `aioca` gateway that talks to a real EPICS network. **Production target** — built and pushed to Harbor by `.gitlab-ci.yml`.
+
+## Quick start
+
+```bash
+# Mock backend
+cd backend/mockup-websocket-server && go run main.go      # :8080
+
+# Frontend
+cd frontend && cp env.example .env.local                  # set NEXTAUTH_SECRET
+npm install && npm run dev                                # :8082
+```
+
+Login `test` / `test` (bypasses LDAP in dev). See [frontend/AGENTS.md](frontend/AGENTS.md) for full environment variable list and zone configuration.
+
+## Conventions
+
+- Frontend port is **8082**, not 3000.
+- Commits are short imperative; prefix with the Jira/issue id (e.g. `OPHMI-15: ...`).
+- See [AGENTS.md](AGENTS.md) for repository-wide guidance for coding agents.
