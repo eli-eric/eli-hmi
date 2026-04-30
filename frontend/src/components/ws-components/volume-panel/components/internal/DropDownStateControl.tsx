@@ -1,13 +1,16 @@
 'use client'
 
 import { FC } from 'react'
+import Image from 'next/image'
+
 import { SettingsButton } from '@/components/ui/buttons'
 import Dropdown from '@/components/ui/dropdown'
-import { useWebSocketMulti } from '@/lib/websocket/use-websocket-data'
-import commonStyles from '../../styles/common.module.css'
+import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
+import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 import { Message } from '@/app/providers/types'
-import Image from 'next/image'
 import { API_URL } from '@/types/constants'
+
+import commonStyles from '../../styles/common.module.css'
 
 type TriggerProps = {
   currentStatePv: string
@@ -15,13 +18,13 @@ type TriggerProps = {
 }
 
 const Trigger = ({ currentStatePv, targetStatePv }: TriggerProps) => {
-  const { state } = useWebSocketMulti({
+  const { byPv } = useWebSocketData({
     pvs: [targetStatePv, currentStatePv],
   })
 
-  const currentState = state[currentStatePv] as Message<string> | null
+  const currentState = byPv(currentStatePv) as Message<string> | null
   const currentValue = currentState?.value || 'N/A'
-  const targetState = state[targetStatePv] as Message<string> | null
+  const targetState = byPv(targetStatePv) as Message<string> | null
   const targetValue = targetState?.value || 'N/A'
 
   const showTarget = targetValue !== currentValue
@@ -63,14 +66,10 @@ interface ControlProps {
 }
 
 /**
- * DropDownStateControl - Dropdown control for volume state
+ * Dropdown that shows current/target state and POSTs to a control PV on click.
  *
- * Displays a dropdown with state options and a settings button
- *
- * @param pvNameCurrent - PV name for the current state
- * @param pvNameTarget - PV name for the target state
- * @param controlPvs - Array of control PVs with names and labels
- * @returns JSX.Element
+ * Caller passes logical PV names; the read side resolves prefix via the hook,
+ * the write side (`fetch`) calls {@link getPrefixedPV} explicitly.
  */
 export const DropDownStateControl: FC<ControlProps> = ({
   controlPvs,
@@ -92,13 +91,9 @@ export const DropDownStateControl: FC<ControlProps> = ({
         controlPvs?.map((control) => ({
           label: control.label,
           onClick: () => {
-            // Handle control item click
-            console.log(`${API_URL}/${control.pvName}`)
-            fetch(`${API_URL}/${control.pvName}`, {
+            fetch(`${API_URL}/${getPrefixedPV(control.pvName)}`, {
               method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ value: 1, type: 'short' }),
             })
           },

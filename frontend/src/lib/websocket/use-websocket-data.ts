@@ -54,7 +54,12 @@ export function useWebSocketData<T = unknown>(
   const onUpdateMulti = isSingle ? undefined : input.onUpdate
   const onUpdateSingle = isSingle ? singleOpts?.onUpdate : undefined
 
-  const state = useMultiSubscription<T>(ctx, pvs, onUpdateMulti, onUpdateSingle)
+  const state = useMultiSubscription<T>(
+    ctx,
+    pvs,
+    onUpdateMulti,
+    onUpdateSingle,
+  )
 
   if (isSingle) {
     return {
@@ -67,24 +72,6 @@ export function useWebSocketData<T = unknown>(
     state,
     isConnected: ctx.isConnected,
   }
-}
-
-/**
- * @deprecated Use {@link useWebSocketData} with the multi-form. Kept for the
- * legacy call sites; will be removed after migration.
- */
-export function useWebSocketMulti<T = unknown>({
-  pvs,
-  onDataUpdate,
-}: {
-  pvs: string[]
-  onDataUpdate?: (msgs: Message<T>[]) => void
-}): { state: State<T>; isConnected: boolean } {
-  const ctx = useWebSocketContext()
-  const state = useMultiSubscription<T>(ctx, pvs, onDataUpdate, undefined, {
-    skipPrefix: true,
-  })
-  return { state, isConnected: ctx.isConnected }
 }
 
 type Action<T> =
@@ -107,7 +94,6 @@ function useMultiSubscription<T>(
   pvs: string[],
   onUpdateMulti: ((msgs: Message<T>[]) => void) | undefined,
   onUpdateSingle: ((msg: Message<T>) => void) | undefined,
-  opts: { skipPrefix?: boolean } = {},
 ): State<T> {
   const { subscribe, isConnected } = ctx
   const [state, dispatch] = useReducer(
@@ -131,7 +117,7 @@ function useMultiSubscription<T>(
 
   useEffect(() => {
     if (!isConnected || pvs.length === 0) return
-    const wireNames = opts.skipPrefix ? pvs : pvs.map(getPrefixedPV)
+    const wireNames = pvs.map(getPrefixedPV)
     const unsubs = wireNames.map((pv) =>
       subscribe<T>(pv, (msg) => {
         dispatch({ type: 'UPDATE', pv, msg })
@@ -150,7 +136,7 @@ function useMultiSubscription<T>(
       dispatch({ type: 'RESET' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pvKey, subscribe, isConnected, opts.skipPrefix])
+  }, [pvKey, subscribe, isConnected])
 
   return state
 }

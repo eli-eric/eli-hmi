@@ -1,22 +1,26 @@
 import { FC } from 'react'
-import { Message } from '@/app/providers/types'
-import { withReactWebSocketData } from '../../with-websocket-data'
+
+import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
+
 import { Gate } from './Gate'
 
 interface GateConnectedProps {
+  pvname: string
   name: string
   label: string
   href: string
 }
 
 /**
- * GateConnected component
- *
- * A wrapper for the Gate component that connects it to WebSocket data
+ * Gate wired to a PV via {@link useWebSocketData}. Renders {@link Gate}.
  */
-const GateConnectedBase: FC<
-  GateConnectedProps & { data: Message<number> | null; isConnected?: boolean }
-> = ({ name, label, href, data, isConnected }) => {
+export const GateConnected: FC<GateConnectedProps> = ({
+  pvname,
+  name,
+  label,
+  href,
+}) => {
+  const { data, isConnected } = useWebSocketData<number>(pvname)
   return (
     <Gate
       name={name}
@@ -27,7 +31,3 @@ const GateConnectedBase: FC<
     />
   )
 }
-
-export const GateConnected = withReactWebSocketData<number, GateConnectedProps>(
-  GateConnectedBase,
-)

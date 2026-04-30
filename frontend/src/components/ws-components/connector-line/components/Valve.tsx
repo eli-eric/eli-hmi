@@ -1,8 +1,12 @@
-import { FC, useMemo, useEffect } from 'react'
+import { FC, useEffect, useMemo } from 'react'
+
 import { PolygonIcon } from '@/components/ui/icons'
-import { State, useWebSocketMulti } from '@/lib/websocket/use-websocket-data'
+import {
+  State,
+  useWebSocketData,
+} from '@/lib/websocket/use-websocket-data'
+
 import styles from '../styles/valve.module.css'
-import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 
 export enum VALVE_STATE {
   OPEN = 'OPEN',
@@ -19,9 +23,7 @@ interface ValveStatusProps {
 }
 
 /**
- * ValveStatus component
- *
- * Displays the current status of a valve based on PV values
+ * Valve open/closed status derived from two binary PVs.
  */
 export const ValveStatus: FC<ValveStatusProps> = ({
   openPV,
@@ -29,50 +31,26 @@ export const ValveStatus: FC<ValveStatusProps> = ({
   onStateChange,
   onStatusUpdate,
 }) => {
-  const { state, isConnected } = useWebSocketMulti<1 | 0 | null>({
-    pvs: [getPrefixedPV(openPV), getPrefixedPV(closePV)],
-    onDataUpdate: (data) => {
-      console.log('Valve Status Data Update', data)
-    },
+  const { byPv, state, isConnected } = useWebSocketData<1 | 0 | null>({
+    pvs: [openPV, closePV],
   })
 
-  const PV_OPEN = getPrefixedPV(openPV)
-  const PV_CLOSE = getPrefixedPV(closePV)
-
   const valveState = useMemo(() => {
-    console.log(
-      'Valve Status State',
-      getPrefixedPV(openPV),
-      getPrefixedPV(closePV),
-      state,
-    )
     if (onStateChange) return onStateChange(state)
-    if (PV_OPEN && PV_CLOSE) {
-      if (state[PV_OPEN]?.value === 1 && state[PV_CLOSE]?.value === 1) {
-        return VALVE_STATE.ERROR
-      }
-      if (state[PV_OPEN]?.value === 1 && state[PV_CLOSE]?.value === 0) {
-        return VALVE_STATE.OPEN
-      }
-      if (state[PV_OPEN]?.value === 0 && state[PV_CLOSE]?.value === 1) {
-        return VALVE_STATE.CLOSED
-      }
-      if (state[PV_OPEN]?.value === 0 && state[PV_CLOSE]?.value === 0) {
-        return VALVE_STATE.TRANSITIONING
-      }
-    }
-  }, [state, onStateChange, PV_OPEN, PV_CLOSE])
+    const openValue = byPv(openPV)?.value
+    const closeValue = byPv(closePV)?.value
+    if (openValue === 1 && closeValue === 1) return VALVE_STATE.ERROR
+    if (openValue === 1 && closeValue === 0) return VALVE_STATE.OPEN
+    if (openValue === 0 && closeValue === 1) return VALVE_STATE.CLOSED
+    if (openValue === 0 && closeValue === 0) return VALVE_STATE.TRANSITIONING
+    return undefined
+  }, [byPv, openPV, closePV, onStateChange, state])
 
-  // Use useEffect to call onStatusUpdate when valveState changes
   useEffect(() => {
-    if (valveState && onStatusUpdate) {
-      onStatusUpdate(valveState)
-    }
+    if (valveState && onStatusUpdate) onStatusUpdate(valveState)
   }, [valveState, onStatusUpdate])
 
-  if (!isConnected) {
-    return <span>N/A</span>
-  }
+  if (!isConnected) return <span>N/A</span>
 
   switch (valveState) {
     case VALVE_STATE.OPEN:
@@ -102,9 +80,7 @@ interface ValveProps {
 }
 
 /**
- * Valve component
- *
- * Displays a valve with label and status
+ * Valve glyph + label slot for status children.
  */
 export const Valve: FC<ValveProps> = ({ children, label }) => {
   return (
