@@ -14,7 +14,6 @@ import { CleanDryAir } from './components/clean-dry-air'
 import { Backing } from './components/backing'
 import { Roughing } from './components/roughing'
 import { L4fBTS1Connector } from './components/l4fbt-s1-connector'
-import { ConnectorLine } from '@/components/ws-components/connector-line'
 import { S3Volumes } from '../l4fbt-controls/components/s3-volumes'
 import { L4fBTP3Connector } from './components/l4fbt-p3-connector'
 
