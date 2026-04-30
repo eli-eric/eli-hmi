@@ -23,7 +23,7 @@ const P3Chamber = () => {
         ]}
         stateControl={{
           pvCurrentState: 'E3-P3-P3_CHAMBER:STATUS',
-          pvTargetState: 'E3-P3-P3_CHAMBER:TARGET', // TODO zatim nevim
+          pvTargetState: 'E3-P3-P3_CHAMBER:TARGET', // TODO PV name unclear
           controlPvs: [
             {
               label: 'Standby',
@@ -47,7 +47,7 @@ const P3Chamber = () => {
             },
           ],
         }}
-        pumpCyclePv="E3-P3-P3_CHAMBER:PUMP_CYCLE" // TODO zatim nevim
+        pumpCyclePv="E3-P3-P3_CHAMBER:PUMP_CYCLE" // TODO PV name unclear
       />
     </VolumePanel.Container>
   )
@@ -69,7 +69,7 @@ const P3CRYO1 = () => {
         ]}
         stateControl={{
           pvCurrentState: 'E3-P3-CRYO1:STATUS',
-          pvTargetState: 'E3-P3-CRYO1:TARGET', // TODO zatim nevime
+          pvTargetState: 'E3-P3-CRYO1:TARGET', // TODO PV name uncleare
           controlPvs: [
             {
               pvName: 'E3-P3-CRYO1:START_COOLING',
@@ -97,7 +97,7 @@ const P3CRYO1 = () => {
           {
             pvName: 'E3-P3-APG804:PRESSURE',
             label: 'APG804',
-            options: { format: 'exponencial' },
+            options: { format: 'exponential' },
           },
         ]}
       />
@@ -121,7 +121,7 @@ const P3CRYO2 = () => {
         ]}
         stateControl={{
           pvCurrentState: 'E3-P3-CRYO2:STATUS',
-          pvTargetState: 'E3-P3-CRYO2:TARGET', // TODO zatim nevime
+          pvTargetState: 'E3-P3-CRYO2:TARGET', // TODO PV name uncleare
           controlPvs: [
             {
               pvName: 'E3-P3-CRYO2:START_COOLING',
@@ -150,7 +150,7 @@ const P3CRYO2 = () => {
           {
             pvName: 'E3-P3-APG805:PRESSURE',
             label: 'APG805',
-            options: { format: 'exponencial' },
+            options: { format: 'exponential' },
           },
         ]}
       />
@@ -164,8 +164,8 @@ const P3Configuration = () => {
       <VolumePanel.Config
         title="P3 Configuration"
         stateControl={{
-          pvCurrentState: 'SI_???' /* TODO zatim nevim */,
-          pvTargetState: 'SI_???' /* TODO zatim nevim */,
+          pvCurrentState: 'SI_???' /* TODO PV name unclear */,
+          pvTargetState: 'SI_???' /* TODO PV name unclear */,
           controlPvs: [],
         }}
       />
@@ -174,11 +174,11 @@ const P3Configuration = () => {
         title="P3 Doors"
         sensorPV={{
           label: 'APG809',
-          pvName: 'E3-P3-APG809:PRESSURE', // TODO zatim nevim
+          pvName: 'E3-P3-APG809:PRESSURE', // TODO PV name unclear
         }}
         stateControl={{
-          pvCurrentState: 'SI_???', // TODO zatim nevim
-          pvTargetState: 'SI_???', // TODO zatim nevim
+          pvCurrentState: 'SI_???', // TODO PV name unclear
+          pvTargetState: 'SI_???', // TODO PV name unclear
           controlPvs: [
             {
               label: 'Standby',
@@ -216,8 +216,8 @@ const P3Turbopump = () => {
           errorPv: 'E3-P3-TMP801:NO_ALARM',
           warningPv: 'E3-P3-TMP801:NO_WARNING',
         }}
-        rpmPV="AI_RPM_SPEED_P04" // TODO zatim nevim
-        tempPV="AI_TEMP_P04" // TODO zatim nevim
+        rpmPV="AI_RPM_SPEED_P04" // TODO PV name unclear
+        tempPV="AI_TEMP_P04" // TODO PV name unclear
       />
       <VolumePanel.TurbopumpBasic
         label="P3 Turbopump TMP802"
@@ -227,8 +227,8 @@ const P3Turbopump = () => {
           errorPv: 'E3-P3-TMP802:NO_ALARM',
           warningPv: 'E3-P3-TMP802:NO_WARNING',
         }}
-        rpmPV="AI_RPM_SPEED_P04" // TODO zatim nevim
-        tempPV="AI_TEMP_P04" // TODO zatim nevim
+        rpmPV="AI_RPM_SPEED_P04" // TODO PV name unclear
+        tempPV="AI_TEMP_P04" // TODO PV name unclear
       />
     </VolumePanel.Container>
   )

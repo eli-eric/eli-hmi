@@ -3,6 +3,5 @@ const isDev =
 
 export function debug(scope: string, ...args: unknown[]): void {
   if (!isDev) return
-  // eslint-disable-next-line no-console
   console.log(`[${scope}]`, ...args)
 }

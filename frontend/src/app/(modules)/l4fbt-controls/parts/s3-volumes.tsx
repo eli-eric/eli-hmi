@@ -53,8 +53,8 @@ export const S3Doors = () => {
       <VolumePanel.Doors
         title="L4fBT S3 Doors"
         stateControl={{
-          pvCurrentState: 'SI_???', // TODO zatim nevim
-          pvTargetState: 'SI_???', // TODO zatim nevim
+          pvCurrentState: 'SI_???', // TODO PV name unclear
+          pvTargetState: 'SI_???', // TODO PV name unclear
           controlPvs: [
             {
               label: 'Standby',
@@ -75,8 +75,8 @@ export const S3Doors = () => {
           errorPv: 'E3-P3-TMP801:NO_ALARM',
           warningPv: 'E3-P3-TMP801:NO_WARNING',
         }}
-        rpmPV="AI_RPM_SPEED_P04" // TODO zatim nevim
-        tempPV="AI_TEMP_P04" // TODO zatim nevim
+        rpmPV="AI_RPM_SPEED_P04" // TODO PV name unclear
+        tempPV="AI_TEMP_P04" // TODO PV name unclear
       />
       <VolumePanel.TurbopumpBasic
         label="L4fBT Turbopump TMP584"
@@ -86,8 +86,8 @@ export const S3Doors = () => {
           errorPv: 'E3-P3-TMP802:NO_ALARM',
           warningPv: 'E3-P3-TMP802:NO_WARNING',
         }}
-        rpmPV="AI_RPM_SPEED_P04" // TODO zatim nevim
-        tempPV="AI_TEMP_P04" // TODO zatim nevim
+        rpmPV="AI_RPM_SPEED_P04" // TODO PV name unclear
+        tempPV="AI_TEMP_P04" // TODO PV name unclear
       />
     </VolumePanel.Container>
   )

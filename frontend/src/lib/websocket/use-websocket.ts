@@ -264,11 +264,12 @@ export function useWebSocket() {
   useEffect(() => {
     if (!url) return
     connect()
+    const subs = subscriptionsRef
     return () => {
       clearReconnectTimer()
       clearCountdown()
       closeSocket()
-      subscriptionsRef.current.clear()
+      subs.current.clear()
     }
   }, [connect, url, clearReconnectTimer, clearCountdown, closeSocket])
 
