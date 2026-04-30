@@ -1,12 +1,16 @@
-import React, { useMemo } from 'react'
+'use client'
+
 import clsx from 'clsx'
-import { ErrorIcon } from '../ui/icons'
-import styles from './with-error-data.module.css'
+import React, { useEffect, useMemo } from 'react'
+
+import { ErrorIcon } from '@/components/ui/icons'
 import { Message } from '@/app/providers/types'
+
+import styles from './pv-display.module.css'
 
 export type SeverityLevel = 'info' | 'warning' | 'error' | 'none'
 
-interface WithErrorDataProps<T> {
+interface PVDisplayProps<T> {
   data?: Message<T | null> | null
   children?: React.ReactNode
   isConnected?: boolean
@@ -19,7 +23,12 @@ interface WithErrorDataProps<T> {
   showSeverity?: boolean
 }
 
-export const WithErrorData = <T,>({
+/**
+ * Render a PV `Message` as text + units, or fall back to a loading / error /
+ * disconnected placeholder. Provide `children` to render a custom body when
+ * data is available.
+ */
+function PVDisplayInner<T>({
   data,
   children,
   isConnected = false,
@@ -30,15 +39,11 @@ export const WithErrorData = <T,>({
   onError,
   className,
   showSeverity = false,
-}: WithErrorDataProps<T>) => {
-  // Call onError callback when error occurs
-  React.useEffect(() => {
-    if (data && !data.ok && onError) {
-      onError(data.error)
-    }
+}: PVDisplayProps<T>) {
+  useEffect(() => {
+    if (data && !data.ok && onError) onError(data.error)
   }, [data, onError])
 
-  // Get severity level based on severity number
   const severityLevel = useMemo((): SeverityLevel => {
     if (!data || data.severity === undefined) return 'none'
     if (data.severity >= 3) return 'error'
@@ -46,7 +51,6 @@ export const WithErrorData = <T,>({
     return 'info'
   }, [data])
 
-  // Calculate classes based on severity
   const containerClasses = useMemo(() => {
     return clsx(
       styles.withError,
@@ -60,12 +64,10 @@ export const WithErrorData = <T,>({
     )
   }, [showSeverity, severityLevel, className])
 
-  // Disconnected state
   if (isConnected === false) {
     return <div className={containerClasses}>{disconnectedComponent}</div>
   }
 
-  // Loading state when we don't have data yet but are connected
   if (data === undefined) {
     if (loadingComponent) {
       return <div className={containerClasses}>{loadingComponent}</div>
@@ -79,7 +81,6 @@ export const WithErrorData = <T,>({
     )
   }
 
-  // Error state
   if (data && data.ok === false) {
     if (errorComponent) {
       return <div className={containerClasses}>{errorComponent}</div>
@@ -92,7 +93,6 @@ export const WithErrorData = <T,>({
     )
   }
 
-  // Data value display when we don't have custom children
   if (!children && data) {
     return (
       <div className={containerClasses}>
@@ -106,9 +106,7 @@ export const WithErrorData = <T,>({
     )
   }
 
-  // Render children when provided
   return <div className={containerClasses}>{children}</div>
 }
 
-// Optimalizace vykreslování pomocí React.memo
-export default React.memo(WithErrorData) as typeof WithErrorData
+export const PVDisplay = React.memo(PVDisplayInner) as typeof PVDisplayInner

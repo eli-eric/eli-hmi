@@ -1,5 +1,5 @@
 import { Message } from '@/app/providers/types'
-import WithErrorData from '@/components/ws-components/with-error-data'
+import { PVDisplay } from '@/lib/websocket/pv-display'
 import { getFormattedValue, ValueFormatOptions } from '@/lib/utils/pv-helpers'
 import { FC } from 'react'
 import commonStyles from '../../styles/common.module.css'
@@ -27,7 +27,7 @@ export const SensorValue: FC<SensorProps> = ({
     <div className={commonStyles.sensorItem}>
       <div>
         <span className={commonStyles.textBold}>
-          <WithErrorData
+          <PVDisplay
             data={data}
             formatValue={(v) => getFormattedValue({ value: v, options })}
             isConnected={isConnected}

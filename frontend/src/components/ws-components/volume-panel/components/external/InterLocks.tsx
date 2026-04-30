@@ -4,7 +4,7 @@ import { FC } from 'react'
 
 import { CheckIcon, CloseIcon } from '@/components/ui/icons'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import WithErrorData from '@/components/ws-components/with-error-data'
+import { PVDisplay } from '@/lib/websocket/pv-display'
 
 import { VolumeCard } from '../internal/VolumeCard'
 
@@ -27,9 +27,9 @@ const InterlockItem: FC<InterlockItemProps> = ({ title, pvname }) => {
     <div className={styles.interlocks__item}>
       <span>{title}</span>
       <div>
-        <WithErrorData data={data} isConnected={isConnected}>
+        <PVDisplay data={data} isConnected={isConnected}>
           <IconsStatus value={data?.value} />
-        </WithErrorData>
+        </PVDisplay>
       </div>
     </div>
   )

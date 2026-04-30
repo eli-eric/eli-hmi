@@ -1,5 +1,5 @@
 import { Message } from '@/app/providers/types'
-import WithErrorData from '@/components/ws-components/with-error-data'
+import { PVDisplay } from '@/lib/websocket/pv-display'
 import styles from './ValveStatus.module.css'
 import { FC } from 'react'
 
@@ -34,9 +34,9 @@ export const ValveStatus: FC<ValveStatusProps> = ({
 
   return (
     <div className={styles.valveStatus__container}>
-      <WithErrorData data={data} isConnected={isConnected}>
+      <PVDisplay data={data} isConnected={isConnected}>
         <span>{`Valve ${label} is ${value}`}</span>
-      </WithErrorData>
+      </PVDisplay>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { FC } from 'react'
 
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import WithErrorData from '@/components/ws-components/with-error-data'
+import { PVDisplay } from '@/lib/websocket/pv-display'
 
 import { Container } from '../Container'
 import { VolumeCard } from '../internal/VolumeCard'
@@ -23,7 +23,7 @@ export const Locking: FC<LockingProps> = ({ label, pvName }) => {
       <VolumeTitle title={label} />
       <VolumeCard>
         <TextContent>
-          <WithErrorData data={data} isConnected={isConnected} />
+          <PVDisplay data={data} isConnected={isConnected} />
         </TextContent>
       </VolumeCard>
     </Container>

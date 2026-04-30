@@ -1,7 +1,7 @@
 import { FC } from 'react'
 
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import WithErrorData from '@/components/ws-components/with-error-data'
+import { PVDisplay } from '@/lib/websocket/pv-display'
 import { Message } from '@/app/providers/types'
 
 import { Container } from '../Container'
@@ -30,7 +30,7 @@ export const Pump: FC<PumpProps> = ({ rpmPV, valvePv, title, valveLabel }) => {
       <VolumeTitle title={title} />
       <VolumeCard>
         <TextContent>
-          <WithErrorData data={byPv(rpmPV)} isConnected={isConnected} />
+          <PVDisplay data={byPv(rpmPV)} isConnected={isConnected} />
         </TextContent>
       </VolumeCard>
       <ValveStatus

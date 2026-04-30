@@ -2,7 +2,7 @@ import { FC } from 'react'
 
 import { Row } from '@/components/ui/layout'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import WithErrorData from '@/components/ws-components/with-error-data'
+import { PVDisplay } from '@/lib/websocket/pv-display'
 import {
   getFormattedValue,
   ValueFormatOptions,
@@ -58,7 +58,7 @@ export const TurbopumpBasic: FC<TurbopumpBasicProps> = ({
       <VolumeTitle title={label} />
       <VolumeCard>
         <TextContent>
-          <WithErrorData
+          <PVDisplay
             data={byPv(statusPV)}
             isConnected={isConnected}
             formatValue={getSpeedLabel}
@@ -69,7 +69,7 @@ export const TurbopumpBasic: FC<TurbopumpBasicProps> = ({
       <Row>
         <VolumeCard>
           <TextContent>
-            <WithErrorData
+            <PVDisplay
               data={byPv(rpmPV)}
               isConnected={isConnected}
               formatValue={formatValue}
@@ -78,7 +78,7 @@ export const TurbopumpBasic: FC<TurbopumpBasicProps> = ({
         </VolumeCard>
         <VolumeCard>
           <TextContent>
-            <WithErrorData
+            <PVDisplay
               data={byPv(tempPV)}
               isConnected={isConnected}
               formatValue={formatValue}
