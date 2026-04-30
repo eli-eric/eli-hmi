@@ -1,50 +1,27 @@
 'use client'
 
-import { Heading } from '@/components/ui/heading'
-import {
-  BottomContainer,
-  PageLayout,
-  SectionContainer,
-  TopContainer,
-  TopContentContainer,
-} from '@/components/ui/layout'
-import { CleanDryAir } from './components/clean-dry-air'
-import { Backing } from './components/backing'
-import { Roughing } from './components/roughing'
-import { L3BTInterlocks } from './components/L3BTInterlock'
-import { L3BTMachineSafetyPermission } from './components/L3BTMachineSafetyPermission'
-import { S1Volume } from './components/s1-volume'
-import { S3Volume } from './components/s3-volume'
-import { L3BTBisConnector } from './components/l3bt-bis-connector'
-import { L3BTSgvConnector } from './components/l3bt-sgv-connector'
-import { L3BTEgvConnector } from './components/l3bt-egv-connector'
+import { ModuleControlPage } from '@/components/module-page/module-control-page'
+import { l3btConfig } from '@/lib/modules/l3bt.config'
+
+import { L3BTBisConnector } from './parts/l3bt-bis-connector'
+import { L3BTEgvConnector } from './parts/l3bt-egv-connector'
+import { L3BTSgvConnector } from './parts/l3bt-sgv-connector'
+import { S1Volume } from './parts/s1-volume'
+import { S3Volume } from './parts/s3-volume'
 
 export default function L3btPage() {
   return (
-    <PageLayout>
-      <TopContainer>
-        <TopContentContainer>
-          <L3BTInterlocks />
-          <L3BTMachineSafetyPermission />
-        </TopContentContainer>
-        <Heading title="L3BT"></Heading>
-      </TopContainer>
-      <BottomContainer>
-        <SectionContainer>
-          <CleanDryAir />
-          <SectionContainer>
-            <Backing />
-            <Roughing />
-          </SectionContainer>
-        </SectionContainer>
-        <SectionContainer gap="0rem">
+    <ModuleControlPage
+      config={l3btConfig}
+      bottomRow={
+        <>
           <L3BTBisConnector />
           <S1Volume />
           <L3BTSgvConnector />
           <S3Volume />
           <L3BTEgvConnector />
-        </SectionContainer>
-      </BottomContainer>
-    </PageLayout>
+        </>
+      }
+    />
   )
 }
