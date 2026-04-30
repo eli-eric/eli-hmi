@@ -1,4 +1,4 @@
-import { ConnectorLine } from '@/components/ws-components/connector-line'
+import { ConnectorLine } from '@/components/hmi/connector-line'
 
 /**
  * L4fBTS1Connector component

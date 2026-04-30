@@ -1,6 +1,6 @@
 import { FC, ReactNode } from 'react'
 
-import { VolumePanel } from '@/components/ws-components/volume-panel'
+import { VolumePanel } from '@/components/hmi/volume-panel'
 
 import type { RoughingConfig } from '@/lib/modules/types'
 

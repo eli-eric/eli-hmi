@@ -1,4 +1,4 @@
-import { VolumePanel } from '@/components/ws-components/volume-panel'
+import { VolumePanel } from '@/components/hmi/volume-panel'
 
 const P3Chamber = () => {
   return (

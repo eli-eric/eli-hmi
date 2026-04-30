@@ -1,5 +1,5 @@
 import { SimpleLine } from '@/components/ui/icons/simple-line-icon'
-import { ConnectorLine } from '@/components/ws-components/connector-line'
+import { ConnectorLine } from '@/components/hmi/connector-line'
 
 /**
  * L3BTSgvConnector component
