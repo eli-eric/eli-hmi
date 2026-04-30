@@ -2,7 +2,7 @@
 
 import { FC } from 'react'
 import { ClearButton } from '@/components/ui/buttons'
-import { useWebSocketMulti } from '@/hooks/useWebSocketData'
+import { useWebSocketMulti } from '@/lib/websocket/use-websocket-data'
 import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 import { API_URL } from '@/types/constants'
 import commonStyles from '../styles/common.module.css'

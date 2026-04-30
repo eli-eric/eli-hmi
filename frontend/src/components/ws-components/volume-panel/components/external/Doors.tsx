@@ -6,7 +6,7 @@ import { getPrefixedPV, ValueFormatOptions } from '@/lib/utils/pv-helpers'
 import { VolumeTitle } from '../internal/VolumeTitle'
 import { DropDownStateControl } from '../internal/DropDownStateControl'
 import { SensorValue } from '../internal/SensorValue'
-import { useWebSocketMulti } from '@/hooks/useWebSocketData'
+import { useWebSocketMulti } from '@/lib/websocket/use-websocket-data'
 
 const SensorPressureConnected = withReactWebSocketData(SensorValue)
 

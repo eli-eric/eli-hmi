@@ -7,7 +7,7 @@ import { WebSocketContextValue } from './types'
 // Types for context value
 
 // Create context with default values
-const WebSocketContext = createContext<WebSocketContextValue | undefined>(
+export const WebSocketContext = createContext<WebSocketContextValue | undefined>(
   undefined,
 )
 

@@ -1,7 +1,7 @@
 import { FC } from 'react'
 import { Container } from '../Container'
 import { VolumeTitle } from '../internal/VolumeTitle'
-import { useWebSocketMulti } from '@/hooks/useWebSocketData'
+import { useWebSocketMulti } from '@/lib/websocket/use-websocket-data'
 import { TextContent } from '../internal/TextContent'
 import WithErrorData from '@/components/ws-components/with-error-data'
 import { getPrefixedPV } from '@/lib/utils/pv-helpers'

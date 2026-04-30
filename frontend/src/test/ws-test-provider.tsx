@@ -1,8 +1,9 @@
 'use client'
 
-import { createContext, ReactNode, useContext } from 'react'
-import { Message } from '@/app/providers/types'
-import { WebSocketContextValue } from '@/app/providers/types'
+import { ReactNode } from 'react'
+
+import { WebSocketContext } from '@/app/providers/socket-provider'
+import { Message, WebSocketContextValue } from '@/app/providers/types'
 
 type SubscriptionCallback<T = unknown> = (msg: Message<T>) => void
 
@@ -13,11 +14,21 @@ export interface FakeWebSocketContextOptions {
   reconnect?: () => void
 }
 
+export interface FakeWebSocketController {
+  context: WebSocketContextValue
+  /** Push a Message<T> to all subscribers of `pv`. */
+  push: <T>(pv: string, msg: Partial<Message<T>> & { value: T | null }) => void
+  /** All wire messages the consumer sent via `context.send`. */
+  getSent: () => unknown[]
+}
+
 export function makeFakeWebSocketContext(
   opts: FakeWebSocketContextOptions = {},
-): WebSocketContextValue {
+): FakeWebSocketController {
   const subs = new Map<string, Set<SubscriptionCallback>>()
-  return {
+  const sent: unknown[] = []
+
+  const context: WebSocketContextValue = {
     isConnected: opts.isConnected ?? true,
     connectionState: {
       status: opts.isConnected === false ? 'disconnected' : 'connected',
@@ -26,7 +37,12 @@ export function makeFakeWebSocketContext(
       nextAttemptInSeconds: null,
       countdown: null,
     },
-    send: opts.send ?? (() => true),
+    send:
+      opts.send ??
+      ((msg) => {
+        sent.push(msg)
+        return true
+      }),
     reconnect: opts.reconnect ?? (() => undefined),
     subscribe:
       opts.subscribe ??
@@ -41,11 +57,27 @@ export function makeFakeWebSocketContext(
         }
       }),
   }
-}
 
-const TestWebSocketContext = createContext<WebSocketContextValue | undefined>(
-  undefined,
-)
+  return {
+    context,
+    push: <T,>(pv: string, msg: Partial<Message<T>> & { value: T | null }) => {
+      const callbacks = subs.get(pv)
+      if (!callbacks) return
+      const full: Message<T> = {
+        type: 'pv',
+        name: pv,
+        severity: 0,
+        units: null,
+        timestamp: Date.now(),
+        ok: true,
+        error: null,
+        ...msg,
+      }
+      callbacks.forEach((cb) => cb(full as Message))
+    },
+    getSent: () => sent.slice(),
+  }
+}
 
 export function TestWebSocketProvider({
   value,
@@ -55,14 +87,8 @@ export function TestWebSocketProvider({
   children: ReactNode
 }) {
   return (
-    <TestWebSocketContext.Provider value={value}>
+    <WebSocketContext.Provider value={value}>
       {children}
-    </TestWebSocketContext.Provider>
+    </WebSocketContext.Provider>
   )
-}
-
-export function useTestWebSocketContext(): WebSocketContextValue {
-  const ctx = useContext(TestWebSocketContext)
-  if (!ctx) throw new Error('useTestWebSocketContext must be used within TestWebSocketProvider')
-  return ctx
 }

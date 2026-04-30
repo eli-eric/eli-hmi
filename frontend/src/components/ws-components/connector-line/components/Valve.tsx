@@ -1,6 +1,6 @@
 import { FC, useMemo, useEffect } from 'react'
 import { PolygonIcon } from '@/components/ui/icons'
-import { State, useWebSocketMulti } from '@/hooks/useWebSocketData'
+import { State, useWebSocketMulti } from '@/lib/websocket/use-websocket-data'
 import styles from '../styles/valve.module.css'
 import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 

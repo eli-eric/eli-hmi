@@ -11,7 +11,7 @@ import { WarningErrorControl } from '../WarningErrorControl'
 import { VolumeCard } from '../internal/VolumeCard'
 import { TextContent } from '../internal/TextContent'
 import WithErrorData from '@/components/ws-components/with-error-data'
-import { useWebSocketMulti } from '@/hooks/useWebSocketData'
+import { useWebSocketMulti } from '@/lib/websocket/use-websocket-data'
 
 /**
  * Props for the TurbopumpBasic component

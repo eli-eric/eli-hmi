@@ -3,7 +3,7 @@
 import { FC } from 'react'
 import { SettingsButton } from '@/components/ui/buttons'
 import Dropdown from '@/components/ui/dropdown'
-import { useWebSocketMulti } from '@/hooks/useWebSocketData'
+import { useWebSocketMulti } from '@/lib/websocket/use-websocket-data'
 import commonStyles from '../../styles/common.module.css'
 import { Message } from '@/app/providers/types'
 import Image from 'next/image'

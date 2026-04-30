@@ -5,7 +5,7 @@ import { CheckIcon, CloseIcon } from '@/components/ui/icons'
 import styles from './InterLocks.module.css'
 import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 import WithErrorData from '@/components/ws-components/with-error-data'
-import { useWebSocketMulti } from '@/hooks/useWebSocketData'
+import { useWebSocketMulti } from '@/lib/websocket/use-websocket-data'
 import { VolumeCard } from '../internal/VolumeCard'
 
 /**
