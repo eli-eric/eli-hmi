@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, ReactNode } from 'react'
-import { useWebSocket } from '@/hooks/useWebsocket'
+import { useWebSocket } from '@/lib/websocket/use-websocket'
 import { WebSocketContextValue } from './types'
 
 // Types for context value
