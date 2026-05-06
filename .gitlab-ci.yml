@@ -57,7 +57,9 @@ docker-build-job:
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest
 frontend-test:
   stage: test
-  image: harbor.eli-beams.eu/proxy-dockerhub/node:20-alpine
+  # Pin to a major.minor tag so unreviewed minor bumps don't change build
+  # behaviour. Pin to a digest as well if reproducibility ever bites.
+  image: harbor.eli-beams.eu/proxy-dockerhub/node:20.18-alpine
   # No docker-in-docker needed; this job just runs `npm test`.
   services: []
   variables:

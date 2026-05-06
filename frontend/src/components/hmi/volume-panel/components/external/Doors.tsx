@@ -9,6 +9,8 @@ import { VolumeTitle } from '../internal/VolumeTitle'
 import { DropDownStateControl } from '../internal/DropDownStateControl'
 import { SensorValue } from '../internal/SensorValue'
 
+import styles from './Doors.module.css'
+
 interface SensorPressureConnectedProps {
   pvname: string
   label?: string
@@ -31,6 +33,17 @@ const SensorPressureConnected: FC<SensorPressureConnectedProps> = ({
   )
 }
 
+export interface LabeledDoor {
+  pvName: string
+  label: string
+}
+
+type DoorsList = string[] | LabeledDoor[]
+
+function isLabeledList(list: DoorsList): list is LabeledDoor[] {
+  return list.length > 0 && typeof list[0] === 'object' && list[0] !== null
+}
+
 interface DoorsProps {
   sensorPV?: {
     pvName: string
@@ -45,7 +58,11 @@ interface DoorsProps {
       label: string
     }[]
   }
-  doorsPVs?: string[] | { pvName: string; label: string }[]
+  /**
+   * Either a flat list of PV names (renders a single CLOSED/OPENED summary)
+   * or a list of `{ pvName, label }` (renders one row per door).
+   */
+  doorsPVs?: DoorsList
   title?: string
 }
 
@@ -58,23 +75,22 @@ export const Doors: FC<DoorsProps> = ({
   stateControl,
   doorsPVs,
 }) => {
-  const hasLabels =
-    !!doorsPVs &&
-    doorsPVs.length > 0 &&
-    typeof doorsPVs[0] === 'object' &&
-    doorsPVs[0] !== null
+  const labeled =
+    doorsPVs && doorsPVs.length > 0 && isLabeledList(doorsPVs)
+      ? doorsPVs
+      : null
+  const flat =
+    doorsPVs && doorsPVs.length > 0 && !isLabeledList(doorsPVs)
+      ? (doorsPVs as string[])
+      : null
 
-  const pvsToWatch =
-    doorsPVs?.map((pv) =>
-      hasLabels ? (pv as { pvName: string }).pvName : (pv as string),
-    ) ?? []
+  const pvsToWatch = labeled
+    ? labeled.map((d) => d.pvName)
+    : (flat ?? [])
 
   const { byPv } = useWebSocketData<1 | 0 | null>({ pvs: pvsToWatch })
 
-  const isDoorsClosed =
-    doorsPVs && !hasLabels
-      ? (doorsPVs as string[]).every((pv) => byPv(pv)?.value === 0)
-      : undefined
+  const allClosed = flat ? flat.every((pv) => byPv(pv)?.value === 0) : undefined
 
   return (
     <Container>
@@ -96,19 +112,12 @@ export const Doors: FC<DoorsProps> = ({
           />
         </VolumeCard>
       ) : null}
-      {doorsPVs && doorsPVs.length > 0 ? (
-        hasLabels ? (
-          (doorsPVs as { pvName: string; label: string }[]).map((door) => {
+      {labeled
+        ? labeled.map((door) => {
             const doorState = byPv(door.pvName)?.value
             return (
               <VolumeCard key={door.pvName}>
-                <div
-                  style={{
-                    fontSize: '0.75rem',
-                    fontStyle: 'normal',
-                    fontWeight: '400',
-                  }}
-                >
+                <div className={styles.doorRow}>
                   {door.label}
                   {' is '}
                   {doorState === 0
@@ -120,20 +129,15 @@ export const Doors: FC<DoorsProps> = ({
               </VolumeCard>
             )
           })
-        ) : (
-          <VolumeCard>
-            <div
-              style={{
-                fontSize: '0.75rem',
-                fontStyle: 'normal',
-                fontWeight: '400',
-              }}
-            >
-              {isDoorsClosed ? 'All Doors are CLOSED' : 'Some Doors are OPENED'}
-            </div>
-          </VolumeCard>
-        )
-      ) : null}
+        : flat
+          ? (
+              <VolumeCard>
+                <div className={styles.doorRow}>
+                  {allClosed ? 'All Doors are CLOSED' : 'Some Doors are OPENED'}
+                </div>
+              </VolumeCard>
+            )
+          : null}
     </Container>
   )
 }
