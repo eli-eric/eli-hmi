@@ -69,12 +69,12 @@ export function useWebSocketData<T = unknown>(
 
   if (isSingle) {
     return {
-      data: state[getPrefixedPV(input)],
+      data: state[input],
       isConnected: ctx.isConnected,
     }
   }
   return {
-    byPv: (pv: string) => state[getPrefixedPV(pv)],
+    byPv: (pv: string) => state[pv],
     state,
     isConnected: ctx.isConnected,
   }
@@ -123,22 +123,23 @@ function useMultiSubscription<T>(
 
   useEffect(() => {
     if (!isConnected || pvs.length === 0) return
-    const wireNames = pvs.map(getPrefixedPV)
-    const unsubs = wireNames.map((pv) =>
-      subscribe<T>(pv, (msg) => {
-        dispatch({ type: 'UPDATE', pv, msg })
-        onUpdateSingleRef.current?.(msg)
-        if (onUpdateMultiRef.current) {
-          const all = [
-            ...Object.values(stateRef.current).filter((m) => m.name !== pv),
-            msg,
-          ]
-          onUpdateMultiRef.current(all)
-        }
-      }),
-    )
+    const unsubs = pvs.map((logicalPv) => {
+      const wireName = getPrefixedPV(logicalPv)
+      return subscribe<T>(wireName, (msg) => {
+        // Project the wire-format message into logical space so consumers
+        // never see the dev prefix anywhere.
+        const logicalMsg: Message<T> = { ...msg, name: logicalPv }
+        // Update the synchronous mirror BEFORE dispatch so multi-PV updates
+        // arriving in the same tick see each other in `onUpdate`'s snapshot.
+        stateRef.current = { ...stateRef.current, [logicalPv]: logicalMsg }
+        dispatch({ type: 'UPDATE', pv: logicalPv, msg: logicalMsg })
+        onUpdateSingleRef.current?.(logicalMsg)
+        onUpdateMultiRef.current?.(Object.values(stateRef.current))
+      })
+    })
     return () => {
       unsubs.forEach((u) => u())
+      stateRef.current = {}
       dispatch({ type: 'RESET' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

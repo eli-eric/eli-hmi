@@ -23,7 +23,6 @@ export async function middleware(request: NextRequest) {
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
   })
-  console.log('Token:', token)
 
   if (!token) {
     // Redirect to login if no token and not on login page
