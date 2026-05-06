@@ -1,7 +1,14 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 
 import { Message } from '@/app/providers/types'
 import { WS_URL } from '@/types/constants'
@@ -49,8 +56,11 @@ export function useWebSocket() {
   const connectRef = useRef<() => void>(() => {})
   const scheduleReconnectRef = useRef<() => void>(() => {})
 
+  // Start in `disconnected`. `connect()` flips us to `connecting` once an
+  // accessToken is available — without this, a session that never authenticates
+  // would leave the UI stuck on a "connecting…" spinner forever.
   const [state, setState] = useState<WebSocketState>({
-    status: 'connecting',
+    status: 'disconnected',
     reconnectAttempts: 0,
     lastAttempt: null,
     nextAttemptInSeconds: null,
@@ -229,11 +239,17 @@ export function useWebSocket() {
     }, delay)
   }, [clearCountdown])
 
-  // Wire the refs to the latest callbacks every render. `connect` and
-  // `scheduleReconnect` reach for each other through these refs so neither
-  // needs the other in its dep list.
-  connectRef.current = connect
-  scheduleReconnectRef.current = scheduleReconnect
+  // Wire the refs to the latest callbacks. `connect` and `scheduleReconnect`
+  // reach for each other through these refs so neither needs the other in its
+  // dep list. Use useLayoutEffect to avoid the "ref written during render"
+  // anti-pattern (StrictMode double-render or concurrent rendering could
+  // otherwise leave a ref pointing at a discarded callback briefly). Both
+  // refs are only read from event handlers and timers, never synchronously
+  // during render, so a layout-effect pass is plenty soon enough.
+  useLayoutEffect(() => {
+    connectRef.current = connect
+    scheduleReconnectRef.current = scheduleReconnect
+  })
 
   const subscribe = useCallback(
     <T,>(channel: string, callback: SubscriptionCallback<T>) => {

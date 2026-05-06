@@ -119,7 +119,9 @@ function useMultiSubscription<T>(
     onUpdateSingleRef.current = onUpdateSingle
   }, [onUpdateMulti, onUpdateSingle])
 
-  const pvKey = pvs.join(',')
+  // Sort so re-ordering the `pvs` array doesn't trigger an unnecessary
+  // resubscribe.
+  const pvKey = [...pvs].sort().join(',')
 
   useEffect(() => {
     if (!isConnected || pvs.length === 0) return

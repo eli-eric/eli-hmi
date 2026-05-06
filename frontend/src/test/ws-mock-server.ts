@@ -64,5 +64,11 @@ export function mockWebSocketServer(url: string = DEFAULT_URL): MockWebSocketSer
 }
 
 export function cleanupMockWebSocket(): void {
-  WS.clean()
+  try {
+    WS.clean()
+  } catch {
+    // WS.clean iterates and closes every registered server; if a test has
+    // already explicitly closed one, the iterator throws on a second close.
+    // This helper is best-effort cleanup, so swallow.
+  }
 }

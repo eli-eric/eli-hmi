@@ -1,4 +1,4 @@
-import { act, render, renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const useSession = vi.hoisted(() => vi.fn())
@@ -79,30 +79,54 @@ describe('useWebSocket', () => {
     expect((received[0] as { value: number }).value).toBe(7.7)
   })
 
-  it('unmount cleans up without unhandled setState warnings', async () => {
-    const warnings: string[] = []
-    const origWarn = console.error
-    console.error = (msg: unknown, ...rest: unknown[]) => {
-      warnings.push(String(msg))
-      origWarn(msg as string, ...rest)
-    }
+  it('clears the countdown interval on mid-countdown unmount', async () => {
+    // The pre-fix bug: countdownIntervalRef was only cleared from inside its
+    // own callback or the reconnect timeout. If the component unmounted during
+    // the countdown, the interval kept firing and called setState on a dead
+    // hook. React 18+ no longer warns on setState-after-unmount, so we
+    // verify the fix structurally: spy on clearInterval and assert one of the
+    // intervals registered between the connect and the unmount got cleared.
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval')
+    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
 
-    try {
-      const { unmount } = render(<TestComponent />)
-      await waitFor(() => server.connected)
-      unmount()
-      // Allow any pending intervals/timers a chance to fire post-unmount.
-      await new Promise((r) => setTimeout(r, 50))
-      expect(
-        warnings.filter((w) => /unmounted/i.test(w)),
-      ).toEqual([])
-    } finally {
-      console.error = origWarn
-    }
+    const { result, unmount } = renderHook(() => useWebSocket())
+    await waitFor(() => expect(result.current.isConnected).toBe(true))
+
+    // Force a disconnect — this triggers scheduleReconnect, which starts the
+    // 1-second countdown interval inside the hook.
+    await act(async () => {
+      await server.close()
+    })
+    await waitFor(() =>
+      expect(result.current.connectionState.countdown).not.toBeNull(),
+    )
+
+    const intervalIdsBeforeUnmount = setIntervalSpy.mock.results.map(
+      (r) => r.value,
+    )
+    unmount()
+
+    expect(
+      intervalIdsBeforeUnmount.some((id) =>
+        clearIntervalSpy.mock.calls.some(([cleared]) => cleared === id),
+      ),
+    ).toBe(true)
   })
-})
 
-function TestComponent() {
-  useWebSocket()
-  return null
-}
+  // TODO: integration test for token-rotation reconnect.
+  //
+  // The reviewer asked for a test that locks the contract "rotating
+  // useSession's accessToken closes the old socket and opens a new one with
+  // the new URL". Two approaches were tried:
+  //   1. Stand up two mockWebSocketServer instances at distinct ?auth=
+  //      URLs — mock-socket dedupes Server registrations by path (ignoring
+  //      query) so the second `new WS(url)` throws "already listening".
+  //   2. vi.spyOn(globalThis, 'WebSocket') — the spy wrapper interferes
+  //      with mock-socket's internal references and the connection never
+  //      reaches readyState=OPEN, so `isConnected` never flips.
+  //
+  // The structural fix in connect() (closeSocket() before `new WebSocket`)
+  // and the url useMemo deps cover the rotation logic, but the integration
+  // assertion is a known gap. Worth revisiting with a different mock library
+  // or a dedicated jsdom WebSocket polyfill.
+})

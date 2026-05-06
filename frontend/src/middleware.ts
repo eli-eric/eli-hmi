@@ -25,8 +25,9 @@ export async function middleware(request: NextRequest) {
   })
 
   if (!token) {
-    // Redirect to login if no token and not on login page
-    if (pathname !== '/auth/signin' && !pathname.startsWith('/api/auth')) {
+    // Redirect to login if no token and not on login page. /api/* is already
+    // bypassed above, so the only path-based exclusion left is signin itself.
+    if (pathname !== '/auth/signin') {
       return NextResponse.redirect(new URL('/auth/signin', request.url))
     }
   }
