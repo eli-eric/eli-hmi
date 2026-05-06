@@ -26,7 +26,7 @@ describe('useWebSocketData (single form)', () => {
     )
   }
 
-  it('returns null until a Message arrives, then resolves', async () => {
+  it('returns undefined until a Message arrives, then resolves', async () => {
     render(
       <TestWebSocketProvider value={fake.context}>
         <Probe pv="AI_X" />

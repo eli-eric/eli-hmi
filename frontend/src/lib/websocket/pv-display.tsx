@@ -68,7 +68,7 @@ function PVDisplayInner<T>({
     return <div className={containerClasses}>{disconnectedComponent}</div>
   }
 
-  if (data === undefined) {
+  if (data == null) {
     if (loadingComponent) {
       return <div className={containerClasses}>{loadingComponent}</div>
     }

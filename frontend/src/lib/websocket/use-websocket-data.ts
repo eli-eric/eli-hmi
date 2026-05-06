@@ -18,13 +18,19 @@ interface SingleOptions<T> {
 }
 
 interface MultiResult<T> {
-  byPv: (pv: string) => Message<T> | null
+  /**
+   * Returns the latest `Message<T>` for a logical PV name, or `undefined` if
+   * no message has arrived yet. The dev-prefix is applied internally — pass
+   * the same name you passed in `pvs`.
+   */
+  byPv: (pv: string) => Message<T> | undefined
   state: State<T>
   isConnected: boolean
 }
 
 interface SingleResult<T> {
-  data: Message<T> | null
+  /** Latest `Message<T>`, or `undefined` until the first message arrives. */
+  data: Message<T> | undefined
   isConnected: boolean
 }
 
@@ -63,12 +69,12 @@ export function useWebSocketData<T = unknown>(
 
   if (isSingle) {
     return {
-      data: state[getPrefixedPV(input)] ?? null,
+      data: state[getPrefixedPV(input)],
       isConnected: ctx.isConnected,
     }
   }
   return {
-    byPv: (pv: string) => state[getPrefixedPV(pv)] ?? null,
+    byPv: (pv: string) => state[getPrefixedPV(pv)],
     state,
     isConnected: ctx.isConnected,
   }

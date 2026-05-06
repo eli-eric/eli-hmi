@@ -44,6 +44,11 @@ describe('PVDisplay', () => {
     expect(container.querySelectorAll('span').length).toBe(3)
   })
 
+  it('renders loading dots when connected but data is null (regression: copilot review)', () => {
+    const { container } = render(<PVDisplay isConnected={true} data={null} />)
+    expect(container.querySelectorAll('span').length).toBe(3)
+  })
+
   it('renders custom loadingComponent', () => {
     render(
       <PVDisplay
