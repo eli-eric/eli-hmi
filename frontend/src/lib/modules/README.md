@@ -92,4 +92,13 @@ The split exists because volumes and connectors have **structural** variance per
 
 Pass **logical** PV names. `useWebSocketData` applies the dev-vs-prod prefix (`getPrefixedPV` in `src/lib/utils/pv-helpers.ts`) internally. The mock server expects prefixed names — the production server expects raw names — same source string, both work.
 
-Many config entries today are placeholders (`undefined1:PRESSURE`, `SI_???`, `// TODO PV name unclear`). Update them as the control engineers settle on canonical names.
+### Deliberate placeholders
+
+Many entries currently use placeholder values that are **deliberate, not oversights**, carried over from the legacy per-module components:
+
+- `undefined1:PRESSURE`, `SI_???`, `AI_RPM_SPEED_P04` — control engineers haven't settled on canonical names yet.
+- `// TODO PV name unclear` — translated from Czech `// TODO zatim nevim`; mark of an unverified PV name.
+- `// TODO PVs unknown` — entire group of PVs not yet defined upstream.
+- Real data-quality issues from the legacy code are preserved verbatim, e.g. P3's interlock and safety-permission lists reuse `L3BT-VCS-EGV501:INTERLOCK` for both EGV501 and SGV503 (`p3.config.ts`). The refactor explicitly does not invent canonical names; replace placeholders only when an engineer has confirmed them.
+
+Use grep to find all of them: `grep -rn "TODO PV name unclear\|TODO PVs unknown\|undefined[0-9]\|SI_???"`.

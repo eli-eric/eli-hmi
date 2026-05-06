@@ -8,7 +8,6 @@ import { BackingPanel } from './parts/backing-panel'
 import { CleanDryAirPanel } from './parts/clean-dry-air-panel'
 import { InterlocksPanel } from './parts/interlocks-panel'
 import { RoughingPanel } from './parts/roughing-panel'
-import { SafetyPermissionPanel } from './parts/safety-permission-panel'
 
 import type { ModuleConfig } from '@/lib/modules/types'
 
@@ -41,7 +40,8 @@ export const ModuleControlPage: FC<ModuleControlPageProps> = ({
       <div className={styles.top}>
         <div className={styles.topContent}>
           <InterlocksPanel config={config.interlocks} />
-          <SafetyPermissionPanel config={config.safetyPermission} />
+          {/* Safety permissions render through the same panel — same shape, same UI. */}
+          <InterlocksPanel config={config.safetyPermission} />
         </div>
         <Heading title={config.heading} />
       </div>

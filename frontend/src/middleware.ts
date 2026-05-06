@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { isRouteAllowed, getDefaultRoute } from './lib/settings/zone-service'
+import { getHomeRoute, isRouteAllowed } from './lib/settings/zone-service'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -49,8 +49,7 @@ export async function middleware(request: NextRequest) {
     (pathname === '/auth/signin' || pathname === '/api/auth/signin') &&
     token
   ) {
-    const defaultRoute = getDefaultRoute() ?? '/no-access'
-    return NextResponse.redirect(new URL(defaultRoute, request.url))
+    return NextResponse.redirect(new URL(getHomeRoute(), request.url))
   }
 
   return NextResponse.next()

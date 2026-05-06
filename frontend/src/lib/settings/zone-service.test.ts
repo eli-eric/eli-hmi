@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   getDefaultRoute,
+  getHomeRoute,
   getNavigationItems,
   hasAccessibleRoutes,
   isRouteAllowed,
@@ -35,6 +36,10 @@ describe('zone-service', () => {
       expect(getDefaultRoute()).toBe('/p3-controls')
     })
 
+    it('getHomeRoute returns the default route', () => {
+      expect(getHomeRoute()).toBe('/p3-controls')
+    })
+
     it('hasAccessibleRoutes is true', () => {
       expect(hasAccessibleRoutes()).toBe(true)
     })
@@ -55,6 +60,10 @@ describe('zone-service', () => {
 
     it('getDefaultRoute returns null', () => {
       expect(getDefaultRoute()).toBeNull()
+    })
+
+    it('getHomeRoute falls back to /no-access', () => {
+      expect(getHomeRoute()).toBe('/no-access')
     })
 
     it('hasAccessibleRoutes is false', () => {

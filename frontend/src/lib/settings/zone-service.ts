@@ -55,3 +55,12 @@ export function getDefaultRoute(): string | null {
 export function hasAccessibleRoutes(): boolean {
   return getZoneConfig().allowedRoutes.length > 0
 }
+
+/**
+ * Resolve the home route for the current zone with a `/no-access` fallback.
+ * Use this for any "redirect to home" path (root page, post-login redirect,
+ * the nav-bar logo) so the fallback is in one place.
+ */
+export function getHomeRoute(): string {
+  return getDefaultRoute() ?? '/no-access'
+}

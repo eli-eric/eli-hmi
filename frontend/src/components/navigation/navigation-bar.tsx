@@ -8,21 +8,18 @@ import { TextButton } from '../ui/buttons'
 
 import { NavigationItem } from './navigation-item'
 import { navigationItems } from '@/lib/settings/navigation'
-import { getDefaultRoute } from '@/lib/settings/zone-service'
+import { getHomeRoute } from '@/lib/settings/zone-service'
 
 import styles from './navigation-bar.module.css'
 import navItemStyles from './navigation-item.module.css'
 
-const NavigationLogo = () => {
-  const home = getDefaultRoute() ?? '/no-access'
-  return (
-    <Link href={home}>
-      <span className={clsx(navItemStyles.item, navItemStyles.logo)}>
-        E3 VACUUM SYSTEM
-      </span>
-    </Link>
-  )
-}
+const NavigationLogo = () => (
+  <Link href={getHomeRoute()}>
+    <span className={clsx(navItemStyles.item, navItemStyles.logo)}>
+      E3 VACUUM SYSTEM
+    </span>
+  </Link>
+)
 
 export default function NavigationBar() {
   const handleSignOut = () => signOut({ callbackUrl: '/auth/signin' })
