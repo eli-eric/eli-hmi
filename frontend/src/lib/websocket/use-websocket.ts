@@ -41,6 +41,13 @@ export function useWebSocket() {
     null,
   )
   const reconnectBaseDelayRef = useRef<number>(INITIAL_RECONNECT_INTERVAL_MS)
+  // `connect` and `scheduleReconnect` reference each other. We could put one
+  // in the other's dep list and disable exhaustive-deps for the cycle, but
+  // that gives the closures stale identities across token-refresh re-renders.
+  // Instead, route both calls through refs so each useCallback has a clean
+  // dep list and always sees the freshest sibling.
+  const connectRef = useRef<() => void>(() => {})
+  const scheduleReconnectRef = useRef<() => void>(() => {})
 
   const [state, setState] = useState<WebSocketState>({
     status: 'connecting',
@@ -131,7 +138,7 @@ export function useWebSocket() {
     } catch (e) {
       console.error('[ws:connect] error creating WebSocket', e)
       setState((prev) => ({ ...prev, status: 'disconnected' }))
-      scheduleReconnect()
+      scheduleReconnectRef.current()
       return
     }
     wsRef.current = ws
@@ -153,13 +160,13 @@ export function useWebSocket() {
     ws.onclose = (event) => {
       debug('ws:connect', 'closed', event.code, event.reason)
       setState((prev) => ({ ...prev, status: 'disconnected' }))
-      scheduleReconnect()
+      scheduleReconnectRef.current()
     }
 
     ws.onerror = (event) => {
       console.error('[ws:connect] error event', event)
       setState((prev) => ({ ...prev, status: 'disconnected' }))
-      scheduleReconnect()
+      scheduleReconnectRef.current()
     }
 
     ws.onmessage = (event) => {
@@ -171,7 +178,6 @@ export function useWebSocket() {
         console.error('[ws:onmessage] parse error', e)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     url,
     closeSocket,
@@ -219,9 +225,15 @@ export function useWebSocket() {
     reconnectTimerRef.current = setTimeout(() => {
       reconnectTimerRef.current = null
       clearCountdown()
-      connect()
+      connectRef.current()
     }, delay)
-  }, [clearCountdown, connect])
+  }, [clearCountdown])
+
+  // Wire the refs to the latest callbacks every render. `connect` and
+  // `scheduleReconnect` reach for each other through these refs so neither
+  // needs the other in its dep list.
+  connectRef.current = connect
+  scheduleReconnectRef.current = scheduleReconnect
 
   const subscribe = useCallback(
     <T,>(channel: string, callback: SubscriptionCallback<T>) => {

@@ -9,6 +9,10 @@ default:
       alias: docker # this has to here because in fixes: https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#docker-no-such-host-error
       command: ["--insecure-registry=harbor.eli-beams.eu"] # fixes docker in docker container not trusting self signed cert: https://stackoverflow.com/questions/50133073/gitlab-ci-docker-in-docker-access-to-insecure-registry
 
+stages:
+  - test
+  - build
+
 variables:
   # When you use the dind service, you must instruct Docker to talk with
   # the daemon started inside of the service. The daemon is available
@@ -58,9 +62,15 @@ frontend-test:
   services: []
   variables:
     DOCKER_TLS_CERTDIR: ""
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+    paths:
+      - frontend/node_modules/
   before_script:
     - cd frontend
-    - npm ci
+    - npm ci --prefer-offline --no-audit
   script:
     - npm test -- --run --coverage
   artifacts:
@@ -74,7 +84,3 @@ frontend-test:
         path: frontend/coverage/cobertura-coverage.xml
     expire_in: 1 week
   coverage: '/Lines\s+:\s+([\d.]+)%/'
-
-stages:
-  - test
-  - build
