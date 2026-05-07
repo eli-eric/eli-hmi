@@ -1,27 +1,34 @@
 'use client'
-import { navigationItems } from '@/lib/settings/navigation'
+
+import clsx from 'clsx'
+import Link from 'next/link'
+import { signOut } from 'next-auth/react'
+
+import { TextButton } from '../ui/buttons'
+
 import { NavigationItem } from './navigation-item'
+import { navigationItems } from '@/lib/settings/navigation'
+import { getHomeRoute } from '@/lib/settings/zone-service'
+
 import styles from './navigation-bar.module.css'
 import navItemStyles from './navigation-item.module.css'
-import clsx from 'clsx'
-import { TextButton } from '../ui/buttons'
-import { signOut } from 'next-auth/react'
-import Link from 'next/link'
+
+const NavigationLogo = () => (
+  <Link href={getHomeRoute()}>
+    <span className={clsx(navItemStyles.item, navItemStyles.logo)}>
+      E3 VACUUM SYSTEM
+    </span>
+  </Link>
+)
 
 export default function NavigationBar() {
-  function handleSignOut() {
-    signOut({ callbackUrl: '/auth/signin' })
-  }
+  const handleSignOut = () => signOut({ callbackUrl: '/auth/signin' })
 
   return (
     <nav className={styles.container}>
-      <div>
-        <Link href="/p3-controls">
-          <span className={clsx(navItemStyles.item, navItemStyles.active)}>
-            E3 VACUUM SYSTEM
-          </span>
-        </Link>
-        <TextButton text="sign out" onClick={handleSignOut}></TextButton>
+      <div className={styles.logoGroup}>
+        <NavigationLogo />
+        <TextButton text="sign out" onClick={handleSignOut} />
       </div>
       {navigationItems.map((item) => (
         <NavigationItem href={item.href} text={item.text} key={item.href} />

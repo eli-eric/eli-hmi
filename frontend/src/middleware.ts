@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { isRouteAllowed, getDefaultRoute } from './lib/settings/zone-service'
+import { getHomeRoute, isRouteAllowed } from './lib/settings/zone-service'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -23,11 +23,11 @@ export async function middleware(request: NextRequest) {
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
   })
-  console.log('Token:', token)
 
   if (!token) {
-    // Redirect to login if no token and not on login page
-    if (pathname !== '/auth/signin' && !pathname.startsWith('/api/auth')) {
+    // Redirect to login if no token and not on login page. /api/* is already
+    // bypassed above, so the only path-based exclusion left is signin itself.
+    if (pathname !== '/auth/signin') {
       return NextResponse.redirect(new URL('/auth/signin', request.url))
     }
   }
@@ -50,8 +50,7 @@ export async function middleware(request: NextRequest) {
     (pathname === '/auth/signin' || pathname === '/api/auth/signin') &&
     token
   ) {
-    const defaultRoute = getDefaultRoute() ?? '/no-access'
-    return NextResponse.redirect(new URL(defaultRoute, request.url))
+    return NextResponse.redirect(new URL(getHomeRoute(), request.url))
   }
 
   return NextResponse.next()

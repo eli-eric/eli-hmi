@@ -9,6 +9,10 @@ default:
       alias: docker # this has to here because in fixes: https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#docker-no-such-host-error
       command: ["--insecure-registry=harbor.eli-beams.eu"] # fixes docker in docker container not trusting self signed cert: https://stackoverflow.com/questions/50133073/gitlab-ci-docker-in-docker-access-to-insecure-registry
 
+stages:
+  - test
+  - build
+
 variables:
   # When you use the dind service, you must instruct Docker to talk with
   # the daemon started inside of the service. The daemon is available
@@ -51,10 +55,34 @@ docker-build-job:
     - cd backend/python-websocket-server
     - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest -f Dockerfile
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest
-# this will not work because the image is not available in this stage
-# docker-test-job:
-#   stage: test
-#   tags:
-#   - docker-in-docker
-#   script:
-#   - docker run --rm my-docker-image
+frontend-test:
+  stage: test
+  # Pin to a major.minor tag so unreviewed minor bumps don't change build
+  # behaviour. Pin to a digest as well if reproducibility ever bites.
+  image: harbor.eli-beams.eu/proxy-dockerhub/node:20.18-alpine
+  # No docker-in-docker needed; this job just runs `npm test`.
+  services: []
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+    paths:
+      - frontend/node_modules/
+  before_script:
+    - cd frontend
+    - npm ci --prefer-offline --no-audit
+  script:
+    - npm test -- --run --coverage
+  artifacts:
+    when: always
+    paths:
+      - frontend/coverage/lcov-report/
+      - frontend/coverage/lcov.info
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: frontend/coverage/cobertura-coverage.xml
+    expire_in: 1 week
+  coverage: '/Lines\s+:\s+([\d.]+)%/'

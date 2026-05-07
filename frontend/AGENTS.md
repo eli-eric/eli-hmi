@@ -1,33 +1,70 @@
-# Repository Guidelines
+# Repository Guidelines (frontend)
 
 ## Project Structure & Module Organization
-- Next.js app centered in `src/app` (routes, providers) with shared UI in `src/components` and reusable hooks in `src/hooks`.
-- Domain utilities live in `src/lib` (websocket provider, settings, zone config); shared types in `src/types`.
-- Static assets sit in `public/`; environment examples in `env.example`; reference examples in `src/examples`.
-- Tests are not yet established; new features should include the smallest viable checks (component or unit) alongside code.
+
+- Next.js app centered in `src/app` (routes, providers).
+- `src/lib/websocket/` — WebSocket layer: connection hook, data hook, provider, types, `PVDisplay`, `debug` helper.
+- `src/lib/settings/` — zone-config + helpers (`getDefaultRoute`, `isRouteAllowed`).
+- `src/lib/modules/` — typed `ModuleConfig` + per-module configs that drive the shared `<ModuleControlPage>`.
+- `src/components/hmi/` — reusable HMI compound components (`VolumePanel`, `ConnectorLine`, `StatusBar`).
+- `src/components/ui/` — generic primitives (buttons, dropdown, tooltip, icons, heading).
+- `src/components/module-page/` — `<ModuleControlPage>` shell + 5 config-driven panels.
+- `src/components/navigation/` — top nav bar, navigation items, logo.
+- `src/test/` — Vitest setup + the two WS test adapters: `ws-mock-server.ts` (real-WebSocket replacement) and `ws-test-provider.tsx` (cheap context fake).
+- Static assets in `public/`; environment example in `env.example`.
 
 ## Build, Test, and Development Commands
+
 - `npm run dev` — start the dev server on port 8082 using Turbopack.
 - `npm run build` — production build (also honors port 8082 env in scripts).
 - `npm start` — run the built app locally.
-- `npm run lint` — run Next.js/ESLint rules; fix reported issues before committing.
-- Create `.env.local` from `env.example` before running (set `NEXTAUTH_SECRET`, `NEXT_PUBLIC_WEBSOCKET_URL`).
+- `npm run lint` — Next.js/ESLint rules; fix reported issues before committing.
+- `npm test` / `npm run test:run` — Vitest, watch / one-shot.
+- `npm run test:coverage` — runs with the CI threshold gate (70/70/70/60 on the include scope).
+- Create `.env.local` from `env.example` before running (`NEXTAUTH_SECRET`, `NEXT_PUBLIC_WEBSOCKET_URL`, `NEXT_PUBLIC_ZONE_CODE`).
+
+## Testing
+
+- Vitest + React Testing Library + jsdom.
+- Two WebSocket test seams:
+  - `mockWebSocketServer()` in `src/test/ws-mock-server.ts` — replaces `globalThis.WebSocket`. Use for `useWebSocket` connection-lifecycle and integration tests. Honors the real wire protocol (`{type:'subscribe', pvs}` ↔ `{type:'pv', name, value, ...}`).
+  - `<TestWebSocketProvider value={fakeContext}>` + `makeFakeWebSocketContext()` in `src/test/ws-test-provider.tsx` — short-circuits the connection layer for fast component tests.
+- Coverage gate scope: `src/lib/websocket/**`, `src/lib/settings/**`, `src/middleware.ts`, `src/components/module-page/**`. HMI compounds (`src/components/hmi/**`) and UI primitives are not in the gate yet — add tests as their PV maps stabilize.
 
 ## Coding Style & Naming Conventions
-- TypeScript, strict mode; prefer function components with default exports and explicit prop types.
-- Absolute imports via `@/` (e.g., `@/lib/utils`); kebab-case filenames.
-- Formatting: single quotes, no semicolons; rely on ESLint (`eslint.config.mjs`) and Prettier defaults.
-- Client components should declare `use client`; keep React state minimal and colocated.
 
-## Testing Guidelines
-- No dedicated test harness yet; when adding features, include lightweight component/unit tests using the project’s patterns where practical and ensure `npm run lint` passes.
-- Mock WebSocket-dependent logic in tests to avoid live backend requirements.
+- TypeScript, strict mode; prefer function components with named exports and explicit prop types.
+- Absolute imports via `@/` (e.g. `@/lib/websocket/use-websocket-data`); kebab-case filenames.
+- Formatting: single quotes, no semicolons (`.prettierrc.json`).
+- Client components declare `'use client'`; keep React state minimal and colocated.
+- Use theme tokens from `src/app/globals.css` (`--color-*`, `--shadow-*`); avoid inline hex.
+- WebSocket data: always go through `useWebSocketData` — never call `getPrefixedPV` at a read-side call site.
+
+## Zones
+
+`NEXT_PUBLIC_ZONE_CODE` selects a zone at **build time** from `src/lib/settings/zone-config.ts`. The middleware blocks routes not in `allowedRoutes`; the nav bar shows only `navigationItems`. Adding a page = adding both the file *and* a route entry.
+
+### Production zone override (currently undocumented elsewhere)
+
+The shipped `production` zone is **intentionally empty** (no routes allowed). A real production build needs one of:
+
+1. **Per-deployment build env (recommended)** — set `NEXT_PUBLIC_ZONE_CODE=<deployment-zone>` at build time:
+   - Docker: `docker build --build-arg NEXT_PUBLIC_ZONE_CODE=p3-hall ...`
+   - GitLab CI: define `NEXT_PUBLIC_ZONE_CODE` as a project/group variable.
+   - Local prod build: drop a `.env.production` with the value.
+   Add a new entry in `zone-config.ts` for each physical site (e.g. `e3`, `l3bt-hall`, `p3-hall`) with the routes that site is allowed to operate.
+
+2. **Override the empty `production` entry** — only for one-off deployments that should not introduce a new zone code. Patch `zone-config.ts` in a fork or at deploy time.
+
+`NEXT_PUBLIC_*` is baked at build time. Switching zones post-build requires a rebuild — there is no runtime zone toggle.
 
 ## Commit & Pull Request Guidelines
-- Commit messages are short and imperative (e.g., `Add login guard`, `Implement zone-based access control`); include ticket refs like `OPHMI-15` when applicable.
-- PRs should describe the change, rationale, and validation steps; attach screenshots/GIFs for UI updates and note any config/env impacts.
+
+- Short imperative subjects; include ticket refs like `OPHMI-15` when applicable.
+- PRs describe the change, rationale, and validation steps; attach screenshots/GIFs for UI updates and note any config/env impacts.
 - Keep changes scoped; prefer focused PRs over large mixed updates.
 
 ## Security & Configuration Tips
-- Never commit secrets; use `.env.local` for local credentials and keep it out of version control.
+
+- Never commit secrets; use `.env.local` for local credentials.
 - Validate auth- and websocket-related changes against expected URLs and zones before merging.

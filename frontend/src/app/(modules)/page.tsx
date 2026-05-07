@@ -1,12 +1,7 @@
-'use client'
+import { redirect } from 'next/navigation'
 
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { getHomeRoute } from '@/lib/settings/zone-service'
 
 export default function Home() {
-  const router = useRouter()
-  useEffect(() => {
-    router.push('/p3-controls')
-  }, [router])
-  return <div></div>
+  redirect(getHomeRoute())
 }

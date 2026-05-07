@@ -1,8 +1,6 @@
 import type { Metadata } from 'next'
 import NavigationBar from '@/components/navigation/navigation-bar'
-import { StatusBar } from '@/components/ws-components/status-bar/status-bar'
-
-import '../globals.css'
+import { StatusBar } from '@/components/hmi/status-bar/status-bar'
 
 export const metadata: Metadata = {
   title: 'ELI - HMI',

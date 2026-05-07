@@ -78,7 +78,7 @@ export type ValueFormatOptions = {
   toPrecision?: number
 }
 
-export type ValueFormat = 'exponencial' | 'precision' | 'raw'
+export type ValueFormat = 'exponential' | 'precision' | 'raw'
 
 /**
  * Formats a numeric value based on the specified format type.
@@ -97,7 +97,7 @@ export const getFormattedValue = ({
   const { format, toExponential = 2, toPrecision = 3 } = options || {}
 
   switch (format) {
-    case 'exponencial':
+    case 'exponential':
       return value?.toExponential(toExponential) || 'N/A'
     case 'precision':
       return value?.toPrecision(toPrecision) || 'N/A'

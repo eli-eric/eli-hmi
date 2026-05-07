@@ -1,9 +1,15 @@
 .container {
   display: flex;
   padding: 0.5rem 1.5rem;
-  height: 2rem;
   align-items: center;
   gap: 3rem;
   align-self: stretch;
   background: var(--color-nav-background);
+  flex-wrap: wrap;
+}
+
+.logoGroup {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }

@@ -12,7 +12,7 @@ interface NavigationItemProps {
 
 export const NavigationItem: FC<NavigationItemProps> = ({ text, href }) => {
   const pathName = usePathname()
-  const isActive = pathName === href
+  const isActive = pathName === href || pathName.startsWith(href + '/')
 
   return (
     <Link href={href}>
