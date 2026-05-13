@@ -13,6 +13,20 @@ stages:
   - test
   - build
 
+docs-validate:
+  stage: test
+  image: harbor.eli-beams.eu/proxy-dockerhub/node:20.18-alpine
+  services: []
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - node scripts/docs/check-index.js
+    - node scripts/docs/check-links.js
+  rules:
+    - changes:
+        - docs/**/*
+        - scripts/docs/**/*
+
 variables:
   # When you use the dind service, you must instruct Docker to talk with
   # the daemon started inside of the service. The daemon is available

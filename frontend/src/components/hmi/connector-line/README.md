@@ -1,5 +1,7 @@
 # ConnectorLine Component
 
+> Architecture context: [`docs/frontend/hmi-components.md`](../../../../../docs/frontend/hmi-components.md). Compound-component pattern recorded in [ADR-0003](../../../../../docs/adr/0003-compound-components-for-hmi-panels.md).
+
 A refactored compound component for displaying connector lines with valves, gates, and labels.
 
 ## Improvements

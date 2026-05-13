@@ -1,5 +1,7 @@
 # VolumePanel Component
 
+> Architecture context: [`docs/frontend/hmi-components.md`](../../../../../docs/frontend/hmi-components.md). Compound-component pattern recorded in [ADR-0003](../../../../../docs/adr/0003-compound-components-for-hmi-panels.md).
+
 A refactored compound component for displaying volume panels with sensors, controls, and status information.
 
 ## Recent Refactoring (June 2025)

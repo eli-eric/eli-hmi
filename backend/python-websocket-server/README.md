@@ -1,5 +1,7 @@
 # EPICS WebSocket Server
 
+> Architecture context: [`docs/backend/python-server.md`](../../docs/backend/python-server.md). WS protocol divergence vs the mock: [`docs/backend/websocket-protocol.md`](../../docs/backend/websocket-protocol.md) and [ADR-0009](../../docs/adr/0009-shared-ws-protocol-contract.md). Run/deploy: [`docs/runbooks/running-python-backend.md`](../../docs/runbooks/running-python-backend.md), [`docs/runbooks/deploying-python-backend.md`](../../docs/runbooks/deploying-python-backend.md).
+
 This service exposes a production-oriented FastAPI gateway in front of EPICS using aioca. The current scope is read and monitor operations only.
 
 ## Root Landing Page

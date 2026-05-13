@@ -1,5 +1,7 @@
 # controls/
 
+> Architecture context: [`docs/frontend/hmi-components.md`](../../../../../docs/frontend/hmi-components.md). The single-write-endpoint pattern these controls consume is in [ADR-0004](../../../../../docs/adr/0004-single-pv-write-endpoint.md).
+
 Reusable HMI primitives shared by `LaserPanel` and any future control page.
 None of these are L4-specific by themselves — they hide common patterns
 (layout, write lifecycle, expand-detail) so domain panels stay declarative.

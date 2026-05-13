@@ -1,5 +1,7 @@
 # Module configs
 
+> Architecture context: [`docs/frontend/module-pages.md`](../../../../docs/frontend/module-pages.md). End-to-end recipe: [`docs/workflows/adding-a-control-page.md`](../../../../docs/workflows/adding-a-control-page.md).
+
 Each entry in this folder describes a single control module (L3BT, L4fBT, P3, ...) as a typed `ModuleConfig` (`./types.ts`). The shared `<ModuleControlPage>` (`@/components/module-page/module-control-page`) renders the config plus a bespoke `bottomRow` slot for volumes and connectors.
 
 ## Adding a new module

@@ -1,5 +1,7 @@
 # L4 OPCPA Control System
 
+> Architecture context: [`docs/frontend/l4-opcpa.md`](../../../../../docs/frontend/l4-opcpa.md). Related ADRs: [0006](../../../../../docs/adr/0006-pv-name-registry-l4-opcpa.md), [0007](../../../../../docs/adr/0007-l4-custom-shell-not-modulecontrolpage.md), [0008](../../../../../docs/adr/0008-laser-specs-location.md).
+
 Operator UI for the L4 OPCPA laser system. Five lasers (NL1–NL5) rendered
 side-by-side, each with five stacked sections (General, Regen, Chillers,
 Flashlamps, Modbox).
