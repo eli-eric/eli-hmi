@@ -34,8 +34,9 @@
 }
 
 /* Value cell variant: just plain text, no chrome (used when the inner element
-   already provides its own chrome — e.g. a BoolPill). */
-.value:has(> [data-bare='true']) {
+   already provides its own chrome — e.g. a BoolPill). Opt in via the
+   `valueVariant="bare"` prop on <DataRow />. */
+.valueBare {
   background: transparent;
   border: none;
   padding: 0;

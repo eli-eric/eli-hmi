@@ -3,9 +3,9 @@ import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FlashlampsSection } from './FlashlampsSection'
 import {
-  createMockWebSocket,
-  MockWebSocketProvider,
-} from '@/test/ws-mock'
+  makeFakeWebSocketContext,
+  TestWebSocketProvider,
+} from '@/test/ws-test-provider'
 
 const ORIGINAL_FETCH = globalThis.fetch
 
@@ -20,15 +20,15 @@ afterEach(() => {
 
 describe('FlashlampsSection', () => {
   it('renders SB / RUN / STOP / FAIL counts as a column-headed row', async () => {
-    const ws = createMockWebSocket()
+    const ws = makeFakeWebSocketContext()
     render(
-      <MockWebSocketProvider ws={ws}>
+      <TestWebSocketProvider value={ws.context}>
         <FlashlampsSection
           laser="NL2"
           boxIds={['22', '23']}
           delayPresets={[50, 500, 700, 790]}
         />
-      </MockWebSocketProvider>,
+      </TestWebSocketProvider>,
     )
 
     await waitFor(() =>
@@ -50,15 +50,15 @@ describe('FlashlampsSection', () => {
   })
 
   it('exposes Set All Run / Set All Standby behind a cog toggle', async () => {
-    const ws = createMockWebSocket()
+    const ws = makeFakeWebSocketContext()
     render(
-      <MockWebSocketProvider ws={ws}>
+      <TestWebSocketProvider value={ws.context}>
         <FlashlampsSection
           laser="NL2"
           boxIds={['22']}
           delayPresets={[50, 500, 700, 790]}
         />
-      </MockWebSocketProvider>,
+      </TestWebSocketProvider>,
     )
     await waitFor(() =>
       expect(ws.subscriptions.get('SI_NL2_FL_22_CH1')?.size).toBe(1),
@@ -82,15 +82,15 @@ describe('FlashlampsSection', () => {
   })
 
   it('exposes the trigger-delay preset input behind a cog', async () => {
-    const ws = createMockWebSocket()
+    const ws = makeFakeWebSocketContext()
     render(
-      <MockWebSocketProvider ws={ws}>
+      <TestWebSocketProvider value={ws.context}>
         <FlashlampsSection
           laser="NL2"
           boxIds={['22']}
           delayPresets={[50, 500, 700, 790]}
         />
-      </MockWebSocketProvider>,
+      </TestWebSocketProvider>,
     )
     await waitFor(() =>
       expect(ws.subscriptions.get('AI_NL2_TRIG_DELAY_CH1')?.size).toBe(1),
@@ -118,15 +118,15 @@ describe('FlashlampsSection', () => {
   })
 
   it('expands to a per-channel state list when the Flashlamps State row is clicked', async () => {
-    const ws = createMockWebSocket()
+    const ws = makeFakeWebSocketContext()
     render(
-      <MockWebSocketProvider ws={ws}>
+      <TestWebSocketProvider value={ws.context}>
         <FlashlampsSection
           laser="NL2"
           boxIds={['22', '23']}
           delayPresets={[50, 500, 700, 790]}
         />
-      </MockWebSocketProvider>,
+      </TestWebSocketProvider>,
     )
     await waitFor(() =>
       expect(ws.subscriptions.get('SI_NL2_FL_22_CH1')?.size).toBe(1),
@@ -157,15 +157,15 @@ describe('FlashlampsSection', () => {
   })
 
   it('shows a Trigger Delay mismatch error when Ch1 and Ch2 disagree', async () => {
-    const ws = createMockWebSocket()
+    const ws = makeFakeWebSocketContext()
     render(
-      <MockWebSocketProvider ws={ws}>
+      <TestWebSocketProvider value={ws.context}>
         <FlashlampsSection
           laser="NL2"
           boxIds={['22']}
           delayPresets={[50, 500, 700, 790]}
         />
-      </MockWebSocketProvider>,
+      </TestWebSocketProvider>,
     )
     await waitFor(() =>
       expect(ws.subscriptions.get('AI_NL2_TRIG_DELAY_CH2')?.size).toBe(1),

@@ -10,6 +10,7 @@ import {
   DetailListItem,
 } from '@/components/hmi/controls/DetailList'
 import { StringValue } from '@/components/hmi/controls/Values'
+import type { Message } from '@/app/providers/types'
 import { ChevronIcon } from '@/components/ui/icons'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
@@ -39,13 +40,22 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false)
 
-  const pvs = useMemo(
+  const statePvs = useMemo(
     () => pv.modboxStateAll(laser, modboxStateCount),
     [laser, modboxStateCount],
   )
-  const { state } = useWebSocketData<number | null>({ pvs, raw: true })
-  const okCount = pvs.filter((name) => state[name]?.value === 1).length
-  const total = pvs.length
+  const waveformPv = pv.loadedWaveform(laser)
+  const allPvs = useMemo(
+    () => [...statePvs, waveformPv],
+    [statePvs, waveformPv],
+  )
+  // Mixed value types (number for state, string for waveform). Keep the hook
+  // typed as `unknown` and narrow at the use site.
+  const { state } = useWebSocketData<unknown>({ pvs: allPvs, raw: true })
+  const okCount = statePvs.filter(
+    (name) => state[name]?.value === 1,
+  ).length
+  const total = statePvs.length
   const tone =
     total === 0
       ? 'unknown'
@@ -55,7 +65,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
           ? 'negative-important'
           : 'negative-neutral'
 
-  const items: DetailListItem[] = pvs.map((name, i) => {
+  const items: DetailListItem[] = statePvs.map((name, i) => {
     const msg = state[name]
     const v = msg?.value
     return {
@@ -68,6 +78,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
     <SectionCard>
       <DataRow
         label="Modbox State"
+        valueVariant="bare"
         value={
           <button
             type="button"
@@ -75,7 +86,6 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
             aria-expanded={expanded}
             aria-label="Toggle Modbox state detail"
             onClick={() => setExpanded((v) => !v)}
-            data-bare="true"
           >
             <span className={styles.modboxStatePill} data-tone={tone}>
               <span className={styles.modboxStateCount}>
@@ -104,7 +114,11 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
       {expanded && <DetailList items={items} />}
       <DataRow
         label="Loaded Waveform"
-        value={<StringValue pvName={pv.loadedWaveform(laser)} />}
+        value={
+          <StringValue
+            data={state[waveformPv] as Message<string | null> | undefined}
+          />
+        }
         action={
           <CogToggle ariaLabel="Set waveform">
             <WaveformSelect laser={laser} />

@@ -3,9 +3,9 @@ import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { GeneralSection } from './GeneralSection'
 import {
-  createMockWebSocket,
-  MockWebSocketProvider,
-} from '@/test/ws-mock'
+  makeFakeWebSocketContext,
+  TestWebSocketProvider,
+} from '@/test/ws-test-provider'
 
 const ORIGINAL_FETCH = globalThis.fetch
 
@@ -19,15 +19,15 @@ afterEach(() => {
 })
 
 async function setup() {
-  const ws = createMockWebSocket()
+  const ws = makeFakeWebSocketContext()
   render(
-    <MockWebSocketProvider ws={ws}>
+    <TestWebSocketProvider value={ws.context}>
       <GeneralSection
         laser="NL2"
         mssCount={3}
         moduleErrors={['REGEN', 'CHILLER_11']}
       />
-    </MockWebSocketProvider>,
+    </TestWebSocketProvider>,
   )
   await waitFor(() =>
     expect(ws.subscriptions.get('BI_NL2_CONN')?.size).toBe(1),
@@ -69,7 +69,7 @@ describe('GeneralSection', () => {
 
   it('renders the PHD readout row using the PV name as label', async () => {
     const ws = await setup()
-    act(() => ws.push('AI_NL2_PHD_MEAN', 12.345, { units: 'a.u.' }))
+    act(() => ws.push('AI_NL2_PHD_MEAN', { value: 12.345, units: 'a.u.' }))
     expect(screen.getByText('PHD1K000:49/Mean')).toBeInTheDocument()
     expect(screen.getByText('12.345')).toBeInTheDocument()
   })
