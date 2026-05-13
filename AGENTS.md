@@ -79,7 +79,7 @@ Reusable HMI panels (`src/components/hmi/volume-panel`, `connector-line`) use th
 ## Conventions worth knowing
 
 - Path alias `@/` → `frontend/src/`.
-- Filenames kebab-case; components PascalCase; hooks `useCamelCase`.
+- Filenames kebab-case for non-component modules (`use-websocket-data.ts`, `pv-helpers.ts`); hooks `useCamelCase`. Files whose default/named export is a single React component MAY use PascalCase matching the component name (`ActionButton.tsx`, `VolumePanel.tsx`) — the existing `components/hmi/{controls,laser-panel,volume-panel,connector-line}/` subtrees follow this; `components/hmi/status-bar/` uses kebab-case. Pick one within a directory; don't mix.
 - Prettier: no semicolons, single quotes (see `.prettierrc.json`).
 - Client components must declare `'use client'`.
 - CSS Modules with kebab-case class names; variants via string interpolation (`styles[\`button-${variant}\`]`).

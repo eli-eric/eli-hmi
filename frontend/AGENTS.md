@@ -34,7 +34,8 @@
 ## Coding Style & Naming Conventions
 
 - TypeScript, strict mode; prefer function components with named exports and explicit prop types.
-- Absolute imports via `@/` (e.g. `@/lib/websocket/use-websocket-data`); kebab-case filenames.
+- Absolute imports via `@/` (e.g. `@/lib/websocket/use-websocket-data`).
+- Filenames: kebab-case for non-component modules. Files whose export is a single React component MAY use PascalCase matching the component (`ActionButton.tsx`, `VolumePanel.tsx`); the `components/hmi/{controls,laser-panel,volume-panel,connector-line}/` subtrees do this. `components/hmi/status-bar/` uses kebab-case. Pick one within a directory; don't mix.
 - Formatting: single quotes, no semicolons (`.prettierrc.json`).
 - Client components declare `'use client'`; keep React state minimal and colocated.
 - Use theme tokens from `src/app/globals.css` (`--color-*`, `--shadow-*`); avoid inline hex.
