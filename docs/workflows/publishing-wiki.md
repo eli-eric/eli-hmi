@@ -61,7 +61,7 @@ Most failures are one of:
 
 - **Broken internal link.** `check-links.js` is the gate that should have caught this — re-run it locally and fix.
 - **Wiki repo doesn't exist.** Enable the wiki under repo settings before the first sync.
-- **Permission denied pushing to wiki.** The default `GITHUB_TOKEN` should suffice (`contents: write`); if a fine-grained PAT is in use, re-issue.
+- **Permission denied pushing to wiki.** The workflow uses a repo secret named `WIKI_TOKEN` (PAT or fine-grained token with wiki write scope). If pushes 403, the token is missing or has expired — re-issue it under repo Settings → Secrets and variables → Actions.
 
 ## Source
 

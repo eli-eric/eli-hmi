@@ -34,7 +34,7 @@ jobs:
 
       - name: Clone wiki
         env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOKEN: ${{ secrets.WIKI_TOKEN }}
         run: |
           git clone "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.wiki.git" wiki
 
