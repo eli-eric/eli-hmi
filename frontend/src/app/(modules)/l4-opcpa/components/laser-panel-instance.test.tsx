@@ -3,9 +3,9 @@ import { render, screen } from '@testing-library/react'
 import { LaserPanelInstance } from './laser-panel-instance'
 import { LASER_SPECS } from './laser-specs'
 import {
-  createMockWebSocket,
-  MockWebSocketProvider,
-} from '@/test/ws-mock'
+  makeFakeWebSocketContext,
+  TestWebSocketProvider,
+} from '@/test/ws-test-provider'
 
 const ORIGINAL_FETCH = globalThis.fetch
 
@@ -24,11 +24,11 @@ afterEach(() => {
 describe('LaserPanelInstance', () => {
   it('renders the column header and one representative row per section', () => {
     const nl2 = LASER_SPECS.find((s) => s.laser === 'NL2')!
-    const ws = createMockWebSocket()
+    const ws = makeFakeWebSocketContext()
     render(
-      <MockWebSocketProvider ws={ws}>
+      <TestWebSocketProvider value={ws.context}>
         <LaserPanelInstance spec={nl2} />
-      </MockWebSocketProvider>,
+      </TestWebSocketProvider>,
     )
     expect(screen.getByRole('heading', { name: 'NL2' })).toBeInTheDocument()
     expect(screen.getByText('Overview')).toBeInTheDocument()

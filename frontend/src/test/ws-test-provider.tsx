@@ -16,10 +16,26 @@ export interface FakeWebSocketContextOptions {
 
 export interface FakeWebSocketController {
   context: WebSocketContextValue
-  /** Push a Message<T> to all subscribers of `pv`. */
-  push: <T>(pv: string, msg: Partial<Message<T>> & { value: T | null }) => void
+  /**
+   * Push a Message to all subscribers of `pv`. Two call shapes:
+   *   push(pv, value)                          — convenience: minimal msg
+   *   push(pv, { value, units, ok, ... })      — full Partial<Message<T>>
+   * The full form lets callers stamp non-default fields (e.g. `ok: false`,
+   * `units`, `severity`). The convenience form is identical to
+   *   push(pv, { value })
+   */
+  push: {
+    <T>(pv: string, value: T | null): void
+    <T>(pv: string, msg: Partial<Message<T>> & { value: T | null }): void
+  }
   /** All wire messages the consumer sent via `context.send`. */
   getSent: () => unknown[]
+  /**
+   * Live map of PV → subscriber set. Tests can `waitFor(() =>
+   * controller.subscriptions.get(pv)?.size === 1)` before pushing values to
+   * avoid first-paint race conditions.
+   */
+  subscriptions: ReadonlyMap<string, ReadonlySet<SubscriptionCallback>>
 }
 
 export function makeFakeWebSocketContext(
@@ -58,24 +74,33 @@ export function makeFakeWebSocketContext(
       }),
   }
 
+  function push<T>(pv: string, arg: T | (Partial<Message<T>> & { value: T | null })): void {
+    const callbacks = subs.get(pv)
+    if (!callbacks) return
+    const partial =
+      arg !== null && typeof arg === 'object' && 'value' in (arg as object)
+        ? (arg as Partial<Message<T>> & { value: T | null })
+        : ({ value: arg as T | null } as Partial<Message<T>> & {
+            value: T | null
+          })
+    const full: Message<T> = {
+      type: 'pv',
+      name: pv,
+      severity: 0,
+      units: null,
+      timestamp: Date.now(),
+      ok: true,
+      error: null,
+      ...partial,
+    }
+    callbacks.forEach((cb) => cb(full as Message))
+  }
+
   return {
     context,
-    push: <T,>(pv: string, msg: Partial<Message<T>> & { value: T | null }) => {
-      const callbacks = subs.get(pv)
-      if (!callbacks) return
-      const full: Message<T> = {
-        type: 'pv',
-        name: pv,
-        severity: 0,
-        units: null,
-        timestamp: Date.now(),
-        ok: true,
-        error: null,
-        ...msg,
-      }
-      callbacks.forEach((cb) => cb(full as Message))
-    },
+    push: push as FakeWebSocketController['push'],
     getSent: () => sent.slice(),
+    subscriptions: subs,
   }
 }
 
