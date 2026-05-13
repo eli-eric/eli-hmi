@@ -25,6 +25,7 @@ describe('zone-service', () => {
       expect(isRouteAllowed('/p3-controls')).toBe(true)
       expect(isRouteAllowed('/l3bt-controls')).toBe(true)
       expect(isRouteAllowed('/l4fbt-controls')).toBe(true)
+      expect(isRouteAllowed('/l4-opcpa')).toBe(true)
     })
 
     it('isRouteAllowed returns false for unknown routes', () => {
@@ -45,7 +46,7 @@ describe('zone-service', () => {
     })
 
     it('getNavigationItems returns all configured items', () => {
-      expect(getNavigationItems()).toHaveLength(3)
+      expect(getNavigationItems()).toHaveLength(4)
     })
   })
 
