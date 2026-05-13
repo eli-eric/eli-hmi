@@ -9,6 +9,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    css: { modules: { classNameStrategy: 'non-scoped' } },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'json-summary', 'cobertura'],
@@ -17,6 +18,9 @@ export default defineConfig({
         'src/lib/settings/**',
         'src/middleware.ts',
         'src/components/module-page/**',
+        'src/app/(modules)/l4-opcpa/**',
+        'src/components/hmi/laser-panel/**',
+        'src/components/hmi/controls/**',
       ],
       exclude: [
         'src/test/**',

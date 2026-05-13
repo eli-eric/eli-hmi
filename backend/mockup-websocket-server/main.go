@@ -85,6 +85,13 @@ func main() {
 	e.GET("/pv/:name/:value", setPvHandler)       // manual setter
 	e.GET("/mode/:name/:value", setPvModeHandler) // mode switcher
 
+	// L4 OPCPA additions
+	e.POST("/pv/:name", writePvHandler) // primary write endpoint: every action is a PV write
+	e.GET("/waveforms", listWaveformsHandler)
+	e.GET("/mode/fail-rate/:n", setFailRateHandler) // 0 disables; default 10 → 10%
+
+	seedLaserPVs()
+
 	addr := ":8080"
 	log.Println("Sim gateway listening on", addr)
 	e.Logger.Fatal(e.Start(addr))
@@ -93,12 +100,13 @@ func main() {
 /* ---------------------- per-PV simulator --------------------------------- */
 
 type pvSim struct {
-	name     string
-	value    interface{}
-	errorMsg string
-	subs     map[*client]struct{}
-	mu       sync.Mutex
-	cancel   context.CancelFunc
+	name      string
+	value     interface{}
+	errorMsg  string
+	subs      map[*client]struct{}
+	mu        sync.Mutex
+	cancel    context.CancelFunc
+	holdUntil time.Time // when set in the future, the autosim loop pauses until this passes
 }
 
 func newPVSim(name string) *pvSim {
@@ -124,7 +132,7 @@ func (ps *pvSim) loop(ctx context.Context) {
 		case <-ticker.C:
 			if ps.shouldSimulate() {
 				ps.mu.Lock()
-				ps.value = synthValue(ps.name)
+				ps.value = simStepFrom(ps.name, ps.value)
 				b := ps.encodeLocked()
 				for cl := range ps.subs {
 					select {
@@ -140,9 +148,20 @@ func (ps *pvSim) loop(ctx context.Context) {
 	}
 }
 
-// shouldSimulate checks the global mode flags.
+// shouldSimulate checks the global mode flags and the per-PV hold.
 func (ps *pvSim) shouldSimulate() bool {
+	ps.mu.Lock()
+	hold := ps.holdUntil
+	ps.mu.Unlock()
+	if !hold.IsZero() && time.Now().Before(hold) {
+		return false
+	}
 	switch {
+	case strings.HasPrefix(ps.name, "CMD_"):
+		// Command PVs are write-only triggers (subscribers see only the
+		// last-fired value). Never autosim — drift would produce phantom
+		// firings on the frontend.
+		return false
 	case strings.HasPrefix(ps.name, "AI_"):
 		return aiMode == 1
 	case strings.HasPrefix(ps.name, "BI_"):
@@ -200,9 +219,18 @@ func (ps *pvSim) remove(cl *client) {
 }
 
 func (ps *pvSim) setManualValue(v interface{}, errorMsg string) {
+	ps.setManualValueHeld(v, errorMsg, 0)
+}
+
+// setManualValueHeld is like setManualValue but additionally pauses the autosim
+// loop for `hold` from now. A zero hold leaves the existing holdUntil untouched.
+func (ps *pvSim) setManualValueHeld(v interface{}, errorMsg string, hold time.Duration) {
 	ps.mu.Lock()
 	ps.value = v
 	ps.errorMsg = errorMsg
+	if hold > 0 {
+		ps.holdUntil = time.Now().Add(hold)
+	}
 	b := ps.encodeLocked()
 	for cl := range ps.subs {
 		select {
@@ -449,6 +477,69 @@ func synthValue(name string) interface{} {
 		// Smaller changes for default numeric values too
 		return rng.Float64() * 3 // Limit to 0-3 range
 	}
+}
+
+// simStepFrom computes the next autosim value as a small drift around `prev`,
+// so that values manually written by a sequence stay reactive: after a
+// sequence sets PHD to 120, the autosim drifts around 120 instead of snapping
+// back to the historical baseline ~50.
+func simStepFrom(name string, prev interface{}) interface{} {
+	switch {
+	case strings.HasPrefix(name, "AI_"):
+		// Coerce prev to float64, remembering whether the input was integer.
+		var (
+			base   float64
+			wasInt bool
+		)
+		switch v := prev.(type) {
+		case float64:
+			base = v
+		case float32:
+			base = float64(v)
+		case int:
+			base = float64(v)
+			wasInt = true
+		case int64:
+			base = float64(v)
+			wasInt = true
+		default:
+			// First simulation tick: fall back to the historical baseline.
+			return synthValue(name)
+		}
+		// Integer-valued readouts (delay, attenuator) should stay integer —
+		// otherwise the UI shows 789.6, 790.4, etc. around a setpoint of 790.
+		if wasInt || isIntegerPv(name) {
+			return int(base)
+		}
+		// Drift ±0.5 around the current value.
+		return base + (rng.Float64()*2-1)*0.5
+	case strings.HasPrefix(name, "BI_"):
+		// Binary PVs default to manual mode (biMode=2), so this branch is
+		// rarely hit; keep prev to avoid flipping when autosim is enabled.
+		if v, ok := prev.(int); ok {
+			return v
+		}
+		return rng.Intn(2)
+	case strings.HasPrefix(name, "SI_"):
+		if s, ok := prev.(string); ok && s != "" {
+			return s
+		}
+		return randomWords[rng.Intn(len(randomWords))]
+	default:
+		return rng.Float64() * 3
+	}
+}
+
+// isIntegerPv tags AI_ readouts that should drift as integers (no fractional
+// part). Add new patterns here if more integer-valued readouts appear.
+func isIntegerPv(name string) bool {
+	switch {
+	case strings.Contains(name, "_TRIG_DELAY_"):
+		return true
+	case strings.HasSuffix(name, "_ATT"):
+		return true
+	}
+	return false
 }
 
 func unitsFor(name string) string {

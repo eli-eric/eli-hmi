@@ -9,7 +9,7 @@ import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 export type State<T> = Record<string, Message<T>>
 
 interface MultiOptions<T> {
-  pvs: string[]
+  pvs: readonly string[]
   onUpdate?: (msgs: Message<T>[]) => void
 }
 
@@ -97,7 +97,7 @@ function reducer<T>(state: State<T>, action: Action<T>): State<T> {
 
 function useMultiSubscription<T>(
   ctx: WebSocketContextValue,
-  pvs: string[],
+  pvs: readonly string[],
   onUpdateMulti: ((msgs: Message<T>[]) => void) | undefined,
   onUpdateSingle: ((msg: Message<T>) => void) | undefined,
 ): State<T> {

@@ -6,7 +6,8 @@ import { WebSocketContextValue } from './types'
 
 // Types for context value
 
-// Create context with default values
+// Create context with default values. Exported so test helpers can wrap
+// components with a controllable provider (see src/test/ws-mock.tsx).
 export const WebSocketContext = createContext<WebSocketContextValue | undefined>(
   undefined,
 )

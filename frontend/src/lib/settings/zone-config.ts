@@ -25,8 +25,17 @@ export const ZONE_CONFIGS: ZoneConfigMap = {
         text: 'L4fBT Controls',
         href: '/l4fbt-controls',
       },
+      {
+        text: 'L4 OPCPA Controls',
+        href: '/l4-opcpa',
+      },
     ],
-    allowedRoutes: ['/p3-controls', '/l3bt-controls', '/l4fbt-controls'],
+    allowedRoutes: [
+      '/p3-controls',
+      '/l3bt-controls',
+      '/l4fbt-controls',
+      '/l4-opcpa',
+    ],
   },
   [ZONE_CODE_PRODUCTION]: {
     navigationItems: [],

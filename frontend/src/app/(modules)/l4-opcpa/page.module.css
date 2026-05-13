@@ -1,0 +1,38 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  color: var(--color-text);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--color-text-secondary);
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.disconnected {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-error-light);
+  border: 1px solid var(--color-error-dark);
+  color: var(--color-text);
+}

@@ -1,4 +1,5 @@
 export { CheckIcon } from './check-icon'
+export { ChevronIcon } from './chevron-icon'
 export { CloseIcon } from './close-icon'
 export { SettingsIcon } from './settings-icon'
 export { PolygonIcon } from './polygon-icon'

@@ -1,0 +1,211 @@
+.actionRow {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.25rem;
+}
+
+.chillerGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) repeat(3, minmax(0, 1fr));
+  gap: 0.25rem 0.375rem;
+  align-items: center;
+}
+
+.contents {
+  display: contents;
+}
+
+.colHeader {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+  text-align: center;
+  min-width: 0;
+}
+
+.rowLabel {
+  font-size: 0.8125rem;
+  color: var(--color-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.numCell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: var(--color-surface-lighter);
+  border: 1px solid var(--color-border);
+  padding: 0.125rem 0.375rem;
+  min-height: 1.5rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+
+.flashlampStateButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--color-text);
+  text-align: left;
+  min-width: 0;
+}
+
+.flashlampStateButton > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.flashlampStateButton:hover > span:first-child {
+  text-decoration: underline;
+}
+
+.flashlampStateButton[aria-expanded='true'] {
+  font-weight: 700;
+}
+
+.flashlampStateChevron {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.flashlampStateButton:hover .flashlampStateChevron,
+.flashlampStateButton[aria-expanded='true'] .flashlampStateChevron {
+  opacity: 1;
+}
+
+.delayMismatch {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-error-dark);
+  text-decoration: underline double;
+}
+
+.flashlampGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) repeat(4, minmax(0, 1fr)) auto;
+  gap: 0.25rem 0.25rem;
+  align-items: center;
+}
+
+.flashlampCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-lighter);
+  border: 1px solid var(--color-text);
+  padding: 0.125rem 0.25rem;
+  min-height: 1.5rem;
+  min-width: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+}
+
+.flashlampCell[data-tone='positive-important'] {
+  background: var(--color-success);
+  border-color: var(--color-success-dark);
+}
+
+.flashlampCell[data-tone='negative-neutral'] {
+  background: var(--color-surface);
+  border-color: var(--color-gray-800);
+}
+
+.flashlampCell[data-tone='negative-important'] {
+  background: var(--color-error-light);
+  border-color: var(--color-error-dark);
+}
+
+.modboxStateButton {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  display: inline-flex;
+}
+
+.modboxStateButton:hover .modboxStatePill {
+  filter: brightness(0.93);
+}
+
+.modboxStateButton[aria-expanded='true'] .modboxStatePill {
+  outline: 2px solid var(--color-text);
+  outline-offset: 1px;
+}
+
+.modboxStateCount {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.modboxStateChevron {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0.7;
+  margin-left: 0.375rem;
+}
+
+.modboxStateButton:hover .modboxStateChevron {
+  opacity: 1;
+}
+
+.modboxStatePill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 1.5rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--color-surface-lighter);
+  border: 1px solid var(--color-text);
+  color: var(--color-text);
+}
+
+.modboxStatePill[data-tone='positive-important'] {
+  background: var(--color-success);
+  border-color: var(--color-success-dark);
+}
+
+.modboxStatePill[data-tone='negative-neutral'] {
+  background: var(--color-surface);
+  border-color: var(--color-gray-800);
+}
+
+.modboxStatePill[data-tone='negative-important'] {
+  background: var(--color-error-light);
+  border-color: var(--color-error-dark);
+}
+
+.modboxStatePill[data-tone='unknown'] {
+  background: transparent;
+  border-style: dotted;
+  color: var(--color-gray-800);
+}
