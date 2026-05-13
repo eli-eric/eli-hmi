@@ -11,7 +11,7 @@ export const FloatValue: FC<{ pvName: string; precision?: number }> = ({
   pvName,
   precision = 3,
 }) => {
-  const { data } = useWebSocketData<number | null>(pvName)
+  const { data } = useWebSocketData<number | null>(pvName, { raw: true })
   if (!data || !data.ok || typeof data.value !== 'number') {
     return <span className={styles.placeholder}>{EMPTY}</span>
   }
@@ -25,7 +25,7 @@ export const FloatValue: FC<{ pvName: string; precision?: number }> = ({
 
 /** Integer value. */
 export const IntegerValue: FC<{ pvName: string }> = ({ pvName }) => {
-  const { data } = useWebSocketData<number | null>(pvName)
+  const { data } = useWebSocketData<number | null>(pvName, { raw: true })
   if (!data || !data.ok || typeof data.value !== 'number') {
     return <span className={styles.placeholder}>{EMPTY}</span>
   }
@@ -39,7 +39,7 @@ export const IntegerValue: FC<{ pvName: string }> = ({ pvName }) => {
 
 /** String value. */
 export const StringValue: FC<{ pvName: string }> = ({ pvName }) => {
-  const { data } = useWebSocketData<string | null>(pvName)
+  const { data } = useWebSocketData<string | null>(pvName, { raw: true })
   if (!data || !data.ok || typeof data.value !== 'string') {
     return <span className={styles.placeholder}>{EMPTY}</span>
   }
@@ -66,7 +66,7 @@ export const BoolPill: FC<BoolPillProps> = ({
   onTone = 'positive-important',
   offTone = 'positive-neutral',
 }) => {
-  const { data } = useWebSocketData<number | null>(pvName)
+  const { data } = useWebSocketData<number | null>(pvName, { raw: true })
   if (!data || !data.ok || data.value === null) {
     return (
       <span className={styles.pill} data-tone="unknown" data-bare="true">

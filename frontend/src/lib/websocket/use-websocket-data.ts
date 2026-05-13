@@ -11,10 +11,20 @@ export type State<T> = Record<string, Message<T>>
 interface MultiOptions<T> {
   pvs: readonly string[]
   onUpdate?: (msgs: Message<T>[]) => void
+  /**
+   * Skip the dev-prefix mapping (`getPrefixedPV`). Use this when callers
+   * already pass fully-qualified wire names — e.g. L4 OPCPA uses
+   * `BI_<L>_SHUTTER`, `AI_TEMP_<L>_REGEN`, … verbatim, and the prefix
+   * mapping would otherwise mangle names whose suffix happens to match a
+   * `PV_PREFIX_CONFIG` key (e.g. "TEMP" → `AI_K_AI_TEMP_<L>_REGEN`).
+   */
+  raw?: boolean
 }
 
 interface SingleOptions<T> {
   onUpdate?: (msg: Message<T>) => void
+  /** See `MultiOptions.raw`. */
+  raw?: boolean
 }
 
 interface MultiResult<T> {
@@ -59,12 +69,14 @@ export function useWebSocketData<T = unknown>(
   const pvs = isSingle ? [input] : input.pvs
   const onUpdateMulti = isSingle ? undefined : input.onUpdate
   const onUpdateSingle = isSingle ? singleOpts?.onUpdate : undefined
+  const raw = isSingle ? !!singleOpts?.raw : !!input.raw
 
   const state = useMultiSubscription<T>(
     ctx,
     pvs,
     onUpdateMulti,
     onUpdateSingle,
+    raw,
   )
 
   if (isSingle) {
@@ -100,6 +112,7 @@ function useMultiSubscription<T>(
   pvs: readonly string[],
   onUpdateMulti: ((msgs: Message<T>[]) => void) | undefined,
   onUpdateSingle: ((msg: Message<T>) => void) | undefined,
+  raw: boolean,
 ): State<T> {
   const { subscribe, isConnected } = ctx
   const [state, dispatch] = useReducer(
@@ -126,7 +139,7 @@ function useMultiSubscription<T>(
   useEffect(() => {
     if (!isConnected || pvs.length === 0) return
     const unsubs = pvs.map((logicalPv) => {
-      const wireName = getPrefixedPV(logicalPv)
+      const wireName = raw ? logicalPv : getPrefixedPV(logicalPv)
       return subscribe<T>(wireName, (msg) => {
         // Project the wire-format message into logical space so consumers
         // never see the dev prefix anywhere.
@@ -145,7 +158,7 @@ function useMultiSubscription<T>(
       dispatch({ type: 'RESET' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pvKey, subscribe, isConnected])
+  }, [pvKey, subscribe, isConnected, raw])
 
   return state
 }

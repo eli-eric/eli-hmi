@@ -37,7 +37,7 @@ export const OverviewBar: FC<OverviewBarProps> = ({
     () => [connPv, fullpPv, ...mssPvs, ...moduleErrorPvs],
     [connPv, fullpPv, mssPvs, moduleErrorPvs],
   )
-  const { state } = useWebSocketData<number | null>({ pvs: allPvs })
+  const { state } = useWebSocketData<number | null>({ pvs: allPvs, raw: true })
 
   const connMsg = state[connPv]
   const fullpMsg = state[fullpPv]

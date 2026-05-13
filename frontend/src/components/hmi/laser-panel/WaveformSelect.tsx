@@ -10,9 +10,13 @@ interface WaveformSelectProps {
   laser: string
 }
 
-// Module-scope cache: the waveform catalog is static, so we fetch once per
-// page load and reuse across all WaveformSelect mounts. Without this the cog
-// fetches `/waveforms` every time the panel re-opens.
+// Module-scope cache: the waveform catalog is static, so we fetch once and
+// reuse across all WaveformSelect mounts. Without this the cog fetches
+// `/waveforms` every time the panel re-opens.
+//
+// Guarantee: "fetch once per page load on success." On fetch failure the
+// cache is cleared so the next mount retries — i.e. failures degrade to
+// "fetch once per mount until one succeeds", not "fetch and stick at []".
 let catalogPromise: Promise<string[]> | null = null
 function getCatalog(): Promise<string[]> {
   if (!catalogPromise) {
@@ -24,9 +28,14 @@ function getCatalog(): Promise<string[]> {
   return catalogPromise
 }
 
-/** Test-only: reset the module-scope catalog cache. Vitest does not reload
- * modules between tests, so without this the catalog from the first run
- * leaks into subsequent tests. Call from `afterEach` if you mock `/waveforms`. */
+/**
+ * Test-only escape hatch — clears the module-scope catalog cache so vitest
+ * test cases (which share a module instance across runs) start fresh.
+ *
+ * **Do not import from production code.** The double-underscore prefix and
+ * the `ForTests` suffix mark this as test-only API; reach for `vi.resetModules()`
+ * or a context-injected loader if you need a non-test reset path (see #31).
+ */
 export function __resetWaveformCatalogForTests(): void {
   catalogPromise = null
 }

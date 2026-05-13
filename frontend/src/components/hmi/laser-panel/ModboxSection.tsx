@@ -43,7 +43,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
     () => pv.modboxStateAll(laser, modboxStateCount),
     [laser, modboxStateCount],
   )
-  const { state } = useWebSocketData<number | null>({ pvs })
+  const { state } = useWebSocketData<number | null>({ pvs, raw: true })
   const okCount = pvs.filter((name) => state[name]?.value === 1).length
   const total = pvs.length
   const tone =

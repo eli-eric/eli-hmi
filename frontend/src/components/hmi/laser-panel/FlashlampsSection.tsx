@@ -84,7 +84,7 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
     [channelPvs, delayCh1Pv, delayCh2Pv],
   )
 
-  const { state } = useWebSocketData<string | number | null>({ pvs: allPvs })
+  const { state } = useWebSocketData<string | number | null>({ pvs: allPvs, raw: true })
 
   const counts = useMemo(() => {
     const c: Record<FlashlampState, number> = { SB: 0, RUN: 0, STOP: 0, FAIL: 0 }

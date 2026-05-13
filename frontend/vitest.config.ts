@@ -13,6 +13,10 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'json-summary', 'cobertura'],
+      // Allow-list: only files under these paths count toward coverage. The
+      // L4 OPCPA paths are explicitly added (not excluded) so the primitives
+      // shipped in PR #26 (pv-names, usePvWrite, sections, etc.) participate
+      // in the threshold check below.
       include: [
         'src/lib/websocket/**',
         'src/lib/settings/**',
