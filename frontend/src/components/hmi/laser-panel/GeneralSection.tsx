@@ -9,6 +9,7 @@ import {
   BoolPill,
   FloatValue,
 } from '@/components/hmi/controls/Values'
+import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import { OverviewBar } from './OverviewBar'
 import styles from './sections.module.css'
@@ -56,6 +57,14 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
     [laser, moduleErrors],
   )
 
+  const shutterPv = pv.shutter(laser)
+  const phdMeanPv = pv.phdMean(laser)
+  const readPvs = useMemo(
+    () => [shutterPv, phdMeanPv],
+    [shutterPv, phdMeanPv],
+  )
+  const { state } = useWebSocketData<number | null>({ pvs: readPvs, raw: true })
+
   return (
     <SectionCard>
       <OverviewBar laser={laser} mssPvs={mssPvs} moduleErrorPvs={errPvs} />
@@ -65,7 +74,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
         valueVariant="bare"
         value={
           <BoolPill
-            pvName={pv.shutter(laser)}
+            data={state[shutterPv]}
             onLabel="is OPEN"
             offLabel="is CLOSED"
             onTone="negative-neutral"
@@ -92,7 +101,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
 
       <DataRow
         label="PHD1K000:49/Mean"
-        value={<FloatValue pvName={pv.phdMean(laser)} precision={3} />}
+        value={<FloatValue data={state[phdMeanPv]} precision={3} />}
       />
 
       <div className={styles.actionRow}>
