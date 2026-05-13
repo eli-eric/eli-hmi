@@ -39,6 +39,9 @@ jobs:
           git clone "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.wiki.git" wiki
 
       - name: Sync docs/ → wiki/
+        env:
+          REPO_SLUG: ${{ github.repository }}
+          LINK_REF: main
         run: node scripts/docs/sync-to-wiki.js docs wiki
 
       - name: Commit and push

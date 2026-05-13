@@ -3,6 +3,10 @@
 //
 // Usage: node scripts/docs/sync-to-wiki.js <docs-dir> <wiki-dir>
 //
+// Env:
+//   REPO_SLUG    — owner/name (default: eli-eric/eli-hmi)
+//   LINK_REF     — git ref for source links outside docs/ (default: main)
+//
 // Rules:
 //   - docs/README.md → wiki/Home.md
 //   - docs/<sub>/<file>.md → wiki/<sub>-<file>.md  (flattened with dir prefix)
@@ -10,9 +14,10 @@
 //       ./adr/0005-x.md   → [[adr-0005-x]]
 //       ../frontend/zones.md (read from inside docs/adr/, resolves to docs/frontend/zones.md)
 //                         → [[frontend-zones]]
+//       ../../frontend/README.md (out of docs/, inside repo)
+//                         → https://github.com/<REPO>/blob/<REF>/frontend/README.md
 //   - http(s)://, mailto:, anchor-only links pass through unchanged
-//   - Cross-tree relative links (e.g. ../../frontend/AGENTS.md) are left as-is — wiki readers
-//     who click them will see a 404; that's the deliberate boundary
+//   - Out-of-repo relative links are left as-is
 //   - Files under wiki/ that no longer have a counterpart in docs/ are deleted
 
 const fs = require('node:fs')
@@ -26,6 +31,9 @@ if (!docsDir || !wikiDir) {
 
 const absDocs = path.resolve(docsDir)
 const absWiki = path.resolve(wikiDir)
+const repoRoot = path.resolve(absDocs, '..')
+const repoSlug = process.env.REPO_SLUG || 'eli-eric/eli-hmi'
+const linkRef = process.env.LINK_REF || 'main'
 
 if (!fs.existsSync(absDocs)) {
   console.error(`docs dir not found: ${absDocs}`)
@@ -61,13 +69,23 @@ function rewriteLink(target, fromFileAbs) {
   if (!pathOnly.endsWith('.md')) return target
 
   const resolved = path.resolve(path.dirname(fromFileAbs), pathOnly)
-  // If the link points outside docs/, leave it as-is.
-  if (!resolved.startsWith(absDocs + path.sep) && resolved !== absDocs) {
-    return target
+
+  // In-tree (under docs/): emit a wiki link.
+  if (resolved.startsWith(absDocs + path.sep) || resolved === absDocs) {
+    if (!fs.existsSync(resolved)) return target // dangling — caught by check-links
+    const slug = wikiSlug(resolved)
+    return `[[${slug}${anchor}]]`
   }
-  if (!fs.existsSync(resolved)) return target // dangling — caught by check-links
-  const slug = wikiSlug(resolved)
-  return `[[${slug}${anchor}]]`
+
+  // Out-of-tree but inside the repo: rewrite to an absolute blob URL so wiki
+  // readers (whose base URL is the wiki, not the repo) land on the right file.
+  if (resolved.startsWith(repoRoot + path.sep)) {
+    const relFromRoot = path.relative(repoRoot, resolved).split(path.sep).join('/')
+    return `https://github.com/${repoSlug}/blob/${linkRef}/${relFromRoot}${anchor}`
+  }
+
+  // Outside the repo entirely — leave alone.
+  return target
 }
 
 const linkRe = /(\[[^\]]*\])\(([^)]+)\)/g
