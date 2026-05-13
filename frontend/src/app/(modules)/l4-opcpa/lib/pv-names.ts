@@ -13,6 +13,23 @@ const bi = (laser: string, field: string) => `BI_${laser}_${field}`
 const ai = (laser: string, field: string) => `AI_${laser}_${field}`
 const si = (laser: string, field: string) => `SI_${laser}_${field}`
 
+/**
+ * Command-PV name suffix. Must match a key in the Go backend's `sequences`
+ * map (backend/mockup-websocket-server/l4_opcpa.go, lowercased there). Adding
+ * a new command = update both this union and the backend map.
+ */
+export type LaserCommand =
+  | 'START_LASER'
+  | 'STOP_LASER'
+  | 'ALIGNMENT_MODE'
+  | 'SYSTEM_STANDBY'
+  | 'FLASHLAMPS_RUN'
+  | 'FLASHLAMPS_STANDBY'
+  | 'MODBOX_ON'
+  | 'MODBOX_OFF'
+  | 'SET_DELAY'
+  | 'LOAD_WAVEFORM'
+
 export const pv = {
   // General
   connection: (laser: string) => bi(laser, 'CONN'),
@@ -41,8 +58,9 @@ export const pv = {
   modboxState: (laser: string, i: number) => bi(laser, `MODBOX_${i}`),
   loadedWaveform: (laser: string) => si(laser, 'LOADED_WAVEFORM'),
 
-  // Command PVs (any action)
-  cmd: (laser: string, name: string) => `CMD_${laser}_${name}`,
+  // Command PVs (any action). `name` is constrained to the LaserCommand union
+  // so typos surface at compile time instead of as a 400 from the backend.
+  cmd: (laser: string, name: LaserCommand) => `CMD_${laser}_${name}`,
 
   // Array helpers — concentrate the "loop over N" idiom in one place.
   mssAll: (laser: string, count: number): readonly string[] =>

@@ -332,10 +332,14 @@ func commandPVEffects(name string, value interface{}) ([]pvEffect, error) {
 	if !isKnownLaser(laser) {
 		return nil, fmt.Errorf("unknown laser %q (must be one of %v)", laser, allLasers)
 	}
-	cmd := strings.ToLower(parts[1])
+	cmdRaw := parts[1]
+	cmd := strings.ToLower(cmdRaw)
 	seq, ok := sequences[cmd]
 	if !ok {
-		return nil, fmt.Errorf("unknown command %q", cmd)
+		// Echo the user's casing in the error so a typo like STAART_LASER is
+		// recognisable in the response body, while keeping case-insensitive
+		// lookup against the canonical lowercased map keys.
+		return nil, fmt.Errorf("unknown command %q (no sequence registered)", cmdRaw)
 	}
 	return seq(laser, value)
 }

@@ -90,9 +90,12 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
   }, [])
 
   const onConfirm = useCallback(() => {
-    if (staged === null || !inRange(staged)) return
+    if (staged === null) return
+    const ok =
+      (min === undefined || staged >= min) &&
+      (max === undefined || staged <= max)
+    if (!ok) return
     void write(pvName, staged)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staged, pvName, write, min, max])
 
   return (
