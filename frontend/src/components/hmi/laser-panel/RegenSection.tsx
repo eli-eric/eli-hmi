@@ -24,6 +24,7 @@ export const RegenSection: FC<RegenSectionProps> = ({ laser }) => {
     <SectionCard>
       <DataRow
         label="Regen SY3PL50M:32"
+        valueVariant="bare"
         value={
           <BoolPill
             pvName={pv.regenState(laser)}

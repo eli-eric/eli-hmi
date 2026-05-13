@@ -68,6 +68,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
     <SectionCard>
       <DataRow
         label="Modbox State"
+        valueVariant="bare"
         value={
           <button
             type="button"
@@ -75,7 +76,6 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
             aria-expanded={expanded}
             aria-label="Toggle Modbox state detail"
             onClick={() => setExpanded((v) => !v)}
-            data-bare="true"
           >
             <span className={styles.modboxStatePill} data-tone={tone}>
               <span className={styles.modboxStateCount}>

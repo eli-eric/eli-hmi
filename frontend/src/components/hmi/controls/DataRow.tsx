@@ -6,6 +6,13 @@ interface DataRowProps {
   value: ReactNode
   /** Optional trailing slot for a cog-button / write affordance. */
   action?: ReactNode
+  /**
+   * Visual variant of the value cell.
+   * - 'boxed' (default): standard bordered cell.
+   * - 'bare': transparent, no border/padding — for inline pills/buttons that
+   *   carry their own chrome.
+   */
+  valueVariant?: 'boxed' | 'bare'
 }
 
 /**
@@ -13,11 +20,18 @@ interface DataRowProps {
  * cog-button at the far right. Two-column layout with the value column
  * left-aligned for tabular feel.
  */
-export const DataRow: FC<DataRowProps> = ({ label, value, action }) => {
+export const DataRow: FC<DataRowProps> = ({
+  label,
+  value,
+  action,
+  valueVariant = 'boxed',
+}) => {
+  const valueClass =
+    valueVariant === 'bare' ? `${styles.value} ${styles.valueBare}` : styles.value
   return (
     <div className={styles.row}>
       <span className={styles.label}>{label}</span>
-      <span className={styles.value}>{value}</span>
+      <span className={valueClass}>{value}</span>
       {action ? <span className={styles.action}>{action}</span> : null}
     </div>
   )

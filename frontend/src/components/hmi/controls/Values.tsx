@@ -69,7 +69,7 @@ export const BoolPill: FC<BoolPillProps> = ({
   const { data } = useWebSocketData<number | null>(pvName, { raw: true })
   if (!data || !data.ok || data.value === null) {
     return (
-      <span className={styles.pill} data-tone="unknown" data-bare="true">
+      <span className={styles.pill} data-tone="unknown">
         {EMPTY}
       </span>
     )
@@ -79,7 +79,6 @@ export const BoolPill: FC<BoolPillProps> = ({
     <span
       className={styles.pill}
       data-tone={isOn ? onTone : offTone}
-      data-bare="true"
     >
       {isOn ? onLabel : offLabel}
     </span>

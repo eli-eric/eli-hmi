@@ -62,6 +62,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
 
       <DataRow
         label="Shutter Position"
+        valueVariant="bare"
         value={
           <BoolPill
             pvName={pv.shutter(laser)}
