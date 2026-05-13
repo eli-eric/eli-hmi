@@ -1,5 +1,7 @@
 # LaserPanel Component
 
+> Architecture context: [`docs/frontend/hmi-components.md`](../../../../../docs/frontend/hmi-components.md). The compound-component pattern is recorded in [ADR-0003](../../../../../docs/adr/0003-compound-components-for-hmi-panels.md).
+
 Compound component for a single laser column on the `/l4-opcpa` page. Mirrors
 the `VolumePanel` idiom (compound parent + static-property section
 subcomponents) but adapted to the laser-control domain: each laser column has

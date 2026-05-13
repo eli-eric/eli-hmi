@@ -2,6 +2,8 @@
 
 Guidance for coding agents (Claude Code etc.) working in this repository.
 
+For architecture, runbooks, ADRs, and the canonical map of the codebase, start at [`/docs/`](./docs/README.md). Wiki mirror: published to the GitHub Wiki on push to `dev`.
+
 ## Workflow
 
 - When entering plan mode or producing any implementation plan, invoke the `tdd` skill and structure the plan around it: failing test first, minimal code to pass, refactor.
