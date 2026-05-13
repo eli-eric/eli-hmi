@@ -47,9 +47,16 @@ interface WriteResult {
 async function authHeaders(): Promise<Record<string, string>> {
   // Bound getSession with a short timeout — in some dev configurations
   // /api/auth/session can hang and would otherwise block every write.
+  // Clear the timeout when getSession wins so we don't leak a 1.5s pending
+  // timer on every call.
+  let timer: ReturnType<typeof setTimeout> | undefined
   const session = await Promise.race([
-    getSession(),
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+    getSession().finally(() => {
+      if (timer !== undefined) clearTimeout(timer)
+    }),
+    new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), 1500)
+    }),
   ])
   const token = session?.accessToken ?? 'dev-no-session'
   return { Authorization: `Bearer ${token}` }
