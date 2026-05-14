@@ -117,6 +117,7 @@ html {
   align-items: stretch;
   align-self: stretch;
   background: var(--color-background);
+  overflow: auto;
 }
 
 /* Utility classes */

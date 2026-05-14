@@ -11,7 +11,7 @@
 
 .header {
   position: sticky;
-  top: 0;
+  top: var(--header-stack-height, 0);
   z-index: 1;
   background: var(--color-text);
   color: var(--color-surface-lighter);
