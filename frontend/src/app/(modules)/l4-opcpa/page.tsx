@@ -2,7 +2,6 @@
 
 import { useWebSocketContext } from '@/app/providers/socket-provider'
 import { LaserGrid } from './components/laser-grid'
-import { ColorLegend } from './components/color-legend'
 import { LaserPanelInstance } from './components/laser-panel-instance'
 import { LASER_SPECS } from './components/laser-specs'
 import styles from './page.module.css'
@@ -14,11 +13,11 @@ export default function L4OpcpaPage() {
       <div className={styles.stickyHeader}>
         <header className={styles.header}>
           <h1 className={styles.title}>L4 OPCPA</h1>
-          <ColorLegend />
         </header>
         {!isConnected && (
           <div className={styles.disconnected} role="status">
-            WebSocket disconnected — values shown are last-known and may be stale.
+            WebSocket disconnected — values shown are last-known and may be
+            stale.
           </div>
         )}
       </div>

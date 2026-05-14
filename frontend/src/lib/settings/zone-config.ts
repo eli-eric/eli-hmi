@@ -14,28 +14,11 @@ export const ZONE_CONFIGS: ZoneConfigMap = {
   [ZONE_CODE_TEST]: {
     navigationItems: [
       {
-        text: 'P3 Controls',
-        href: '/p3-controls',
-      },
-      {
-        text: 'L3BT Controls',
-        href: '/l3bt-controls',
-      },
-      {
-        text: 'L4fBT Controls',
-        href: '/l4fbt-controls',
-      },
-      {
         text: 'L4 OPCPA Controls',
         href: '/l4-opcpa',
       },
     ],
-    allowedRoutes: [
-      '/p3-controls',
-      '/l3bt-controls',
-      '/l4fbt-controls',
-      '/l4-opcpa',
-    ],
+    allowedRoutes: ['/l4-opcpa'],
   },
   [ZONE_CODE_PRODUCTION]: {
     navigationItems: [],
