@@ -68,6 +68,15 @@ var (
 /* --------------------------- main ---------------------------------------- */
 
 func main() {
+	e := newServer()
+	seedLaserPVs()
+
+	addr := ":8080"
+	log.Println("Sim gateway listening on", addr)
+	e.Logger.Fatal(e.Start(addr))
+}
+
+func newServer() *echo.Echo {
 	e := echo.New()
 	e.Use(middleware.Logger(), middleware.Recover())
 
@@ -78,6 +87,7 @@ func main() {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
+	e.GET("/", rootHandler)
 	e.GET("/ws/pvs", wsHandler) // main ws route
 	e.PUT("/pv/:name", setRealLikePVHandler)
 
@@ -90,11 +100,7 @@ func main() {
 	e.GET("/waveforms", listWaveformsHandler)
 	e.GET("/mode/fail-rate/:n", setFailRateHandler) // 0 disables; default 10 → 10%
 
-	seedLaserPVs()
-
-	addr := ":8080"
-	log.Println("Sim gateway listening on", addr)
-	e.Logger.Fatal(e.Start(addr))
+	return e
 }
 
 /* ---------------------- per-PV simulator --------------------------------- */
