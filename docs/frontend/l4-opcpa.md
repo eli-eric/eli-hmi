@@ -1,0 +1,65 @@
+# L4 OPCPA
+
+The laser-control page. Lives at `frontend/src/app/(modules)/l4-opcpa/`. Source spec: [Confluence — Requirements: L4 OPCPA Control System](https://eli-eric.atlassian.net/wiki/spaces/CS/pages/2333902150).
+
+## Why this page is special
+
+Three things distinguish it from the other module pages:
+
+1. **Custom shell, not `ModuleControlPage`.** The L4 wireframe is a flat 5-column grid of laser status panels — General / Regen / Chillers / Flashlamps / Modbox. The vacuum-system layout of `ModuleControlPage` doesn't fit; forcing it would mean stubbing out every panel. See [ADR-0007](../adr/0007-l4-custom-shell-not-modulecontrolpage.md).
+2. **Per-page topology config, not `ModuleConfig`.** `laser-specs.ts` lives under this module's `components/`, not under `lib/modules/`. It describes per-laser *topology* (counts, IDs, presets) rather than the panel-layout `ModuleConfig` consumed by `ModuleControlPage`. See [ADR-0008](../adr/0008-laser-specs-location.md).
+3. **PV-name registry.** A dedicated module (`l4-opcpa/lib/pv-names.ts`) builds every PV name from typed helpers — no inline string templates anywhere in the laser code. See [ADR-0006](../adr/0006-pv-name-registry-l4-opcpa.md).
+
+## Layout
+
+```
+app/(modules)/l4-opcpa/
+├── page.tsx                       # custom shell
+├── page.module.css
+├── lib/
+│   ├── pv-names.ts                # PV-name registry
+│   └── pv-names.test.ts
+└── components/
+    ├── laser-grid.tsx             # CSS grid wrapper
+    ├── color-legend.tsx
+    ├── laser-specs.ts             # LASER_SPECS array
+    └── laser-panel-instance.tsx   # renders one laser from a LaserSpec
+```
+
+`LaserPanel` and its sections live in `frontend/src/components/hmi/laser-panel/` (shared compound component, not L4-specific). Reusable primitives (`SectionCard`, `DataRow`, `DetailList`, `usePvWrite`, `ActionButton`, `PresetIntegerInput`, `CogToggle`, `WaveformSelect`, readouts) live in `frontend/src/components/hmi/controls/`.
+
+## PV-name registry
+
+```ts
+import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+
+pv.shutter('NL2')                       // 'BI_NL2_SHUTTER'
+pv.flashlampChannel('NL2', '22', '1')   // 'SI_NL2_FL_22_CH1'
+pv.cmd('NL2', 'START_LASER')            // 'CMD_NL2_START_LASER'
+pv.mssAll('NL2', 6)                     // ['BI_NL2_MSS_1', …, 'BI_NL2_MSS_6']
+```
+
+The mock backend (`backend/mockup-websocket-server/l4_opcpa.go`) hand-mirrors the same names. A header comment in `l4_opcpa.go` points back to `pv-names.ts` as the canonical source. **Keep them in sync** when adding PVs.
+
+## Write path
+
+Every UI action is `POST /pv/<NAME>` with `{value: ...}`:
+
+- **Command PVs** (`CMD_<L>_<NAME>`) — the backend dispatches a coordinated effect chain (e.g. `start_laser` writes 25+ PVs). The frontend treats the CMD PV as a fire-and-forget trigger.
+- **Direct PVs** (`BI_<L>_SHUTTER`, `AI_<L>_ATT`) — straight write.
+
+All controls share one lifecycle via `usePvWrite()` — see [hmi-components](hmi-components.md#write-controls).
+
+## Topology source
+
+`LASER_SPECS` mirrors NL2's topology across NL1, NL3, NL4, NL5 because Confluence only documents NL2 and APL. When divergent topology is confirmed (chiller bank counts, flashlamp box IDs per laser), extend `LASER_SPECS` per entry. The static config is a placeholder for the day a `GET /lasers` endpoint exists on the python-backend — at that point the fetch replaces the constant and topology becomes the canonical source. (Recorded in [ADR-0008](../adr/0008-laser-specs-location.md).)
+
+## Mock-backend behaviour
+
+The mock seeds at-rest defaults for all 5 lasers on startup. Sequences hold their effect-PV writes for 3 s before releasing them back to auto-simulated drift around the last-set value. 10 % failure injection is off by default — enable it for demos:
+
+```bash
+curl http://localhost:8080/mode/fail-rate/10
+```
+
+Detail: [`frontend/src/app/(modules)/l4-opcpa/README.md`](../../frontend/src/app/(modules)/l4-opcpa/README.md).

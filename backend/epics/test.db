@@ -1,0 +1,4203 @@
+record(calc, "AI_0") {
+    field(SCAN, ".1 second")
+    field(VAL, "0.0")
+    field(INPA, "AI_0 NPP NMS")
+    field(CALC, "A>=100?0:A+0.7")
+}
+
+record(calc, "AI_1") {
+    field(SCAN, ".1 second")
+    field(VAL, "5.0")
+
+    field(EGU, "Volts")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+
+    field(HIHI, "79.0")
+    field(HHSV, "MAJOR")
+    field(HIGH, "38.0")
+    field(HSV, "MINOR")
+    field(LOW, "2.0")
+    field(LSV, "MINOR")
+    field(LOLO, "1.0")
+    field(LLSV, "MAJOR")
+    field(INPA, "AI_1 NPP NMS")
+    field(CALC, "A>=95?5:A+4.5")
+}
+
+record(calc, "AI_2") {
+    field(SCAN, ".1 second")
+    field(VAL, "0.0")
+    field(INPA, "AI_2 NPP NMS")
+    field(CALC, "A>=100?0:A+0.7")
+}
+
+record(calc, "AI_3") {
+    field(SCAN, ".1 second")
+    field(VAL, "0.0")
+    field(INPA, "AI_3 NPP NMS")
+    field(CALC, "A>=100?0:A+0.7")
+}
+
+record(calc, "AI_4") {
+    field(SCAN, ".1 second")
+    field(VAL, "0.0")
+    field(INPA, "AI_4 NPP NMS")
+    field(CALC, "A>=100?0:A+0.7")
+}
+
+record(calc, "AI_5") {
+    field(SCAN, ".2 second")
+    field(VAL, "100.0")
+    field(INPA, "AI_5 NPP NMS")
+    field(CALC, "A<=0?100:A-1.5")
+}
+
+record(calc, "AI_6") {
+    field(SCAN, ".2 second")
+    field(VAL, "100.0")
+    field(INPA, "AI_6 NPP NMS")
+    field(CALC, "A<=0?100:A-1.5")
+}
+
+record(calc, "AI_7") {
+    field(SCAN, ".2 second")
+    field(VAL, "100.0")
+    field(INPA, "AI_7 NPP NMS")
+    field(CALC, "A<=0?100:A-1.5")
+}
+
+record(calc, "AI_8") {
+    field(SCAN, ".2 second")
+    field(VAL, "100.0")
+    field(INPA, "AI_8 NPP NMS")
+    field(CALC, "A<=0?100:A-1.5")
+}
+
+record(calc, "AI_9") {
+    field(SCAN, ".2 second")
+    field(VAL, "100.0")
+    field(INPA, "AI_9 NPP NMS")
+    field(CALC, "A<=0?100:A-1.5")
+}
+
+record(calc, "AI_10") {
+    field(SCAN, ".1 second")
+    field(VAL, "20.0")
+    field(INPA, "AI_10 NPP NMS")
+    field(CALC, "A>=80?20:A+2.4")
+}
+
+record(calc, "AI_11") {
+    field(SCAN, ".1 second")
+    field(VAL, "20.0")
+    field(INPA, "AI_11 NPP NMS")
+    field(CALC, "A>=80?20:A+2.4")
+}
+
+record(calc, "AI_12") {
+    field(SCAN, ".1 second")
+    field(VAL, "20.0")
+    field(INPA, "AI_12 NPP NMS")
+    field(CALC, "A>=80?20:A+2.4")
+}
+
+record(calc, "AI_13") {
+    field(SCAN, ".1 second")
+    field(VAL, "20.0")
+    field(INPA, "AI_13 NPP NMS")
+    field(CALC, "A>=80?20:A+2.4")
+}
+
+record(calc, "AI_14") {
+    field(SCAN, ".1 second")
+    field(VAL, "20.0")
+    field(INPA, "AI_14 NPP NMS")
+    field(CALC, "A>=80?20:A+2.4")
+}
+
+record(calc, "AI_15") {
+    field(SCAN, ".2 second")
+    field(VAL, "90.0")
+    field(INPA, "AI_15 NPP NMS")
+    field(CALC, "A<=10?90:A-3.0")
+}
+
+record(calc, "AI_16") {
+    field(SCAN, ".2 second")
+    field(VAL, "90.0")
+    field(INPA, "AI_16 NPP NMS")
+    field(CALC, "A<=10?90:A-3.0")
+}
+
+record(calc, "AI_17") {
+    field(SCAN, ".2 second")
+    field(VAL, "90.0")
+    field(INPA, "AI_17 NPP NMS")
+    field(CALC, "A<=10?90:A-3.0")
+}
+
+record(calc, "AI_18") {
+    field(SCAN, ".2 second")
+    field(VAL, "90.0")
+    field(INPA, "AI_18 NPP NMS")
+    field(CALC, "A<=10?90:A-3.0")
+}
+
+record(calc, "AI_19") {
+    field(SCAN, ".2 second")
+    field(VAL, "90.0")
+    field(INPA, "AI_19 NPP NMS")
+    field(CALC, "A<=10?90:A-3.0")
+}
+
+record(calc, "BI_0") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_0 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_1") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_1 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_2") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_2 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_3") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_3 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_4") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_4 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_5") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_5 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_6") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_6 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_7") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_7 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_8") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_8 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_9") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_9 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_10") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_10 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_11") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_11 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_12") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_12 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_13") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_13 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_14") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_14 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_15") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_15 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_16") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_16 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_17") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_17 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_18") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_18 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_19") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_19 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_20") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_20 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_21") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_21 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_22") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_22 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_23") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_23 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_24") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_24 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_25") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_25 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_26") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_26 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_27") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_27 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_28") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_28 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_29") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_29 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_30") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_30 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_31") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_31 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_32") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_32 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_33") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_33 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_34") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_34 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_35") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_35 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_36") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_36 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_37") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_37 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_38") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_38 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_39") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_39 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_40") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_40 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_41") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_41 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_42") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_42 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_43") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_43 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_44") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_44 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_45") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_45 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_46") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_46 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_47") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_47 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_48") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_48 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_49") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_49 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_50") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_50 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_51") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_51 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_52") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_52 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_53") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_53 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_54") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_54 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_55") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_55 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_56") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_56 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_57") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_57 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_58") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_58 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_59") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_59 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_60") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_60 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_61") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_61 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_62") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_62 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_63") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_63 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_64") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_64 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_65") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_65 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_66") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_66 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_67") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_67 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_68") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_68 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_69") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_69 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_70") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_70 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_71") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_71 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_72") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_72 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_73") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_73 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_74") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_74 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_75") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_75 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_76") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_76 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_77") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_77 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_78") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_78 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_79") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_79 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_80") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_80 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_81") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_81 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_82") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_82 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_83") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_83 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_84") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_84 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_85") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_85 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_86") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_86 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_87") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_87 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_88") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_88 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_89") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_89 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_90") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_90 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_91") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_91 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_92") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_92 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_93") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_93 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_94") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_94 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_95") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_95 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_96") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_96 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_97") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_97 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_98") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_98 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_99") {
+    field(SCAN, ".5 second")
+    field(VAL, "0")
+    field(INPA, "BI_99 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_100") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_100 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_101") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_101 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_102") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_102 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_103") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_103 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_104") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_104 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_105") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_105 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_106") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_106 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_107") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_107 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_108") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_108 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_109") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_109 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_110") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_110 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_111") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_111 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_112") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_112 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_113") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_113 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_114") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_114 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_115") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_115 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_116") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_116 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_117") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_117 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_118") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_118 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_119") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_119 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_120") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_120 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_121") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_121 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_122") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_122 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_123") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_123 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_124") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_124 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_125") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_125 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_126") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_126 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_127") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_127 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_128") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_128 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_129") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_129 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_130") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_130 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_131") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_131 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_132") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_132 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_133") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_133 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_134") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_134 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_135") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_135 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_136") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_136 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_137") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_137 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_138") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_138 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_139") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_139 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_140") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_140 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_141") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_141 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_142") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_142 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_143") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_143 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_144") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_144 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_145") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_145 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_146") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_146 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_147") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_147 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_148") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_148 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_149") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_149 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_150") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_150 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_151") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_151 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_152") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_152 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_153") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_153 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_154") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_154 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_155") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_155 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_156") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_156 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_157") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_157 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_158") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_158 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_159") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_159 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_160") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_160 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_161") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_161 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_162") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_162 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_163") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_163 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_164") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_164 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_165") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_165 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_166") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_166 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_167") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_167 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_168") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_168 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_169") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_169 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_170") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_170 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_171") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_171 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_172") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_172 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_173") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_173 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_174") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_174 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_175") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_175 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_176") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_176 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_177") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_177 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_178") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_178 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_179") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_179 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_180") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_180 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_181") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_181 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_182") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_182 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_183") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_183 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_184") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_184 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_185") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_185 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_186") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_186 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_187") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_187 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_188") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_188 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_189") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_189 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_190") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_190 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_191") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_191 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_192") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_192 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_193") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_193 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_194") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_194 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_195") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_195 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_196") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_196 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_197") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_197 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_198") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_198 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_199") {
+    field(SCAN, "1 second")
+    field(VAL, "1")
+    field(INPA, "BI_199 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_200") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_200 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_201") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_201 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_202") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_202 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_203") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_203 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_204") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_204 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_205") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_205 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_206") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_206 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_207") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_207 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_208") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_208 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_209") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_209 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_210") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_210 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_211") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_211 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_212") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_212 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_213") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_213 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_214") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_214 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_215") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_215 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_216") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_216 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_217") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_217 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_218") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_218 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_219") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_219 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_220") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_220 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_221") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_221 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_222") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_222 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_223") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_223 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_224") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_224 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_225") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_225 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_226") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_226 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_227") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_227 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_228") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_228 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_229") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_229 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_230") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_230 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_231") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_231 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_232") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_232 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_233") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_233 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_234") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_234 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_235") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_235 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_236") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_236 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_237") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_237 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_238") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_238 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_239") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_239 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_240") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_240 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_241") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_241 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_242") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_242 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_243") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_243 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_244") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_244 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_245") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_245 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_246") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_246 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_247") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_247 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_248") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_248 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_249") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_249 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_250") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_250 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_251") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_251 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_252") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_252 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_253") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_253 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_254") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_254 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_255") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_255 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_256") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_256 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_257") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_257 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_258") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_258 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_259") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_259 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_260") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_260 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_261") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_261 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_262") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_262 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_263") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_263 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_264") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_264 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_265") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_265 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_266") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_266 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_267") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_267 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_268") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_268 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_269") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_269 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_270") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_270 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_271") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_271 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_272") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_272 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_273") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_273 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_274") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_274 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_275") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_275 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_276") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_276 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_277") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_277 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_278") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_278 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_279") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_279 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_280") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_280 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_281") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_281 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_282") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_282 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_283") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_283 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_284") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_284 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_285") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_285 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_286") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_286 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_287") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_287 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_288") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_288 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_289") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_289 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_290") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_290 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_291") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_291 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_292") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_292 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_293") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_293 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_294") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_294 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_295") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_295 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_296") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_296 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_297") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_297 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_298") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_298 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_299") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_299 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_300") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_300 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_301") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_301 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_302") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_302 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_303") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_303 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_304") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_304 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_305") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_305 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_306") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_306 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_307") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_307 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_308") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_308 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_309") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_309 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_310") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_310 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_311") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_311 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_312") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_312 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_313") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_313 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_314") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_314 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_315") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_315 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_316") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_316 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_317") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_317 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_318") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_318 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_319") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_319 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_320") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_320 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_321") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_321 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_322") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_322 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_323") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_323 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_324") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_324 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_325") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_325 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_326") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_326 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_327") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_327 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_328") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_328 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_329") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_329 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_330") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_330 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_331") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_331 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_332") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_332 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_333") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_333 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_334") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_334 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_335") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_335 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_336") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_336 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_337") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_337 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_338") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_338 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_339") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_339 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_340") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_340 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_341") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_341 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_342") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_342 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_343") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_343 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_344") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_344 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_345") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_345 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_346") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_346 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_347") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_347 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_348") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_348 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_349") {
+    field(SCAN, "2 second")
+    field(VAL, "0")
+    field(INPA, "BI_349 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_350") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_350 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_351") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_351 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_352") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_352 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_353") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_353 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_354") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_354 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_355") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_355 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_356") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_356 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_357") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_357 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_358") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_358 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_359") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_359 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_360") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_360 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_361") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_361 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_362") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_362 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_363") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_363 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_364") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_364 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_365") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_365 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_366") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_366 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_367") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_367 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_368") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_368 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_369") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_369 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_370") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_370 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_371") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_371 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_372") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_372 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_373") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_373 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_374") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_374 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_375") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_375 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_376") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_376 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_377") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_377 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_378") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_378 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_379") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_379 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_380") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_380 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_381") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_381 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_382") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_382 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_383") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_383 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_384") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_384 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_385") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_385 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_386") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_386 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_387") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_387 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_388") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_388 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_389") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_389 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_390") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_390 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_391") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_391 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_392") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_392 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_393") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_393 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_394") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_394 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_395") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_395 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_396") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_396 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_397") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_397 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_398") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_398 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_399") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_399 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_400") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_400 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_401") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_401 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_402") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_402 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_403") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_403 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_404") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_404 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_405") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_405 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_406") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_406 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_407") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_407 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_408") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_408 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_409") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_409 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_410") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_410 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_411") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_411 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_412") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_412 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_413") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_413 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_414") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_414 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_415") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_415 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_416") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_416 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_417") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_417 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_418") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_418 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_419") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_419 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_420") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_420 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_421") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_421 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_422") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_422 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_423") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_423 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_424") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_424 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_425") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_425 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_426") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_426 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_427") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_427 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_428") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_428 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_429") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_429 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_430") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_430 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_431") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_431 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_432") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_432 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_433") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_433 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_434") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_434 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_435") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_435 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_436") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_436 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_437") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_437 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_438") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_438 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_439") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_439 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_440") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_440 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_441") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_441 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_442") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_442 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_443") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_443 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_444") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_444 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_445") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_445 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_446") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_446 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_447") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_447 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_448") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_448 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_449") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_449 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_450") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_450 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_451") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_451 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_452") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_452 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_453") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_453 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_454") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_454 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_455") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_455 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_456") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_456 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_457") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_457 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_458") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_458 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_459") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_459 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_460") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_460 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_461") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_461 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_462") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_462 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_463") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_463 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_464") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_464 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_465") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_465 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_466") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_466 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_467") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_467 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_468") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_468 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_469") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_469 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_470") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_470 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_471") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_471 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_472") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_472 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_473") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_473 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_474") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_474 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_475") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_475 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_476") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_476 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_477") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_477 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_478") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_478 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_479") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_479 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_480") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_480 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_481") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_481 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_482") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_482 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_483") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_483 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_484") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_484 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_485") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_485 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_486") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_486 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_487") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_487 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_488") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_488 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_489") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_489 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_490") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_490 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_491") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_491 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_492") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_492 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_493") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_493 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_494") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_494 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_495") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_495 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_496") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_496 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_497") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_497 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_498") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_498 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(calc, "BI_499") {
+    field(SCAN, "5 second")
+    field(VAL, "1")
+    field(INPA, "BI_499 NPP NMS")
+    field(CALC, "A=0?1:0")
+}
+
+record(compress, "WF_0") {
+    field(DESC, "Recent samples from AI_0")
+    field(SCAN, ".1 second")
+    field(INP, "AI_0 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "100")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_1") {
+    field(DESC, "Recent samples from AI_1")
+    field(SCAN, ".1 second")
+    field(INP, "AI_1 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_2") {
+    field(DESC, "Recent samples from AI_2")
+    field(SCAN, ".1 second")
+    field(INP, "AI_2 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_3") {
+    field(DESC, "Recent samples from AI_3")
+    field(SCAN, ".1 second")
+    field(INP, "AI_3 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_4") {
+    field(DESC, "Recent samples from AI_4")
+    field(SCAN, ".1 second")
+    field(INP, "AI_4 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_5") {
+    field(DESC, "Recent samples from AI_5")
+    field(SCAN, ".1 second")
+    field(INP, "AI_5 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_6") {
+    field(DESC, "Recent samples from AI_6")
+    field(SCAN, ".1 second")
+    field(INP, "AI_6 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_7") {
+    field(DESC, "Recent samples from AI_7")
+    field(SCAN, ".1 second")
+    field(INP, "AI_7 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_8") {
+    field(DESC, "Recent samples from AI_8")
+    field(SCAN, ".1 second")
+    field(INP, "AI_8 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_9") {
+    field(DESC, "Recent samples from AI_9")
+    field(SCAN, ".1 second")
+    field(INP, "AI_9 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_10") {
+    field(DESC, "Recent samples from AI_10")
+    field(SCAN, ".2 second")
+    field(INP, "AI_10 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_11") {
+    field(DESC, "Recent samples from AI_11")
+    field(SCAN, ".2 second")
+    field(INP, "AI_11 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_12") {
+    field(DESC, "Recent samples from AI_12")
+    field(SCAN, ".2 second")
+    field(INP, "AI_12 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_13") {
+    field(DESC, "Recent samples from AI_13")
+    field(SCAN, ".2 second")
+    field(INP, "AI_13 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_14") {
+    field(DESC, "Recent samples from AI_14")
+    field(SCAN, ".2 second")
+    field(INP, "AI_14 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_15") {
+    field(DESC, "Recent samples from AI_15")
+    field(SCAN, ".2 second")
+    field(INP, "AI_15 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_16") {
+    field(DESC, "Recent samples from AI_16")
+    field(SCAN, ".2 second")
+    field(INP, "AI_16 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_17") {
+    field(DESC, "Recent samples from AI_17")
+    field(SCAN, ".2 second")
+    field(INP, "AI_17 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_18") {
+    field(DESC, "Recent samples from AI_18")
+    field(SCAN, ".2 second")
+    field(INP, "AI_18 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_19") {
+    field(DESC, "Recent samples from AI_19")
+    field(SCAN, ".2 second")
+    field(INP, "AI_19 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "1000")
+    field(PREC, "2")
+    field(HOPR, "100.0")
+    field(LOPR, "0.0")
+}
+
+record(compress, "WF_20") {
+    field(DESC, "Recent state history from BI_0")
+    field(SCAN, ".5 second")
+    field(INP, "BI_0 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_21") {
+    field(DESC, "Recent state history from BI_1")
+    field(SCAN, ".5 second")
+    field(INP, "BI_1 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_22") {
+    field(DESC, "Recent state history from BI_2")
+    field(SCAN, ".5 second")
+    field(INP, "BI_2 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_23") {
+    field(DESC, "Recent state history from BI_3")
+    field(SCAN, ".5 second")
+    field(INP, "BI_3 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_24") {
+    field(DESC, "Recent state history from BI_4")
+    field(SCAN, ".5 second")
+    field(INP, "BI_4 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_25") {
+    field(DESC, "Recent state history from BI_5")
+    field(SCAN, ".5 second")
+    field(INP, "BI_5 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_26") {
+    field(DESC, "Recent state history from BI_6")
+    field(SCAN, ".5 second")
+    field(INP, "BI_6 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_27") {
+    field(DESC, "Recent state history from BI_7")
+    field(SCAN, ".5 second")
+    field(INP, "BI_7 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_28") {
+    field(DESC, "Recent state history from BI_8")
+    field(SCAN, ".5 second")
+    field(INP, "BI_8 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_29") {
+    field(DESC, "Recent state history from BI_9")
+    field(SCAN, ".5 second")
+    field(INP, "BI_9 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_30") {
+    field(DESC, "Recent state history from BI_10")
+    field(SCAN, ".5 second")
+    field(INP, "BI_10 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_31") {
+    field(DESC, "Recent state history from BI_11")
+    field(SCAN, ".5 second")
+    field(INP, "BI_11 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_32") {
+    field(DESC, "Recent state history from BI_12")
+    field(SCAN, ".5 second")
+    field(INP, "BI_12 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_33") {
+    field(DESC, "Recent state history from BI_13")
+    field(SCAN, ".5 second")
+    field(INP, "BI_13 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_34") {
+    field(DESC, "Recent state history from BI_14")
+    field(SCAN, ".5 second")
+    field(INP, "BI_14 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "256")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_35") {
+    field(DESC, "Recent state history from BI_15")
+    field(SCAN, "2 second")
+    field(INP, "BI_15 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_36") {
+    field(DESC, "Recent state history from BI_16")
+    field(SCAN, "2 second")
+    field(INP, "BI_16 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_37") {
+    field(DESC, "Recent state history from BI_17")
+    field(SCAN, "2 second")
+    field(INP, "BI_17 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_38") {
+    field(DESC, "Recent state history from BI_18")
+    field(SCAN, "2 second")
+    field(INP, "BI_18 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_39") {
+    field(DESC, "Recent state history from BI_19")
+    field(SCAN, "2 second")
+    field(INP, "BI_19 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_40") {
+    field(DESC, "Recent state history from BI_20")
+    field(SCAN, "2 second")
+    field(INP, "BI_20 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_41") {
+    field(DESC, "Recent state history from BI_21")
+    field(SCAN, "2 second")
+    field(INP, "BI_21 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_42") {
+    field(DESC, "Recent state history from BI_22")
+    field(SCAN, "2 second")
+    field(INP, "BI_22 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_43") {
+    field(DESC, "Recent state history from BI_23")
+    field(SCAN, "2 second")
+    field(INP, "BI_23 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_44") {
+    field(DESC, "Recent state history from BI_24")
+    field(SCAN, "2 second")
+    field(INP, "BI_24 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_45") {
+    field(DESC, "Recent state history from BI_25")
+    field(SCAN, "2 second")
+    field(INP, "BI_25 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_46") {
+    field(DESC, "Recent state history from BI_26")
+    field(SCAN, "2 second")
+    field(INP, "BI_26 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_47") {
+    field(DESC, "Recent state history from BI_27")
+    field(SCAN, "2 second")
+    field(INP, "BI_27 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_48") {
+    field(DESC, "Recent state history from BI_28")
+    field(SCAN, "2 second")
+    field(INP, "BI_28 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}
+
+record(compress, "WF_49") {
+    field(DESC, "Recent state history from BI_29")
+    field(SCAN, "2 second")
+    field(INP, "BI_29 NPP NMS")
+    field(ALG, "Circular Buffer")
+    field(NSAM, "512")
+    field(PREC, "0")
+    field(HOPR, "1")
+    field(LOPR, "0")
+}

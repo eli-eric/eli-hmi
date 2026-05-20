@@ -24,3 +24,16 @@
 .errorIcon:hover {
   color: var(--color-error-dark);
 }
+
+.chevronIcon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+/* Rotation is keyed off the scoped class + a data-expanded attribute on the
+   icon itself, so it cannot leak to unrelated `aria-expanded` ancestors. */
+.chevronIcon[data-expanded='true'] {
+  transform: rotate(180deg);
+}

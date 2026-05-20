@@ -12,9 +12,10 @@
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background: #c8c6c6;
+  background: var(--color-gray-300);
   box-shadow: none;
-  width: 450px;
+  width: 28.125rem;
+  max-width: 100%;
 }
 
 .header {
@@ -26,11 +27,11 @@
   font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: 1rem;
-  color: #000;
+  color: var(--color-text);
 }
 
 .message {
-  color: #333;
+  color: var(--color-gray-800);
   margin: 0.5rem 0;
   font-size: 1rem;
 }
@@ -38,21 +39,21 @@
 .subtitle {
   margin-top: 1rem !important;
   font-size: 0.875rem;
-  color: #555;
+  color: var(--color-gray-700);
 }
 
 .signOutButton {
   width: 100%;
   padding: 0.75rem;
-  background: #666666;
-  color: white;
+  background: var(--color-gray-700);
+  color: var(--color-gray-50);
   border: none;
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast) var(--timing-function-default);
 }
 
 .signOutButton:hover {
-  background: #555555;
+  background: var(--color-gray-800);
 }

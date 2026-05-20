@@ -1,6 +1,6 @@
-Thought for 8 seconds
-
 # Mock-up EPICS WebSocket Gateway
+
+> Architecture context: [`docs/backend/mock-server.md`](../../docs/backend/mock-server.md). Mock-vs-Python split recorded in [ADR-0005](../../docs/adr/0005-mock-vs-python-backend-split.md). Run: [`docs/runbooks/running-mock-backend.md`](../../docs/runbooks/running-mock-backend.md).
 
 A lightweight Go service that fakes an EPICS gateway:
 

@@ -1,13 +1,14 @@
 'use client'
 
 import React, { createContext, useContext, ReactNode } from 'react'
-import { useWebSocket } from '@/hooks/useWebsocket'
+import { useWebSocket } from '@/lib/websocket/use-websocket'
 import { WebSocketContextValue } from './types'
 
 // Types for context value
 
-// Create context with default values
-const WebSocketContext = createContext<WebSocketContextValue | undefined>(
+// Create context with default values. Exported so test helpers can wrap
+// components with a controllable provider (see src/test/ws-test-provider.tsx).
+export const WebSocketContext = createContext<WebSocketContextValue | undefined>(
   undefined,
 )
 

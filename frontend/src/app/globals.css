@@ -2,7 +2,7 @@
 @import './accessibility.css';
 
 :root {
-  /* Základní barvy - odstupňovaná šedá paleta */
+  /* Base colors — graduated grayscale palette */
   --color-gray-50: #f9fafb;
   --color-gray-100: #f3f4f6;
   --color-gray-200: #e6e6e6;
@@ -15,7 +15,7 @@
   --color-gray-900: #212121;
   --color-black: #000;
 
-  /* Sémantické barvy založené na odstupňované paletě */
+  /* Semantic colors built on the grayscale palette */
   --color-background: var(--color-gray-500);
   --color-surface-lighter: var(--color-gray-200);
   --color-surface-light: var(--color-gray-300);
@@ -25,7 +25,7 @@
   --color-text-secondary: var(--color-gray-600);
   --color-nav-background: var(--color-gray-800);
 
-  /* Stavové barvy - s variantami */
+  /* Status colors with light/dark variants */
   --color-primary-light: #3b91d2;
   --color-primary: #0284c7;
   --color-primary-dark: #0369a1;
@@ -46,16 +46,11 @@
   --color-success: #10b981;
   --color-success-dark: #059669;
 
-  /* Barvy pro interakce */
-  --color-focus: rgba(
-    2,
-    132,
-    199,
-    0.5
-  ); /* Modrá s průhledností pro focus stavy */
-  --color-hover-overlay: rgba(0, 0, 0, 0.05); /* Overlay pro hover stavy */
+  /* Interaction colors */
+  --color-focus: rgba(2, 132, 199, 0.5); /* Translucent blue for focus rings */
+  --color-hover-overlay: rgba(0, 0, 0, 0.05);
 
-  /* Zaoblení rohů */
+  /* Border radius scale */
   --border-radius-none: 0;
   --border-radius-sm: 0.125rem;
   --border-radius-md: 0.25rem;
@@ -63,36 +58,44 @@
   --border-radius-xl: 1rem;
   --border-radius-full: 9999px;
 
-  /* Stíny */
+  /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
-    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 
-  /* Přechody a animace */
+  /* Transitions and easing */
   --transition-fast: 150ms;
   --transition-normal: 300ms;
   --transition-slow: 500ms;
   --timing-function-default: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Mezery a rozvržení */
-  --spacing-unit: 0.25rem; /* Základní jednotka pro mezery, 1 = 0.25rem = 4px */
+  /* Spacing unit (1 = 0.25rem = 4px) */
+  --spacing-unit: 0.25rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   width: 100%;
+  min-height: 100vh;
   padding: 0;
   margin: 0;
 }
 
 .layout-container {
   display: flex;
-  height: calc(100vh - 3rem);
-  align-items: center;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
   align-self: stretch;
 }
 
@@ -108,15 +111,16 @@ html {
 
 .page-container {
   display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 2rem;
-  flex: 1 0 0;
+  align-items: stretch;
   align-self: stretch;
   background: var(--color-background);
+  overflow: auto;
 }
 
-/* Utility třídy */
+/* Utility classes */
 
 /* Flexbox */
 .flex {
@@ -150,7 +154,7 @@ html {
   gap: calc(var(--spacing-unit) * 8);
 }
 
-/* Marginy a paddingy */
+/* Margins and paddings */
 .m-0 {
   margin: 0;
 }
@@ -167,7 +171,7 @@ html {
   padding: calc(var(--spacing-unit) * 4);
 }
 
-/* Stíny */
+/* Shadows */
 .shadow-sm {
   box-shadow: var(--shadow-sm);
 }
@@ -178,7 +182,7 @@ html {
   box-shadow: var(--shadow-lg);
 }
 
-/* Přechody */
+/* Transitions */
 .transition {
   transition: all var(--transition-normal) var(--timing-function-default);
 }
@@ -189,7 +193,7 @@ html {
   transition: all var(--transition-slow) var(--timing-function-default);
 }
 
-/* Zaoblení */
+/* Border radius */
 .rounded-none {
   border-radius: var(--border-radius-none);
 }
@@ -206,7 +210,7 @@ html {
   border-radius: var(--border-radius-full);
 }
 
-/* Další užitečné utility */
+/* Misc */
 .hidden {
   display: none;
 }
@@ -232,7 +236,7 @@ html {
   text-align: right;
 }
 
-/* Utility pro barvy pozadí */
+/* Background utilities */
 .bg-surface {
   background-color: var(--color-surface);
 }
@@ -243,7 +247,7 @@ html {
   background-color: var(--color-surface-lighter);
 }
 
-/* Utility pro barvy textu */
+/* Text color utilities */
 .text-primary {
   color: var(--color-primary);
 }

@@ -1,0 +1,36 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-secondary);
+  padding: 0;
+  min-width: 280px;
+  color: var(--color-text);
+}
+
+.header {
+  position: sticky;
+  top: var(--header-stack-height, 0);
+  z-index: 1;
+  background: var(--color-text);
+  color: var(--color-surface-lighter);
+  padding: 0.375rem 0.625rem;
+  border-bottom: 1px solid var(--color-text);
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-surface-lighter);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 0 0.5rem;
+}
