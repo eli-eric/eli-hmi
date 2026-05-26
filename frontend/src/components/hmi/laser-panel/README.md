@@ -14,17 +14,20 @@ rather than the vacuum-system layout.
 import { LaserPanel } from '@/components/hmi/laser-panel'
 
 <LaserPanel title="NL2">
-  <LaserPanel.General laser="NL2" mssCount={6} moduleErrors={[...]} />
+  <LaserPanel.General laser="NL2" mssCount={6} moduleErrors={[...]} commands={[...]} />
   <LaserPanel.Regen laser="NL2" />
   <LaserPanel.Chillers laser="NL2" chillerIds={['11','12','13','14']} />
-  <LaserPanel.Flashlamps laser="NL2" boxIds={[...]} delayPresets={[...]} />
-  <LaserPanel.Modbox laser="NL2" modboxStateCount={5} />
+  <LaserPanel.Flashlamps laser="NL2" boxIds={[...]} channelsPerBox={2} delayPresets={[...]} commands={[...]} />
+  <LaserPanel.Modbox laser="NL2" modboxStateCount={5} commands={[...]} />
 </LaserPanel>
 ```
 
 Engineer-author UX: each laser's wiring is one declarative tree in
 `src/app/(modules)/l4-opcpa/components/laser-panel-instance.tsx`, fed by the
-`LASER_SPECS` array in `laser-specs.ts`.
+per-laser specs loaded from `config/lasers.yaml` (see that folder's README and
+[ADR-0009](../../../../../docs/adr/0009-per-laser-yaml-config.md)). Sections
+whose device bank is empty are omitted; `commands` (per laser) gates which
+action buttons render.
 
 ## Files
 

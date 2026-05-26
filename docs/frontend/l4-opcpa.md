@@ -7,23 +7,24 @@ The laser-control page. Lives at `frontend/src/app/(modules)/l4-opcpa/`. Source 
 Three things distinguish it from the other module pages:
 
 1. **Custom shell, not `ModuleControlPage`.** The L4 wireframe is a flat 5-column grid of laser status panels — General / Regen / Chillers / Flashlamps / Modbox. The vacuum-system layout of `ModuleControlPage` doesn't fit; forcing it would mean stubbing out every panel. See [ADR-0007](../adr/0007-l4-custom-shell-not-modulecontrolpage.md).
-2. **Per-page topology config, not `ModuleConfig`.** `laser-specs.ts` lives under this module's `components/`, not under `lib/modules/`. It describes per-laser *topology* (counts, IDs, presets) rather than the panel-layout `ModuleConfig` consumed by `ModuleControlPage`. See [ADR-0008](../adr/0008-laser-specs-location.md).
+2. **Per-laser topology in a YAML config, not `ModuleConfig`.** `config/lasers.yaml` (zod-validated, human-editable) describes each laser's *topology* (counts, IDs, presets, commands) — independently per laser — rather than the panel-layout `ModuleConfig` consumed by `ModuleControlPage`. See [ADR-0009](../adr/0009-per-laser-yaml-config.md) (supersedes [ADR-0008](../adr/0008-laser-specs-location.md)).
 3. **PV-name registry.** A dedicated module (`l4-opcpa/lib/pv-names.ts`) builds every PV name from typed helpers — no inline string templates anywhere in the laser code. See [ADR-0006](../adr/0006-pv-name-registry-l4-opcpa.md).
 
 ## Layout
 
 ```
 app/(modules)/l4-opcpa/
-├── page.tsx                       # custom shell
+├── page.tsx                       # server shell: loads + validates lasers.yaml
 ├── page.module.css
+├── config/                        # per-laser topology config (lasers.yaml + zod schema + loader)
 ├── lib/
 │   ├── pv-names.ts                # PV-name registry
 │   └── pv-names.test.ts
 └── components/
     ├── laser-grid.tsx             # CSS grid wrapper
     ├── color-legend.tsx
-    ├── laser-specs.ts             # LASER_SPECS array
-    └── laser-panel-instance.tsx   # renders one laser from a LaserSpec
+    ├── l4-opcpa-view.tsx          # client view (banner + grid), takes specs prop
+    └── laser-panel-instance.tsx   # renders one laser from a LaserSpec; hides empty-bank sections
 ```
 
 `LaserPanel` and its sections live in `frontend/src/components/hmi/laser-panel/` (shared compound component, not L4-specific). Reusable primitives (`SectionCard`, `DataRow`, `DetailList`, `usePvWrite`, `ActionButton`, `PresetIntegerInput`, `CogToggle`, `WaveformSelect`, readouts) live in `frontend/src/components/hmi/controls/`.
@@ -52,7 +53,7 @@ All controls share one lifecycle via `usePvWrite()` — see [hmi-components](hmi
 
 ## Topology source
 
-`LASER_SPECS` mirrors NL2's topology across NL1, NL3, NL4, NL5 because Confluence only documents NL2 and APL. When divergent topology is confirmed (chiller bank counts, flashlamp box IDs per laser), extend `LASER_SPECS` per entry. The static config is a placeholder for the day a `GET /lasers` endpoint exists on the python-backend — at that point the fetch replaces the constant and topology becomes the canonical source. (Recorded in [ADR-0008](../adr/0008-laser-specs-location.md).)
+`config/lasers.yaml` mirrors NL2's topology across NL1, NL3, NL4, NL5 because Confluence only documents NL2 and APL. When divergent topology is confirmed (chiller bank counts, flashlamp box IDs per laser), edit each laser's entry — every laser is configured independently. The YAML is read by `loadLaserSpecs()` (server-only, at build) and is the seam for the day a `GET /lasers` endpoint exists on the python-backend — at that point a fetch replaces the `fs` read and the gateway becomes the canonical source. Validation is zod (`config/schema.ts`); editor autocomplete comes from the generated `lasers.schema.json`. (Recorded in [ADR-0009](../adr/0009-per-laser-yaml-config.md).)
 
 ## Mock-backend behaviour
 
