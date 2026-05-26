@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { buildSchema } from '../../../../../scripts/gen-laser-schema'
+import { buildSchema } from '../../../../../scripts/build-laser-schema'
 
 const committed = readFileSync(
   join(process.cwd(), 'src/app/(modules)/l4-opcpa/config/lasers.schema.json'),

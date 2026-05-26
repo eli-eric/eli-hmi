@@ -126,6 +126,12 @@ describe('parseLaserSpecs', () => {
     ).toThrow(/lasers\.yaml is invalid/)
   })
 
+  it('rejects whitespace-only PV names', () => {
+    expect(() =>
+      parseLaserSpecs(doc([laser({ modbox: ['   '] })])),
+    ).toThrow(/lasers\.yaml is invalid/)
+  })
+
   it('rejects malformed YAML with a readable message', () => {
     expect(() => parseLaserSpecs('lasers: [unclosed')).toThrow(
       /not valid YAML/,

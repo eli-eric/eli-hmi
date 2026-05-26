@@ -33,7 +33,7 @@ export const ChillersSection: FC<ChillersSectionProps> = ({ chillers }) => {
         <span className={styles.colHeader}>Water</span>
 
         {chillers.map((c) => (
-          <div key={c.label} className={styles.contents}>
+          <div key={c.flow} className={styles.contents}>
             <span className={styles.rowLabel}>Chiller {c.label}</span>
             <span className={styles.numCell}>
               <FloatValue data={state[c.flow]} precision={3} />

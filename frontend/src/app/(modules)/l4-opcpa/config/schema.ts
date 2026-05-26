@@ -20,30 +20,28 @@ import { z } from 'zod'
 import { parse as parseYaml } from 'yaml'
 import { LASER_COMMANDS, type LaserCommand } from '../lib/pv-names'
 
-const pvName = z.string().min(1)
+// `.trim()` before `.min(1)` so a whitespace-only string (a common
+// copy/paste/edit slip) is rejected rather than passing validation and then
+// failing at runtime as a subscription to an effectively empty PV.
+const pvName = z.string().trim().min(1)
+const label = z.string().trim().min(1)
 
 const labeledPv = z.strictObject({
-  label: z.string().min(1).describe('Display label shown in the UI.'),
+  label: label.describe('Display label shown in the UI.'),
   pv: pvName.describe('Full EPICS PV name (from controls).'),
 })
 
 const chillerSchema = z.strictObject({
-  label: z
-    .string()
-    .min(1)
-    .describe('Chiller display label, e.g. PS1225:11.'),
+  label: label.describe('Chiller display label, e.g. PS1225:11.'),
   flow: pvName.describe('Flow readout PV.'),
   temp: pvName.describe('Temperature readout PV.'),
   level: pvName.describe('Water-level readout PV.'),
 })
 
 export const rawLaserSchema = z.strictObject({
-  id: z
-    .string()
-    .min(1)
-    .describe(
-      'Laser id, e.g. NL2. Panel title; also the <LASER> in command PVs (CMD_<id>_<NAME>).',
-    ),
+  id: label.describe(
+    'Laser id, e.g. NL2. Panel title; also the <LASER> in command PVs (CMD_<id>_<NAME>).',
+  ),
   pvs: z
     .strictObject({
       connection: pvName.describe('Connection bool (Overview CONN).'),
