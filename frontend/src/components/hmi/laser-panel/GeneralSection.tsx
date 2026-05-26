@@ -10,7 +10,7 @@ import {
   FloatValue,
 } from '@/components/hmi/controls/Values'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import { OverviewBar } from './OverviewBar'
 import styles from './sections.module.css'
 
@@ -23,6 +23,8 @@ interface GeneralSectionProps {
    * E.g. ['REGEN', 'CHILLER_11', 'CHILLER_12', 'FLASHLAMPS'].
    */
   moduleErrors: readonly string[]
+  /** Commands this laser exposes. Omitted = all shown (default). */
+  commands?: readonly LaserCommand[]
 }
 
 /**
@@ -47,7 +49,12 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
   laser,
   mssCount,
   moduleErrors,
+  commands,
 }) => {
+  const can = (c: LaserCommand) => !commands || commands.includes(c)
+  const hasGeneralActions = (
+    ['START_LASER', 'STOP_LASER', 'ALIGNMENT_MODE', 'SYSTEM_STANDBY'] as const
+  ).some(can)
   const mssPvs = useMemo(
     () => pv.mssAll(laser, mssCount),
     [laser, mssCount],
@@ -104,29 +111,39 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
         value={<FloatValue data={state[phdMeanPv]} precision={3} />}
       />
 
-      <div className={styles.actionRow}>
-        <CogToggle ariaLabel="General Actions" inlineLabel="General Actions">
-          <ActionButton
-            label="Start Laser"
-            pvName={pv.cmd(laser, 'START_LASER')}
-          />
-          <ActionButton
-            label="Stop Laser"
-            pvName={pv.cmd(laser, 'STOP_LASER')}
-            variant="danger"
-          />
-          <ActionButton
-            label="Alignment Mode"
-            pvName={pv.cmd(laser, 'ALIGNMENT_MODE')}
-            variant="secondary"
-          />
-          <ActionButton
-            label="System Standby"
-            pvName={pv.cmd(laser, 'SYSTEM_STANDBY')}
-            variant="secondary"
-          />
-        </CogToggle>
-      </div>
+      {hasGeneralActions && (
+        <div className={styles.actionRow}>
+          <CogToggle ariaLabel="General Actions" inlineLabel="General Actions">
+            {can('START_LASER') && (
+              <ActionButton
+                label="Start Laser"
+                pvName={pv.cmd(laser, 'START_LASER')}
+              />
+            )}
+            {can('STOP_LASER') && (
+              <ActionButton
+                label="Stop Laser"
+                pvName={pv.cmd(laser, 'STOP_LASER')}
+                variant="danger"
+              />
+            )}
+            {can('ALIGNMENT_MODE') && (
+              <ActionButton
+                label="Alignment Mode"
+                pvName={pv.cmd(laser, 'ALIGNMENT_MODE')}
+                variant="secondary"
+              />
+            )}
+            {can('SYSTEM_STANDBY') && (
+              <ActionButton
+                label="System Standby"
+                pvName={pv.cmd(laser, 'SYSTEM_STANDBY')}
+                variant="secondary"
+              />
+            )}
+          </CogToggle>
+        </div>
+      )}
     </SectionCard>
   )
 }

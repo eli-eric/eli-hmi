@@ -12,15 +12,19 @@ import {
 } from '@/components/hmi/controls/DetailList'
 import { ChevronIcon } from '@/components/ui/icons'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import styles from './sections.module.css'
 
 interface FlashlampsSectionProps {
   laser: string
-  /** Box ids e.g. ['22','23','24','25','26','27','28'] — each yields Ch1+Ch2 channels. */
+  /** Box ids e.g. ['22','23','24','25','26','27','28']. */
   boxIds: readonly string[]
+  /** Flashlamp channels per box (CH1..CHn). Default 2. */
+  channelsPerBox?: number
   /** Trigger-delay preset values (ns). */
   delayPresets: readonly number[]
+  /** Commands this laser exposes. Omitted = all shown (default). */
+  commands?: readonly LaserCommand[]
 }
 
 const STATES = ['SB', 'RUN', 'STOP', 'FAIL'] as const
@@ -60,21 +64,27 @@ function toneForState(
 export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
   laser,
   boxIds,
+  channelsPerBox = 2,
   delayPresets,
+  commands,
 }) => {
   const [expanded, setExpanded] = useState(false)
+  const can = (c: LaserCommand) => !commands || commands.includes(c)
+  const hasFlashlampActions = can('FLASHLAMPS_RUN') || can('FLASHLAMPS_STANDBY')
 
   const channelPvs = useMemo(
-    () => pv.flashlampChannelsAll(laser, boxIds),
-    [laser, boxIds],
+    () => pv.flashlampChannelsAll(laser, boxIds, channelsPerBox),
+    [laser, boxIds, channelsPerBox],
   )
   const channelLabels = useMemo(() => {
     const out: string[] = []
     for (const box of boxIds) {
-      out.push(`${box} Ch1`, `${box} Ch2`)
+      for (let ch = 1; ch <= channelsPerBox; ch++) {
+        out.push(`${box} Ch${ch}`)
+      }
     }
     return out
-  }, [boxIds])
+  }, [boxIds, channelsPerBox])
 
   const delayCh1Pv = pv.triggerDelay(laser, '1')
   const delayCh2Pv = pv.triggerDelay(laser, '2')
@@ -161,17 +171,25 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
             {counts[s]}
           </span>
         ))}
-        <CogToggle ariaLabel="Flashlamps actions">
-          <ActionButton
-            label="Set All Run"
-            pvName={pv.cmd(laser, 'FLASHLAMPS_RUN')}
-          />
-          <ActionButton
-            label="Set All Standby"
-            pvName={pv.cmd(laser, 'FLASHLAMPS_STANDBY')}
-            variant="secondary"
-          />
-        </CogToggle>
+        {hasFlashlampActions ? (
+          <CogToggle ariaLabel="Flashlamps actions">
+            {can('FLASHLAMPS_RUN') && (
+              <ActionButton
+                label="Set All Run"
+                pvName={pv.cmd(laser, 'FLASHLAMPS_RUN')}
+              />
+            )}
+            {can('FLASHLAMPS_STANDBY') && (
+              <ActionButton
+                label="Set All Standby"
+                pvName={pv.cmd(laser, 'FLASHLAMPS_STANDBY')}
+                variant="secondary"
+              />
+            )}
+          </CogToggle>
+        ) : (
+          <span />
+        )}
       </div>
 
       {expanded && <DetailList items={channelItems} />}
@@ -180,13 +198,15 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
         label="Trigger Delay"
         value={delayDisplay}
         action={
-          <CogToggle ariaLabel="Set trigger delay">
-            <PresetIntegerInput
-              label="Set Trigger Delay"
-              presets={delayPresets}
-              pvName={pv.cmd(laser, 'SET_DELAY')}
-            />
-          </CogToggle>
+          can('SET_DELAY') ? (
+            <CogToggle ariaLabel="Set trigger delay">
+              <PresetIntegerInput
+                label="Set Trigger Delay"
+                presets={delayPresets}
+                pvName={pv.cmd(laser, 'SET_DELAY')}
+              />
+            </CogToggle>
+          ) : undefined
         }
       />
     </SectionCard>

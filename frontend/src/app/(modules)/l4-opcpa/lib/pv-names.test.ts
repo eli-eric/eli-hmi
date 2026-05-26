@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pv } from './pv-names'
+import { pv, LASER_COMMANDS } from './pv-names'
 
 describe('pv (L4 OPCPA PV-name registry)', () => {
   describe('single PVs', () => {
@@ -68,7 +68,7 @@ describe('pv (L4 OPCPA PV-name registry)', () => {
         'BI_NL2_MODBOX_2',
       ])
     })
-    it('flashlampChannelsAll yields box×ch flat list', () => {
+    it('flashlampChannelsAll yields box×ch flat list (default 2 channels)', () => {
       expect(pv.flashlampChannelsAll('NL2', ['22', '23'])).toEqual([
         'SI_NL2_FL_22_CH1',
         'SI_NL2_FL_22_CH2',
@@ -76,6 +76,33 @@ describe('pv (L4 OPCPA PV-name registry)', () => {
         'SI_NL2_FL_23_CH2',
       ])
     })
+    it('flashlampChannelsAll with explicit 2 matches the default (byte-identical)', () => {
+      expect(pv.flashlampChannelsAll('NL2', ['22', '23'], 2)).toEqual(
+        pv.flashlampChannelsAll('NL2', ['22', '23']),
+      )
+    })
+    it('flashlampChannelsAll honors channelsPerBox', () => {
+      expect(pv.flashlampChannelsAll('NL2', ['22'], 3)).toEqual([
+        'SI_NL2_FL_22_CH1',
+        'SI_NL2_FL_22_CH2',
+        'SI_NL2_FL_22_CH3',
+      ])
+    })
+  })
+
+  it('LASER_COMMANDS is the closed command vocabulary', () => {
+    expect(LASER_COMMANDS).toEqual([
+      'START_LASER',
+      'STOP_LASER',
+      'ALIGNMENT_MODE',
+      'SYSTEM_STANDBY',
+      'FLASHLAMPS_RUN',
+      'FLASHLAMPS_STANDBY',
+      'MODBOX_ON',
+      'MODBOX_OFF',
+      'SET_DELAY',
+      'LOAD_WAVEFORM',
+    ])
   })
 
   it('respects the laser id for different lasers', () => {

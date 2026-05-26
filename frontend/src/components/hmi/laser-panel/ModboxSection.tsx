@@ -13,7 +13,7 @@ import { StringValue } from '@/components/hmi/controls/Values'
 import type { Message } from '@/app/providers/types'
 import { ChevronIcon } from '@/components/ui/icons'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import { WaveformSelect } from './WaveformSelect'
 import styles from './sections.module.css'
 
@@ -21,6 +21,8 @@ interface ModboxSectionProps {
   laser: string
   /** Number of Modbox state sub-indicator PVs (BI_<laser>_MODBOX_1..N). */
   modboxStateCount: number
+  /** Commands this laser exposes. Omitted = all shown (default). */
+  commands?: readonly LaserCommand[]
 }
 
 /**
@@ -37,8 +39,11 @@ interface ModboxSectionProps {
 export const ModboxSection: FC<ModboxSectionProps> = ({
   laser,
   modboxStateCount,
+  commands,
 }) => {
   const [expanded, setExpanded] = useState(false)
+  const can = (c: LaserCommand) => !commands || commands.includes(c)
+  const hasModboxActions = can('MODBOX_ON') || can('MODBOX_OFF')
 
   const statePvs = useMemo(
     () => pv.modboxStateAll(laser, modboxStateCount),
@@ -98,17 +103,23 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
           </button>
         }
         action={
-          <CogToggle ariaLabel="Modbox actions">
-            <ActionButton
-              label="Set Modbox ON"
-              pvName={pv.cmd(laser, 'MODBOX_ON')}
-            />
-            <ActionButton
-              label="Set Modbox OFF"
-              pvName={pv.cmd(laser, 'MODBOX_OFF')}
-              variant="secondary"
-            />
-          </CogToggle>
+          hasModboxActions ? (
+            <CogToggle ariaLabel="Modbox actions">
+              {can('MODBOX_ON') && (
+                <ActionButton
+                  label="Set Modbox ON"
+                  pvName={pv.cmd(laser, 'MODBOX_ON')}
+                />
+              )}
+              {can('MODBOX_OFF') && (
+                <ActionButton
+                  label="Set Modbox OFF"
+                  pvName={pv.cmd(laser, 'MODBOX_OFF')}
+                  variant="secondary"
+                />
+              )}
+            </CogToggle>
+          ) : undefined
         }
       />
       {expanded && <DetailList items={items} />}
@@ -120,9 +131,11 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
           />
         }
         action={
-          <CogToggle ariaLabel="Set waveform">
-            <WaveformSelect laser={laser} />
-          </CogToggle>
+          can('LOAD_WAVEFORM') ? (
+            <CogToggle ariaLabel="Set waveform">
+              <WaveformSelect laser={laser} />
+            </CogToggle>
+          ) : undefined
         }
       />
     </SectionCard>

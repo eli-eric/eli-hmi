@@ -152,6 +152,57 @@ describe('GeneralSection', () => {
     expect(screen.getByText('CHILLER_11')).toBeInTheDocument()
   })
 
+  it('hides buttons for commands the laser does not expose', async () => {
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <GeneralSection
+          laser="NL2"
+          mssCount={3}
+          moduleErrors={['REGEN']}
+          commands={['START_LASER', 'ALIGNMENT_MODE']}
+        />
+      </TestWebSocketProvider>,
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'General Actions' }))
+
+    expect(
+      screen.getByRole('button', { name: 'Start Laser' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Alignment Mode' }),
+    ).toBeInTheDocument()
+    // Not listed → hidden.
+    expect(
+      screen.queryByRole('button', { name: 'Stop Laser' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'System Standby' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('hides the General Actions cog entirely when no lifecycle commands are exposed', () => {
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <GeneralSection
+          laser="NL2"
+          mssCount={3}
+          moduleErrors={['REGEN']}
+          commands={[]}
+        />
+      </TestWebSocketProvider>,
+    )
+    expect(
+      screen.queryByRole('button', { name: 'General Actions' }),
+    ).not.toBeInTheDocument()
+    // Shutter (a direct write, not a command) is unaffected.
+    expect(
+      screen.getByRole('button', { name: 'Shutter actions' }),
+    ).toBeInTheDocument()
+  })
+
   it('closes the cog panel automatically after a successful action', async () => {
     globalThis.fetch = vi.fn(
       async () =>
