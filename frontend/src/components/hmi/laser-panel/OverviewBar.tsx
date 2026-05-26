@@ -34,20 +34,18 @@ export const OverviewBar: FC<OverviewBarProps> = ({
 }) => {
   const [expanded, setExpanded] = useState<Expanded>(null)
 
-  const connPv = connectionPv
-  const fullpPv = fullPowerPv
   const moduleErrorPvs = useMemo(
     () => moduleErrors.map((m) => m.pv),
     [moduleErrors],
   )
   const allPvs = useMemo(
-    () => [connPv, fullpPv, ...mssPvs, ...moduleErrorPvs],
-    [connPv, fullpPv, mssPvs, moduleErrorPvs],
+    () => [connectionPv, fullPowerPv, ...mssPvs, ...moduleErrorPvs],
+    [connectionPv, fullPowerPv, mssPvs, moduleErrorPvs],
   )
   const { state } = useWebSocketData<number | null>({ pvs: allPvs, raw: true })
 
-  const connMsg = state[connPv]
-  const fullpMsg = state[fullpPv]
+  const connMsg = state[connectionPv]
+  const fullpMsg = state[fullPowerPv]
 
   // "unknown" = no message received yet OR `ok=false`. We deliberately count
   // unknown separately from error so first-paint (before any WS message)

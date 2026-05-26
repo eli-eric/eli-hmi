@@ -3,7 +3,10 @@ import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { GeneralSection } from './GeneralSection'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
-import type { LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import {
+  LASER_COMMANDS,
+  type LaserCommand,
+} from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import {
   makeFakeWebSocketContext,
   TestWebSocketProvider,
@@ -25,7 +28,7 @@ const MODULE_ERRORS: LabeledPv[] = [
   { label: 'CHILLER_11', pv: 'BI_NL2_ERR_CHILLER_11' },
 ]
 
-function baseProps(commands?: readonly LaserCommand[]) {
+function baseProps(commands: readonly LaserCommand[] = LASER_COMMANDS) {
   return {
     laser: 'NL2',
     connectionPv: 'BI_NL2_CONN',
@@ -34,7 +37,7 @@ function baseProps(commands?: readonly LaserCommand[]) {
     phdMeanPv: 'AI_NL2_PHD_MEAN',
     mssPvs: ['BI_NL2_MSS_1', 'BI_NL2_MSS_2', 'BI_NL2_MSS_3'],
     moduleErrors: MODULE_ERRORS,
-    ...(commands ? { commands } : {}),
+    commands,
   }
 }
 

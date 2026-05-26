@@ -13,6 +13,7 @@ import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import { OverviewBar } from './OverviewBar'
+import { makeCommandGate } from './commandGate'
 import styles from './sections.module.css'
 
 interface GeneralSectionProps {
@@ -26,8 +27,8 @@ interface GeneralSectionProps {
   mssPvs: readonly string[]
   /** Module-error indicators: label + PV. */
   moduleErrors: readonly LabeledPv[]
-  /** Commands this laser exposes. Omitted = all shown (default). */
-  commands?: readonly LaserCommand[]
+  /** Commands this laser exposes. Buttons for commands not listed are hidden. */
+  commands: readonly LaserCommand[]
 }
 
 /**
@@ -44,7 +45,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
   moduleErrors,
   commands,
 }) => {
-  const can = (c: LaserCommand) => !commands || commands.includes(c)
+  const can = makeCommandGate(commands)
   const hasGeneralActions = (
     ['START_LASER', 'STOP_LASER', 'ALIGNMENT_MODE', 'SYSTEM_STANDBY'] as const
   ).some(can)

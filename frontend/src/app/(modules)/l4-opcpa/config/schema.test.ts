@@ -52,26 +52,36 @@ describe('parseLaserSpecs', () => {
     ])
   })
 
-  it('resolves NL2 with full PV strings and renames id → laser', () => {
-    const nl2 = parseLaserSpecs(realYaml).find((s) => s.laser === 'NL2')!
-    expect(nl2.pvs.regenState).toBe('BI_NL2_REGEN_STATE')
-    expect(nl2.pvs.regenTemp).toBe('AI_TEMP_NL2_REGEN')
-    expect(nl2.mss).toHaveLength(6)
-    expect(nl2.modbox).toHaveLength(5)
-    expect(nl2.chillers).toHaveLength(4)
-    expect(nl2.chillers[0]).toEqual({
-      label: 'PS1225:11',
-      flow: 'AI_NL2_CHILLER_11_FLOW',
-      temp: 'AI_NL2_CHILLER_11_TEMP',
-      level: 'AI_NL2_CHILLER_11_LEVEL',
+  // Detailed shape is asserted on a fixture (not the real file) so editing
+  // lasers.yaml — the file's whole purpose — doesn't break these checks.
+  it('renames id → laser and passes every signal through verbatim', () => {
+    const spec = parseLaserSpecs(doc([laser({ id: 'NLX' })]))[0]
+    expect(spec.laser).toBe('NLX')
+    expect('id' in spec).toBe(false)
+    expect(spec.pvs.regenState).toBe('SY:1')
+    expect(spec.pvs.loadedWaveform).toBe('WF:1')
+    expect(spec.triggerDelay).toEqual([
+      'AI_NL9_TRIG_DELAY_CH1',
+      'AI_NL9_TRIG_DELAY_CH2',
+    ])
+    expect(spec.chillers[0]).toEqual({
+      label: 'C1',
+      flow: 'f',
+      temp: 't',
+      level: 'l',
     })
-    expect(nl2.flashlamps).toHaveLength(14)
-    expect(nl2.flashlamps[0]).toEqual({ label: '22 Ch1', pv: 'SI_NL2_FL_22_CH1' })
-    expect(nl2.moduleErrors[0]).toEqual({
+    expect(spec.flashlamps[0]).toEqual({ label: 'F1', pv: 'SI_NL9_FL_1' })
+    expect(spec.moduleErrors[0]).toEqual({
       label: 'REGEN',
-      pv: 'BI_NL2_ERR_REGEN',
+      pv: 'BI_NL9_ERR_REGEN',
     })
-    expect(nl2.commands).toHaveLength(10)
+  })
+
+  it('the real lasers.yaml is structurally valid for every laser', () => {
+    for (const spec of parseLaserSpecs(realYaml)) {
+      expect(spec.pvs.connection.length).toBeGreaterThan(0)
+      expect(spec.commands.length).toBeGreaterThan(0)
+    }
   })
 
   it('accepts empty banks (laser lacking a subsystem)', () => {
@@ -93,6 +103,21 @@ describe('parseLaserSpecs', () => {
     expect(() => parseLaserSpecs(doc([laser(), laser()]))).toThrow(
       /duplicate laser id/,
     )
+  })
+
+  it('rejects duplicate PV names within a laser (copy-paste typo)', () => {
+    expect(() =>
+      parseLaserSpecs(
+        doc([
+          laser({
+            chillers: [
+              { label: 'C1', flow: 'DUP', temp: 't1', level: 'l1' },
+              { label: 'C2', flow: 'DUP', temp: 't2', level: 'l2' },
+            ],
+          }),
+        ]),
+      ),
+    ).toThrow(/duplicate PV name/)
   })
 
   it('rejects unknown commands', () => {

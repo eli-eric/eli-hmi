@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ModboxSection } from './ModboxSection'
+import { LASER_COMMANDS } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import {
   makeFakeWebSocketContext,
   TestWebSocketProvider,
@@ -34,6 +35,7 @@ function renderModbox() {
         laser="NL2"
         modbox={MODBOX_3}
         loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+        commands={LASER_COMMANDS}
       />
     </TestWebSocketProvider>,
   )

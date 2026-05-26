@@ -84,6 +84,33 @@ export const rawLaserSchema = z.strictObject({
     .describe(
       'Commands this laser exposes (closed LASER_COMMANDS vocabulary; map to backend sequences). Unlisted → button hidden.',
     ),
+}).superRefine((laser, ctx) => {
+  // Catch the most common edit mistake: two signals pointing at the same PV
+  // (copy a block, forget to change the name). Real PV names are unique per
+  // signal, so a duplicate is almost certainly a typo. This is design-aligned
+  // (does not assume any naming convention) — it cannot catch a *wrong but
+  // unique* name, which only the live system / mock can reveal as `<>`.
+  const all = [
+    ...Object.values(laser.pvs),
+    ...laser.triggerDelay,
+    ...laser.mss,
+    ...laser.moduleErrors.map((m) => m.pv),
+    ...laser.chillers.flatMap((c) => [c.flow, c.temp, c.level]),
+    ...laser.flashlamps.map((f) => f.pv),
+    ...laser.modbox,
+  ]
+  const seen = new Set<string>()
+  const dupes = new Set<string>()
+  for (const name of all) {
+    if (seen.has(name)) dupes.add(name)
+    seen.add(name)
+  }
+  if (dupes.size > 0) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `laser ${laser.id}: duplicate PV name(s) — likely a copy-paste typo: ${[...dupes].join(', ')}`,
+    })
+  }
 })
 
 export const configSchema = z
@@ -109,7 +136,7 @@ export type ChillerSpec = z.infer<typeof chillerSchema>
 export type LabeledPv = z.infer<typeof labeledPv>
 
 /** Resolved per-laser config consumed by the UI (`id` renamed to `laser`). */
-export type LaserSpec = Omit<RawLaserConfig, 'id'> & {
+export type LaserSpec = Omit<RawLaserConfig, 'id' | 'commands'> & {
   readonly laser: string
   readonly commands: readonly LaserCommand[]
 }

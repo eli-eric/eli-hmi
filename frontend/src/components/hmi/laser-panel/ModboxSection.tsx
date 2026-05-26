@@ -15,6 +15,7 @@ import { ChevronIcon } from '@/components/ui/icons'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import { WaveformSelect } from './WaveformSelect'
+import { makeCommandGate } from './commandGate'
 import styles from './sections.module.css'
 
 interface ModboxSectionProps {
@@ -24,8 +25,8 @@ interface ModboxSectionProps {
   modbox: readonly string[]
   /** Currently-loaded-waveform PV. */
   loadedWaveformPv: string
-  /** Commands this laser exposes. Omitted = all shown (default). */
-  commands?: readonly LaserCommand[]
+  /** Commands this laser exposes. Buttons for commands not listed are hidden. */
+  commands: readonly LaserCommand[]
 }
 
 /**
@@ -39,22 +40,20 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   commands,
 }) => {
   const [expanded, setExpanded] = useState(false)
-  const can = (c: LaserCommand) => !commands || commands.includes(c)
+  const can = makeCommandGate(commands)
   const hasModboxActions = can('MODBOX_ON') || can('MODBOX_OFF')
 
-  const statePvs = modbox
-  const waveformPv = loadedWaveformPv
   const allPvs = useMemo(
-    () => [...statePvs, waveformPv],
-    [statePvs, waveformPv],
+    () => [...modbox, loadedWaveformPv],
+    [modbox, loadedWaveformPv],
   )
   // Mixed value types (number for state, string for waveform). Keep the hook
   // typed as `unknown` and narrow at the use site.
   const { state } = useWebSocketData<unknown>({ pvs: allPvs, raw: true })
-  const okCount = statePvs.filter(
+  const okCount = modbox.filter(
     (name) => state[name]?.value === 1,
   ).length
-  const total = statePvs.length
+  const total = modbox.length
   const tone =
     total === 0
       ? 'unknown'
@@ -64,7 +63,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
           ? 'negative-important'
           : 'negative-neutral'
 
-  const items: DetailListItem[] = statePvs.map((name, i) => {
+  const items: DetailListItem[] = modbox.map((name, i) => {
     const msg = state[name]
     const v = msg?.value
     return {
@@ -121,7 +120,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         label="Loaded Waveform"
         value={
           <StringValue
-            data={state[waveformPv] as Message<string | null> | undefined}
+            data={state[loadedWaveformPv] as Message<string | null> | undefined}
           />
         }
         action={

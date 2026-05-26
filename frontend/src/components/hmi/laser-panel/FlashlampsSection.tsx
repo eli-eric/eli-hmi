@@ -14,6 +14,7 @@ import { ChevronIcon } from '@/components/ui/icons'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import { makeCommandGate } from './commandGate'
 import styles from './sections.module.css'
 
 interface FlashlampsSectionProps {
@@ -25,8 +26,8 @@ interface FlashlampsSectionProps {
   triggerDelay: readonly string[]
   /** Trigger-delay preset values (ns). */
   delayPresets: readonly number[]
-  /** Commands this laser exposes. Omitted = all shown (default). */
-  commands?: readonly LaserCommand[]
+  /** Commands this laser exposes. Buttons for commands not listed are hidden. */
+  commands: readonly LaserCommand[]
 }
 
 const STATES = ['SB', 'RUN', 'STOP', 'FAIL'] as const
@@ -63,7 +64,7 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
   commands,
 }) => {
   const [expanded, setExpanded] = useState(false)
-  const can = (c: LaserCommand) => !commands || commands.includes(c)
+  const can = makeCommandGate(commands)
   const hasFlashlampActions = can('FLASHLAMPS_RUN') || can('FLASHLAMPS_STANDBY')
 
   const channelPvs = useMemo(() => flashlamps.map((f) => f.pv), [flashlamps])
