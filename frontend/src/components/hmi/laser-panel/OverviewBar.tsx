@@ -7,13 +7,15 @@ import {
   DetailListItem,
 } from '@/components/hmi/controls/DetailList'
 import { ChevronIcon } from '@/components/ui/icons'
-import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import styles from './OverviewBar.module.css'
 
 interface OverviewBarProps {
-  laser: string
+  connectionPv: string
+  fullPowerPv: string
   mssPvs: readonly string[]
-  moduleErrorPvs: readonly string[]
+  /** Module-error indicators: display label + full PV name. */
+  moduleErrors: readonly LabeledPv[]
 }
 
 type Expanded = 'mss' | 'err' | null
@@ -25,14 +27,19 @@ type Expanded = 'mss' | 'err' | null
  * expanded in a list showing all individual MSS boolean indicators").
  */
 export const OverviewBar: FC<OverviewBarProps> = ({
-  laser,
+  connectionPv,
+  fullPowerPv,
   mssPvs,
-  moduleErrorPvs,
+  moduleErrors,
 }) => {
   const [expanded, setExpanded] = useState<Expanded>(null)
 
-  const connPv = pv.connection(laser)
-  const fullpPv = pv.fullPower(laser)
+  const connPv = connectionPv
+  const fullpPv = fullPowerPv
+  const moduleErrorPvs = useMemo(
+    () => moduleErrors.map((m) => m.pv),
+    [moduleErrors],
+  )
   const allPvs = useMemo(
     () => [connPv, fullpPv, ...mssPvs, ...moduleErrorPvs],
     [connPv, fullpPv, mssPvs, moduleErrorPvs],
@@ -73,11 +80,10 @@ export const OverviewBar: FC<OverviewBarProps> = ({
     }
   })
 
-  const errItems: DetailListItem[] = moduleErrorPvs.map((name) => {
+  const errItems: DetailListItem[] = moduleErrors.map(({ label, pv: name }) => {
     const msg = state[name]
-    const errName = name.split('_ERR_').pop() ?? name
     return {
-      label: errName,
+      label,
       state:
         !msg || !msg.ok ? 'unknown' : msg.value === 0 ? 'ok' : 'err',
     }

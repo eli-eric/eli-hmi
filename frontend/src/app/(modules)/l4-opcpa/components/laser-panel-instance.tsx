@@ -9,36 +9,47 @@ interface LaserPanelInstanceProps {
 }
 
 /**
- * Renders one laser column from a {@link LaserSpec}. Sections whose device bank
- * is empty are omitted: no chillers → no Chillers section, `modboxStateCount: 0`
- * → no Modbox, no flashlamp boxes → no Flashlamps. General + Regen always show.
- * `commands` gates which action buttons each section renders.
+ * Renders one laser column from a {@link LaserSpec}. Every PV name comes from
+ * the spec (resolved from `lasers.yaml`); only command PVs are built in code.
+ * Sections whose device bank is empty are omitted: no chillers → no Chillers
+ * section, no flashlamps → no Flashlamps, no modbox PVs → no Modbox. General +
+ * Regen always render. `commands` gates which action buttons appear.
  */
 export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => (
   <LaserPanel title={spec.laser}>
     <LaserPanel.General
       laser={spec.laser}
-      mssCount={spec.mssCount}
+      connectionPv={spec.pvs.connection}
+      fullPowerPv={spec.pvs.fullPower}
+      shutterPv={spec.pvs.shutter}
+      phdMeanPv={spec.pvs.phdMean}
+      mssPvs={spec.mss}
       moduleErrors={spec.moduleErrors}
       commands={spec.commands}
     />
-    <LaserPanel.Regen laser={spec.laser} />
-    {spec.chillerIds.length > 0 && (
-      <LaserPanel.Chillers laser={spec.laser} chillerIds={spec.chillerIds} />
+    <LaserPanel.Regen
+      regenStatePv={spec.pvs.regenState}
+      regenTempPv={spec.pvs.regenTemp}
+      phd2MeanPv={spec.pvs.phd2Mean}
+      attenuatorPv={spec.pvs.attenuator}
+    />
+    {spec.chillers.length > 0 && (
+      <LaserPanel.Chillers chillers={spec.chillers} />
     )}
-    {spec.boxIds.length > 0 && (
+    {spec.flashlamps.length > 0 && (
       <LaserPanel.Flashlamps
         laser={spec.laser}
-        boxIds={spec.boxIds}
-        channelsPerBox={spec.channelsPerBox}
+        flashlamps={spec.flashlamps}
+        triggerDelay={spec.triggerDelay}
         delayPresets={spec.delayPresets}
         commands={spec.commands}
       />
     )}
-    {spec.modboxStateCount > 0 && (
+    {spec.modbox.length > 0 && (
       <LaserPanel.Modbox
         laser={spec.laser}
-        modboxStateCount={spec.modboxStateCount}
+        modbox={spec.modbox}
+        loadedWaveformPv={spec.pvs.loadedWaveform}
         commands={spec.commands}
       />
     )}

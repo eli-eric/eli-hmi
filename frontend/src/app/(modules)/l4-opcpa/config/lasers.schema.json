@@ -11,41 +11,179 @@
           "id": {
             "type": "string",
             "minLength": 1,
-            "description": "Laser id, e.g. NL1. Becomes the <LASER> segment of every PV (BI_<id>_CONN). Panels render in file order."
+            "description": "Laser id, e.g. NL2. Panel title; also the <LASER> in command PVs (CMD_<id>_<NAME>)."
           },
-          "mssCount": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991,
-            "description": "Number of MSS sub-indicators (BI_<id>_MSS_1..N) counted in the General overview bar."
+          "pvs": {
+            "type": "object",
+            "properties": {
+              "connection": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Connection bool (Overview CONN)."
+              },
+              "fullPower": {
+                "type": "string",
+                "minLength": 1,
+                "description": "At-full-power bool (Overview FULLP)."
+              },
+              "shutter": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Shutter position bool (read + direct write)."
+              },
+              "phdMean": {
+                "type": "string",
+                "minLength": 1,
+                "description": "PHD mean intensity readout."
+              },
+              "regenState": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Regen on/off bool."
+              },
+              "regenTemp": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Regen temperature readout."
+              },
+              "phd2Mean": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Second PHD mean readout."
+              },
+              "attenuator": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Attenuator value (read + direct write)."
+              },
+              "loadedWaveform": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Currently loaded waveform name."
+              }
+            },
+            "required": [
+              "connection",
+              "fullPower",
+              "shutter",
+              "phdMean",
+              "regenState",
+              "regenTemp",
+              "phd2Mean",
+              "attenuator",
+              "loadedWaveform"
+            ],
+            "additionalProperties": false,
+            "description": "Single-signal read/write PVs."
           },
-          "modboxCount": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991,
-            "description": "Number of Modbox state indicators (BI_<id>_MODBOX_1..N). 0 hides the Modbox section."
-          },
-          "channelsPerBox": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991,
-            "description": "Flashlamp channels per box (SI_<id>_FL_<box>_CH1..CHn). Almost always 2."
-          },
-          "chillerIds": {
+          "triggerDelay": {
+            "minItems": 1,
             "type": "array",
             "items": {
               "type": "string",
               "minLength": 1
             },
-            "description": "Chiller ids. Each renders a row reading AI_<id>_CHILLER_<cid>_FLOW/TEMP/LEVEL. Empty array hides the Chillers section."
+            "description": "Trigger-delay readout PVs; all should read equal (mismatch flagged)."
           },
-          "flashlampBoxes": {
+          "mss": {
             "type": "array",
             "items": {
               "type": "string",
               "minLength": 1
             },
-            "description": "Flashlamp box ids (e.g. PS5059:22..28). Empty array hides the Flashlamps section."
+            "description": "MSS sub-indicator PVs (counted in the General overview)."
+          },
+          "moduleErrors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Display label shown in the UI."
+                },
+                "pv": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Full EPICS PV name (from controls)."
+                }
+              },
+              "required": [
+                "label",
+                "pv"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Module-error indicators (label + PV) counted in the Overview."
+          },
+          "chillers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Chiller display label, e.g. PS1225:11."
+                },
+                "flow": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Flow readout PV."
+                },
+                "temp": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Temperature readout PV."
+                },
+                "level": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Water-level readout PV."
+                }
+              },
+              "required": [
+                "label",
+                "flow",
+                "temp",
+                "level"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Chillers. Empty array hides the Chillers section."
+          },
+          "flashlamps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Display label shown in the UI."
+                },
+                "pv": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Full EPICS PV name (from controls)."
+                }
+              },
+              "required": [
+                "label",
+                "pv"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Flashlamp channels (label + PV). Empty array hides the Flashlamps section."
+          },
+          "modbox": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Modbox state PVs. Empty array hides the Modbox section."
           },
           "delayPresets": {
             "type": "array",
@@ -55,14 +193,6 @@
               "maximum": 9007199254740991
             },
             "description": "Trigger-delay preset values (ns) offered by the Set Trigger Delay control."
-          },
-          "moduleErrors": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            },
-            "description": "Module-error indicator names → BI_<id>_ERR_<name>. Must list every CHILLER_<cid> matching chillerIds, plus non-chiller errors (e.g. REGEN, FLASHLAMPS)."
           },
           "commands": {
             "type": "array",
@@ -81,18 +211,19 @@
                 "LOAD_WAVEFORM"
               ]
             },
-            "description": "Commands this laser exposes. Buttons for commands not listed are hidden. Values are limited to the closed LASER_COMMANDS vocabulary."
+            "description": "Commands this laser exposes (closed LASER_COMMANDS vocabulary; map to backend sequences). Unlisted → button hidden."
           }
         },
         "required": [
           "id",
-          "mssCount",
-          "modboxCount",
-          "channelsPerBox",
-          "chillerIds",
-          "flashlampBoxes",
-          "delayPresets",
+          "pvs",
+          "triggerDelay",
+          "mss",
           "moduleErrors",
+          "chillers",
+          "flashlamps",
+          "modbox",
+          "delayPresets",
           "commands"
         ],
         "additionalProperties": false

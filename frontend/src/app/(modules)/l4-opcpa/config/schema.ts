@@ -1,103 +1,90 @@
 /**
  * Schema + parser for the L4 OPCPA per-laser config (`lasers.yaml`).
  *
- * This module is the single source of truth for the config SHAPE:
- *  - the zod schema validates the YAML (rejects unknown keys, bad types,
- *    drift between chillerIds and CHILLER_* module errors, duplicate ids),
- *  - the `LaserSpec` type the UI consumes is derived from it,
- *  - `lasers.schema.json` (committed, used for editor autocomplete) is
- *    generated from it via `npm run gen:schema`.
+ * The config holds the **full PV name** for every signal — exactly the strings
+ * the controls team / EPICS gateway provides (e.g. `SY3PL50M:32`). The frontend
+ * does NOT assemble PV names from prefixes + ids any more; it reads them
+ * verbatim from here. Only command PVs (`CMD_<laser>_<NAME>`) are still built in
+ * code, because a command maps to a backend sequence of writes, not one PV.
  *
- * It is intentionally FREE of `server-only` / `fs` so it can be unit-tested
- * from a plain string. The thin file-reading wrapper lives in
- * `load-laser-specs.ts`.
+ * One zod schema is the single source for: the `LaserSpec` type the UI
+ * consumes, runtime validation (`.strict()` rejects unknown keys; duplicate ids
+ * rejected), and `lasers.schema.json` (generated for editor autocomplete via
+ * `npm run gen:schema`).
+ *
+ * Free of `server-only` / `fs` so it stays unit-testable from a plain string;
+ * the file read lives in `load-laser-specs.ts`.
  */
 
 import { z } from 'zod'
 import { parse as parseYaml } from 'yaml'
 import { LASER_COMMANDS, type LaserCommand } from '../lib/pv-names'
 
-/** Closed command vocabulary — mirrors the typed builder in `pv-names.ts`. */
-const commandSchema = z.enum(LASER_COMMANDS)
+const pvName = z.string().min(1)
 
-/**
- * One laser as written in YAML. Friendly keys (`modboxCount`, `flashlampBoxes`)
- * are mapped onto the TS `LaserSpec` field names in `parseLaserSpecs`.
- * `.strict()` (via strictObject) rejects unknown/misspelled keys.
- */
-export const rawLaserSchema = z
-  .strictObject({
-    id: z
-      .string()
-      .min(1)
-      .describe(
-        'Laser id, e.g. NL1. Becomes the <LASER> segment of every PV (BI_<id>_CONN). Panels render in file order.',
-      ),
-    mssCount: z
-      .number()
-      .int()
-      .min(0)
-      .describe(
-        'Number of MSS sub-indicators (BI_<id>_MSS_1..N) counted in the General overview bar.',
-      ),
-    modboxCount: z
-      .number()
-      .int()
-      .min(0)
-      .describe(
-        'Number of Modbox state indicators (BI_<id>_MODBOX_1..N). 0 hides the Modbox section.',
-      ),
-    channelsPerBox: z
-      .number()
-      .int()
-      .min(1)
-      .describe(
-        'Flashlamp channels per box (SI_<id>_FL_<box>_CH1..CHn). Almost always 2.',
-      ),
-    chillerIds: z
-      .array(z.string().min(1))
-      .describe(
-        'Chiller ids. Each renders a row reading AI_<id>_CHILLER_<cid>_FLOW/TEMP/LEVEL. Empty array hides the Chillers section.',
-      ),
-    flashlampBoxes: z
-      .array(z.string().min(1))
-      .describe(
-        'Flashlamp box ids (e.g. PS5059:22..28). Empty array hides the Flashlamps section.',
-      ),
-    delayPresets: z
-      .array(z.number().int())
-      .describe('Trigger-delay preset values (ns) offered by the Set Trigger Delay control.'),
-    moduleErrors: z
-      .array(z.string().min(1))
-      .describe(
-        'Module-error indicator names → BI_<id>_ERR_<name>. Must list every CHILLER_<cid> matching chillerIds, plus non-chiller errors (e.g. REGEN, FLASHLAMPS).',
-      ),
-    commands: z
-      .array(commandSchema)
-      .describe(
-        'Commands this laser exposes. Buttons for commands not listed are hidden. Values are limited to the closed LASER_COMMANDS vocabulary.',
-      ),
-  })
-  .superRefine((laser, ctx) => {
-    // Cross-check: chillerIds and the CHILLER_* entries in moduleErrors must
-    // describe the same set — catches the drift of adding a chiller but
-    // forgetting its error indicator (or vice versa).
-    const expected = new Set(laser.chillerIds.map((id) => `CHILLER_${id}`))
-    const actual = new Set(laser.moduleErrors.filter((m) => m.startsWith('CHILLER_')))
-    const missing = [...expected].filter((e) => !actual.has(e))
-    const extra = [...actual].filter((a) => !expected.has(a))
-    if (missing.length || extra.length) {
-      ctx.addIssue({
-        code: 'custom',
-        message: `laser ${laser.id}: chillerIds ${JSON.stringify(
-          laser.chillerIds,
-        )} do not match CHILLER_* in moduleErrors (missing: ${
-          missing.join(', ') || 'none'
-        }; extra: ${extra.join(', ') || 'none'})`,
-        path: ['moduleErrors'],
-      })
-    }
-  })
+const labeledPv = z.strictObject({
+  label: z.string().min(1).describe('Display label shown in the UI.'),
+  pv: pvName.describe('Full EPICS PV name (from controls).'),
+})
+
+const chillerSchema = z.strictObject({
+  label: z
+    .string()
+    .min(1)
+    .describe('Chiller display label, e.g. PS1225:11.'),
+  flow: pvName.describe('Flow readout PV.'),
+  temp: pvName.describe('Temperature readout PV.'),
+  level: pvName.describe('Water-level readout PV.'),
+})
+
+export const rawLaserSchema = z.strictObject({
+  id: z
+    .string()
+    .min(1)
+    .describe(
+      'Laser id, e.g. NL2. Panel title; also the <LASER> in command PVs (CMD_<id>_<NAME>).',
+    ),
+  pvs: z
+    .strictObject({
+      connection: pvName.describe('Connection bool (Overview CONN).'),
+      fullPower: pvName.describe('At-full-power bool (Overview FULLP).'),
+      shutter: pvName.describe('Shutter position bool (read + direct write).'),
+      phdMean: pvName.describe('PHD mean intensity readout.'),
+      regenState: pvName.describe('Regen on/off bool.'),
+      regenTemp: pvName.describe('Regen temperature readout.'),
+      phd2Mean: pvName.describe('Second PHD mean readout.'),
+      attenuator: pvName.describe('Attenuator value (read + direct write).'),
+      loadedWaveform: pvName.describe('Currently loaded waveform name.'),
+    })
+    .describe('Single-signal read/write PVs.'),
+  triggerDelay: z
+    .array(pvName)
+    .min(1)
+    .describe('Trigger-delay readout PVs; all should read equal (mismatch flagged).'),
+  mss: z
+    .array(pvName)
+    .describe('MSS sub-indicator PVs (counted in the General overview).'),
+  moduleErrors: z
+    .array(labeledPv)
+    .describe('Module-error indicators (label + PV) counted in the Overview.'),
+  chillers: z
+    .array(chillerSchema)
+    .describe('Chillers. Empty array hides the Chillers section.'),
+  flashlamps: z
+    .array(labeledPv)
+    .describe('Flashlamp channels (label + PV). Empty array hides the Flashlamps section.'),
+  modbox: z
+    .array(pvName)
+    .describe('Modbox state PVs. Empty array hides the Modbox section.'),
+  delayPresets: z
+    .array(z.number().int())
+    .describe('Trigger-delay preset values (ns) offered by the Set Trigger Delay control.'),
+  commands: z
+    .array(z.enum(LASER_COMMANDS))
+    .describe(
+      'Commands this laser exposes (closed LASER_COMMANDS vocabulary; map to backend sequences). Unlisted → button hidden.',
+    ),
+})
 
 export const configSchema = z
   .strictObject({
@@ -118,17 +105,12 @@ export const configSchema = z
   })
 
 export type RawLaserConfig = z.infer<typeof rawLaserSchema>
+export type ChillerSpec = z.infer<typeof chillerSchema>
+export type LabeledPv = z.infer<typeof labeledPv>
 
-/** Resolved per-laser topology consumed by the UI (TS field names). */
-export interface LaserSpec {
+/** Resolved per-laser config consumed by the UI (`id` renamed to `laser`). */
+export type LaserSpec = Omit<RawLaserConfig, 'id'> & {
   readonly laser: string
-  readonly mssCount: number
-  readonly moduleErrors: readonly string[]
-  readonly chillerIds: readonly string[]
-  readonly boxIds: readonly string[]
-  readonly channelsPerBox: number
-  readonly delayPresets: readonly number[]
-  readonly modboxStateCount: number
   readonly commands: readonly LaserCommand[]
 }
 
@@ -149,15 +131,5 @@ export function parseLaserSpecs(text: string): LaserSpec[] {
     throw new Error(`lasers.yaml is invalid:\n${z.prettifyError(result.error)}`)
   }
 
-  return result.data.lasers.map((l) => ({
-    laser: l.id,
-    mssCount: l.mssCount,
-    moduleErrors: l.moduleErrors,
-    chillerIds: l.chillerIds,
-    boxIds: l.flashlampBoxes,
-    channelsPerBox: l.channelsPerBox,
-    delayPresets: l.delayPresets,
-    modboxStateCount: l.modboxCount,
-    commands: l.commands,
-  }))
+  return result.data.lasers.map(({ id, ...rest }) => ({ laser: id, ...rest }))
 }

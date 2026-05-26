@@ -11,21 +11,24 @@ import {
   IntegerValue,
 } from '@/components/hmi/controls/Values'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 
 interface RegenSectionProps {
-  laser: string
+  regenStatePv: string
+  regenTempPv: string
+  phd2MeanPv: string
+  attenuatorPv: string
 }
 
 /**
- * Regen amplifier status. PV mapping in `pv-names.ts`.
+ * Regen amplifier status. All PV names arrive as props (resolved from the YAML
+ * config). The attenuator is a direct write to its PV — no command involved.
  */
-export const RegenSection: FC<RegenSectionProps> = ({ laser }) => {
-  const regenStatePv = pv.regenState(laser)
-  const regenTempPv = pv.regenTemp(laser)
-  const phd2MeanPv = pv.phd2Mean(laser)
-  const attenuatorPv = pv.attenuator(laser)
-
+export const RegenSection: FC<RegenSectionProps> = ({
+  regenStatePv,
+  regenTempPv,
+  phd2MeanPv,
+  attenuatorPv,
+}) => {
   const pvs = useMemo(
     () => [regenStatePv, regenTempPv, phd2MeanPv, attenuatorPv],
     [regenStatePv, regenTempPv, phd2MeanPv, attenuatorPv],

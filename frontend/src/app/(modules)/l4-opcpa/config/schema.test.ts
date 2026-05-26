@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { stringify } from 'yaml'
 import { parseLaserSpecs } from './schema'
 
 const realYaml = readFileSync(
@@ -8,27 +9,36 @@ const realYaml = readFileSync(
   'utf8',
 )
 
-/** Builds a one-laser YAML doc; override any field's raw YAML value. */
-function oneLaser(overrides: Record<string, string> = {}): string {
-  const fields: Record<string, string> = {
+/** A minimal valid laser object; override any field. */
+function laser(overrides: Record<string, unknown> = {}) {
+  return {
     id: 'NL9',
-    mssCount: '1',
-    modboxCount: '1',
-    channelsPerBox: '2',
-    chillerIds: "['11']",
-    flashlampBoxes: "['22']",
-    delayPresets: '[50]',
-    moduleErrors: "['REGEN', 'CHILLER_11', 'FLASHLAMPS']",
-    commands: '[START_LASER]',
+    pvs: {
+      connection: 'BI_NL9_CONN',
+      fullPower: 'BI_NL9_FULLP',
+      shutter: 'BI_NL9_SHUTTER',
+      phdMean: 'AI_NL9_PHD_MEAN',
+      regenState: 'SY:1',
+      regenTemp: 'TK:1',
+      phd2Mean: 'PHD:2',
+      attenuator: 'ATT:1',
+      loadedWaveform: 'WF:1',
+    },
+    triggerDelay: ['AI_NL9_TRIG_DELAY_CH1', 'AI_NL9_TRIG_DELAY_CH2'],
+    mss: ['BI_NL9_MSS_1'],
+    moduleErrors: [{ label: 'REGEN', pv: 'BI_NL9_ERR_REGEN' }],
+    chillers: [
+      { label: 'C1', flow: 'f', temp: 't', level: 'l' },
+    ],
+    flashlamps: [{ label: 'F1', pv: 'SI_NL9_FL_1' }],
+    modbox: ['BI_NL9_MODBOX_1'],
+    delayPresets: [50],
+    commands: ['START_LASER'],
     ...overrides,
   }
-  const [first, ...rest] = Object.entries(fields)
-  return [
-    'lasers:',
-    `  - ${first[0]}: ${first[1]}`,
-    ...rest.map(([k, v]) => `    ${k}: ${v}`),
-  ].join('\n')
 }
+
+const doc = (lasers: unknown[]) => stringify({ lasers })
 
 describe('parseLaserSpecs', () => {
   it('parses the real lasers.yaml into NL1..NL5', () => {
@@ -42,108 +52,52 @@ describe('parseLaserSpecs', () => {
     ])
   })
 
-  it('maps friendly YAML keys onto LaserSpec fields (NL2 known-good)', () => {
+  it('resolves NL2 with full PV strings and renames id → laser', () => {
     const nl2 = parseLaserSpecs(realYaml).find((s) => s.laser === 'NL2')!
-    expect(nl2).toEqual({
-      laser: 'NL2',
-      mssCount: 6,
-      moduleErrors: [
-        'REGEN',
-        'CHILLER_11',
-        'CHILLER_12',
-        'CHILLER_13',
-        'CHILLER_14',
-        'FLASHLAMPS',
-      ],
-      chillerIds: ['11', '12', '13', '14'],
-      boxIds: ['22', '23', '24', '25', '26', '27', '28'], // from flashlampBoxes
-      channelsPerBox: 2,
-      delayPresets: [50, 500, 700, 790],
-      modboxStateCount: 5, // from modboxCount
-      commands: [
-        'START_LASER',
-        'STOP_LASER',
-        'ALIGNMENT_MODE',
-        'SYSTEM_STANDBY',
-        'FLASHLAMPS_RUN',
-        'FLASHLAMPS_STANDBY',
-        'MODBOX_ON',
-        'MODBOX_OFF',
-        'SET_DELAY',
-        'LOAD_WAVEFORM',
-      ],
+    expect(nl2.pvs.regenState).toBe('BI_NL2_REGEN_STATE')
+    expect(nl2.pvs.regenTemp).toBe('AI_TEMP_NL2_REGEN')
+    expect(nl2.mss).toHaveLength(6)
+    expect(nl2.modbox).toHaveLength(5)
+    expect(nl2.chillers).toHaveLength(4)
+    expect(nl2.chillers[0]).toEqual({
+      label: 'PS1225:11',
+      flow: 'AI_NL2_CHILLER_11_FLOW',
+      temp: 'AI_NL2_CHILLER_11_TEMP',
+      level: 'AI_NL2_CHILLER_11_LEVEL',
     })
-  })
-
-  it('allows per-laser topology to differ', () => {
-    const yaml = `lasers:
-  - id: NL1
-    mssCount: 6
-    modboxCount: 5
-    channelsPerBox: 2
-    chillerIds: ['11']
-    flashlampBoxes: ['22']
-    delayPresets: [50]
-    moduleErrors: ['REGEN', 'CHILLER_11', 'FLASHLAMPS']
-    commands: [START_LASER]
-  - id: NL2
-    mssCount: 2
-    modboxCount: 3
-    channelsPerBox: 2
-    chillerIds: ['99']
-    flashlampBoxes: ['22', '23']
-    delayPresets: [10]
-    moduleErrors: ['REGEN', 'CHILLER_99', 'FLASHLAMPS']
-    commands: [STOP_LASER]`
-    const specs = parseLaserSpecs(yaml)
-    expect(specs).toHaveLength(2)
-    expect(specs[0].chillerIds).toEqual(['11'])
-    expect(specs[1].chillerIds).toEqual(['99'])
-    expect(specs[1].boxIds).toEqual(['22', '23'])
-    expect(specs[1].commands).toEqual(['STOP_LASER'])
+    expect(nl2.flashlamps).toHaveLength(14)
+    expect(nl2.flashlamps[0]).toEqual({ label: '22 Ch1', pv: 'SI_NL2_FL_22_CH1' })
+    expect(nl2.moduleErrors[0]).toEqual({
+      label: 'REGEN',
+      pv: 'BI_NL2_ERR_REGEN',
+    })
+    expect(nl2.commands).toHaveLength(10)
   })
 
   it('accepts empty banks (laser lacking a subsystem)', () => {
     const spec = parseLaserSpecs(
-      oneLaser({
-        chillerIds: '[]',
-        flashlampBoxes: '[]',
-        modboxCount: '0',
-        moduleErrors: "['REGEN', 'FLASHLAMPS']",
-      }),
+      doc([laser({ chillers: [], flashlamps: [], modbox: [] })]),
     )[0]
-    expect(spec.chillerIds).toEqual([])
-    expect(spec.boxIds).toEqual([])
-    expect(spec.modboxStateCount).toBe(0)
+    expect(spec.chillers).toEqual([])
+    expect(spec.flashlamps).toEqual([])
+    expect(spec.modbox).toEqual([])
   })
 
   it('rejects unknown/misspelled keys', () => {
     expect(() =>
-      parseLaserSpecs(oneLaser({ chillerId: "['11']" })),
-    ).toThrow(/chillerId/)
+      parseLaserSpecs(doc([laser({ chiller: [] })])),
+    ).toThrow(/lasers\.yaml is invalid/)
   })
 
   it('rejects duplicate laser ids', () => {
-    // two identical NL9 blocks under one `lasers:` key
-    const secondBlock = oneLaser().replace('lasers:\n  - ', '  - ')
-    const dup = `${oneLaser()}\n${secondBlock}`
-    expect(() => parseLaserSpecs(dup)).toThrow(/duplicate laser id/)
-  })
-
-  it('rejects chillerIds that do not match CHILLER_* module errors', () => {
-    expect(() =>
-      parseLaserSpecs(
-        oneLaser({
-          chillerIds: "['11', '12']",
-          moduleErrors: "['REGEN', 'CHILLER_11', 'FLASHLAMPS']",
-        }),
-      ),
-    ).toThrow(/do not match/)
+    expect(() => parseLaserSpecs(doc([laser(), laser()]))).toThrow(
+      /duplicate laser id/,
+    )
   })
 
   it('rejects unknown commands', () => {
     expect(() =>
-      parseLaserSpecs(oneLaser({ commands: '[NOT_A_COMMAND]' })),
+      parseLaserSpecs(doc([laser({ commands: ['NOT_A_COMMAND'] })])),
     ).toThrow(/lasers\.yaml is invalid/)
   })
 

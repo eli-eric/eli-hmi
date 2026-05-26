@@ -18,38 +18,32 @@ import { WaveformSelect } from './WaveformSelect'
 import styles from './sections.module.css'
 
 interface ModboxSectionProps {
+  /** Laser id — used only to build command PVs. */
   laser: string
-  /** Number of Modbox state sub-indicator PVs (BI_<laser>_MODBOX_1..N). */
-  modboxStateCount: number
+  /** Modbox state PVs (1 = OK). */
+  modbox: readonly string[]
+  /** Currently-loaded-waveform PV. */
+  loadedWaveformPv: string
   /** Commands this laser exposes. Omitted = all shown (default). */
   commands?: readonly LaserCommand[]
 }
 
 /**
- * Modbox (modulation box) status + actions + waveform control.
- *
- * Read PVs (mock):
- * - BI_<laser>_MODBOX_{i}         (state sub-indicators, 1=OK)
- * - SI_<laser>_LOADED_WAVEFORM    (currently loaded waveform name)
- *
- * Spec: "There are several Modbox state boolean indicators. This is a merged
- * indicator … Through a click it can be expanded in a list showing all
- * individual Modbox state boolean indicators."
+ * Modbox (modulation box) status + actions + waveform control. PV names arrive
+ * as props (resolved from the YAML config); command PVs use `laser`.
  */
 export const ModboxSection: FC<ModboxSectionProps> = ({
   laser,
-  modboxStateCount,
+  modbox,
+  loadedWaveformPv,
   commands,
 }) => {
   const [expanded, setExpanded] = useState(false)
   const can = (c: LaserCommand) => !commands || commands.includes(c)
   const hasModboxActions = can('MODBOX_ON') || can('MODBOX_OFF')
 
-  const statePvs = useMemo(
-    () => pv.modboxStateAll(laser, modboxStateCount),
-    [laser, modboxStateCount],
-  )
-  const waveformPv = pv.loadedWaveform(laser)
+  const statePvs = modbox
+  const waveformPv = loadedWaveformPv
   const allPvs = useMemo(
     () => [...statePvs, waveformPv],
     [statePvs, waveformPv],

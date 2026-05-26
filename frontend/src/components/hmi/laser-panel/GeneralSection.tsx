@@ -11,43 +11,36 @@ import {
 } from '@/components/hmi/controls/Values'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import { OverviewBar } from './OverviewBar'
 import styles from './sections.module.css'
 
 interface GeneralSectionProps {
+  /** Laser id — used only to build command PVs (CMD_<laser>_<NAME>). */
   laser: string
-  /** Number of MSS sub-indicator PVs (BI_<laser>_MSS_1..N). */
-  mssCount: number
-  /**
-   * Per-module error names; PV names are BI_<laser>_ERR_<name>.
-   * E.g. ['REGEN', 'CHILLER_11', 'CHILLER_12', 'FLASHLAMPS'].
-   */
-  moduleErrors: readonly string[]
+  connectionPv: string
+  fullPowerPv: string
+  shutterPv: string
+  phdMeanPv: string
+  /** MSS sub-indicator PVs (counted in the Overview). */
+  mssPvs: readonly string[]
+  /** Module-error indicators: label + PV. */
+  moduleErrors: readonly LabeledPv[]
   /** Commands this laser exposes. Omitted = all shown (default). */
   commands?: readonly LaserCommand[]
 }
 
 /**
- * General laser status + lifecycle actions.
- *
- * Read PVs (mock):
- * - BI_<laser>_CONN          (Connection — shown in Overview)
- * - BI_<laser>_FULLP         (Now at Full Power — shown in Overview)
- * - BI_<laser>_SHUTTER       (Shutter Position)
- * - AI_<laser>_PHD_MEAN      (PHD1K000:49/Mean intensity)
- * - BI_<laser>_MSS_{i}       (MSS sub-indicators — counted in Overview)
- * - BI_<laser>_ERR_{name}    (Module Error sub-indicators — counted in Overview)
- *
- * Write PVs (POST /pv/...):
- * - BI_<laser>_SHUTTER             (direct write 0 or 1)
- * - CMD_<laser>_START_LASER        (command trigger)
- * - CMD_<laser>_STOP_LASER
- * - CMD_<laser>_ALIGNMENT_MODE
- * - CMD_<laser>_SYSTEM_STANDBY
+ * General laser status + lifecycle actions. All PV names arrive as props
+ * (resolved from the YAML config); command PVs are built from `laser`.
  */
 export const GeneralSection: FC<GeneralSectionProps> = ({
   laser,
-  mssCount,
+  connectionPv,
+  fullPowerPv,
+  shutterPv,
+  phdMeanPv,
+  mssPvs,
   moduleErrors,
   commands,
 }) => {
@@ -55,17 +48,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
   const hasGeneralActions = (
     ['START_LASER', 'STOP_LASER', 'ALIGNMENT_MODE', 'SYSTEM_STANDBY'] as const
   ).some(can)
-  const mssPvs = useMemo(
-    () => pv.mssAll(laser, mssCount),
-    [laser, mssCount],
-  )
-  const errPvs = useMemo(
-    () => pv.moduleErrorsAll(laser, moduleErrors),
-    [laser, moduleErrors],
-  )
 
-  const shutterPv = pv.shutter(laser)
-  const phdMeanPv = pv.phdMean(laser)
   const readPvs = useMemo(
     () => [shutterPv, phdMeanPv],
     [shutterPv, phdMeanPv],
@@ -74,7 +57,12 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
 
   return (
     <SectionCard>
-      <OverviewBar laser={laser} mssPvs={mssPvs} moduleErrorPvs={errPvs} />
+      <OverviewBar
+        connectionPv={connectionPv}
+        fullPowerPv={fullPowerPv}
+        mssPvs={mssPvs}
+        moduleErrors={moduleErrors}
+      />
 
       <DataRow
         label="Shutter Position"
@@ -92,13 +80,13 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
           <CogToggle ariaLabel="Shutter actions">
             <ActionButton
               label="Open Shutter"
-              pvName={pv.shutter(laser)}
+              pvName={shutterPv}
               value={1}
               variant="secondary"
             />
             <ActionButton
               label="Close Shutter"
-              pvName={pv.shutter(laser)}
+              pvName={shutterPv}
               value={0}
               variant="secondary"
             />

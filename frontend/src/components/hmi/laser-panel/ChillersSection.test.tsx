@@ -11,7 +11,22 @@ describe('ChillersSection', () => {
     const ws = makeFakeWebSocketContext()
     render(
       <TestWebSocketProvider value={ws.context}>
-        <ChillersSection laser="NL2" chillerIds={['11', '12']} />
+        <ChillersSection
+          chillers={[
+            {
+              label: 'PS1225:11',
+              flow: 'AI_NL2_CHILLER_11_FLOW',
+              temp: 'AI_NL2_CHILLER_11_TEMP',
+              level: 'AI_NL2_CHILLER_11_LEVEL',
+            },
+            {
+              label: 'PS1225:12',
+              flow: 'AI_NL2_CHILLER_12_FLOW',
+              temp: 'AI_NL2_CHILLER_12_TEMP',
+              level: 'AI_NL2_CHILLER_12_LEVEL',
+            },
+          ]}
+        />
       </TestWebSocketProvider>,
     )
 

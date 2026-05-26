@@ -24,14 +24,25 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
+const MODBOX_3 = ['BI_NL2_MODBOX_1', 'BI_NL2_MODBOX_2', 'BI_NL2_MODBOX_3']
+
+function renderModbox() {
+  const ws = makeFakeWebSocketContext()
+  render(
+    <TestWebSocketProvider value={ws.context}>
+      <ModboxSection
+        laser="NL2"
+        modbox={MODBOX_3}
+        loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+      />
+    </TestWebSocketProvider>,
+  )
+  return ws
+}
+
 describe('ModboxSection', () => {
   it('renders the merged Modbox state pill and Loaded Waveform readout', async () => {
-    const ws = makeFakeWebSocketContext()
-    render(
-      <TestWebSocketProvider value={ws.context}>
-        <ModboxSection laser="NL2" modboxStateCount={3} />
-      </TestWebSocketProvider>,
-    )
+    const ws = renderModbox()
 
     await waitFor(() =>
       expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
@@ -54,12 +65,7 @@ describe('ModboxSection', () => {
   })
 
   it('exposes Modbox ON / Modbox OFF behind a cog toggle', async () => {
-    const ws = makeFakeWebSocketContext()
-    render(
-      <TestWebSocketProvider value={ws.context}>
-        <ModboxSection laser="NL2" modboxStateCount={3} />
-      </TestWebSocketProvider>,
-    )
+    const ws = renderModbox()
     await waitFor(() =>
       expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
     )
@@ -82,12 +88,7 @@ describe('ModboxSection', () => {
   })
 
   it('expands the Modbox state detail list when the state pill is clicked', async () => {
-    const ws = makeFakeWebSocketContext()
-    render(
-      <TestWebSocketProvider value={ws.context}>
-        <ModboxSection laser="NL2" modboxStateCount={3} />
-      </TestWebSocketProvider>,
-    )
+    const ws = renderModbox()
     await waitFor(() =>
       expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
     )
@@ -110,12 +111,7 @@ describe('ModboxSection', () => {
   })
 
   it('exposes the waveform selector behind a cog toggle', async () => {
-    const ws = makeFakeWebSocketContext()
-    render(
-      <TestWebSocketProvider value={ws.context}>
-        <ModboxSection laser="NL2" modboxStateCount={3} />
-      </TestWebSocketProvider>,
-    )
+    const ws = renderModbox()
     await waitFor(() =>
       expect(ws.subscriptions.get('SI_NL2_LOADED_WAVEFORM')?.size).toBe(1),
     )

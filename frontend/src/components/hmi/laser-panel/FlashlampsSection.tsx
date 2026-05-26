@@ -13,14 +13,16 @@ import {
 import { ChevronIcon } from '@/components/ui/icons'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import styles from './sections.module.css'
 
 interface FlashlampsSectionProps {
+  /** Laser id — used only to build command PVs. */
   laser: string
-  /** Box ids e.g. ['22','23','24','25','26','27','28']. */
-  boxIds: readonly string[]
-  /** Flashlamp channels per box (CH1..CHn). Default 2. */
-  channelsPerBox?: number
+  /** Flashlamp channels: display label + state PV. */
+  flashlamps: readonly LabeledPv[]
+  /** Trigger-delay readout PVs; all should read equal (mismatch is flagged). */
+  triggerDelay: readonly string[]
   /** Trigger-delay preset values (ns). */
   delayPresets: readonly number[]
   /** Commands this laser exposes. Omitted = all shown (default). */
@@ -47,24 +49,16 @@ function toneForState(
 }
 
 /**
- * Flashlamp channel states + lifecycle actions + trigger delay.
+ * Flashlamp channel states + lifecycle actions + trigger delay. All PV names
+ * arrive as props (resolved from the YAML config); command PVs use `laser`.
  *
- * Read PVs (mock):
- * - SI_<laser>_FL_<box>_CH1 / _CH2     (per-channel state: SB/RUN/STOP/FAIL)
- * - AI_<laser>_TRIG_DELAY_CH1 / _CH2   (trigger delay readout, integer ns)
- *
- * Spec: "There are 14 flashlamp channels … There are four merged indicators
- * (one per state) showing how many flashlamp channels are in the given state.
- * Through a click it can be expanded in a list showing all channels with
- * their respective current state."
- *
- * Spec for Trigger Delay: "There are two trigger delay readouts… They should
- * always be equal… If they are not equal, an error appears here."
+ * Trigger delay: the spec says the readouts should always be equal. We
+ * subscribe to all `triggerDelay` PVs and flag a mismatch if any differ.
  */
 export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
   laser,
-  boxIds,
-  channelsPerBox = 2,
+  flashlamps,
+  triggerDelay,
   delayPresets,
   commands,
 }) => {
@@ -72,29 +66,20 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
   const can = (c: LaserCommand) => !commands || commands.includes(c)
   const hasFlashlampActions = can('FLASHLAMPS_RUN') || can('FLASHLAMPS_STANDBY')
 
-  const channelPvs = useMemo(
-    () => pv.flashlampChannelsAll(laser, boxIds, channelsPerBox),
-    [laser, boxIds, channelsPerBox],
+  const channelPvs = useMemo(() => flashlamps.map((f) => f.pv), [flashlamps])
+  const channelLabels = useMemo(
+    () => flashlamps.map((f) => f.label),
+    [flashlamps],
   )
-  const channelLabels = useMemo(() => {
-    const out: string[] = []
-    for (const box of boxIds) {
-      for (let ch = 1; ch <= channelsPerBox; ch++) {
-        out.push(`${box} Ch${ch}`)
-      }
-    }
-    return out
-  }, [boxIds, channelsPerBox])
-
-  const delayCh1Pv = pv.triggerDelay(laser, '1')
-  const delayCh2Pv = pv.triggerDelay(laser, '2')
 
   const allPvs = useMemo(
-    () => [...channelPvs, delayCh1Pv, delayCh2Pv],
-    [channelPvs, delayCh1Pv, delayCh2Pv],
+    () => [...channelPvs, ...triggerDelay],
+    [channelPvs, triggerDelay],
   )
-
-  const { state } = useWebSocketData<string | number | null>({ pvs: allPvs, raw: true })
+  const { state } = useWebSocketData<string | number | null>({
+    pvs: allPvs,
+    raw: true,
+  })
 
   const counts = useMemo(() => {
     const c: Record<FlashlampState, number> = { SB: 0, RUN: 0, STOP: 0, FAIL: 0 }
@@ -118,24 +103,25 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
     }
   })
 
-  // Trigger Delay: compare Ch1 vs Ch2 per spec.
-  const ch1 = state[delayCh1Pv]
-  const ch2 = state[delayCh2Pv]
-  const ch1Num = typeof ch1?.value === 'number' ? Math.round(ch1.value) : null
-  const ch2Num = typeof ch2?.value === 'number' ? Math.round(ch2.value) : null
-  const delayMismatch =
-    ch1Num !== null && ch2Num !== null && ch1Num !== ch2Num
+  // Trigger Delay: all readouts should be equal (spec). Flag if they differ.
+  const delayVals = triggerDelay.map((name) => {
+    const v = state[name]?.value
+    return typeof v === 'number' ? Math.round(v) : null
+  })
+  const allKnown = delayVals.length > 0 && delayVals.every((v) => v !== null)
+  const known = delayVals.filter((v): v is number => v !== null)
+  const delayMismatch = allKnown && new Set(known).size > 1
   let delayDisplay: React.ReactNode
-  if (ch1Num === null || ch2Num === null) {
+  if (!allKnown) {
     delayDisplay = <span data-tone="unknown">&lt;&gt;</span>
   } else if (delayMismatch) {
     delayDisplay = (
-      <span className={styles.delayMismatch} title={`CH1=${ch1Num} CH2=${ch2Num}`}>
-        MISMATCH {ch1Num}/{ch2Num}
+      <span className={styles.delayMismatch} title={known.join(' / ')}>
+        MISMATCH {known.join('/')}
       </span>
     )
   } else {
-    delayDisplay = <span>{ch1Num}</span>
+    delayDisplay = <span>{known[0]}</span>
   }
 
   return (

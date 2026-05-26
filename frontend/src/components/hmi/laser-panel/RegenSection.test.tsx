@@ -23,7 +23,12 @@ describe('RegenSection', () => {
     const ws = makeFakeWebSocketContext()
     render(
       <TestWebSocketProvider value={ws.context}>
-        <RegenSection laser="NL2" />
+        <RegenSection
+          regenStatePv="BI_NL2_REGEN_STATE"
+          regenTempPv="AI_TEMP_NL2_REGEN"
+          phd2MeanPv="AI_NL2_PHD2_MEAN"
+          attenuatorPv="AI_NL2_ATT"
+        />
       </TestWebSocketProvider>,
     )
     await waitFor(() =>
@@ -51,7 +56,12 @@ describe('RegenSection', () => {
     const ws = makeFakeWebSocketContext()
     render(
       <TestWebSocketProvider value={ws.context}>
-        <RegenSection laser="NL2" />
+        <RegenSection
+          regenStatePv="BI_NL2_REGEN_STATE"
+          regenTempPv="AI_TEMP_NL2_REGEN"
+          phd2MeanPv="AI_NL2_PHD2_MEAN"
+          attenuatorPv="AI_NL2_ATT"
+        />
       </TestWebSocketProvider>,
     )
     await waitFor(() =>

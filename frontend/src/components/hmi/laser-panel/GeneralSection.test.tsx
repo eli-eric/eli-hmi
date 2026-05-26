@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { GeneralSection } from './GeneralSection'
+import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import type { LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import {
   makeFakeWebSocketContext,
   TestWebSocketProvider,
@@ -18,17 +20,36 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-async function setup() {
+const MODULE_ERRORS: LabeledPv[] = [
+  { label: 'REGEN', pv: 'BI_NL2_ERR_REGEN' },
+  { label: 'CHILLER_11', pv: 'BI_NL2_ERR_CHILLER_11' },
+]
+
+function baseProps(commands?: readonly LaserCommand[]) {
+  return {
+    laser: 'NL2',
+    connectionPv: 'BI_NL2_CONN',
+    fullPowerPv: 'BI_NL2_FULLP',
+    shutterPv: 'BI_NL2_SHUTTER',
+    phdMeanPv: 'AI_NL2_PHD_MEAN',
+    mssPvs: ['BI_NL2_MSS_1', 'BI_NL2_MSS_2', 'BI_NL2_MSS_3'],
+    moduleErrors: MODULE_ERRORS,
+    ...(commands ? { commands } : {}),
+  }
+}
+
+function renderGeneral(commands?: readonly LaserCommand[]) {
   const ws = makeFakeWebSocketContext()
   render(
     <TestWebSocketProvider value={ws.context}>
-      <GeneralSection
-        laser="NL2"
-        mssCount={3}
-        moduleErrors={['REGEN', 'CHILLER_11']}
-      />
+      <GeneralSection {...baseProps(commands)} />
     </TestWebSocketProvider>,
   )
+  return ws
+}
+
+async function setup() {
+  const ws = renderGeneral()
   await waitFor(() =>
     expect(ws.subscriptions.get('BI_NL2_CONN')?.size).toBe(1),
   )
@@ -153,17 +174,7 @@ describe('GeneralSection', () => {
   })
 
   it('hides buttons for commands the laser does not expose', async () => {
-    const ws = makeFakeWebSocketContext()
-    render(
-      <TestWebSocketProvider value={ws.context}>
-        <GeneralSection
-          laser="NL2"
-          mssCount={3}
-          moduleErrors={['REGEN']}
-          commands={['START_LASER', 'ALIGNMENT_MODE']}
-        />
-      </TestWebSocketProvider>,
-    )
+    renderGeneral(['START_LASER', 'ALIGNMENT_MODE'])
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'General Actions' }))
 
@@ -183,17 +194,7 @@ describe('GeneralSection', () => {
   })
 
   it('hides the General Actions cog entirely when no lifecycle commands are exposed', () => {
-    const ws = makeFakeWebSocketContext()
-    render(
-      <TestWebSocketProvider value={ws.context}>
-        <GeneralSection
-          laser="NL2"
-          mssCount={3}
-          moduleErrors={['REGEN']}
-          commands={[]}
-        />
-      </TestWebSocketProvider>,
-    )
+    renderGeneral([])
     expect(
       screen.queryByRole('button', { name: 'General Actions' }),
     ).not.toBeInTheDocument()
