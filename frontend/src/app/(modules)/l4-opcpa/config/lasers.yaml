@@ -1,0 +1,125 @@
+# yaml-language-server: $schema=./lasers.schema.json
+#
+# L4 OPCPA per-laser topology — the FRONTEND source of truth.
+# Edit this file to change how many chillers / flashlamp boxes / modboxes /
+# commands each laser has. No code change needed. See README.md for field docs.
+#
+# Each list item is one laser. The order here is the left-to-right order of the
+# panels on the page. Open this file in an editor with the YAML extension for
+# autocomplete + inline validation (powered by lasers.schema.json above).
+#
+# NB: the mock backend (backend/mockup-websocket-server/l4_opcpa.go) is a
+# TEST-ONLY tool with its own hardcoded constants — it does NOT read this file.
+# Adding devices here that the mock doesn't seed will render as "<>" until a
+# real EPICS gateway provides them. See README.md.
+
+lasers:
+  - id: NL1
+    mssCount: 6
+    modboxCount: 5
+    channelsPerBox: 2
+    chillerIds: ['11', '12', '13', '14']
+    flashlampBoxes: ['22', '23', '24', '25', '26', '27', '28']
+    delayPresets: [50, 500, 700, 790]
+    moduleErrors: ['REGEN', 'CHILLER_11', 'CHILLER_12', 'CHILLER_13', 'CHILLER_14', 'FLASHLAMPS']
+    commands:
+      [
+        START_LASER,
+        STOP_LASER,
+        ALIGNMENT_MODE,
+        SYSTEM_STANDBY,
+        FLASHLAMPS_RUN,
+        FLASHLAMPS_STANDBY,
+        MODBOX_ON,
+        MODBOX_OFF,
+        SET_DELAY,
+        LOAD_WAVEFORM,
+      ]
+
+  - id: NL2
+    mssCount: 6
+    modboxCount: 5
+    channelsPerBox: 2
+    chillerIds: ['11', '12', '13', '14']
+    flashlampBoxes: ['22', '23', '24', '25', '26', '27', '28']
+    delayPresets: [50, 500, 700, 790]
+    moduleErrors: ['REGEN', 'CHILLER_11', 'CHILLER_12', 'CHILLER_13', 'CHILLER_14', 'FLASHLAMPS']
+    commands:
+      [
+        START_LASER,
+        STOP_LASER,
+        ALIGNMENT_MODE,
+        SYSTEM_STANDBY,
+        FLASHLAMPS_RUN,
+        FLASHLAMPS_STANDBY,
+        MODBOX_ON,
+        MODBOX_OFF,
+        SET_DELAY,
+        LOAD_WAVEFORM,
+      ]
+
+  - id: NL3
+    mssCount: 6
+    modboxCount: 5
+    channelsPerBox: 2
+    chillerIds: ['11', '12', '13', '14']
+    flashlampBoxes: ['22', '23', '24', '25', '26', '27', '28']
+    delayPresets: [50, 500, 700, 790]
+    moduleErrors: ['REGEN', 'CHILLER_11', 'CHILLER_12', 'CHILLER_13', 'CHILLER_14', 'FLASHLAMPS']
+    commands:
+      [
+        START_LASER,
+        STOP_LASER,
+        ALIGNMENT_MODE,
+        SYSTEM_STANDBY,
+        FLASHLAMPS_RUN,
+        FLASHLAMPS_STANDBY,
+        MODBOX_ON,
+        MODBOX_OFF,
+        SET_DELAY,
+        LOAD_WAVEFORM,
+      ]
+
+  - id: NL4
+    mssCount: 6
+    modboxCount: 5
+    channelsPerBox: 2
+    chillerIds: ['11', '12', '13', '14']
+    flashlampBoxes: ['22', '23', '24', '25', '26', '27', '28']
+    delayPresets: [50, 500, 700, 790]
+    moduleErrors: ['REGEN', 'CHILLER_11', 'CHILLER_12', 'CHILLER_13', 'CHILLER_14', 'FLASHLAMPS']
+    commands:
+      [
+        START_LASER,
+        STOP_LASER,
+        ALIGNMENT_MODE,
+        SYSTEM_STANDBY,
+        FLASHLAMPS_RUN,
+        FLASHLAMPS_STANDBY,
+        MODBOX_ON,
+        MODBOX_OFF,
+        SET_DELAY,
+        LOAD_WAVEFORM,
+      ]
+
+  - id: NL5
+    mssCount: 6
+    modboxCount: 5
+    channelsPerBox: 2
+    chillerIds: ['11', '12', '13', '14']
+    flashlampBoxes: ['22', '23', '24', '25', '26', '27', '28']
+    delayPresets: [50, 500, 700, 790]
+    moduleErrors: ['REGEN', 'CHILLER_11', 'CHILLER_12', 'CHILLER_13', 'CHILLER_14', 'FLASHLAMPS']
+    commands:
+      [
+        START_LASER,
+        STOP_LASER,
+        ALIGNMENT_MODE,
+        SYSTEM_STANDBY,
+        FLASHLAMPS_RUN,
+        FLASHLAMPS_STANDBY,
+        MODBOX_ON,
+        MODBOX_OFF,
+        SET_DELAY,
+        LOAD_WAVEFORM,
+      ]

@@ -18,17 +18,25 @@ const si = (laser: string, field: string) => `SI_${laser}_${field}`
  * map (backend/mockup-websocket-server/l4_opcpa.go, lowercased there). Adding
  * a new command = update both this union and the backend map.
  */
-export type LaserCommand =
-  | 'START_LASER'
-  | 'STOP_LASER'
-  | 'ALIGNMENT_MODE'
-  | 'SYSTEM_STANDBY'
-  | 'FLASHLAMPS_RUN'
-  | 'FLASHLAMPS_STANDBY'
-  | 'MODBOX_ON'
-  | 'MODBOX_OFF'
-  | 'SET_DELAY'
-  | 'LOAD_WAVEFORM'
+// Canonical command vocabulary. Single source: the YAML config validates a
+// laser's `commands` against this list (via a zod enum derived from it), and
+// `pv.cmd` / the LaserCommand type are derived from it too. Adding a brand-new
+// command means editing this tuple AND the Go backend `sequences` map AND
+// wiring a button in the relevant section.
+export const LASER_COMMANDS = [
+  'START_LASER',
+  'STOP_LASER',
+  'ALIGNMENT_MODE',
+  'SYSTEM_STANDBY',
+  'FLASHLAMPS_RUN',
+  'FLASHLAMPS_STANDBY',
+  'MODBOX_ON',
+  'MODBOX_OFF',
+  'SET_DELAY',
+  'LOAD_WAVEFORM',
+] as const
+
+export type LaserCommand = (typeof LASER_COMMANDS)[number]
 
 export const pv = {
   // General
@@ -77,11 +85,13 @@ export const pv = {
   flashlampChannelsAll: (
     laser: string,
     boxIds: readonly string[],
+    channelsPerBox = 2,
   ): readonly string[] => {
     const out: string[] = []
     for (const box of boxIds) {
-      out.push(si(laser, `FL_${box}_CH1`))
-      out.push(si(laser, `FL_${box}_CH2`))
+      for (let ch = 1; ch <= channelsPerBox; ch++) {
+        out.push(si(laser, `FL_${box}_CH${ch}`))
+      }
     }
     return out
   },

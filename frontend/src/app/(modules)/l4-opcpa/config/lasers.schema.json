@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "lasers": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Laser id, e.g. NL1. Becomes the <LASER> segment of every PV (BI_<id>_CONN). Panels render in file order."
+          },
+          "mssCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Number of MSS sub-indicators (BI_<id>_MSS_1..N) counted in the General overview bar."
+          },
+          "modboxCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Number of Modbox state indicators (BI_<id>_MODBOX_1..N). 0 hides the Modbox section."
+          },
+          "channelsPerBox": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Flashlamp channels per box (SI_<id>_FL_<box>_CH1..CHn). Almost always 2."
+          },
+          "chillerIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Chiller ids. Each renders a row reading AI_<id>_CHILLER_<cid>_FLOW/TEMP/LEVEL. Empty array hides the Chillers section."
+          },
+          "flashlampBoxes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Flashlamp box ids (e.g. PS5059:22..28). Empty array hides the Flashlamps section."
+          },
+          "delayPresets": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "description": "Trigger-delay preset values (ns) offered by the Set Trigger Delay control."
+          },
+          "moduleErrors": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Module-error indicator names → BI_<id>_ERR_<name>. Must list every CHILLER_<cid> matching chillerIds, plus non-chiller errors (e.g. REGEN, FLASHLAMPS)."
+          },
+          "commands": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "START_LASER",
+                "STOP_LASER",
+                "ALIGNMENT_MODE",
+                "SYSTEM_STANDBY",
+                "FLASHLAMPS_RUN",
+                "FLASHLAMPS_STANDBY",
+                "MODBOX_ON",
+                "MODBOX_OFF",
+                "SET_DELAY",
+                "LOAD_WAVEFORM"
+              ]
+            },
+            "description": "Commands this laser exposes. Buttons for commands not listed are hidden. Values are limited to the closed LASER_COMMANDS vocabulary."
+          }
+        },
+        "required": [
+          "id",
+          "mssCount",
+          "modboxCount",
+          "channelsPerBox",
+          "chillerIds",
+          "flashlampBoxes",
+          "delayPresets",
+          "moduleErrors",
+          "commands"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "lasers"
+  ],
+  "additionalProperties": false
+}
