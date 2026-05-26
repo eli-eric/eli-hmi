@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-05-25
 **Deciders:** ELI-HMI team (L4 OPCPA workstream)
-**Supersedes:** [ADR-0008](0008-laser-specs-location.md)
+**Supersedes:** [ADR-0008](0008-laser-specs-location.md); supersedes the read-PV registry of [ADR-0006](0006-pv-name-registry-l4-opcpa.md) (command PVs excepted)
 
 ## Context
 
@@ -48,10 +48,15 @@ truth**. Each laser is listed explicitly (no shared defaults) with its own
   Next statically prerenders it — validation runs at `next build` and an
   invalid config **fails the build**. No `.yaml` bundler loader is needed
   (would have meant configuring turbopack + webpack + vitest).
-- **Naming stays in `pv-names.ts`.** PV-name *spelling* (the `pv.*` builders,
-  ADR-0006) is unchanged and remains the only place that constructs PV strings.
-  The YAML holds *data*; `pv-names.ts` holds *how a name is spelled*. PV strings
-  are byte-identical to before this change.
+- **Full PV strings, not assembled names.** The config holds the *complete* PV
+  name for every signal — the string controls provides (e.g. `SY3PL50M:32`) —
+  not pieces glued together in code. This reverses [ADR-0006](0006-pv-name-registry-l4-opcpa.md)'s
+  builder approach for *read* PVs: those `pv.*` builders assembled mock-convention
+  names (`BI_<laser>_<field>`) that cannot represent real EPICS names, which is
+  exactly the "scattered / odd" generation this ADR removes. `pv-names.ts` is
+  slimmed to the command vocabulary + `pv.cmd` only (see next point). The file is
+  seeded with today's mock names so the mock keeps working; swapping to real
+  names is a pure YAML edit.
 - **The command vocabulary is closed.** `LASER_COMMANDS` in `pv-names.ts` is the
   canonical list; the zod enum and `LaserCommand` type derive from it. YAML only
   selects which of those commands each laser exposes (buttons for unlisted

@@ -54,21 +54,23 @@ and `config/README.md`.
 `loadLaserSpecs()` is the seam for the future: when a Python EPICS gateway
 exposes `GET /lasers`, swap the `fs` read for a `fetch`.
 
-## PV naming + backend mirror
+## PV naming
 
-Every PV name is constructed via `pv.*` builders in
-`l4-opcpa/lib/pv-names.ts`. The mock backend
-(`backend/mockup-websocket-server/l4_opcpa.go`) hand-mirrors the same names.
-A header comment in `l4_opcpa.go` points back here as the canonical source.
+Signal PV names are **full strings in `config/lasers.yaml`** (what controls
+provides) — the frontend reads them verbatim; it does **not** assemble names
+from prefixes. The only thing built in code is the **command PV**
+(`CMD_<laser>_<NAME>`), because a command maps to a backend sequence of writes,
+not a single PV:
 
 ```ts
 import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
-
-pv.shutter('NL2')               // 'BI_NL2_SHUTTER'
-pv.flashlampChannel('NL2','22','1') // 'SI_NL2_FL_22_CH1'
-pv.cmd('NL2', 'START_LASER')    // 'CMD_NL2_START_LASER'
-pv.mssAll('NL2', 6)             // ['BI_NL2_MSS_1', ..., 'BI_NL2_MSS_6']
+pv.cmd('NL2', 'START_LASER') // 'CMD_NL2_START_LASER'
 ```
+
+The mock backend (`backend/mockup-websocket-server/l4_opcpa.go`) is test-only
+and seeds the names currently in `lasers.yaml` (the mock convention). It does
+**not** read the YAML — see `config/README.md`. See
+[ADR-0009](../../../../../docs/adr/0009-per-laser-yaml-config.md).
 
 ## Write path
 

@@ -14,13 +14,16 @@ rather than the vacuum-system layout.
 import { LaserPanel } from '@/components/hmi/laser-panel'
 
 <LaserPanel title="NL2">
-  <LaserPanel.General laser="NL2" mssCount={6} moduleErrors={[...]} commands={[...]} />
-  <LaserPanel.Regen laser="NL2" />
-  <LaserPanel.Chillers laser="NL2" chillerIds={['11','12','13','14']} />
-  <LaserPanel.Flashlamps laser="NL2" boxIds={[...]} channelsPerBox={2} delayPresets={[...]} commands={[...]} />
-  <LaserPanel.Modbox laser="NL2" modboxStateCount={5} commands={[...]} />
+  <LaserPanel.General laser="NL2" connectionPv={...} fullPowerPv={...} shutterPv={...} phdMeanPv={...} mssPvs={[...]} moduleErrors={[{label, pv}]} commands={[...]} />
+  <LaserPanel.Regen regenStatePv={...} regenTempPv={...} phd2MeanPv={...} attenuatorPv={...} />
+  <LaserPanel.Chillers chillers={[{label, flow, temp, level}]} />
+  <LaserPanel.Flashlamps laser="NL2" flashlamps={[{label, pv}]} triggerDelay={[...]} delayPresets={[...]} commands={[...]} />
+  <LaserPanel.Modbox laser="NL2" modbox={[...]} loadedWaveformPv={...} commands={[...]} />
 </LaserPanel>
 ```
+
+Sections receive **full PV-name strings** as props (resolved from
+`config/lasers.yaml`); `laser` is passed only where command PVs are needed.
 
 Engineer-author UX: each laser's wiring is one declarative tree in
 `src/app/(modules)/l4-opcpa/components/laser-panel-instance.tsx`, fed by the
@@ -44,12 +47,13 @@ action buttons render.
 
 ## Patterns
 
-### PV-name registry
+### PV naming
 
-Every PV name is constructed via `pv.*` from
-`src/app/(modules)/l4-opcpa/lib/pv-names.ts` — never inline string templates.
-The backend (`backend/mockup-websocket-server/l4_opcpa.go`) hand-mirrors the
-same names; keep them in sync.
+Signal PV names are full strings in `config/lasers.yaml`, passed into these
+sections as props — never assembled here. Only the command PV is built in code,
+via `pv.cmd` in `src/app/(modules)/l4-opcpa/lib/pv-names.ts`. The test-only mock
+backend (`backend/mockup-websocket-server/l4_opcpa.go`) seeds the names
+currently in the YAML.
 
 ### Single write entry point
 
