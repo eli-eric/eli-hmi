@@ -28,7 +28,7 @@ Sections receive **full PV-name strings** as props (resolved from
 Engineer-author UX: each laser's wiring is one declarative tree in
 `src/app/(modules)/l4-opcpa/components/laser-panel-instance.tsx`, fed by the
 per-laser specs loaded from `config/lasers.yaml` (see that folder's README and
-[ADR-0009](../../../../../docs/adr/0009-per-laser-yaml-config.md)). Sections
+[ADR-0010](../../../../../docs/adr/0010-per-laser-yaml-config.md)). Sections
 whose device bank is empty are omitted; `commands` (per laser) gates which
 action buttons render.
 

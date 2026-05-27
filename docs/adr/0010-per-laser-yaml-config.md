@@ -1,4 +1,4 @@
-# ADR-0009: Per-laser L4 OPCPA config as full PV names in YAML (zod-validated)
+# ADR-0010: Per-laser L4 OPCPA config as full PV names in YAML (zod-validated)
 
 **Status:** Accepted
 **Date:** 2026-05-25

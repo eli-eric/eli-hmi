@@ -7,8 +7,8 @@ The laser-control page. Lives at `frontend/src/app/(modules)/l4-opcpa/`. Source 
 Three things distinguish it from the other module pages:
 
 1. **Custom shell, not `ModuleControlPage`.** The L4 wireframe is a flat 5-column grid of laser status panels — General / Regen / Chillers / Flashlamps / Modbox. The vacuum-system layout of `ModuleControlPage` doesn't fit; forcing it would mean stubbing out every panel. See [ADR-0007](../adr/0007-l4-custom-shell-not-modulecontrolpage.md).
-2. **Per-laser topology in a YAML config, not `ModuleConfig`.** `config/lasers.yaml` (zod-validated, human-editable) describes each laser's *topology* (counts, IDs, presets, commands) — independently per laser — rather than the panel-layout `ModuleConfig` consumed by `ModuleControlPage`. See [ADR-0009](../adr/0009-per-laser-yaml-config.md) (supersedes [ADR-0008](../adr/0008-laser-specs-location.md)).
-3. **Full PV strings in config, not assembled names.** Each signal's complete PV name lives in `config/lasers.yaml` (what controls provides); the frontend reads them verbatim. Only command PVs (`CMD_<id>_<NAME>`) are built in code. See [ADR-0009](../adr/0009-per-laser-yaml-config.md) (supersedes the read-PV registry of [ADR-0006](../adr/0006-pv-name-registry-l4-opcpa.md)).
+2. **Per-laser topology in a YAML config, not `ModuleConfig`.** `config/lasers.yaml` (zod-validated, human-editable) describes each laser's *topology* (counts, IDs, presets, commands) — independently per laser — rather than the panel-layout `ModuleConfig` consumed by `ModuleControlPage`. See [ADR-0010](../adr/0010-per-laser-yaml-config.md) (supersedes [ADR-0008](../adr/0008-laser-specs-location.md)).
+3. **Full PV strings in config, not assembled names.** Each signal's complete PV name lives in `config/lasers.yaml` (what controls provides); the frontend reads them verbatim. Only command PVs (`CMD_<id>_<NAME>`) are built in code. See [ADR-0010](../adr/0010-per-laser-yaml-config.md) (supersedes the read-PV registry of [ADR-0006](../adr/0006-pv-name-registry-l4-opcpa.md)).
 
 ## Layout
 
@@ -54,7 +54,7 @@ All controls share one lifecycle via `usePvWrite()` — see [hmi-components](hmi
 
 ## Topology source
 
-`config/lasers.yaml` mirrors NL2's topology across NL1, NL3, NL4, NL5 because Confluence only documents NL2 and APL. When divergent topology is confirmed (chiller bank counts, flashlamp box IDs per laser), edit each laser's entry — every laser is configured independently. The YAML is read by `loadLaserSpecs()` (server-only, at build) and is the seam for the day a `GET /lasers` endpoint exists on the python-backend — at that point a fetch replaces the `fs` read and the gateway becomes the canonical source. Validation is zod (`config/schema.ts`); editor autocomplete comes from the generated `lasers.schema.json`. (Recorded in [ADR-0009](../adr/0009-per-laser-yaml-config.md).)
+`config/lasers.yaml` mirrors NL2's topology across NL1, NL3, NL4, NL5 because Confluence only documents NL2 and APL. When divergent topology is confirmed (chiller bank counts, flashlamp box IDs per laser), edit each laser's entry — every laser is configured independently. The YAML is read by `loadLaserSpecs()` (server-only, at build) and is the seam for the day a `GET /lasers` endpoint exists on the python-backend — at that point a fetch replaces the `fs` read and the gateway becomes the canonical source. Validation is zod (`config/schema.ts`); editor autocomplete comes from the generated `lasers.schema.json`. (Recorded in [ADR-0010](../adr/0010-per-laser-yaml-config.md).)
 
 ## Mock-backend behaviour
 

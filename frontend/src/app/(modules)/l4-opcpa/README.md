@@ -1,6 +1,6 @@
 # L4 OPCPA Control System
 
-> Architecture context: [`docs/frontend/l4-opcpa.md`](../../../../../docs/frontend/l4-opcpa.md). Related ADRs: [0006](../../../../../docs/adr/0006-pv-name-registry-l4-opcpa.md), [0007](../../../../../docs/adr/0007-l4-custom-shell-not-modulecontrolpage.md), [0009](../../../../../docs/adr/0009-per-laser-yaml-config.md) (supersedes [0008](../../../../../docs/adr/0008-laser-specs-location.md)).
+> Architecture context: [`docs/frontend/l4-opcpa.md`](../../../../../docs/frontend/l4-opcpa.md). Related ADRs: [0006](../../../../../docs/adr/0006-pv-name-registry-l4-opcpa.md), [0007](../../../../../docs/adr/0007-l4-custom-shell-not-modulecontrolpage.md), [0010](../../../../../docs/adr/0010-per-laser-yaml-config.md) (supersedes [0008](../../../../../docs/adr/0008-laser-specs-location.md)).
 
 Operator UI for the L4 OPCPA laser system. Five lasers (NL1–NL5) rendered
 side-by-side, each with five stacked sections (General, Regen, Chillers,
@@ -14,7 +14,7 @@ Flashlamps, Modbox).
 app/(modules)/l4-opcpa/
 ├── page.tsx                  # Server shell — loads + validates lasers.yaml, renders L4OpcpaView
 ├── page.module.css
-├── config/                   # Per-laser topology config (see config/README.md + ADR-0009)
+├── config/                   # Per-laser topology config (see config/README.md + ADR-0010)
 │   ├── lasers.yaml           # SOURCE OF TRUTH — human-edited per-laser topology
 │   ├── lasers.schema.json    # Generated for editor autocomplete (npm run gen:schema)
 │   ├── schema.ts             # zod schema + LaserSpec type + parseLaserSpecs()
@@ -47,7 +47,7 @@ the vacuum-specific panels.
 Per-laser **topology** (laser counts, chiller ids, delay presets, commands)
 lives in `config/lasers.yaml` — a human-editable, zod-validated config under
 this module, not in `lib/modules/` (which is panel-layout `ModuleConfig` for
-`ModuleControlPage`). See [ADR-0009](../../../../../docs/adr/0009-per-laser-yaml-config.md)
+`ModuleControlPage`). See [ADR-0010](../../../../../docs/adr/0010-per-laser-yaml-config.md)
 (supersedes [ADR-0008](../../../../../docs/adr/0008-laser-specs-location.md))
 and `config/README.md`.
 
@@ -70,7 +70,7 @@ pv.cmd('NL2', 'START_LASER') // 'CMD_NL2_START_LASER'
 The mock backend (`backend/mockup-websocket-server/l4_opcpa.go`) is test-only
 and seeds the names currently in `lasers.yaml` (the mock convention). It does
 **not** read the YAML — see `config/README.md`. See
-[ADR-0009](../../../../../docs/adr/0009-per-laser-yaml-config.md).
+[ADR-0010](../../../../../docs/adr/0010-per-laser-yaml-config.md).
 
 ## Write path
 
