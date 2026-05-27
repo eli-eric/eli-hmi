@@ -7,6 +7,7 @@
     "build": "PORT=8082 next build",
     "start": "PORT=8082 next start",
     "lint": "next lint",
+    "gen:schema": "tsx scripts/gen-laser-schema.ts",
     "test": "vitest",
     "test:run": "vitest --run",
     "test:watch": "vitest watch",
@@ -22,7 +23,10 @@
     "next": "15.3.1",
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "server-only": "^0.0.1",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -40,6 +44,7 @@
     "eslint-config-next": "15.3.1",
     "jsdom": "^29.1.1",
     "prettier": "^3.6.2",
+    "tsx": "^4.22.3",
     "typescript": "^5",
     "vitest": "^4.1.5",
     "vitest-websocket-mock": "^0.5.0"

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FlashlampsSection } from './FlashlampsSection'
+import { LASER_COMMANDS } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import {
   makeFakeWebSocketContext,
   TestWebSocketProvider,
@@ -18,18 +20,35 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
+const TRIGGER_DELAY = ['AI_NL2_TRIG_DELAY_CH1', 'AI_NL2_TRIG_DELAY_CH2']
+
+/** Build the flashlamp channel list (label + PV) for the given box ids. */
+function flashlamps(boxes: string[]): LabeledPv[] {
+  return boxes.flatMap((b) => [
+    { label: `${b} Ch1`, pv: `SI_NL2_FL_${b}_CH1` },
+    { label: `${b} Ch2`, pv: `SI_NL2_FL_${b}_CH2` },
+  ])
+}
+
+function renderFl(boxes: string[]) {
+  const ws = makeFakeWebSocketContext()
+  render(
+    <TestWebSocketProvider value={ws.context}>
+      <FlashlampsSection
+        laser="NL2"
+        flashlamps={flashlamps(boxes)}
+        triggerDelay={TRIGGER_DELAY}
+        delayPresets={[50, 500, 700, 790]}
+        commands={LASER_COMMANDS}
+      />
+    </TestWebSocketProvider>,
+  )
+  return ws
+}
+
 describe('FlashlampsSection', () => {
   it('renders SB / RUN / STOP / FAIL counts as a column-headed row', async () => {
-    const ws = makeFakeWebSocketContext()
-    render(
-      <TestWebSocketProvider value={ws.context}>
-        <FlashlampsSection
-          laser="NL2"
-          boxIds={['22', '23']}
-          delayPresets={[50, 500, 700, 790]}
-        />
-      </TestWebSocketProvider>,
-    )
+    const ws = renderFl(['22', '23'])
 
     await waitFor(() =>
       expect(ws.subscriptions.get('SI_NL2_FL_22_CH1')?.size).toBe(1),
@@ -50,16 +69,7 @@ describe('FlashlampsSection', () => {
   })
 
   it('exposes Set All Run / Set All Standby behind a cog toggle', async () => {
-    const ws = makeFakeWebSocketContext()
-    render(
-      <TestWebSocketProvider value={ws.context}>
-        <FlashlampsSection
-          laser="NL2"
-          boxIds={['22']}
-          delayPresets={[50, 500, 700, 790]}
-        />
-      </TestWebSocketProvider>,
-    )
+    const ws = renderFl(['22'])
     await waitFor(() =>
       expect(ws.subscriptions.get('SI_NL2_FL_22_CH1')?.size).toBe(1),
     )
@@ -82,16 +92,7 @@ describe('FlashlampsSection', () => {
   })
 
   it('exposes the trigger-delay preset input behind a cog', async () => {
-    const ws = makeFakeWebSocketContext()
-    render(
-      <TestWebSocketProvider value={ws.context}>
-        <FlashlampsSection
-          laser="NL2"
-          boxIds={['22']}
-          delayPresets={[50, 500, 700, 790]}
-        />
-      </TestWebSocketProvider>,
-    )
+    const ws = renderFl(['22'])
     await waitFor(() =>
       expect(ws.subscriptions.get('AI_NL2_TRIG_DELAY_CH1')?.size).toBe(1),
     )
@@ -118,16 +119,7 @@ describe('FlashlampsSection', () => {
   })
 
   it('expands to a per-channel state list when the Flashlamps State row is clicked', async () => {
-    const ws = makeFakeWebSocketContext()
-    render(
-      <TestWebSocketProvider value={ws.context}>
-        <FlashlampsSection
-          laser="NL2"
-          boxIds={['22', '23']}
-          delayPresets={[50, 500, 700, 790]}
-        />
-      </TestWebSocketProvider>,
-    )
+    const ws = renderFl(['22', '23'])
     await waitFor(() =>
       expect(ws.subscriptions.get('SI_NL2_FL_22_CH1')?.size).toBe(1),
     )
@@ -156,17 +148,8 @@ describe('FlashlampsSection', () => {
     expect(screen.getByText('23 Ch2')).toBeInTheDocument()
   })
 
-  it('shows a Trigger Delay mismatch error when Ch1 and Ch2 disagree', async () => {
-    const ws = makeFakeWebSocketContext()
-    render(
-      <TestWebSocketProvider value={ws.context}>
-        <FlashlampsSection
-          laser="NL2"
-          boxIds={['22']}
-          delayPresets={[50, 500, 700, 790]}
-        />
-      </TestWebSocketProvider>,
-    )
+  it('shows a Trigger Delay mismatch error when the readouts disagree', async () => {
+    const ws = renderFl(['22'])
     await waitFor(() =>
       expect(ws.subscriptions.get('AI_NL2_TRIG_DELAY_CH2')?.size).toBe(1),
     )
@@ -177,5 +160,32 @@ describe('FlashlampsSection', () => {
     })
 
     expect(screen.getByText(/MISMATCH 790\/50/)).toBeInTheDocument()
+  })
+
+  it('hides the flashlamp action buttons when those commands are not exposed', async () => {
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <FlashlampsSection
+          laser="NL2"
+          flashlamps={flashlamps(['22'])}
+          triggerDelay={TRIGGER_DELAY}
+          delayPresets={[50]}
+          commands={[]}
+        />
+      </TestWebSocketProvider>,
+    )
+    await waitFor(() =>
+      expect(ws.subscriptions.get('SI_NL2_FL_22_CH1')?.size).toBe(1),
+    )
+    // No Flashlamps-actions cog and no Set-delay cog when commands are empty.
+    expect(
+      screen.queryByRole('button', { name: 'Flashlamps actions' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Set trigger delay' }),
+    ).not.toBeInTheDocument()
+    // The state row still renders.
+    expect(screen.getByText('Flashlamps State')).toBeInTheDocument()
   })
 })

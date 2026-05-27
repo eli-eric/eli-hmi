@@ -15,14 +15,10 @@ interface LaserPanelProps {
 /**
  * LaserPanel - compound shell for one laser's column on the L4 OPCPA page.
  *
- * Compose section subcomponents as children:
- *   <LaserPanel title="NL2">
- *     <LaserPanel.General laser="NL2" mssCount={6} moduleErrors={...} />
- *     <LaserPanel.Regen laser="NL2" />
- *     <LaserPanel.Chillers laser="NL2" chillerIds={...} />
- *     <LaserPanel.Flashlamps laser="NL2" boxIds={...} delayPresets={...} />
- *     <LaserPanel.Modbox laser="NL2" modboxStateCount={5} />
- *   </LaserPanel>
+ * Composed via `laser-panel-instance.tsx`, which unpacks a `LaserSpec` resolved
+ * from `config/lasers.yaml`. Sections receive full PV-name strings as props
+ * (e.g. `shutterPv`, `chillers`, `flashlamps`); only command PVs are built in
+ * code. `laser` is passed only where command PVs are needed.
  */
 export const LaserPanel: FC<PropsWithChildren<LaserPanelProps>> & {
   General: typeof GeneralSection

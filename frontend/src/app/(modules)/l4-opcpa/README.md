@@ -1,6 +1,6 @@
 # L4 OPCPA Control System
 
-> Architecture context: [`docs/frontend/l4-opcpa.md`](../../../../../docs/frontend/l4-opcpa.md). Related ADRs: [0006](../../../../../docs/adr/0006-pv-name-registry-l4-opcpa.md), [0007](../../../../../docs/adr/0007-l4-custom-shell-not-modulecontrolpage.md), [0008](../../../../../docs/adr/0008-laser-specs-location.md).
+> Architecture context: [`docs/frontend/l4-opcpa.md`](../../../../../docs/frontend/l4-opcpa.md). Related ADRs: [0006](../../../../../docs/adr/0006-pv-name-registry-l4-opcpa.md), [0007](../../../../../docs/adr/0007-l4-custom-shell-not-modulecontrolpage.md), [0009](../../../../../docs/adr/0009-per-laser-yaml-config.md) (supersedes [0008](../../../../../docs/adr/0008-laser-specs-location.md)).
 
 Operator UI for the L4 OPCPA laser system. Five lasers (NL1–NL5) rendered
 side-by-side, each with five stacked sections (General, Regen, Chillers,
@@ -12,16 +12,21 @@ Flashlamps, Modbox).
 
 ```
 app/(modules)/l4-opcpa/
-├── page.tsx                  # Custom page shell (does NOT use ModuleControlPage — see below)
+├── page.tsx                  # Server shell — loads + validates lasers.yaml, renders L4OpcpaView
 ├── page.module.css
+├── config/                   # Per-laser topology config (see config/README.md + ADR-0009)
+│   ├── lasers.yaml           # SOURCE OF TRUTH — human-edited per-laser topology
+│   ├── lasers.schema.json    # Generated for editor autocomplete (npm run gen:schema)
+│   ├── schema.ts             # zod schema + LaserSpec type + parseLaserSpecs()
+│   └── load-laser-specs.ts   # server-only fs wrapper around parseLaserSpecs
 ├── lib/
 │   ├── pv-names.ts           # PV-name registry — canonical source for BI_/AI_/SI_/CMD_ names
 │   └── pv-names.test.ts
 └── components/
     ├── laser-grid.tsx        # CSS grid wrapper, 4 columns, wraps to 4+1
     ├── color-legend.tsx      # Wireframe colour legend at the top
-    ├── laser-specs.ts        # LASER_SPECS array — per-laser topology (counts, IDs, presets)
-    └── laser-panel-instance.tsx  # Renders one laser by unpacking a LaserSpec
+    ├── l4-opcpa-view.tsx     # Client view (connection banner + grid), takes specs prop
+    └── laser-panel-instance.tsx  # Renders one laser from a LaserSpec; hides empty-bank sections
 
 components/hmi/
 ├── laser-panel/              # Compound LaserPanel + 5 section subcomponents (see its README)
@@ -39,30 +44,33 @@ specifies a flat 5-column grid of laser status panels with no top/bottom
 ribbons. Forcing it into `ModuleControlPage` would mean stubbing out all of
 the vacuum-specific panels.
 
-`laser-specs.ts` lives under this module's `components/` (not under
-`lib/modules/`) because it's a different config type: per-page **topology**
-(laser counts, chiller ids, delay presets) rather than the panel-layout
-`ModuleConfig` consumed by `ModuleControlPage`. Mixing the two in
-`lib/modules/` would conflate independent concepts.
+Per-laser **topology** (laser counts, chiller ids, delay presets, commands)
+lives in `config/lasers.yaml` — a human-editable, zod-validated config under
+this module, not in `lib/modules/` (which is panel-layout `ModuleConfig` for
+`ModuleControlPage`). See [ADR-0009](../../../../../docs/adr/0009-per-laser-yaml-config.md)
+(supersedes [ADR-0008](../../../../../docs/adr/0008-laser-specs-location.md))
+and `config/README.md`.
 
-When/if a Python EPICS gateway exposes `GET /lasers`, this static config
-should be replaced with a fetch + the topology becomes the canonical source.
+`loadLaserSpecs()` is the seam for the future: when a Python EPICS gateway
+exposes `GET /lasers`, swap the `fs` read for a `fetch`.
 
-## PV naming + backend mirror
+## PV naming
 
-Every PV name is constructed via `pv.*` builders in
-`l4-opcpa/lib/pv-names.ts`. The mock backend
-(`backend/mockup-websocket-server/l4_opcpa.go`) hand-mirrors the same names.
-A header comment in `l4_opcpa.go` points back here as the canonical source.
+Signal PV names are **full strings in `config/lasers.yaml`** (what controls
+provides) — the frontend reads them verbatim; it does **not** assemble names
+from prefixes. The only thing built in code is the **command PV**
+(`CMD_<laser>_<NAME>`), because a command maps to a backend sequence of writes,
+not a single PV:
 
 ```ts
 import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
-
-pv.shutter('NL2')               // 'BI_NL2_SHUTTER'
-pv.flashlampChannel('NL2','22','1') // 'SI_NL2_FL_22_CH1'
-pv.cmd('NL2', 'START_LASER')    // 'CMD_NL2_START_LASER'
-pv.mssAll('NL2', 6)             // ['BI_NL2_MSS_1', ..., 'BI_NL2_MSS_6']
+pv.cmd('NL2', 'START_LASER') // 'CMD_NL2_START_LASER'
 ```
+
+The mock backend (`backend/mockup-websocket-server/l4_opcpa.go`) is test-only
+and seeds the names currently in `lasers.yaml` (the mock convention). It does
+**not** read the YAML — see `config/README.md`. See
+[ADR-0009](../../../../../docs/adr/0009-per-laser-yaml-config.md).
 
 ## Write path
 
@@ -95,5 +103,6 @@ curl http://localhost:8080/mode/fail-rate/10
 
 NL1, NL3, NL4, NL5 mirror NL2's topology because Confluence only documents
 NL2 and APL. Once divergent topology is confirmed (chiller bank counts,
-flashlamp box ids per laser), extend `LASER_SPECS` per-entry. Tracked via
+flashlamp box ids per laser), edit the per-laser entries in
+`config/lasers.yaml` — each laser is configured independently. Tracked via
 footer comments on the source Confluence page.
