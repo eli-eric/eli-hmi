@@ -52,7 +52,6 @@ var (
 	biMode   = 2 // 1 = autosimulate, 2 = manual
 	siMode   = 2 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// Update period in milliseconds
 	updatePeriodMs = 300
@@ -368,10 +367,10 @@ func setRealLikePVHandler(c echo.Context) error {
 		log.Println("BODY: ", requestBody)
 
 		// simulate random waiting time
-		time.Sleep(time.Duration(rng.Intn(3000)) * time.Millisecond)
+		time.Sleep(time.Duration(randIntn(3000)) * time.Millisecond)
 
 		//randomly simulate error
-		errOccures := rng.Intn(5) == 1
+		errOccures := randIntn(5) == 1
 
 		if errOccures {
 			return c.JSON(200, SetPvResponseMessage{OK: false, Error: "Some error on EPICS..."})
@@ -474,14 +473,14 @@ func synthValue(name string) interface{} {
 	switch {
 	case strings.HasPrefix(name, "AI_"):
 		// Use a smaller deviation (1-3 units) to make changes less dramatic
-		return 50 + float64(rng.Intn(3)-1) // Changes between -1, 0, +1 added to base value
+		return 50 + float64(randIntn(3)-1) // Changes between -1, 0, +1 added to base value
 	case strings.HasPrefix(name, "BI_"):
-		return rng.Intn(2)
+		return randIntn(2)
 	case strings.HasPrefix(name, "SI_"):
-		return randomWords[rng.Intn(len(randomWords))]
+		return randomWords[randIntn(len(randomWords))]
 	default:
 		// Smaller changes for default numeric values too
-		return rng.Float64() * 3 // Limit to 0-3 range
+		return randFloat64() * 3 // Limit to 0-3 range
 	}
 }
 
@@ -518,22 +517,30 @@ func simStepFrom(name string, prev interface{}) interface{} {
 			return int(base)
 		}
 		// Drift ±0.5 around the current value.
-		return base + (rng.Float64()*2-1)*0.5
+		return base + (randFloat64()*2-1)*0.5
 	case strings.HasPrefix(name, "BI_"):
 		// Binary PVs default to manual mode (biMode=2), so this branch is
 		// rarely hit; keep prev to avoid flipping when autosim is enabled.
 		if v, ok := prev.(int); ok {
 			return v
 		}
-		return rng.Intn(2)
+		return randIntn(2)
 	case strings.HasPrefix(name, "SI_"):
 		if s, ok := prev.(string); ok && s != "" {
 			return s
 		}
-		return randomWords[rng.Intn(len(randomWords))]
+		return randomWords[randIntn(len(randomWords))]
 	default:
-		return rng.Float64() * 3
+		return randFloat64() * 3
 	}
+}
+
+func randIntn(n int) int {
+	return rand.Intn(n)
+}
+
+func randFloat64() float64 {
+	return rand.Float64()
 }
 
 // isIntegerPv tags AI_ readouts that should drift as integers (no fractional
