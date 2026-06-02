@@ -159,6 +159,8 @@ describe('GeneralSection', () => {
     expect(screen.getByText('MSS 1')).toBeInTheDocument()
     expect(screen.getByText('MSS 2')).toBeInTheDocument()
     expect(screen.getByText('MSS 3')).toBeInTheDocument()
+    // The list is a selected, non-exhaustive set — surfaced as a note.
+    expect(screen.getByText(/not an exhaustive list/i)).toBeInTheDocument()
   })
 
   it('expands the Module Errors detail list and labels items by error name', async () => {

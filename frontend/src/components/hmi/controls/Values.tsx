@@ -20,17 +20,22 @@ type NumMsg = Message<number | null> | undefined
 type StrMsg = Message<string | null> | undefined
 
 /** Float value (precision-formatted) + optional units chip. */
-export const FloatValue: FC<{ data: NumMsg; precision?: number }> = ({
-  data,
-  precision = 3,
-}) => {
+export const FloatValue: FC<{
+  data: NumMsg
+  precision?: number
+  /** Suppress the units chip even when the PV reports units (e.g. Regen Temp,
+   * which the wireframe shows without a unit indicator). */
+  hideUnits?: boolean
+}> = ({ data, precision = 3, hideUnits = false }) => {
   if (!data || !data.ok || typeof data.value !== 'number') {
     return <span className={styles.placeholder}>{EMPTY}</span>
   }
   return (
     <>
       <span className={styles.number}>{data.value.toFixed(precision)}</span>
-      {data.units && <span className={styles.units}>{data.units}</span>}
+      {!hideUnits && data.units && (
+        <span className={styles.units}>{data.units}</span>
+      )}
     </>
   )
 }

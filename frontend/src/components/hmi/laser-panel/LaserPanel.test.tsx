@@ -16,6 +16,7 @@ describe('LaserPanel', () => {
   })
 
   it('exposes section components as static properties', () => {
+    expect(LaserPanel.Sequencer).toBeDefined()
     expect(LaserPanel.General).toBeDefined()
     expect(LaserPanel.Regen).toBeDefined()
     expect(LaserPanel.Chillers).toBeDefined()

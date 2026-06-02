@@ -62,8 +62,60 @@ describe('ModboxSection', () => {
 
     expect(screen.getByText('Modbox State')).toBeInTheDocument()
     expect(screen.getByText('2 / 3')).toBeInTheDocument()
-    expect(screen.getByText('Loaded Waveform')).toBeInTheDocument()
+    expect(screen.getByText('Waveform Latest')).toBeInTheDocument()
     expect(screen.getAllByText('std-100ps').length).toBeGreaterThan(0)
+  })
+
+  it('renders the full Modbox row structure: BOOL, MBC1, MBC2, Waveform Preset, Waveform Latest, and Modbox Actions', async () => {
+    const ws = renderModbox()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
+    )
+
+    // Merged BOOL count + the two MBC float columns from the wireframe.
+    expect(screen.getByText('Modbox State')).toBeInTheDocument()
+    expect(screen.getByText('BOOL')).toBeInTheDocument()
+    expect(screen.getByText('MBC1')).toBeInTheDocument()
+    expect(screen.getByText('MBC2')).toBeInTheDocument()
+    // Both waveform rows.
+    expect(screen.getByText('Waveform Preset')).toBeInTheDocument()
+    expect(screen.getByText('Waveform Latest')).toBeInTheDocument()
+    // Modbox actions cog.
+    expect(
+      screen.getByRole('button', { name: 'Modbox actions' }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the unknown placeholder for MBC1/MBC2/Waveform Preset when their PVs are not configured', async () => {
+    const ws = renderModbox()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('SI_NL2_LOADED_WAVEFORM')?.size).toBe(1),
+    )
+
+    // Give the configured readouts real values: Modbox State shows a count,
+    // Waveform Latest a string — so the only remaining `<>` placeholders are
+    // the three unconfigured cells (MBC1, MBC2, Waveform Preset).
+    act(() => {
+      ws.push('BI_NL2_MODBOX_1', 1)
+      ws.push('BI_NL2_MODBOX_2', 1)
+      ws.push('BI_NL2_MODBOX_3', 1)
+      ws.push('SI_NL2_LOADED_WAVEFORM', 'std-100ps')
+    })
+
+    expect(screen.getAllByText('<>').length).toBe(3)
+  })
+
+  it('does not subscribe to MBC1/MBC2/Waveform Preset PVs when unconfigured', async () => {
+    const ws = renderModbox()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
+    )
+    // Only the configured PVs (modbox + loaded waveform) get subscriptions;
+    // no undefined PV names leak into the subscription set.
+    expect([...ws.subscriptions.keys()]).toEqual(
+      expect.arrayContaining([...MODBOX_3, 'SI_NL2_LOADED_WAVEFORM']),
+    )
+    expect([...ws.subscriptions.keys()]).not.toContain(undefined)
   })
 
   it('exposes Modbox ON / Modbox OFF behind a cog toggle', async () => {

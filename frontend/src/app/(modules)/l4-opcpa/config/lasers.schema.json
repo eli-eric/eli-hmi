@@ -60,6 +60,21 @@
                 "type": "string",
                 "minLength": 1,
                 "description": "Currently loaded waveform name."
+              },
+              "mbc1": {
+                "description": "Modbox State MBC1 float readout. Optional — absent → shown as unknown (<>).",
+                "type": "string",
+                "minLength": 1
+              },
+              "mbc2": {
+                "description": "Modbox State MBC2 float readout. Optional — absent → shown as unknown (<>).",
+                "type": "string",
+                "minLength": 1
+              },
+              "waveformPreset": {
+                "description": "Preset (next-launch) waveform name. Optional — absent → shown as unknown (<>).",
+                "type": "string",
+                "minLength": 1
               }
             },
             "required": [
@@ -75,6 +90,35 @@
             ],
             "additionalProperties": false,
             "description": "Single-signal read/write PVs."
+          },
+          "sequencer": {
+            "description": "Sequencer state bool (1 = RUNNING, 0 = IDLE). Optional — absent → shown as unknown (<>).",
+            "type": "string",
+            "minLength": 1
+          },
+          "sequences": {
+            "description": "Per-sequence state indicators for the expanded Sequencer list. Optional — absent/empty → the Sequencer row is not expandable.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Display label shown in the UI."
+                },
+                "pv": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Full EPICS PV name (from controls)."
+                }
+              },
+              "required": [
+                "label",
+                "pv"
+              ],
+              "additionalProperties": false
+            }
           },
           "triggerDelay": {
             "minItems": 1,

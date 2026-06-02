@@ -16,7 +16,6 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.125rem 0.5rem;
-  border-left: 3px solid transparent;
   min-width: 0;
 }
 
@@ -35,69 +34,43 @@
   letter-spacing: 0.04em;
   flex-shrink: 0;
   padding-left: 0.5rem;
+  color: var(--color-text);
 }
 
-.dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--color-text-secondary);
+.item[data-state='ok'] .trailing {
+  color: var(--color-success-dark);
 }
 
-.item[data-state='ok'] {
-  border-left-color: var(--color-success-dark);
-}
-.item[data-state='ok'] .dot {
-  background: var(--color-success-dark);
-}
-
-.item[data-state='err'] {
-  border-left-color: var(--color-error-dark);
-  font-weight: 700;
-}
-.item[data-state='err'] .dot {
-  background: var(--color-error-dark);
-}
 .item[data-state='err'] .trailing {
   color: var(--color-error-dark);
 }
 
-.item[data-state='run'] {
-  border-left-color: var(--color-success-dark);
-}
 .item[data-state='run'] .trailing {
   color: var(--color-success-dark);
 }
 
-.item[data-state='sb'] {
-  border-left-color: var(--color-gray-800);
-}
 .item[data-state='sb'] .trailing {
   color: var(--color-gray-800);
 }
 
-.item[data-state='stop'] {
-  border-left-color: var(--color-warning-dark);
-}
 .item[data-state='stop'] .trailing {
   color: var(--color-warning-dark);
 }
 
-.item[data-state='fail'] {
-  border-left-color: var(--color-error-dark);
-  font-weight: 700;
-}
 .item[data-state='fail'] .trailing {
   color: var(--color-error-dark);
   text-decoration: underline double;
 }
 
-.item[data-state='unknown'] {
-  border-left-style: dotted;
-  border-left-color: var(--color-gray-800);
+.item[data-state='unknown'] .trailing {
   color: var(--color-gray-800);
 }
-.item[data-state='unknown'] .dot {
-  background: transparent;
-  border: 1px dotted currentColor;
+
+.note {
+  margin: 0.25rem 0 0;
+  padding: 0 0.5rem;
+  font-size: 0.6875rem;
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--color-text-secondary);
 }

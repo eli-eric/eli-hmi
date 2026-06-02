@@ -53,8 +53,34 @@ export const rawLaserSchema = z.strictObject({
       phd2Mean: pvName.describe('Second PHD mean readout.'),
       attenuator: pvName.describe('Attenuator value (read + direct write).'),
       loadedWaveform: pvName.describe('Currently loaded waveform name.'),
+      mbc1: pvName
+        .optional()
+        .describe(
+          'Modbox State MBC1 float readout. Optional — absent → shown as unknown (<>).',
+        ),
+      mbc2: pvName
+        .optional()
+        .describe(
+          'Modbox State MBC2 float readout. Optional — absent → shown as unknown (<>).',
+        ),
+      waveformPreset: pvName
+        .optional()
+        .describe(
+          'Preset (next-launch) waveform name. Optional — absent → shown as unknown (<>).',
+        ),
     })
     .describe('Single-signal read/write PVs.'),
+  sequencer: pvName
+    .optional()
+    .describe(
+      'Sequencer state bool (1 = RUNNING, 0 = IDLE). Optional — absent → shown as unknown (<>).',
+    ),
+  sequences: z
+    .array(labeledPv)
+    .optional()
+    .describe(
+      'Per-sequence state indicators for the expanded Sequencer list. Optional — absent/empty → the Sequencer row is not expandable.',
+    ),
   triggerDelay: z
     .array(pvName)
     .min(1)
@@ -96,6 +122,8 @@ export const rawLaserSchema = z.strictObject({
     ...laser.chillers.flatMap((c) => [c.flow, c.temp, c.level]),
     ...laser.flashlamps.map((f) => f.pv),
     ...laser.modbox,
+    ...(laser.sequencer ? [laser.sequencer] : []),
+    ...(laser.sequences?.map((s) => s.pv) ?? []),
   ]
   const seen = new Set<string>()
   const dupes = new Set<string>()

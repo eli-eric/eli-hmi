@@ -7,7 +7,9 @@
 
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 4.5rem) minmax(0, 1fr);
+  /* First column matches DataRow's label column (7rem) so the CONN/FULLP/MSS/ERR
+     cluster lines up with the value cells in the rows below (Shutter, PHD…). */
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
   gap: 0.375rem;
   align-items: center;
 }
@@ -65,6 +67,7 @@
 }
 
 .pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -83,6 +86,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Corner triangle marking an expandable pill (MSS, ERR — both wrapped in
+   .pillButton). Non-expandable pills (CONN, FULLP) get no triangle. */
+.pillButton .pill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  border-style: solid;
+  border-width: 0 0 6px 6px;
+  border-color: transparent transparent var(--color-text) transparent;
+  opacity: 0.5;
 }
 
 .pillCount {

@@ -50,7 +50,7 @@ export const RegenSection: FC<RegenSectionProps> = ({
       />
       <DataRow
         label="Regen Temp TK6:44"
-        value={<FloatValue data={state[regenTempPv]} precision={3} />}
+        value={<FloatValue data={state[regenTempPv]} precision={3} hideUnits />}
       />
       <DataRow
         label="PHD1K000:48/Mean"

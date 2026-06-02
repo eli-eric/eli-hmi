@@ -17,6 +17,10 @@ interface LaserPanelInstanceProps {
  */
 export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => (
   <LaserPanel title={spec.laser}>
+    <LaserPanel.Sequencer
+      sequencerPv={spec.sequencer}
+      sequences={spec.sequences}
+    />
     <LaserPanel.General
       laser={spec.laser}
       connectionPv={spec.pvs.connection}
@@ -50,6 +54,9 @@ export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => (
         laser={spec.laser}
         modbox={spec.modbox}
         loadedWaveformPv={spec.pvs.loadedWaveform}
+        mbc1Pv={spec.pvs.mbc1}
+        mbc2Pv={spec.pvs.mbc2}
+        waveformPresetPv={spec.pvs.waveformPreset}
         commands={spec.commands}
       />
     )}

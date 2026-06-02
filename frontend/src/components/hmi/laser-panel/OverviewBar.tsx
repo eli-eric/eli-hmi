@@ -71,10 +71,11 @@ export const OverviewBar: FC<OverviewBarProps> = ({
 
   const mssItems: DetailListItem[] = mssPvs.map((name, i) => {
     const msg = state[name]
+    const known = msg && msg.ok
     return {
       label: `MSS ${i + 1}`,
-      state:
-        !msg || !msg.ok ? 'unknown' : msg.value === 1 ? 'ok' : 'err',
+      state: !known ? 'unknown' : msg.value === 1 ? 'ok' : 'err',
+      trailing: !known ? undefined : msg.value === 1 ? 'YES' : 'NO',
     }
   })
 
@@ -154,7 +155,12 @@ export const OverviewBar: FC<OverviewBarProps> = ({
           </Cell>
         </div>
       </div>
-      {expanded === 'mss' && <DetailList items={mssItems} />}
+      {expanded === 'mss' && (
+        <DetailList
+          items={mssItems}
+          note="Selected MSS conditions — not an exhaustive list of all conditions behind the merged MSS indicator."
+        />
+      )}
       {expanded === 'err' && <DetailList items={errItems} />}
     </div>
   )

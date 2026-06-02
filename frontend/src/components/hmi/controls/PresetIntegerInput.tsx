@@ -38,8 +38,8 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
       ? `Out of range (${min ?? '−∞'}..${max ?? '∞'})`
       : null
 
-  // Reset the staged value after a successful write (hook reports 'success'
-  // and we mirror the old reset-and-let-cog-close behaviour).
+  // Clear the custom field after a successful write (the cog closes on success
+  // anyway; this keeps it clean if the control lives outside a CogToggle).
   useEffect(() => {
     if (state === 'success') {
       setStaged(null)
@@ -77,17 +77,15 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
     setStaged(n)
   }, [])
 
-  const onChipClick = useCallback((value: number) => {
-    setStaged(value)
-    setCustomText('')
-    setParseError(null)
-  }, [])
-
-  const onCancel = useCallback(() => {
-    setStaged(null)
-    setCustomText('')
-    setParseError(null)
-  }, [])
+  // Presets apply immediately — no CONFIRM step (spec: preset buttons must
+  // apply on click). The manual custom value still goes through CONFIRM.
+  const onPresetClick = useCallback(
+    (value: number) => {
+      if (pending) return
+      void write(pvName, value)
+    },
+    [pending, pvName, write],
+  )
 
   const onConfirm = useCallback(() => {
     if (staged === null) return
@@ -108,16 +106,18 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
               key={p}
               type="button"
               className={styles.chip}
-              data-staged={staged === p}
-              onClick={() => onChipClick(p)}
+              disabled={pending}
+              onClick={() => onPresetClick(p)}
             >
               {p}
             </button>
           ))}
         </div>
       )}
-      <label className={styles.customRow} htmlFor={inputId}>
-        <span className={styles.customLabel}>Custom</span>
+      <div className={styles.customRow}>
+        <label className={styles.customLabel} htmlFor={inputId}>
+          Custom
+        </label>
         <input
           id={inputId}
           className={styles.input}
@@ -128,16 +128,6 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
           max={max}
           onChange={(e) => onCustomChange(e.target.value)}
         />
-      </label>
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.cancel}
-          onClick={onCancel}
-          disabled={staged === null && customText === ''}
-        >
-          Cancel
-        </button>
         <button
           type="button"
           className={styles.confirm}
@@ -145,11 +135,7 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
           disabled={!stagedValid || pending}
           data-state={pending ? 'pending' : error ? 'error' : 'idle'}
         >
-          {staged !== null
-            ? pending
-              ? `Setting ${staged}…`
-              : `Confirm ${staged}`
-            : 'Confirm'}
+          {staged !== null && pending ? `Setting ${staged}…` : 'Confirm'}
         </button>
       </div>
       {(error || rangeError || parseError) && (

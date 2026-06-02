@@ -70,13 +70,14 @@ describe('LaserPanelInstance', () => {
   it('renders the column header and one representative row per section', () => {
     renderSpec(NL2)
     expect(screen.getByRole('heading', { name: 'NL2' })).toBeInTheDocument()
+    expect(screen.getByText('Sequencer')).toBeInTheDocument()
     expect(screen.getByText('Overview')).toBeInTheDocument()
     expect(screen.getByText('Shutter Position')).toBeInTheDocument()
     expect(screen.getByText('Regen SY3PL50M:32')).toBeInTheDocument()
     expect(screen.getByText('Chiller PS1225:11')).toBeInTheDocument()
     expect(screen.getByText('Flashlamps State')).toBeInTheDocument()
     expect(screen.getByText('Modbox State')).toBeInTheDocument()
-    expect(screen.getByText('Loaded Waveform')).toBeInTheDocument()
+    expect(screen.getByText('Waveform Latest')).toBeInTheDocument()
   })
 
   it('hides sections whose device bank is empty', () => {

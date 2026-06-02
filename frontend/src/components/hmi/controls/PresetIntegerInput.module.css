@@ -31,15 +31,13 @@
   font-variant-numeric: tabular-nums;
 }
 
-.chip:hover {
+.chip:hover:not(:disabled) {
   background: var(--color-surface);
 }
 
-/* Staged chip: green tint + green border. */
-.chip[data-staged='true'] {
-  border-color: var(--color-success-dark);
-  color: var(--color-success-dark);
-  background: color-mix(in srgb, var(--color-success) 22%, var(--color-surface-lighter));
+.chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .customRow {
@@ -71,14 +69,8 @@
   color: var(--color-text);
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 0.25rem;
-}
-
-.cancel,
 .confirm {
+  flex-shrink: 0;
   font: inherit;
   font-size: 0.75rem;
   font-weight: 700;
@@ -92,12 +84,10 @@
   cursor: pointer;
 }
 
-.cancel:hover:not(:disabled),
 .confirm:hover:not(:disabled) {
   background: var(--color-surface);
 }
 
-.cancel:disabled,
 .confirm:disabled {
   opacity: 0.55;
   cursor: not-allowed;
