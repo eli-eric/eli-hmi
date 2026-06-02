@@ -1,6 +1,13 @@
 .grid {
-  display: flex;
-  flex-direction: row;
+  /* Centered auto-fit grid. Each panel sizes between 300px and a readable 480px
+     cap (a fixed max, not 1fr) and `justify-content: center` centers the whole
+     track group — so a lone NL2 panel sits centered instead of floating against
+     the left edge, and 2–4 panels spread across the screen without ever
+     clustering on the left. Horizontal overflow (if even one 300px column can't
+     fit) is caught by the global .page-container scroll container. */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 480px));
+  justify-content: center;
   gap: 0.75rem;
   padding: 0.5rem 0;
   align-items: start;
@@ -8,6 +15,15 @@
 }
 
 .grid > * {
-  width: 280px;
-  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* Constrained / iPad viewports: the grid collapses to a single centered column
+   (L4OpcpaView shows one panel at a time via .panelSlot — see page.module.css)
+   that uses the available content width, capped so rows don't stretch awkwardly
+   wide. Keep this breakpoint in sync with the .panelSlot and .switcher rules. */
+@media (max-width: 1199px) {
+  .grid {
+    grid-template-columns: minmax(0, 640px);
+  }
 }

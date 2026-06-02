@@ -36,7 +36,9 @@
 }
 
 .chip:disabled {
-  opacity: 0.55;
+  background: var(--color-disabled-surface);
+  border-color: var(--color-disabled-border);
+  color: var(--color-disabled-text);
   cursor: not-allowed;
 }
 
@@ -89,7 +91,9 @@
 }
 
 .confirm:disabled {
-  opacity: 0.55;
+  background: var(--color-disabled-surface);
+  border-color: var(--color-disabled-border);
+  color: var(--color-disabled-text);
   cursor: not-allowed;
 }
 

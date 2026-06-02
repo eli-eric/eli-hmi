@@ -14,3 +14,12 @@
   align-items: center;
   gap: 1rem;
 }
+
+/* Push the System Status summary to the far end of the nav bar. `margin-left:
+   auto` keeps it right-aligned while `flex-wrap` still lets it drop to a new
+   line on very narrow widths. */
+.statusGroup {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}

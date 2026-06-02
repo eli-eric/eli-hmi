@@ -1,0 +1,62 @@
+.switcher {
+  /* Hidden on wide viewports — there the grid shows panels side by side. It
+     appears only on constrained / iPad viewports, where the grid collapses to
+     one panel at a time and this pages between them. Keep this breakpoint in
+     sync with the .panelSlot rule in page.module.css and the .grid rule in
+     laser-grid.module.css. */
+  display: none;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+@media (max-width: 1199px) {
+  .switcher {
+    display: flex;
+  }
+}
+
+.arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Large, touch-friendly hit targets for the prev/next controls on tablets. */
+  min-width: 3rem;
+  min-height: 3rem;
+  font: inherit;
+  font-size: 1.75rem;
+  line-height: 1;
+  font-weight: 700;
+  border-radius: 0;
+  border: 1px solid var(--color-text);
+  background: var(--color-surface-lighter);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.arrow:hover {
+  background: var(--color-surface);
+}
+
+.current {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-text);
+  background: var(--color-surface);
+}
+
+.label {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.position {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-gray-800);
+}

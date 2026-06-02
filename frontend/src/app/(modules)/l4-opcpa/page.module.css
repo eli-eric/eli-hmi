@@ -38,6 +38,21 @@
   letter-spacing: 0.08em;
 }
 
+/* Each panel in the multi-laser case is wrapped in a .panelSlot. Normally it is
+   transparent (display: contents) so the panel itself is the grid item. On a
+   narrow/constrained viewport the grid collapses to one panel at a time and the
+   PanelSwitcher pages between them — keep this breakpoint in sync with the
+   .switcher rule in panel-switcher.module.css. */
+.panelSlot {
+  display: contents;
+}
+
+@media (max-width: 1199px) {
+  .panelSlot:not([data-active='true']) {
+    display: none;
+  }
+}
+
 .disconnected {
   padding: 0.375rem 0.75rem;
   font-size: 0.8125rem;

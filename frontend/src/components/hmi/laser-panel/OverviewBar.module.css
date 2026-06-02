@@ -7,9 +7,10 @@
 
 .row {
   display: grid;
-  /* First column matches DataRow's label column (7rem) so the CONN/FULLP/MSS/ERR
-     cluster lines up with the value cells in the rows below (Shutter, PHD…). */
-  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
+  /* First column matches DataRow's label column (var(--hmi-label-col)) so the
+     CONN/FULLP/MSS/ERR cluster lines up with the value cells in the rows below
+     (Shutter, PHD…). */
+  grid-template-columns: minmax(0, var(--hmi-label-col)) minmax(0, 1fr);
   gap: 0.375rem;
   align-items: center;
 }
@@ -121,6 +122,7 @@
 
 .pill[data-tone='positive-important'] {
   background: var(--color-success);
+  background-image: var(--pattern-positive);
   border-color: var(--color-success-dark);
   color: var(--color-text);
 }
@@ -133,12 +135,15 @@
 
 .pill[data-tone='negative-neutral'] {
   background: var(--color-surface);
+  background-image: var(--pattern-neutral);
+  background-size: 6px 6px;
   border-color: var(--color-gray-800);
   color: var(--color-text);
 }
 
 .pill[data-tone='negative-important'] {
   background: var(--color-error-light);
+  background-image: var(--pattern-negative);
   border-color: var(--color-error-dark);
   color: var(--color-text);
 }

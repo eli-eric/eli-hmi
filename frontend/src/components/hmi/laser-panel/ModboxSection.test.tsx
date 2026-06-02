@@ -7,6 +7,7 @@ import {
   makeFakeWebSocketContext,
   TestWebSocketProvider,
 } from '@/test/ws-test-provider'
+import { TooltipProvider } from '@/components/ui/tooltip/tooltip'
 
 const ORIGINAL_FETCH = globalThis.fetch
 
@@ -30,14 +31,16 @@ const MODBOX_3 = ['BI_NL2_MODBOX_1', 'BI_NL2_MODBOX_2', 'BI_NL2_MODBOX_3']
 function renderModbox() {
   const ws = makeFakeWebSocketContext()
   render(
-    <TestWebSocketProvider value={ws.context}>
-      <ModboxSection
-        laser="NL2"
-        modbox={MODBOX_3}
-        loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
-        commands={LASER_COMMANDS}
-      />
-    </TestWebSocketProvider>,
+    <TooltipProvider>
+      <TestWebSocketProvider value={ws.context}>
+        <ModboxSection
+          laser="NL2"
+          modbox={MODBOX_3}
+          loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+          commands={LASER_COMMANDS}
+        />
+      </TestWebSocketProvider>
+    </TooltipProvider>,
   )
   return ws
 }

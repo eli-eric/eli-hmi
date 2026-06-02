@@ -58,7 +58,9 @@ export const DetailList: FC<DetailListProps> = ({ items, note }) => {
             className={styles.item}
             data-state={item.state}
           >
-            <span className={styles.label}>{item.label}</span>
+            <span className={styles.label} title={item.label}>
+              {item.label}
+            </span>
             <span className={styles.trailing}>
               {item.trailing ?? DEFAULT_TRAILING[item.state]}
             </span>

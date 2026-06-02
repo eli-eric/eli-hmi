@@ -50,6 +50,43 @@
   --color-focus: rgba(2, 132, 199, 0.5); /* Translucent blue for focus rings */
   --color-hover-overlay: rgba(0, 0, 0, 0.05);
 
+  /* Disabled / low-emphasis states. Used instead of a bare `opacity` on
+     buttons so disabled controls recede (lighter surface, greyer border) while
+     their label stays legible on the gray HMI surfaces. */
+  --color-disabled-text: #6b6b6b;
+  --color-disabled-surface: var(--color-gray-300);
+  --color-disabled-border: var(--color-gray-600);
+
+  /* Colourblind-safe state textures. Reinforce hue with a stripe pattern so an
+     "on/active" (green) cell and an "error/alarm" (red) cell stay
+     distinguishable without relying on the green-vs-red difference. Faint and
+     dark-on-tone so they don't reduce the contrast of the black labels. The
+     two states use opposite stripe angles for an extra non-colour cue. */
+  --pattern-positive: repeating-linear-gradient(
+    45deg,
+    transparent 0 5px,
+    rgba(0, 0, 0, 0.07) 5px 10px
+  );
+  --pattern-negative: repeating-linear-gradient(
+    -45deg,
+    transparent 0 4px,
+    rgba(0, 0, 0, 0.11) 4px 8px
+  );
+  /* "off/inactive/no" texture: a faint dot grid (paired with `background-size`)
+     so a muted-gray off cell reads as a third, non-diagonal pattern distinct
+     from the on/error hatches. Kept very faint so the cell's text stays
+     readable under orange-tinted laser glasses. */
+  --pattern-neutral: radial-gradient(
+    rgba(0, 0, 0, 0.07) 0.5px,
+    transparent 0.5px
+  );
+
+  /* HMI label column width. Single knob shared by every label/value grid
+     (DataRow, OverviewBar, and the chiller/modbox/flashlamp section grids) so
+     the rows stay aligned and full PV-name labels (e.g. "Atten. SM5:ATT1:51")
+     fit without ellipsis. Bump this if a longer label is added. */
+  --hmi-label-col: 9.5rem;
+
   /* Border radius scale */
   --border-radius-none: 0;
   --border-radius-sm: 0.125rem;

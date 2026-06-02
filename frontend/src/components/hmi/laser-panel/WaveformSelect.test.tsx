@@ -1,10 +1,25 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { WaveformSelect, __resetWaveformCatalogForTests } from './WaveformSelect'
+import { TooltipProvider } from '@/components/ui/tooltip/tooltip'
+import {
+  WaveformSelect,
+  renderWaveformPreview,
+  __resetWaveformCatalogForTests,
+} from './WaveformSelect'
 
 const ORIGINAL_FETCH = globalThis.fetch
 const CATALOG = ['std-100ps', 'narrow-50ps', 'broad-200ps']
+
+// WaveformSelect uses the Radix Tooltip for its preview affordance, which
+// requires a TooltipProvider ancestor (the app mounts one globally).
+function renderWaveform(laser = 'NL2') {
+  return render(
+    <TooltipProvider>
+      <WaveformSelect laser={laser} />
+    </TooltipProvider>,
+  )
+}
 
 function mockFetch() {
   const spy = vi.fn<typeof fetch>(async (input) => {
@@ -32,7 +47,7 @@ afterEach(() => {
 describe('WaveformSelect', () => {
   it('fetches /waveforms and renders one option per waveform', async () => {
     mockFetch()
-    render(<WaveformSelect laser="NL2" />)
+    renderWaveform()
     await waitFor(() =>
       expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
     )
@@ -43,7 +58,7 @@ describe('WaveformSelect', () => {
   it('disables Load until the user picks a waveform', async () => {
     mockFetch()
     const user = userEvent.setup()
-    render(<WaveformSelect laser="NL2" />)
+    renderWaveform()
     await waitFor(() =>
       expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
     )
@@ -57,7 +72,7 @@ describe('WaveformSelect', () => {
   it('POSTs CMD_<laser>_LOAD_WAVEFORM with the selected name on Load click', async () => {
     const spy = mockFetch()
     const user = userEvent.setup()
-    render(<WaveformSelect laser="NL2" />)
+    renderWaveform()
     await waitFor(() =>
       expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
     )
@@ -75,5 +90,47 @@ describe('WaveformSelect', () => {
         value: 'broad-200ps',
       })
     })
+  })
+
+  it('exposes an accessible, keyboard-focusable preview trigger', async () => {
+    mockFetch()
+    renderWaveform()
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
+    )
+
+    const trigger = screen.getByRole('button', { name: /preview/i })
+    expect(trigger).toBeInTheDocument()
+    trigger.focus()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('shows a "Preview unavailable" hint on the preview trigger', async () => {
+    mockFetch()
+    const user = userEvent.setup()
+    renderWaveform()
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
+    )
+
+    await user.hover(screen.getByRole('button', { name: /preview/i }))
+    // Radix renders an accessible mirror plus the visible content, so there can
+    // be more than one match.
+    const hints = await screen.findAllByText(/preview unavailable/i)
+    expect(hints.length).toBeGreaterThan(0)
+  })
+})
+
+describe('renderWaveformPreview', () => {
+  it('renders a "Preview unavailable" node naming the waveform (no shape data yet)', () => {
+    render(<div>{renderWaveformPreview('std-100ps')}</div>)
+    const region = screen.getByText(/preview unavailable/i)
+    expect(region).toBeInTheDocument()
+    expect(within(region.closest('div') as HTMLElement).getByText(/std-100ps/)).toBeInTheDocument()
+  })
+
+  it('handles an empty selection without naming a waveform', () => {
+    render(<div data-testid="wrap">{renderWaveformPreview('')}</div>)
+    expect(screen.getByText(/preview unavailable/i)).toBeInTheDocument()
   })
 })

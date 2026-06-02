@@ -7,6 +7,7 @@ import { signOut } from 'next-auth/react'
 import { TextButton } from '../ui/buttons'
 
 import { NavigationItem } from './navigation-item'
+import { ConnectionIndicator } from './connection-indicator'
 import { navigationItems } from '@/lib/settings/navigation'
 import { getHomeRoute } from '@/lib/settings/zone-service'
 
@@ -33,6 +34,9 @@ export default function NavigationBar() {
       {navigationItems.map((item) => (
         <NavigationItem href={item.href} text={item.text} key={item.href} />
       ))}
+      <div className={styles.statusGroup}>
+        <ConnectionIndicator />
+      </div>
     </nav>
   )
 }

@@ -1,13 +1,35 @@
 'use client'
 
-import { FC, useEffect, useState, useCallback } from 'react'
+import { FC, ReactNode, useEffect, useState, useCallback } from 'react'
 import { listWaveforms } from '@/lib/api/pvs'
 import { usePvWrite } from '@/components/hmi/controls/usePvWrite'
+import { Tooltip } from '@/components/ui/tooltip/tooltip'
 import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import styles from './WaveformSelect.module.css'
 
 interface WaveformSelectProps {
   laser: string
+}
+
+/**
+ * Renders the hover/focus preview shown for a waveform. The `/waveforms`
+ * endpoint currently returns names only — no point/shape data — so this is a
+ * deliberate "Preview unavailable" placeholder rather than a faked waveform.
+ *
+ * This is the seam for a real preview: once the backend publishes shape data
+ * (e.g. a points array), extend the signature to accept it and render an inline
+ * SVG/canvas here. Callers and the tooltip wiring stay unchanged.
+ */
+export function renderWaveformPreview(name: string): ReactNode {
+  return (
+    <div className={styles.preview}>
+      {name ? <span className={styles.previewName}>{name}</span> : null}
+      <span className={styles.previewBody}>Preview unavailable</span>
+      <span className={styles.previewHint}>
+        No waveform shape data is published yet.
+      </span>
+    </div>
+  )
 }
 
 // Module-scope cache: the waveform catalog is static, so we fetch once and
@@ -62,19 +84,32 @@ export const WaveformSelect: FC<WaveformSelectProps> = ({ laser }) => {
 
   return (
     <div className={styles.wrapper}>
-      <select
-        className={styles.select}
-        value={selected}
-        onChange={(e) => setSelected(e.target.value)}
-        aria-label="Waveform"
-      >
-        <option value="">— pick a waveform —</option>
-        {catalog.map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </select>
+      <div className={styles.controls}>
+        <select
+          className={styles.select}
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          aria-label="Waveform"
+        >
+          <option value="">— pick a waveform —</option>
+          {catalog.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+        <Tooltip content={renderWaveformPreview(selected)} side="top">
+          <button
+            type="button"
+            className={styles.previewTrigger}
+            aria-label={
+              selected ? `Preview waveform ${selected}` : 'Waveform preview'
+            }
+          >
+            <span aria-hidden="true">∿</span>
+          </button>
+        </Tooltip>
+      </div>
       <button
         type="button"
         className={styles.load}

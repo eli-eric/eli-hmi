@@ -1,6 +1,6 @@
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, var(--hmi-label-col)) minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.375rem;
   font-size: 0.8125rem;
