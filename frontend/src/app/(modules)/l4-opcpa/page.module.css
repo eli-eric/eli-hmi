@@ -63,3 +63,11 @@
   border: 1px solid var(--color-error-dark);
   color: var(--color-text);
 }
+
+/* Shown only when no laser specs reach the view (misconfiguration / empty
+   rollout). Compact, muted — see L4OpcpaView's empty-specs guard. */
+.empty {
+  padding: 1rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}

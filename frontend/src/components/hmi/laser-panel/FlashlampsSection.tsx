@@ -181,6 +181,9 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
 
       {expanded && <DetailList items={channelItems} />}
 
+      {/* Trigger Delay presets apply immediately on click — no confirm step.
+          This is a deliberate L4 OPCPA operator requirement; do not reintroduce
+          a confirmation step here. (Mechanism: PresetIntegerInput.onPresetClick.) */}
       <DataRow
         label="Trigger Delay"
         value={delayDisplay}

@@ -91,4 +91,14 @@ describe('L4OpcpaView', () => {
       'true',
     ])
   })
+
+  it('renders a misconfiguration notice and no switcher when specs is empty', () => {
+    renderView([])
+    expect(
+      screen.getByText(/no laser panels are configured/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('group', { name: /laser panel switcher/i }),
+    ).not.toBeInTheDocument()
+  })
 })

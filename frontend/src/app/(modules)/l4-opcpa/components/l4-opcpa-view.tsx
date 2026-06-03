@@ -25,6 +25,23 @@ interface L4OpcpaViewProps {
 export const L4OpcpaView: FC<L4OpcpaViewProps> = ({ specs }) => {
   const { isConnected } = useWebSocketContext()
   const [activeIndex, setActiveIndex] = useState(0)
+
+  // Defensive: an empty spec list (rollout filter matched nothing — e.g.
+  // lasers.yaml and CURRENT_L4_OPCPA_LASERS drifted apart) would make `active`
+  // underflow to -1 below. Render a compact misconfiguration notice instead.
+  if (specs.length === 0) {
+    return (
+      <div className={styles.page}>
+        <header className={styles.header}>
+          <h1 className={styles.title}>L4 OPCPA</h1>
+        </header>
+        <p className={styles.empty} role="status">
+          No laser panels are configured for display.
+        </p>
+      </div>
+    )
+  }
+
   const multi = specs.length > 1
   const active = Math.min(activeIndex, specs.length - 1)
 

@@ -36,7 +36,7 @@ export const PanelSwitcher: FC<PanelSwitcherProps> = ({
       >
         <span aria-hidden="true">‹</span>
       </button>
-      <span className={styles.current} aria-live="polite">
+      <span className={styles.current} aria-live="polite" aria-atomic="true">
         <span className={styles.label}>{labels[activeIndex]}</span>
         <span className={styles.position}>
           {activeIndex + 1} of {count}

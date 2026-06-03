@@ -1,4 +1,5 @@
 import { loadLaserSpecs } from './config/load-laser-specs'
+import { isCurrentRolloutLaser } from './config/rollout'
 import { L4OpcpaView } from './components/l4-opcpa-view'
 
 /**
@@ -8,9 +9,7 @@ import { L4OpcpaView } from './components/l4-opcpa-view'
  * validation happens at `next build`; an invalid config fails the build.
  */
 export default function L4OpcpaPage() {
-  // The GUI will eventually cover APL + NL1–5, but the current rollout targets
-  // NL2 only. The other lasers stay in lasers.yaml (ready to re-enable) — we
-  // just don't render them yet.
-  const specs = loadLaserSpecs().filter((spec) => spec.laser === 'NL2')
+  // Current rollout is NL2-only — see CURRENT_L4_OPCPA_LASERS in config/rollout.
+  const specs = loadLaserSpecs().filter((spec) => isCurrentRolloutLaser(spec.laser))
   return <L4OpcpaView specs={specs} />
 }
