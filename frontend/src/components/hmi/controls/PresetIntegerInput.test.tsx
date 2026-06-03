@@ -96,4 +96,34 @@ describe('PresetIntegerInput', () => {
     expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled()
     expect(screen.getByText(/out of range/i)).toBeInTheDocument()
   })
+
+  it('clears a stale custom value and validation error when a preset is clicked', async () => {
+    // A never-resolving write keeps the write 'pending', so the success-effect
+    // cleanup cannot fire — isolating the on-click cleanup as the only thing
+    // that can clear the stale custom input.
+    globalThis.fetch = vi.fn(
+      () => new Promise<Response>(() => {}),
+    ) as unknown as typeof fetch
+    const user = userEvent.setup()
+    render(
+      <PresetIntegerInput
+        label="Trigger Delay"
+        presets={[50, 500, 700, 790]}
+        pvName="CMD_NL2_SET_DELAY"
+        min={0}
+        max={1000}
+      />,
+    )
+
+    // Stage an out-of-range custom value → validation error + retained value.
+    await user.type(screen.getByLabelText(/custom/i), '-5')
+    expect(screen.getByText(/out of range/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/custom/i)).toHaveValue(-5)
+
+    // Clicking a preset applies immediately and wipes the stale custom state.
+    await user.click(screen.getByRole('button', { name: '500' }))
+
+    expect(screen.queryByText(/out of range/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/custom/i)).toHaveValue(null)
+  })
 })

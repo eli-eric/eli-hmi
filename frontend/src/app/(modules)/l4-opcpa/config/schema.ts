@@ -124,7 +124,7 @@ export const rawLaserSchema = z.strictObject({
     ...laser.modbox,
     ...(laser.sequencer ? [laser.sequencer] : []),
     ...(laser.sequences?.map((s) => s.pv) ?? []),
-  ]
+  ].filter((name): name is string => typeof name === 'string')
   const seen = new Set<string>()
   const dupes = new Set<string>()
   for (const name of all) {

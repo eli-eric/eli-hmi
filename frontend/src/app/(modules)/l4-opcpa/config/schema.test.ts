@@ -120,6 +120,14 @@ describe('parseLaserSpecs', () => {
     ).toThrow(/duplicate PV name/)
   })
 
+  it('still flags a duplicate when an optional pvs field collides with another PV', () => {
+    expect(() =>
+      parseLaserSpecs(
+        doc([laser({ pvs: { ...laser().pvs, mbc1: 'BI_NL9_CONN' } })]),
+      ),
+    ).toThrow(/duplicate PV name/)
+  })
+
   it('rejects unknown commands', () => {
     expect(() =>
       parseLaserSpecs(doc([laser({ commands: ['NOT_A_COMMAND'] })])),

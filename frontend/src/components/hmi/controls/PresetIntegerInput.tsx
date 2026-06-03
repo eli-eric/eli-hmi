@@ -82,6 +82,11 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
   const onPresetClick = useCallback(
     (value: number) => {
       if (pending) return
+      // Presets apply immediately; clear any stale custom-input state first so a
+      // leftover validation error / custom value doesn't linger after the write.
+      setStaged(null)
+      setCustomText('')
+      setParseError(null)
       void write(pvName, value)
     },
     [pending, pvName, write],

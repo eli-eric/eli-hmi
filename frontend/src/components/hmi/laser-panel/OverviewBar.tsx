@@ -71,7 +71,7 @@ export const OverviewBar: FC<OverviewBarProps> = ({
 
   const mssItems: DetailListItem[] = mssPvs.map((name, i) => {
     const msg = state[name]
-    const known = msg && msg.ok
+    const known = msg && msg.ok && typeof msg.value === 'number'
     return {
       label: `MSS ${i + 1}`,
       state: !known ? 'unknown' : msg.value === 1 ? 'ok' : 'err',

@@ -67,7 +67,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   // typed as `unknown` and narrow at the use site.
   const { state } = useWebSocketData<unknown>({ pvs: allPvs, raw: true })
   const okCount = modbox.filter(
-    (name) => state[name]?.value === 1,
+    (name) => state[name]?.ok && state[name]?.value === 1,
   ).length
   const total = modbox.length
   const tone =
@@ -81,11 +81,11 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
 
   const items: DetailListItem[] = modbox.map((name, i) => {
     const msg = state[name]
-    const v = msg?.value
+    const known = msg && msg.ok && typeof msg.value === 'number'
     return {
       label: `Modbox ${i + 1}`,
-      state: !msg ? 'unknown' : v === 1 ? 'ok' : 'err',
-      trailing: !msg ? undefined : v === 1 ? 'YES' : 'NO',
+      state: !known ? 'unknown' : msg.value === 1 ? 'ok' : 'err',
+      trailing: !known ? undefined : msg.value === 1 ? 'YES' : 'NO',
     }
   })
 

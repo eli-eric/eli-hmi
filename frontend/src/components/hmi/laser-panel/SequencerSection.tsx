@@ -50,7 +50,7 @@ export const SequencerSection: FC<SequencerSectionProps> = ({
   const items: DetailListItem[] = (sequences ?? []).map(
     ({ label, pv: name }) => {
       const msg = state[name]
-      const known = msg && msg.ok
+      const known = msg && msg.ok && typeof msg.value === 'number'
       return {
         label,
         state: !known ? 'unknown' : msg.value === 1 ? 'run' : 'sb',

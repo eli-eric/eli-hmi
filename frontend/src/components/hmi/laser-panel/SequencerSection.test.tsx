@@ -77,4 +77,33 @@ describe('SequencerSection', () => {
     expect(screen.getByText('START soft')).toBeInTheDocument()
     expect(screen.getByText('System OFF')).toBeInTheDocument()
   })
+
+  it('renders a sequence row as unknown (N/A), not IDLE, when ok but value is null', async () => {
+    const ws = renderSequencer({
+      sequencerPv: 'SEQ_NL2_STATE',
+      sequences: [
+        { label: 'START soft', pv: 'SEQ_NL2_START_SOFT' },
+        { label: 'System OFF', pv: 'SEQ_NL2_SYSTEM_OFF' },
+      ],
+    })
+    await waitFor(() =>
+      expect(ws.subscriptions.get('SEQ_NL2_START_SOFT')?.size).toBe(1),
+    )
+    act(() => {
+      // ok=true but no numeric value yet — must stay unknown, not fall to IDLE.
+      ws.push('SEQ_NL2_START_SOFT', { ok: true, value: null })
+      ws.push('SEQ_NL2_SYSTEM_OFF', 1)
+    })
+
+    const user = userEvent.setup()
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle sequencer detail' }),
+    )
+
+    expect(screen.getByText('START soft')).toBeInTheDocument()
+    expect(screen.getByText('N/A')).toBeInTheDocument()
+    // A valid numeric sequence still resolves to RUNNING.
+    expect(screen.getByText('RUNNING')).toBeInTheDocument()
+    expect(screen.queryByText('IDLE')).not.toBeInTheDocument()
+  })
 })

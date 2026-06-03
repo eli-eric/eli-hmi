@@ -179,4 +179,41 @@ describe('ModboxSection', () => {
 
     expect(screen.getByRole('combobox')).toBeInTheDocument()
   })
+
+  it('counts only known-good numeric value===1 modboxes in the merged OK total', async () => {
+    const ws = renderModbox()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
+    )
+    act(() => {
+      ws.push('BI_NL2_MODBOX_1', 1) // known-good → counts
+      ws.push('BI_NL2_MODBOX_2', { ok: false, value: 1 }) // !ok → excluded
+      ws.push('BI_NL2_MODBOX_3', { ok: true, value: null }) // null → excluded
+    })
+    // Only MODBOX_1 is known-good, so the merged count is 1 / 3 (not 2 / 3).
+    expect(screen.getByText('1 / 3')).toBeInTheDocument()
+  })
+
+  it('renders Modbox detail rows as unknown (N/A), not NO, for !ok or null values', async () => {
+    const ws = renderModbox()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
+    )
+    act(() => {
+      ws.push('BI_NL2_MODBOX_1', 1)
+      ws.push('BI_NL2_MODBOX_2', { ok: false, value: 1 })
+      ws.push('BI_NL2_MODBOX_3', { ok: true, value: null })
+    })
+
+    const user = userEvent.setup()
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle Modbox state detail' }),
+    )
+
+    expect(screen.getByText('Modbox 1')).toBeInTheDocument()
+    // MODBOX_1 = 1 → YES; the !ok and null rows are unknown (N/A), never NO.
+    expect(screen.getByText('YES')).toBeInTheDocument()
+    expect(screen.getAllByText('N/A')).toHaveLength(2)
+    expect(screen.queryByText('NO')).not.toBeInTheDocument()
+  })
 })
