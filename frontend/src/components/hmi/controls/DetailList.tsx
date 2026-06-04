@@ -52,9 +52,9 @@ export const DetailList: FC<DetailListProps> = ({ items, note }) => {
   return (
     <>
       <ul className={styles.list}>
-        {items.map((item) => (
+        {items.map((item, i) => (
           <li
-            key={item.label}
+            key={`${item.label}-${i}`}
             className={styles.item}
             data-state={item.state}
           >

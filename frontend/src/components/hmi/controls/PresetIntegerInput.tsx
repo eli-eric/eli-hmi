@@ -82,6 +82,15 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
   const onPresetClick = useCallback(
     (value: number) => {
       if (pending) return
+      // Apply the SAME min/max guard used for custom values (onConfirm): a
+      // preset outside the allowed range must not be written.
+      const ok =
+        (min === undefined || value >= min) &&
+        (max === undefined || value <= max)
+      if (!ok) {
+        setParseError(`Out of range (${min ?? '−∞'}..${max ?? '∞'})`)
+        return
+      }
       // Presets apply immediately; clear any stale custom-input state first so a
       // leftover validation error / custom value doesn't linger after the write.
       setStaged(null)
@@ -89,7 +98,7 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
       setParseError(null)
       void write(pvName, value)
     },
-    [pending, pvName, write],
+    [pending, pvName, write, min, max],
   )
 
   const onConfirm = useCallback(() => {

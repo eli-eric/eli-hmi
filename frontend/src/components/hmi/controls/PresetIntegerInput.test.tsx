@@ -126,4 +126,28 @@ describe('PresetIntegerInput', () => {
     expect(screen.queryByText(/out of range/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/custom/i)).toHaveValue(null)
   })
+
+  it('does not POST when an out-of-range preset is clicked', async () => {
+    const spy = vi.fn<typeof fetch>(
+      async () =>
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    )
+    globalThis.fetch = spy as unknown as typeof fetch
+    const user = userEvent.setup()
+    render(
+      <PresetIntegerInput
+        label="Trigger Delay"
+        presets={[50, 500, 700, 790]}
+        pvName="CMD_NL2_SET_DELAY"
+        min={0}
+        max={600}
+      />,
+    )
+
+    // 790 exceeds max=600 → guarded: no write, range error surfaced.
+    await user.click(screen.getByRole('button', { name: '790' }))
+
+    expect(screen.getByText(/out of range/i)).toBeInTheDocument()
+    expect(spy).not.toHaveBeenCalled()
+  })
 })
