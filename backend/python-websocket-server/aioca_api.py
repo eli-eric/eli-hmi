@@ -94,3 +94,17 @@ async def get_once(pv_name: str, options: ResolvedReadOptions) -> dict[str, Any]
         ok=False,
         payload=error_payload(value),
     )
+
+
+async def put_once(
+    pv_name: str,
+    value: Any,
+    *,
+    timeout: float,
+) -> None:
+    await aioca.caput(
+        pv_name,
+        value,
+        timeout=timeout,
+        throw=True,
+    )

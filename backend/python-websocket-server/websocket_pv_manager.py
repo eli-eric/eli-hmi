@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import uuid4
@@ -67,6 +68,7 @@ class ConnectionState:
     websocket: WebSocket
     send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     subscriptions: dict[str, ClientSubscription] = field(default_factory=dict)
+    legacy_mode: bool = False
 
 
 class WebSocketPVsManager:
@@ -244,6 +246,16 @@ class WebSocketPVsManager:
         if connection is None:
             return
 
+        if self._is_legacy_subscribe(payload):
+            connection.legacy_mode = True
+            await self._handle_legacy_subscribe(connection_id, payload["pvs"])
+            return
+
+        if self._is_legacy_unsubscribe(payload):
+            connection.legacy_mode = True
+            await self._handle_legacy_unsubscribe(connection_id, payload["pvs"])
+            return
+
         try:
             message = self._message_adapter.validate_python(payload)
         except ValidationError as exc:
@@ -279,6 +291,44 @@ class WebSocketPVsManager:
 
         if isinstance(message, SubscribeMessage):
             await self._subscribe(connection_id, message)
+
+    @staticmethod
+    def _is_legacy_subscribe(payload: dict[str, Any]) -> bool:
+        return (
+            payload.get("type") == "subscribe"
+            and isinstance(payload.get("pvs"), dict)
+            and "subscription_id" not in payload
+        )
+
+    @staticmethod
+    def _is_legacy_unsubscribe(payload: dict[str, Any]) -> bool:
+        return (
+            payload.get("type") == "unsubscribe"
+            and isinstance(payload.get("pvs"), dict)
+            and "subscription_id" not in payload
+        )
+
+    @staticmethod
+    def _legacy_subscription_id(pv_name: str) -> str:
+        return f"legacy:{pv_name}"
+
+    async def _handle_legacy_subscribe(self, connection_id: str, pvs: dict[str, Any]) -> None:
+        for pv_name, wanted in pvs.items():
+            if not wanted:
+                continue
+            message = SubscribeMessage(
+                type="subscribe",
+                subscription_id=self._legacy_subscription_id(pv_name),
+                pvs=[pv_name],
+                detail=DetailLevel.CONTROL,
+            )
+            await self._subscribe(connection_id, message)
+
+    async def _handle_legacy_unsubscribe(self, connection_id: str, pvs: dict[str, Any]) -> None:
+        for pv_name, wanted in pvs.items():
+            if not wanted:
+                continue
+            await self._unsubscribe(connection_id, self._legacy_subscription_id(pv_name))
 
     async def _subscribe(self, connection_id: str, message: SubscribeMessage) -> None:
         connection = self.connections.get(connection_id)
@@ -479,6 +529,12 @@ class WebSocketPVsManager:
             connection = self.connections.get(subscriber.connection_id)
             if connection is None:
                 continue
+            if connection.legacy_mode:
+                await self._safe_send(
+                    connection,
+                    self._legacy_pv_message(key, value),
+                )
+                continue
             await self._safe_send(
                 connection,
                 {
@@ -505,6 +561,36 @@ class WebSocketPVsManager:
             ok=False,
             payload=error_payload(value),
         )
+
+    def _legacy_pv_message(self, key: MonitorKey, value: Any) -> dict[str, Any]:
+        timestamp = time.time()
+        if value.ok:
+            payload = build_pv_payload(value, detail=key.detail)
+            metadata = payload.get("metadata", {})
+            if isinstance(metadata.get("timestamp"), (float, int)):
+                timestamp = float(metadata["timestamp"])
+            return {
+                "type": "pv",
+                "name": key.pv_name,
+                "value": payload.get("value"),
+                "severity": metadata.get("severity", 0),
+                "units": metadata.get("units"),
+                "timestamp": timestamp,
+                "ok": True,
+                "error": None,
+            }
+
+        error = error_payload(value)["error"]
+        return {
+            "type": "pv",
+            "name": key.pv_name,
+            "value": None,
+            "severity": 0,
+            "units": None,
+            "timestamp": timestamp,
+            "ok": False,
+            "error": error["message"],
+        }
 
     def _build_cached_monitor_value(self, key: MonitorKey, value: Any | None) -> CachedMonitorValue | None:
         if value is None:
@@ -553,7 +639,33 @@ class WebSocketPVsManager:
         response["type"] = "snapshot"
         response["operation"] = "monitor"
         response["subscription_id"] = subscription_id
+        if connection.legacy_mode:
+            await self._safe_send(connection, self._legacy_pv_message_from_response(response))
+            return
         await self._safe_send(connection, response)
+
+    def _legacy_pv_message_from_response(self, response: dict[str, Any]) -> dict[str, Any]:
+        metadata = response.get("metadata")
+        timestamp = time.time()
+        severity: int | float = 0
+        units = None
+        if isinstance(metadata, dict):
+            if isinstance(metadata.get("timestamp"), (float, int)):
+                timestamp = float(metadata["timestamp"])
+            severity = metadata.get("severity", 0)
+            units = metadata.get("units")
+        error = response.get("error")
+        message = error.get("message") if isinstance(error, dict) else error
+        return {
+            "type": "pv",
+            "name": response.get("pv"),
+            "value": response.get("value"),
+            "severity": severity,
+            "units": units,
+            "timestamp": timestamp,
+            "ok": bool(response.get("ok")),
+            "error": None if response.get("ok") else (message or "Unknown error"),
+        }
 
     async def _safe_send(self, connection: ConnectionState, payload: dict[str, Any]) -> None:
         async with connection.send_lock:
