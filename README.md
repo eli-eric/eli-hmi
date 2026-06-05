@@ -23,6 +23,7 @@ See [frontend/README.md](frontend/README.md) for setup, environment variables, t
 ### Mockup WebSocket Server (`backend/mockup-websocket-server`)
 
 Go application that simulates a control system. Two modes per PV-prefix:
+
 - **automatic simulation** — generates random data
 - **manual** — accepts values via REST helpers (`GET /pv/:name/:value`, `GET /mode/:prefix/:value`)
 
@@ -33,6 +34,17 @@ For development and testing only. Not a production target.
 FastAPI + `aioca` gateway that talks to a real EPICS network. **Production target** — built and pushed to Harbor by `.gitlab-ci.yml`.
 
 ## Quick start
+
+```bash
+# Start frontend (:8082) and mock backend (:8080)
+docker compose up --build
+```
+
+Open `http://localhost:8082` and log in with `test` / `test`.
+
+This compose quick start uses dedicated local Dockerfiles with standard public images and local-safe defaults, so you do not need to install Go or Node.js or create `frontend/.env.local` first.
+
+If you prefer to run the services directly on your machine instead of Docker:
 
 ```bash
 # Mock backend
