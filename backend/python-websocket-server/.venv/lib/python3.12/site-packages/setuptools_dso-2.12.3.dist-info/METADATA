@@ -1,0 +1,46 @@
+Metadata-Version: 2.4
+Name: setuptools_dso
+Version: 2.12.3
+Summary: setuptools extension to build non-python shared libraries
+Home-page: https://github.com/mdavidsaver/setuptools_dso
+Author: Michael Davidsaver
+Author-email: mdavidsaver@gmail.com
+License: BSD
+Project-URL: Documentation, https://epics-base.github.io/setuptools_dso
+Project-URL: Release Notes, https://epics-base.github.io/setuptools_dso/releasenotes.html
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: System :: Archiving :: Packaging
+Classifier: Framework :: Setuptools Plugin
+Requires-Python: >=2.7
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: setuptools
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license
+Dynamic: license-file
+Dynamic: project-url
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# setuptools extension for building non-Python Dynamic Shared Objects
+
+Building non-python shared libraries (eg. `libY.so`, `libY.dylib`, or `Y.dll`) for inclusion in a Python Wheel.
+
+This extension is an alternative to bundling externally built
+libraries in Python Wheel packages by providing the means to
+replace an external build system (eg. Makefile) so that non-python
+libraries to be built from source within the python ecosystem.
+
+- Documentation at https://epics-base.github.io/setuptools_dso
+- Github project https://github.com/epics-base/setuptools_dso
+- PYPI https://pypi.org/project/setuptools-dso/
