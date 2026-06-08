@@ -96,12 +96,12 @@ Frames:
 | Connection ack | none | `connected` | ignored |
 | Per-frame `name`, `value`, `severity`, `units`, `timestamp`, `ok` | yes | yes (via `pv_serialization`) | yes |
 
-The frontend will not deserialise the Python server's frames as written. The Python server will not parse the frontend's `pvs:{...}` subscribe payload as written.
+The Python server now includes a legacy compatibility path: it accepts frontend `pvs:{...}` subscribe/unsubscribe messages and emits legacy `pv` frames for those connections. The richer Python dialect remains available for clients that use `subscription_id` and array-based `pvs`.
 
 ## What this means in practice
 
 - `NEXT_PUBLIC_API_URL=localhost:8080` → `ws://localhost:8080/ws/pvs` (mock) — works.
-- `NEXT_PUBLIC_API_URL=<python-host>:<port>` → `ws://<python-host>:<port>/ws/pvs` — does **not** work without changes on either side.
+- `NEXT_PUBLIC_API_URL=<python-host>:<port>` → `ws://<python-host>:<port>/ws/pvs` — works via the Python server's legacy compatibility path.
 
 ## How to resolve
 

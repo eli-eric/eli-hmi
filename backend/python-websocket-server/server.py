@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from typing import Any
 
-from fastapi import FastAPI, Query, WebSocket
+from fastapi import FastAPI, Header, Query, WebSocket
 from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel
 
-from aioca_api import get_once, resolve_read_options
+from aioca_api import get_once, put_once, resolve_read_options
 from api_contract import DatatypeAlias, DetailLevel, ReadRequestOptions, StatsResponse, validate_pv_name
 from app_settings import AppSettings
 from logging_utils import configure_logging
@@ -20,6 +22,17 @@ settings = AppSettings.from_env()
 configure_logging(settings.log_level, settings.log_json)
 logger = logging.getLogger(__name__)
 ws_manager = WebSocketPVsManager(logger=logger, settings=settings)
+WAVEFORM_CATALOG = [
+    "std-100ps",
+    "narrow-50ps",
+    "broad-200ps",
+    "super-gauss",
+    "ramp-up",
+]
+
+
+class WritePVRequest(BaseModel):
+    value: Any | None = None
 
 
 @asynccontextmanager
@@ -69,6 +82,9 @@ async def get_stats_ui() -> HTMLResponse:
 
 @app.websocket("/ws/pvs")
 async def establish_pvs_websocket(websocket: WebSocket) -> None:
+    if not websocket.query_params.get("auth"):
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
     await ws_manager.websocket_handler(websocket)
 
 
@@ -112,3 +128,38 @@ async def get_pv(
         return JSONResponse(status_code=502, content=response)
 
     return response
+
+
+@app.post("/pv/{pv_name}")
+async def write_pv(
+    pv_name: str,
+    request: WritePVRequest,
+    authorization: str | None = Header(default=None),
+) -> Any:
+    if not authorization:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "unauthorized: missing auth"})
+
+    validated_pv_name = validate_pv_name(pv_name)
+    try:
+        await put_once(
+            validated_pv_name,
+            request.value,
+            timeout=settings.max_timeout,
+        )
+    except Exception as exc:
+        logger.exception("Failed to write PV %s", validated_pv_name)
+        return JSONResponse(
+            status_code=502,
+            content={"ok": False, "error": str(exc)},
+        )
+
+    return {"ok": True}
+
+
+@app.get("/waveforms")
+async def list_waveforms(
+    authorization: str | None = Header(default=None),
+) -> Any:
+    if not authorization:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "unauthorized: missing auth"})
+    return WAVEFORM_CATALOG

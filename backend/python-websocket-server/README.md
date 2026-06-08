@@ -2,7 +2,7 @@
 
 > Architecture context: [`docs/backend/python-server.md`](../../docs/backend/python-server.md). WS protocol divergence vs the mock: [`docs/backend/websocket-protocol.md`](../../docs/backend/websocket-protocol.md) and [ADR-0009](../../docs/adr/0009-shared-ws-protocol-contract.md). Run/deploy: [`docs/runbooks/running-python-backend.md`](../../docs/runbooks/running-python-backend.md), [`docs/runbooks/deploying-python-backend.md`](../../docs/runbooks/deploying-python-backend.md).
 
-This service exposes a production-oriented FastAPI gateway in front of EPICS using aioca. The current scope is read and monitor operations only.
+This service exposes a production-oriented FastAPI gateway in front of EPICS using aioca, including read, monitor, and write operations.
 
 ## Root Landing Page
 
@@ -26,6 +26,19 @@ Supported query parameters:
 - `datatype`: `native`, `string`, `integer`, `float`, `enum_string`, `char_string`, `char_bytes`, `char_unicode`, `class_name`, `stsack_string`
 - `count`: `0`, `-1`, or a positive integer
 - `timeout`: bounded by server configuration
+
+`POST /pv/{pv_name}` writes a value to a PV.
+
+Example:
+
+```bash
+curl -X POST "http://localhost:8080/pv/DEVICE:PV" \
+  -H "Authorization: ******" \
+  -H "Content-Type: application/json" \
+  -d '{"value": 42.5}'
+```
+
+`GET /waveforms` returns the available waveform names for UI selectors.
 
 ## WebSocket API
 
@@ -149,6 +162,8 @@ Ping example:
 ```
 
 The server emits `connected`, `subscribed`, `snapshot`, `event`, `unsubscribed`, `pong`, and `error` messages.
+
+Compatibility note: the gateway also accepts the legacy frontend subscribe format (`{type,pvs:{NAME:true}}`) and emits legacy `pv` frames (`{type,name,value,severity,units,timestamp,ok,error}`) for those clients.
 
 ## Health Endpoints
 
