@@ -1,6 +1,6 @@
 # ADR-0008: `LASER_SPECS` lives under L4 OPCPA, not under `lib/modules/`
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0010](0010-per-laser-yaml-config.md)
 **Date:** 2025-09-20
 **Deciders:** ELI-HMI team (L4 OPCPA workstream)
 

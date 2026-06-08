@@ -1,6 +1,6 @@
 # Python server (FastAPI + aioca)
 
-`backend/python-websocket-server/`. Production target. Talks to a real EPICS network via [aioca](https://github.com/DiamondLightSource/aioca). **Read/monitor only** at present — no write endpoint yet.
+`backend/python-websocket-server/`. Production target. Talks to a real EPICS network via [aioca](https://github.com/DiamondLightSource/aioca).
 
 ## What it is
 
@@ -33,6 +33,8 @@ A FastAPI app whose **interface** is HTTP + WebSocket. The implementation is bui
 | `GET` | `/` | HTML landing page with quick links |
 | `GET` | `/docs`, `/redoc` | OpenAPI (toggled by `ENABLE_DOCS`) |
 | `GET` | `/pv/{pv_name}` | Typed read. Query params: `detail`, `datatype`, `count`, `timeout`. |
+| `POST` | `/pv/{pv_name}` | Write a PV value (`{"value": ...}`) |
+| `GET` | `/waveforms` | Waveform catalog for frontend selectors |
 | `GET` | `/ws/pvs?auth=<jwt>` | WebSocket — connect, subscribe, snapshot, event, unsubscribe, ping/pong |
 | `GET` | `/health/live`, `/health/ready` | Liveness / readiness |
 | `GET` | `/stats` | JSON snapshot — connections, monitors, subscribers, cached values |
@@ -70,7 +72,7 @@ The Python server's WS interface is a strict superset of the mock's surface — 
 { "type": "ping", "nonce": "123" }
 ```
 
-The mock backend speaks a simpler frame shape (`pvs` as object, single `pv` frame type). The frontend client currently emits the mock dialect — see [websocket-protocol](websocket-protocol.md) and [ADR-0009](../adr/0009-shared-ws-protocol-contract.md) for the gap.
+The mock backend speaks a simpler frame shape (`pvs` as object, single `pv` frame type). The Python gateway accepts that legacy client subscribe/unsubscribe shape and emits legacy `pv` frames for those connections, while still supporting the richer dialect.
 
 ## Read endpoint
 
@@ -102,10 +104,6 @@ curl "http://localhost:8080/pv/DEVICE:PV?detail=control&timeout=2.5"
 | `ENABLE_DOCS` | true | gates `/docs` and `/redoc` |
 
 See [reference/env-vars](../reference/env-vars.md) for the consolidated table.
-
-## What's not here yet
-
-- **No write endpoint.** Writes are out of scope for the current Python server. The mock's `POST /pv/<NAME>` has no counterpart. Cross-reference: [pv-write-endpoint](pv-write-endpoint.md), [ADR-0004](../adr/0004-single-pv-write-endpoint.md).
 
 ## Running
 

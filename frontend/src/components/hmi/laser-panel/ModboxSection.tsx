@@ -13,49 +13,47 @@ import { StringValue } from '@/components/hmi/controls/Values'
 import type { Message } from '@/app/providers/types'
 import { ChevronIcon } from '@/components/ui/icons'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import { WaveformSelect } from './WaveformSelect'
+import { makeCommandGate } from './commandGate'
 import styles from './sections.module.css'
 
 interface ModboxSectionProps {
+  /** Laser id — used only to build command PVs. */
   laser: string
-  /** Number of Modbox state sub-indicator PVs (BI_<laser>_MODBOX_1..N). */
-  modboxStateCount: number
+  /** Modbox state PVs (1 = OK). */
+  modbox: readonly string[]
+  /** Currently-loaded-waveform PV. */
+  loadedWaveformPv: string
+  /** Commands this laser exposes. Buttons for commands not listed are hidden. */
+  commands: readonly LaserCommand[]
 }
 
 /**
- * Modbox (modulation box) status + actions + waveform control.
- *
- * Read PVs (mock):
- * - BI_<laser>_MODBOX_{i}         (state sub-indicators, 1=OK)
- * - SI_<laser>_LOADED_WAVEFORM    (currently loaded waveform name)
- *
- * Spec: "There are several Modbox state boolean indicators. This is a merged
- * indicator … Through a click it can be expanded in a list showing all
- * individual Modbox state boolean indicators."
+ * Modbox (modulation box) status + actions + waveform control. PV names arrive
+ * as props (resolved from the YAML config); command PVs use `laser`.
  */
 export const ModboxSection: FC<ModboxSectionProps> = ({
   laser,
-  modboxStateCount,
+  modbox,
+  loadedWaveformPv,
+  commands,
 }) => {
   const [expanded, setExpanded] = useState(false)
+  const can = makeCommandGate(commands)
+  const hasModboxActions = can('MODBOX_ON') || can('MODBOX_OFF')
 
-  const statePvs = useMemo(
-    () => pv.modboxStateAll(laser, modboxStateCount),
-    [laser, modboxStateCount],
-  )
-  const waveformPv = pv.loadedWaveform(laser)
   const allPvs = useMemo(
-    () => [...statePvs, waveformPv],
-    [statePvs, waveformPv],
+    () => [...modbox, loadedWaveformPv],
+    [modbox, loadedWaveformPv],
   )
   // Mixed value types (number for state, string for waveform). Keep the hook
   // typed as `unknown` and narrow at the use site.
   const { state } = useWebSocketData<unknown>({ pvs: allPvs, raw: true })
-  const okCount = statePvs.filter(
+  const okCount = modbox.filter(
     (name) => state[name]?.value === 1,
   ).length
-  const total = statePvs.length
+  const total = modbox.length
   const tone =
     total === 0
       ? 'unknown'
@@ -65,7 +63,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
           ? 'negative-important'
           : 'negative-neutral'
 
-  const items: DetailListItem[] = statePvs.map((name, i) => {
+  const items: DetailListItem[] = modbox.map((name, i) => {
     const msg = state[name]
     const v = msg?.value
     return {
@@ -98,17 +96,23 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
           </button>
         }
         action={
-          <CogToggle ariaLabel="Modbox actions">
-            <ActionButton
-              label="Set Modbox ON"
-              pvName={pv.cmd(laser, 'MODBOX_ON')}
-            />
-            <ActionButton
-              label="Set Modbox OFF"
-              pvName={pv.cmd(laser, 'MODBOX_OFF')}
-              variant="secondary"
-            />
-          </CogToggle>
+          hasModboxActions ? (
+            <CogToggle ariaLabel="Modbox actions">
+              {can('MODBOX_ON') && (
+                <ActionButton
+                  label="Set Modbox ON"
+                  pvName={pv.cmd(laser, 'MODBOX_ON')}
+                />
+              )}
+              {can('MODBOX_OFF') && (
+                <ActionButton
+                  label="Set Modbox OFF"
+                  pvName={pv.cmd(laser, 'MODBOX_OFF')}
+                  variant="secondary"
+                />
+              )}
+            </CogToggle>
+          ) : undefined
         }
       />
       {expanded && <DetailList items={items} />}
@@ -116,13 +120,15 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         label="Loaded Waveform"
         value={
           <StringValue
-            data={state[waveformPv] as Message<string | null> | undefined}
+            data={state[loadedWaveformPv] as Message<string | null> | undefined}
           />
         }
         action={
-          <CogToggle ariaLabel="Set waveform">
-            <WaveformSelect laser={laser} />
-          </CogToggle>
+          can('LOAD_WAVEFORM') ? (
+            <CogToggle ariaLabel="Set waveform">
+              <WaveformSelect laser={laser} />
+            </CogToggle>
+          ) : undefined
         }
       />
     </SectionCard>

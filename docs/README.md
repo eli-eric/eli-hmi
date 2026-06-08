@@ -53,6 +53,7 @@ This tree mirrors to the [GitHub Wiki](https://github.com/eli-eric/eli-hmi/wiki)
 - [ADR-0007 L4 custom shell, not ModuleControlPage](adr/0007-l4-custom-shell-not-modulecontrolpage.md)
 - [ADR-0008 Laser specs location](adr/0008-laser-specs-location.md)
 - [ADR-0009 Shared WS protocol contract](adr/0009-shared-ws-protocol-contract.md)
+- [ADR-0010 Per-laser L4 OPCPA config as full PV names in YAML](adr/0010-per-laser-yaml-config.md)
 
 ## Workflows
 

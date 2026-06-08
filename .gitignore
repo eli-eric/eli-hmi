@@ -46,3 +46,4 @@ yarn-error.log*
 next-env.d.ts
 frontend/yarn.lock
 __pycache__
+.venv/

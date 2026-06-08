@@ -29,6 +29,10 @@ Supported query parameters:
 - `count`: `0`, `-1`, or a positive integer
 - `timeout`: bounded by server configuration
 
+`POST /pv/{pv_name}` writes a PV value using body `{ "value": ... }`.
+
+`GET /waveforms` returns waveform names for UI selectors.
+
 ## WebSocket Endpoint
 
 Connect to `ws://localhost:8080/ws/pvs` to subscribe to PV updates.
@@ -160,6 +164,8 @@ Ping example:
 ```
 
 The server emits `connected`, `subscribed`, `snapshot`, `event`, `unsubscribed`, `pong`, and `error` messages.
+
+Compatibility note: legacy frontend clients can subscribe with `{ "type": "subscribe", "pvs": { "PV_NAME": true } }` and will receive legacy `pv` frames.
 
 ## Diagnostics Endpoints
 

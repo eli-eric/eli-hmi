@@ -1,31 +1,13 @@
-'use client'
+import { loadLaserSpecs } from './config/load-laser-specs'
+import { L4OpcpaView } from './components/l4-opcpa-view'
 
-import { useWebSocketContext } from '@/app/providers/socket-provider'
-import { LaserGrid } from './components/laser-grid'
-import { LaserPanelInstance } from './components/laser-panel-instance'
-import { LASER_SPECS } from './components/laser-specs'
-import styles from './page.module.css'
-
+/**
+ * Server shell for the L4 OPCPA page. Reads + validates the per-laser config
+ * from `lasers.yaml` (server-only) and hands the resolved specs to the client
+ * view. No dynamic APIs → Next prerenders this statically, so config parsing /
+ * validation happens at `next build`; an invalid config fails the build.
+ */
 export default function L4OpcpaPage() {
-  const { isConnected } = useWebSocketContext()
-  return (
-    <div className={styles.page}>
-      <div className={styles.stickyHeader}>
-        <header className={styles.header}>
-          <h1 className={styles.title}>L4 OPCPA</h1>
-        </header>
-        {!isConnected && (
-          <div className={styles.disconnected} role="status">
-            WebSocket disconnected — values shown are last-known and may be
-            stale.
-          </div>
-        )}
-      </div>
-      <LaserGrid>
-        {LASER_SPECS.map((spec) => (
-          <LaserPanelInstance key={spec.laser} spec={spec} />
-        ))}
-      </LaserGrid>
-    </div>
-  )
+  const specs = loadLaserSpecs()
+  return <L4OpcpaView specs={specs} />
 }

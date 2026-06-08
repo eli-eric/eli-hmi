@@ -6,7 +6,18 @@ The audience for new pages is engineers who may not know React. Pages are compos
 
 ## Quick start
 
+Use **Node 18** (matches the Docker image; pinned in `.nvmrc`). Newer Node (22+) ships an experimental server-side `localStorage` global that, if enabled via `NODE_OPTIONS`, breaks SSR with `localStorage.getItem is not a function`.
+
+No `nvm`? Install it (see [nvm-sh/nvm](https://github.com/nvm-sh/nvm#installing-and-updating)), then `nvm install 18`:
+
 ```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+# reopen the terminal, then:
+nvm install 18
+```
+
+```bash
+nvm use                                    # Node 18, per .nvmrc
 cp env.example .env.local                  # set NEXTAUTH_SECRET, NEXT_PUBLIC_WEBSOCKET_URL, NEXT_PUBLIC_ZONE_CODE
 npm install
 npm run dev                                # http://localhost:8082  (port 8082, not 3000)

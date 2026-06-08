@@ -1,6 +1,6 @@
 # ADR-0006: PV name registry for L4 OPCPA
 
-**Status:** Accepted
+**Status:** Partially superseded by [ADR-0010](0010-per-laser-yaml-config.md) — read/write *signal* PV names now live as full strings in `config/lasers.yaml`, not assembled by builders. Only the **command** vocabulary (`LASER_COMMANDS` + `pv.cmd`) remains in `pv-names.ts`.
 **Date:** 2025-09-15
 **Deciders:** ELI-HMI team (L4 OPCPA workstream)
 
