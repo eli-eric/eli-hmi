@@ -1,4 +1,4 @@
-FROM harbor.eli-beams.eu/proxy-dockerhub/node:18-alpine AS base
+FROM harbor.eli-beams.eu/proxy-dockerhub/node:22-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps

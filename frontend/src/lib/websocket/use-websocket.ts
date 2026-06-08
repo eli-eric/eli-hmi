@@ -291,6 +291,11 @@ export function useWebSocket() {
 
   useEffect(() => {
     if (!url) return
+    // connect() imperatively opens the WebSocket and synchronously sets status
+    // -> 'connecting'. This is a legitimate "synchronize with an external system
+    // on mount" effect; the status set is intrinsic to opening the socket, and
+    // rewriting this hook onto useSyncExternalStore is out of scope here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     connect()
     const subs = subscriptionsRef
     return () => {
