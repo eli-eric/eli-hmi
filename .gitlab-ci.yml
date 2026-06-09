@@ -100,3 +100,24 @@ frontend-test:
         path: frontend/coverage/cobertura-coverage.xml
     expire_in: 1 week
   coverage: '/Lines\s+:\s+([\d.]+)%/'
+
+deploy-czol-ap08:
+  variables:
+    DEPLOY_HOST: "czol-ap08.eli-laser.eu"
+  stage: deploy
+  image: harbor.eli-beams.eu/eli_images/alpine-ssh:latest
+  tags:
+    - docker-in-docker
+  when: manual
+  script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - printf '%s' "$DEPLOY_SSH_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+    - |
+      ssh -i ~/.ssh/id_ed25519 "${DEPLOY_USER}@${DEPLOY_HOST}" '
+        set -e
+        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml pull
+        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml down
+        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml up -d
