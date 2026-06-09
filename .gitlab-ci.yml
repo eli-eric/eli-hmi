@@ -12,6 +12,7 @@ default:
 stages:
   - test
   - build
+  - deploy
 
 docs-validate:
   stage: test
