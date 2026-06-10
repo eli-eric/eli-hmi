@@ -1,5 +1,17 @@
+# default section explanation: You can set global defaults for some keywords. Each default keyword is copied to every job that doesn’t already have it defined. If the job already has a keyword defined, that default is not used.
+default:
+  # tags not needed in default section because specified at each stage
+  #tags:
+  #- docker-in-docker  # run on the runner that can do docker-in-docker
+  services: # start a container as a service available to the container that runs the pipeline
+    # this docker container will run the docker daemon and will be used by the docker cli container
+    - name: harbor.eli-beams.eu/dockerhub/docker:27.1.2
+      alias: docker # this has to here because in fixes: https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#docker-no-such-host-error
+      command: ["--insecure-registry=harbor.eli-beams.eu"] # fixes docker in docker container not trusting self signed cert: https://stackoverflow.com/questions/50133073/gitlab-ci-docker-in-docker-access-to-insecure-registry
+
 stages:
   - test
+  - deploy
 
 docs-validate:
   stage: test
@@ -16,6 +28,8 @@ docs-validate:
         - scripts/docs/**/*
 frontend-test:
   stage: test
+  tags:
+    - docker-in-docker # run on the runner that can do docker-in-docker
   # Pin to a major.minor tag so unreviewed minor bumps don't change build
   # behaviour. Pin to a digest as well if reproducibility ever bites.
   image: harbor.eli-beams.eu/proxy-dockerhub/node:20.18-alpine
@@ -45,3 +59,24 @@ frontend-test:
         path: frontend/coverage/cobertura-coverage.xml
     expire_in: 1 week
   coverage: '/Lines\s+:\s+([\d.]+)%/'
+
+deploy-czol-ap08:
+  variables:
+    DEPLOY_HOST: "czol-ap08.eli-laser.eu"
+  stage: deploy
+  image: harbor.eli-beams.eu/eli_images/alpine-ssh:latest
+  tags:
+    - docker-in-docker
+  when: manual
+  script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - printf '%s' "$DEPLOY_SSH_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+    - |
+      ssh -i ~/.ssh/id_ed25519 "${DEPLOY_USER}@${DEPLOY_HOST}" '
+        set -e
+        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml pull
+        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml down
+        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml up -d
