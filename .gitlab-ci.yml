@@ -37,6 +37,8 @@ frontend-test:
   services: []
   variables:
     DOCKER_TLS_CERTDIR: ""
+    NPM_CONFIG_REGISTRY: "https://lcs-npm-repo.lcs.local"
+    NPM_CONFIG_STRICT_SSL: "false"
   cache:
     key:
       files:
