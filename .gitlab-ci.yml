@@ -86,9 +86,9 @@ docker-build-job-demo:
     - docker image ls --all
     - pwd
     - ls -la
-    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-demo:${CI_COMMIT_REF_SLUG} --file=frontend/Dockerfile.demo .
+    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:${CI_COMMIT_REF_SLUG} --file=frontend/Dockerfile.demo .
     - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
-    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-demo:${CI_COMMIT_REF_SLUG}
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:${CI_COMMIT_REF_SLUG}
 
 deploy-czol-ap08:
   variables:
