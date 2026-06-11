@@ -9,8 +9,12 @@ default:
       alias: docker # this has to here because in fixes: https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#docker-no-such-host-error
       command: ["--insecure-registry=harbor.eli-beams.eu"] # fixes docker in docker container not trusting self signed cert: https://stackoverflow.com/questions/50133073/gitlab-ci-docker-in-docker-access-to-insecure-registry
 
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+
 stages:
   - test
+  - build
   - deploy
 
 docs-validate:
@@ -26,6 +30,7 @@ docs-validate:
     - changes:
         - docs/**/*
         - scripts/docs/**/*
+
 frontend-test:
   stage: test
   tags:
@@ -64,6 +69,24 @@ frontend-test:
         path: frontend/coverage/cobertura-coverage.xml
     expire_in: 1 week
   coverage: '/Lines\s+:\s+([\d.]+)%/'
+
+docker-build-job-demo:
+  stage: build
+  # all commands in this stage will run in this docker container that will provide the docker cli
+  image: harbor.eli-beams.eu/proxy-dockerhub/docker:27.1.2
+  tags:
+    - docker-in-docker # run on the runner that can do docker-in-docker
+  script:
+    - whoami
+    - id
+    - docker info
+    #- cat /etc/docker/daemon.json
+    #- cat /etc/docker/certs.d/harbor.eli-beams.eu/ca.crt
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/node:22-alpine # this fixes a SSL verify error when running docker build
+    - docker image ls --all
+    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-demo:${CI_COMMIT_REF_SLUG} --file=Dockerfile.demo .
+    - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-demo:${CI_COMMIT_REF_SLUG}
 
 deploy-czol-ap08:
   variables:
