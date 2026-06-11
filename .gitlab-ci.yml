@@ -84,7 +84,9 @@ docker-build-job-demo:
     #- cat /etc/docker/certs.d/harbor.eli-beams.eu/ca.crt
     - docker pull harbor.eli-beams.eu/proxy-dockerhub/node:22-alpine # this fixes a SSL verify error when running docker build
     - docker image ls --all
-    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-demo:${CI_COMMIT_REF_SLUG} --file=Dockerfile.demo .
+    - pwd
+    - ls -la
+    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-demo:${CI_COMMIT_REF_SLUG} --file=frontend/Dockerfile.demo .
     - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-demo:${CI_COMMIT_REF_SLUG}
 
