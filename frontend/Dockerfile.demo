@@ -1,22 +1,22 @@
 FROM harbor.eli-beams.eu/proxy-dockerhub/node:22-alpine
 
 # Create group and user with GID/UID 1200
-RUN groupadd -g 1200 appgroup && \
-    useradd -u 1200 -g 1200 -m -s /bin/bash appuser
+RUN addgroup -g 1200 -S appgroup && \
+    adduser -D -u 1200 -G appgroup appuser
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm install
+COPY frontend/package.json frontend/package-lock.json* frontend/.npmrc* ./
+RUN npm ci
 
-COPY . .
+COPY frontend/ ./
 
 ENV HOSTNAME=0.0.0.0
 
 EXPOSE 8082
 
-# Copy files and set ownership during copy
-RUN chown 1200:1200 /app/
+# Ensure the non-root user can write build artifacts such as .next during dev
+RUN chown -R 1200:1200 /app
 
 # Run container as UID 1200, GID 1200
 USER 1200:1200
