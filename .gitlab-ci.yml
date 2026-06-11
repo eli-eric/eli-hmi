@@ -85,3 +85,4 @@ deploy-czol-ap08:
         sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml pull
         sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml down
         sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml up -d
+      '
