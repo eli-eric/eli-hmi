@@ -37,7 +37,7 @@ frontend-test:
   services: []
   variables:
     DOCKER_TLS_CERTDIR: ""
-    NPM_CONFIG_REGISTRY: "https://lcs-npm-repo.lcs.local"
+    NPM_CONFIG_REGISTRY: "https://npm-mirror1.eli-beams.eu/"
     NPM_CONFIG_STRICT_SSL: "false"
     NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/frontend/.npm"
   cache:
@@ -49,7 +49,7 @@ frontend-test:
   before_script:
     - cd frontend
     - rm -rf node_modules
-    - npm install --prefer-offline --no-audit
+    - npm ci --prefer-offline --no-audit
     - test -x node_modules/.bin/vitest
   script:
     - npm test -- --run --coverage
