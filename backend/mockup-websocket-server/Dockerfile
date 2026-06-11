@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Build statically linked binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ws-mockup-server ./main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ws-mockup-server .
 
 ############################
 # Runtime stage            #
