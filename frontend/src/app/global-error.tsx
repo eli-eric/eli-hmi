@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import styles from './global-error.module.css'
 
 export default function GlobalError({
@@ -10,22 +10,20 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  const [errorDetails, setErrorDetails] = useState<string>('')
-
   useEffect(() => {
     // Log error to console for debugging
     console.error('Application error:', error)
-    // Format error details for display
-    const details = [
-      `Message: ${error.message}`,
-      `Stack: ${error.stack || 'No stack trace available'}`,
-      error.digest ? `Digest: ${error.digest}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n')
-
-    setErrorDetails(details)
   }, [error])
+
+  // Derived purely from `error`, so compute during render rather than mirroring
+  // it into state via an effect (avoids the extra render + set-state-in-effect).
+  const errorDetails = [
+    `Message: ${error.message}`,
+    `Stack: ${error.stack || 'No stack trace available'}`,
+    error.digest ? `Digest: ${error.digest}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n')
 
   return (
     <html>

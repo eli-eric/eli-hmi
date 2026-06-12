@@ -1,23 +1,18 @@
-# syntax=docker/dockerfile:1
-
 ############################
 # Builder stage            #
 ############################
 FROM harbor.eli-beams.eu/proxy-dockerhub/golang:1.22-alpine AS builder
 WORKDIR /app
 
-# Install git & certs (needed for go modules)
-RUN apk add --no-cache git ca-certificates && update-ca-certificates
-
-# Copy go.mod & go.sum first for better cache utilisation
+# Copy module metadata and vendored dependencies first for better cache utilisation
 COPY go.mod go.sum ./
-RUN go mod download
+COPY vendor ./vendor
 
 # Copy source code
 COPY . .
 
-# Build statically linked binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ws-mockup-server ./main.go
+# Build using vendored modules so the image does not fetch dependencies at build time
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor -o ws-mockup-server .
 
 ############################
 # Runtime stage            #

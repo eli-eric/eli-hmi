@@ -21,32 +21,37 @@ describe('zone-service', () => {
       vi.stubEnv('NEXT_PUBLIC_ZONE_CODE', 'test')
     })
 
-    it('isRouteAllowed returns true for known routes', () => {
-      expect(isRouteAllowed('/p3-controls')).toBe(true)
-      expect(isRouteAllowed('/l3bt-controls')).toBe(true)
-      expect(isRouteAllowed('/l4fbt-controls')).toBe(true)
+    it('isRouteAllowed returns true for the allowed L4 OPCPA route', () => {
       expect(isRouteAllowed('/l4-opcpa')).toBe(true)
     })
 
-    it('isRouteAllowed returns false for unknown routes', () => {
+    it('isRouteAllowed returns false for routes outside the zone', () => {
+      expect(isRouteAllowed('/p3-controls')).toBe(false)
+      expect(isRouteAllowed('/l3bt-controls')).toBe(false)
+      expect(isRouteAllowed('/l4fbt-controls')).toBe(false)
       expect(isRouteAllowed('/nonexistent')).toBe(false)
       expect(isRouteAllowed('')).toBe(false)
     })
 
     it('getDefaultRoute returns the first allowed route', () => {
-      expect(getDefaultRoute()).toBe('/p3-controls')
+      expect(getDefaultRoute()).toBe('/l4-opcpa')
     })
 
     it('getHomeRoute returns the default route', () => {
-      expect(getHomeRoute()).toBe('/p3-controls')
+      expect(getHomeRoute()).toBe('/l4-opcpa')
     })
 
     it('hasAccessibleRoutes is true', () => {
       expect(hasAccessibleRoutes()).toBe(true)
     })
 
-    it('getNavigationItems returns all configured items', () => {
-      expect(getNavigationItems()).toHaveLength(4)
+    it('getNavigationItems returns the configured item', () => {
+      const items = getNavigationItems()
+      expect(items).toHaveLength(1)
+      expect(items[0]).toEqual({
+        text: 'L4 OPCPA Controls',
+        href: '/l4-opcpa',
+      })
     })
   })
 

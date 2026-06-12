@@ -46,7 +46,7 @@ describe('middleware', () => {
 
   it('lets authenticated users hit allowed routes', async () => {
     getToken.mockResolvedValue({ sub: 'user-1' })
-    const res = await middleware(makeRequest('/p3-controls'))
+    const res = await middleware(makeRequest('/l4-opcpa'))
     expect(res.status).toBe(200)
   })
 
@@ -54,7 +54,7 @@ describe('middleware', () => {
     getToken.mockResolvedValue({ sub: 'user-1' })
     const res = await middleware(makeRequest('/auth/signin'))
     expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toContain('/p3-controls')
+    expect(res.headers.get('location')).toContain('/l4-opcpa')
   })
 
   it('lets api routes bypass auth', async () => {

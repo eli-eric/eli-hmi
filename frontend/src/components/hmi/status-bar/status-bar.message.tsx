@@ -1,21 +1,27 @@
 'use client'
 
 import style from './status-bar-message.module.css'
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useSyncExternalStore } from 'react'
 import { formatDateTime } from '@/lib/utils/formatters'
 import { useWebSocketContext } from '@/app/providers/socket-provider'
+
+// Client-detection without a set-state-in-effect: useSyncExternalStore returns
+// the server snapshot (false) during SSR + hydration and the client snapshot
+// (true) afterwards, so time-dependent content renders only after hydration.
+const subscribeNoop = () => () => {}
+const getIsClient = () => true
+const getIsClientServer = () => false
 
 export const StatusBarMessage = () => {
   // Get direct access to the WebSocket context to have the real-time countdown
   const { connectionState } = useWebSocketContext()
-  const [isClient, setIsClient] = useState(false)
+  const isClient = useSyncExternalStore(
+    subscribeNoop,
+    getIsClient,
+    getIsClientServer,
+  )
 
   const { lastAttempt } = connectionState
-
-  // Handle hydration issues by only rendering time-dependent content on client
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
 
   // Format the timestamp for the last connection attempt
   const formattedLastAttempt = useMemo(() => {

@@ -9,9 +9,13 @@ default:
       alias: docker # this has to here because in fixes: https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#docker-no-such-host-error
       command: ["--insecure-registry=harbor.eli-beams.eu"] # fixes docker in docker container not trusting self signed cert: https://stackoverflow.com/questions/50133073/gitlab-ci-docker-in-docker-access-to-insecure-registry
 
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+
 stages:
   - test
   - build
+  - deploy
 
 docs-validate:
   stage: test
@@ -27,66 +31,31 @@ docs-validate:
         - docs/**/*
         - scripts/docs/**/*
 
-variables:
-  # When you use the dind service, you must instruct Docker to talk with
-  # the daemon started inside of the service. The daemon is available
-  # with a network connection instead of the default
-  # /var/run/docker.sock socket. Docker 19.03 does this automatically
-  # by setting the DOCKER_HOST in
-  # https://github.com/docker-library/docker/blob/d45051476babc297257df490d22cbd806f1b11e4/19.03/docker-entrypoint.sh#L23-L29
-  #
-  # The 'docker' hostname is the alias of the service container as described at
-  # https://docs.gitlab.com/ee/ci/services/#accessing-the-services.
-  #
-  # Specify to Docker where to create the certificates. Docker
-  # creates them automatically on boot, and creates
-  # `/certs/client` to share between the service and job
-  # container, thanks to volume mount from config.toml
-  DOCKER_TLS_CERTDIR: "/certs"
-
-docker-build-job:
-  stage: build
-  # all commands in this stage will run in this docker container that will provide the docker cli
-  image: harbor.eli-beams.eu/dockerhub/docker:27.1.2
-  tags:
-    - docker-in-docker # run on the runner that can do docker-in-docker
-  script:
-    - whoami
-    - id
-    - docker info
-    #- cat /etc/docker/daemon.json
-    #- cat /etc/docker/certs.d/harbor.eli-beams.eu/ca.crt
-    - docker pull harbor.eli-beams.eu/proxy-dockerhub/node:18-alpine # this fixes a SSL verify error when running docker build
-    - docker pull harbor.eli-beams.eu/proxy-dockerhub/golang:1.22-alpine # this fixes a SSL verify error when running docker build
-    - docker pull harbor.eli-beams.eu/proxy-dockerhub/alpine:latest # this fixes a SSL verify error when running docker build
-    - docker pull harbor.eli-beams.eu/proxy-dockerhub/python:3.12.1 # this fixes a SSL verify error when running docker build
-    - docker image ls --all
-    - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
-    # - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest -f frontend/Dockerfile
-    # - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest
-    # - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest -f backend/mockup-websocket-server/Dockerfile
-    # - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup:latest
-    - cd backend/python-websocket-server
-    - docker build . -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest -f Dockerfile
-    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest
 frontend-test:
   stage: test
+  tags:
+    - docker-in-docker # run on the runner that can do docker-in-docker
   # Pin to a major.minor tag so unreviewed minor bumps don't change build
   # behaviour. Pin to a digest as well if reproducibility ever bites.
-  image: harbor.eli-beams.eu/proxy-dockerhub/node:20.18-alpine
+  image: harbor.eli-beams.eu/proxy-dockerhub/node:22-alpine
   # No docker-in-docker needed; this job just runs `npm test`.
   services: []
   variables:
     DOCKER_TLS_CERTDIR: ""
+    NPM_CONFIG_REGISTRY: "https://npm-mirror1.eli-beams.eu/"
+    NPM_CONFIG_STRICT_SSL: "false"
+    NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/frontend/.npm"
   cache:
     key:
       files:
         - frontend/package-lock.json
     paths:
-      - frontend/node_modules/
+      - frontend/.npm/
   before_script:
     - cd frontend
-    - npm ci --prefer-offline --no-audit
+    - rm -rf node_modules
+    - npm ci --prefer-offline --no-audit --loglevel=verbose --fetch-retries=3 --fetch-retry-mintimeout=15000 --fetch-retry-maxtimeout=20000
+    - test -x node_modules/.bin/vitest
   script:
     - npm test -- --run --coverage
   artifacts:
@@ -100,3 +69,54 @@ frontend-test:
         path: frontend/coverage/cobertura-coverage.xml
     expire_in: 1 week
   coverage: '/Lines\s+:\s+([\d.]+)%/'
+
+docker-build-job-demo:
+  stage: build
+  # all commands in this stage will run in this docker container that will provide the docker cli
+  image: harbor.eli-beams.eu/proxy-dockerhub/docker:27.1.2
+  tags:
+    - docker-in-docker # run on the runner that can do docker-in-docker
+  script:
+    - docker info
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/node:22-alpine # this fixes a SSL verify error when running docker build
+    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:${CI_COMMIT_REF_SLUG} --file=frontend/Dockerfile.demo .
+    - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:${CI_COMMIT_REF_SLUG}
+    - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:latest
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:latest
+
+docker-build-job-mockup-demo:
+  stage: build
+  image: harbor.eli-beams.eu/proxy-dockerhub/docker:27.1.2
+  tags:
+    - docker-in-docker
+  script:
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/golang:1.22-alpine
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/alpine:latest
+    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup-demo:${CI_COMMIT_REF_SLUG} backend/mockup-websocket-server
+    - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup-demo:${CI_COMMIT_REF_SLUG}
+    - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup-demo:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup-demo:latest
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup-demo:latest
+
+deploy-czol-ap08:
+  variables:
+    DEPLOY_HOST: "czol-ap08.eli-laser.eu"
+  stage: deploy
+  image: harbor.eli-beams.eu/eli_images/alpine-ssh:latest
+  tags:
+    - docker-in-docker
+  when: manual
+  script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - printf '%s' "$DEPLOY_SSH_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+    - |
+      ssh -i ~/.ssh/id_ed25519 "${DEPLOY_USER}@${DEPLOY_HOST}" '
+        set -e
+        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml pull
+        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml down
+        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml up -d
+      '

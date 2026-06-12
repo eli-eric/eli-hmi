@@ -1,6 +1,6 @@
 'use client'
 
-import { FC, useState, useCallback, useId, useEffect } from 'react'
+import { FC, useState, useCallback, useId } from 'react'
 import { usePvWrite } from './usePvWrite'
 import styles from './PresetIntegerInput.module.css'
 
@@ -38,14 +38,18 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
       ? `Out of range (${min ?? '−∞'}..${max ?? '∞'})`
       : null
 
-  // Reset the staged value after a successful write (hook reports 'success'
-  // and we mirror the old reset-and-let-cog-close behaviour).
-  useEffect(() => {
+  // Reset the staged value after a successful write. `state` is the external
+  // signal from usePvWrite; adjust local state during render off its transition
+  // (React's "storing information from previous renders" pattern) instead of in
+  // an effect, so the reset lands in the same commit.
+  const [prevWriteState, setPrevWriteState] = useState(state)
+  if (state !== prevWriteState) {
+    setPrevWriteState(state)
     if (state === 'success') {
       setStaged(null)
       setCustomText('')
     }
-  }, [state])
+  }
 
   const onCustomChange = useCallback((v: string) => {
     setCustomText(v)
