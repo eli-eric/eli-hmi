@@ -33,6 +33,20 @@ The browser-locked machines in the control room that operators use day-to-day. E
 
 4. Deploy that image to the station.
 
+## Production image in CI
+
+`.gitlab-ci.yml` job `docker-build-job-frontend` builds the production frontend image from `frontend/Dockerfile` and publishes:
+
+- `${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:${CI_COMMIT_REF_SLUG}`
+- `${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest`
+
+That job expects these CI variables to be set:
+
+- `NEXT_PUBLIC_ZONE_CODE`
+- `NEXT_PUBLIC_API_URL`
+
+Without `NEXT_PUBLIC_ZONE_CODE`, the frontend can build into the intentionally empty `production` zone and ship with no accessible routes.
+
 The shipped `production` zone in `zone-config.ts` is **intentionally empty** — see [zones](../frontend/zones.md#production-override).
 
 ## Login
@@ -41,13 +55,13 @@ Operators authenticate via LDAP credentials. The dev bypass (`test`/`test`) only
 
 ## When something breaks at the station
 
-| Symptom | Likely cause | First check |
-| --- | --- | --- |
-| Login succeeds; nav bar empty | Zone has no `navigationItems` | `zone-config.ts` for the station's zone |
-| Login succeeds; clicking a link redirects to `/no-access` | Route not in `allowedRoutes` for the zone | Same |
-| WebSocket spinner forever | Backend unreachable or wrong host:port | `NEXT_PUBLIC_API_URL` baked in, network path to backend |
-| Backend reachable; readings show `<>` glyphs | Subscribed PV doesn't exist on the backend | Mock prefix conventions ([pv-naming](../reference/pv-naming.md)) or EPICS IOC reachability |
-| Writes silently fail with error toast | Mock failure injection on, or write endpoint not yet implemented on prod backend | `curl http://<backend>/mode/fail-rate/0` (mock); [pv-write-endpoint](../backend/pv-write-endpoint.md) (prod) |
+| Symptom                                                   | Likely cause                                                                     | First check                                                                                                  |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Login succeeds; nav bar empty                             | Zone has no `navigationItems`                                                    | `zone-config.ts` for the station's zone                                                                      |
+| Login succeeds; clicking a link redirects to `/no-access` | Route not in `allowedRoutes` for the zone                                        | Same                                                                                                         |
+| WebSocket spinner forever                                 | Backend unreachable or wrong host:port                                           | `NEXT_PUBLIC_API_URL` baked in, network path to backend                                                      |
+| Backend reachable; readings show `<>` glyphs              | Subscribed PV doesn't exist on the backend                                       | Mock prefix conventions ([pv-naming](../reference/pv-naming.md)) or EPICS IOC reachability                   |
+| Writes silently fail with error toast                     | Mock failure injection on, or write endpoint not yet implemented on prod backend | `curl http://<backend>/mode/fail-rate/0` (mock); [pv-write-endpoint](../backend/pv-write-endpoint.md) (prod) |
 
 ## Source-of-truth READMEs
 

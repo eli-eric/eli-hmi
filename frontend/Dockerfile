@@ -9,8 +9,8 @@ WORKDIR /app
 # Install dependencies based on the preferred package manager
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
 RUN \
-  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
+  if [ -f package-lock.json ]; then npm ci; \
+  elif [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
   else echo "Lockfile not found." && exit 1; \
   fi
@@ -22,24 +22,33 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_ZONE_CODE
+ARG LDAP_SERVER_URL=ldap://10.78.0.11
+ARG LDAP_BASE_DN=dc=lcs,dc=local
+ARG LDAP_USE_TLS=false
+
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
-ENV NEXTAUTH_SECRET=your_secret_key_here
-ENV NEXT_PUBLIC_WEBSOCKET_URL=ws://10.79.3.22:8081/ws/pvs
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_ZONE_CODE=$NEXT_PUBLIC_ZONE_CODE
 
 # LDAP Authentication Settings
-ENV LDAP_SERVER_URL=ldap://10.78.0.11
-ENV LDAP_BASE_DN=dc=lcs,dc=local
-ENV LDAP_USE_TLS=false
+ENV LDAP_SERVER_URL=$LDAP_SERVER_URL
+ENV LDAP_BASE_DN=$LDAP_BASE_DN
+ENV LDAP_USE_TLS=$LDAP_USE_TLS
+
+RUN test -n "$NEXT_PUBLIC_API_URL"
+RUN test -n "$NEXT_PUBLIC_ZONE_CODE"
 
 
 RUN \
-  if [ -f yarn.lock ]; then yarn run build; \
-  elif [ -f package-lock.json ]; then npm run build; \
+  if [ -f package-lock.json ]; then npm run build; \
+  elif [ -f yarn.lock ]; then yarn run build; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
   else echo "Lockfile not found." && exit 1; \
   fi
@@ -47,6 +56,12 @@ RUN \
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
+
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_ZONE_CODE
+ARG LDAP_SERVER_URL=ldap://10.78.0.11
+ARG LDAP_BASE_DN=dc=lcs,dc=local
+ARG LDAP_USE_TLS=false
 
 ENV NODE_ENV=production
 # Uncomment the following line in case you want to disable telemetry during runtime.
@@ -71,13 +86,13 @@ ENV PORT=8082
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
 ENV HOSTNAME="0.0.0.0"
-ENV NEXTAUTH_SECRET=your_secret_key_here
-ENV NEXT_PUBLIC_WEBSOCKET_URL=ws://10.79.3.22:8081/ws/pvs
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_ZONE_CODE=$NEXT_PUBLIC_ZONE_CODE
 
 # LDAP Authentication Settings
-ENV LDAP_SERVER_URL=ldap://10.78.0.11
-ENV LDAP_BASE_DN=dc=lcs,dc=local
-ENV LDAP_USE_TLS=false
+ENV LDAP_SERVER_URL=$LDAP_SERVER_URL
+ENV LDAP_BASE_DN=$LDAP_BASE_DN
+ENV LDAP_USE_TLS=$LDAP_USE_TLS
 # Set to true in production, false in development
 ENV NODE_ENV=production
 CMD ["node", "server.js"]
