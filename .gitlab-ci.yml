@@ -20,6 +20,8 @@ stages:
 docs-validate:
   stage: test
   image: harbor.eli-beams.eu/proxy-dockerhub/node:20.18-alpine
+  tags:
+    - docker-in-docker
   services: []
   variables:
     DOCKER_TLS_CERTDIR: ""
