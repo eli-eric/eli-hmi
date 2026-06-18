@@ -93,11 +93,16 @@ docker-build-job-frontend:
   tags:
     - docker-in-docker
   script:
-    - test -n "${NEXT_PUBLIC_ZONE_CODE}"
-    - test -n "${NEXT_PUBLIC_API_URL}"
+    - export FRONTEND_ZONE_CODE="${NEXT_PUBLIC_ZONE_CODE:-test}"
+    - export FRONTEND_API_URL="${NEXT_PUBLIC_API_URL:-}"
+    - |
+      if [[ -z "$FRONTEND_API_URL" ]]; then
+        echo "NEXT_PUBLIC_API_URL is not set. Configure it in GitLab CI variables as host:port for the production backend."
+        exit 1
+      fi
     - docker info
     - docker pull harbor.eli-beams.eu/proxy-dockerhub/node:22-alpine
-    - docker build --build-arg NEXT_PUBLIC_ZONE_CODE=${NEXT_PUBLIC_ZONE_CODE} --build-arg NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:${CI_COMMIT_REF_SLUG} --file=frontend/Dockerfile frontend
+    - docker build --build-arg NEXT_PUBLIC_ZONE_CODE=${FRONTEND_ZONE_CODE} --build-arg NEXT_PUBLIC_API_URL=${FRONTEND_API_URL} -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:${CI_COMMIT_REF_SLUG} --file=frontend/Dockerfile frontend
     - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:${CI_COMMIT_REF_SLUG}
     - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest
