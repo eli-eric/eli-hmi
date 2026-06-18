@@ -1,4 +1,4 @@
-FROM harbor.eli-beams.eu/proxy-dockerhub/node:22-alpine
+FROM harbor.eli-beams.eu/eli_images/eli-node:22-alpine
 
 # Create group and user with GID/UID 1200
 RUN addgroup -g 1200 -S appgroup && \
