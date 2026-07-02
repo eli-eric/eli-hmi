@@ -52,7 +52,19 @@ export const rawLaserSchema = z.strictObject({
       regenTemp: pvName.describe('Regen temperature readout.'),
       phd2Mean: pvName.describe('Second PHD mean readout.'),
       attenuator: pvName.describe('Attenuator value (read + direct write).'),
-      loadedWaveform: pvName.describe('Currently loaded waveform name.'),
+      loadedWaveform: pvName.describe('Current waveform preset.'),
+      latestWaveform: pvName
+        .optional()
+        .describe('Previous waveform name shown in Waveform Latest after a new preset is applied.'),
+      modboxMbc1: pvName
+        .optional()
+        .describe('Modbox MBC1 readout (Modbox State row).'),
+      modboxMbc2: pvName
+        .optional()
+        .describe('Modbox MBC2 readout (Modbox State row).'),
+      sequencerRunning: pvName
+        .optional()
+        .describe('Sequencer running bool (Sequencer row: 1=RUNNING, 0=IDLE).'),
     })
     .describe('Single-signal read/write PVs.'),
   triggerDelay: z

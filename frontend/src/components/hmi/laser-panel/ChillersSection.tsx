@@ -2,9 +2,10 @@
 
 import { FC, useMemo } from 'react'
 import { SectionCard } from '@/components/hmi/controls/SectionCard'
-import { FloatValue } from '@/components/hmi/controls/Values'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import type { ChillerSpec } from '@/app/(modules)/l4-opcpa/config/schema'
+import { ChillerCell } from './ChillerCell'
+import { CHILLER_LIMITS } from './chiller-cell-state'
 import styles from './sections.module.css'
 
 interface ChillersSectionProps {
@@ -15,14 +16,17 @@ interface ChillersSectionProps {
 /**
  * Chiller flow/temp/water-level grid. One row per chiller, three columns
  * (Flow / Temp / Water) plus a header row. PV names arrive verbatim from the
- * YAML config.
+ * YAML config. Each cell resolves an explicit state (CSI-783) via ChillerCell.
  */
 export const ChillersSection: FC<ChillersSectionProps> = ({ chillers }) => {
   const pvs = useMemo(
     () => chillers.flatMap((c) => [c.flow, c.temp, c.level]),
     [chillers],
   )
-  const { state } = useWebSocketData<number | null>({ pvs, raw: true })
+  const { state, isConnected } = useWebSocketData<number | null>({
+    pvs,
+    raw: true,
+  })
 
   return (
     <SectionCard>
@@ -36,13 +40,25 @@ export const ChillersSection: FC<ChillersSectionProps> = ({ chillers }) => {
           <div key={c.flow} className={styles.contents}>
             <span className={styles.rowLabel}>Chiller {c.label}</span>
             <span className={styles.numCell}>
-              <FloatValue data={state[c.flow]} precision={3} />
+              <ChillerCell
+                msg={state[c.flow]}
+                isConnected={isConnected}
+                limits={CHILLER_LIMITS.flow}
+              />
             </span>
             <span className={styles.numCell}>
-              <FloatValue data={state[c.temp]} precision={3} />
+              <ChillerCell
+                msg={state[c.temp]}
+                isConnected={isConnected}
+                limits={CHILLER_LIMITS.temp}
+              />
             </span>
             <span className={styles.numCell}>
-              <FloatValue data={state[c.level]} precision={3} />
+              <ChillerCell
+                msg={state[c.level]}
+                isConnected={isConnected}
+                limits={CHILLER_LIMITS.level}
+              />
             </span>
           </div>
         ))}

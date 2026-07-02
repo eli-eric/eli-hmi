@@ -118,14 +118,14 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
             )}
             {can('ALIGNMENT_MODE') && (
               <ActionButton
-                label="Alignment Mode"
+                label="Set to Alignment Mode"
                 pvName={pv.cmd(laser, 'ALIGNMENT_MODE')}
                 variant="secondary"
               />
             )}
             {can('SYSTEM_STANDBY') && (
               <ActionButton
-                label="System Standby"
+                label="Set to System Standby"
                 pvName={pv.cmd(laser, 'SYSTEM_STANDBY')}
                 variant="secondary"
               />

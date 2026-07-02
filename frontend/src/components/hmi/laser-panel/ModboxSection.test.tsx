@@ -43,7 +43,7 @@ function renderModbox() {
 }
 
 describe('ModboxSection', () => {
-  it('renders the merged Modbox state pill and Loaded Waveform readout', async () => {
+  it('renders the merged Modbox state pill and Waveform Preset readout', async () => {
     const ws = renderModbox()
 
     await waitFor(() =>
@@ -61,8 +61,8 @@ describe('ModboxSection', () => {
     })
 
     expect(screen.getByText('Modbox State')).toBeInTheDocument()
-    expect(screen.getByText('2 / 3')).toBeInTheDocument()
-    expect(screen.getByText('Loaded Waveform')).toBeInTheDocument()
+    expect(screen.getByText('2/3')).toBeInTheDocument()
+    expect(screen.getByText('Waveform Preset')).toBeInTheDocument()
     expect(screen.getAllByText('std-100ps').length).toBeGreaterThan(0)
   })
 
@@ -122,9 +122,97 @@ describe('ModboxSection', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
 
     await user.click(
-      screen.getByRole('button', { name: 'Set waveform' }),
+      screen.getByRole('button', { name: 'Set waveform preset' }),
     )
 
     expect(screen.getByRole('combobox')).toBeInTheDocument()
+  })
+
+  it('exposes "Set Waveform to…" inside the Modbox Actions group and reveals the selectbox + CONFIRM', async () => {
+    const ws = renderModbox()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
+    )
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Modbox actions' }))
+
+    const waveformAction = screen.getByRole('button', {
+      name: 'Set Waveform to…',
+    })
+    expect(waveformAction).toBeInTheDocument()
+    // Collapsed until pressed.
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+
+    await user.click(waveformAction)
+
+    expect(screen.getByRole('combobox')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'CONFIRM' }),
+    ).toBeInTheDocument()
+  })
+
+  it('collapses "Set Waveform to…" when Modbox Actions is closed and reopened', async () => {
+    const ws = renderModbox()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
+    )
+
+    const user = userEvent.setup()
+    const actionsToggle = screen.getByRole('button', {
+      name: 'Modbox actions',
+    })
+
+    await user.click(actionsToggle)
+    await user.click(
+      screen.getByRole('button', { name: 'Set Waveform to…' }),
+    )
+    expect(screen.getByRole('combobox')).toBeInTheDocument()
+
+    await user.click(actionsToggle)
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+
+    await user.click(actionsToggle)
+    expect(
+      screen.getByRole('button', { name: 'Set Waveform to…' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
+  it('renders MBC1 / MBC2 readouts and the Waveform Latest row when configured', async () => {
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <ModboxSection
+          laser="NL2"
+          modbox={MODBOX_3}
+          loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+          latestWaveformPv="SI_NL2_LATEST_WAVEFORM"
+          mbc1Pv="AI_NL2_MBC1"
+          mbc2Pv="AI_NL2_MBC2"
+          commands={LASER_COMMANDS}
+        />
+      </TestWebSocketProvider>,
+    )
+
+    await waitFor(() =>
+      expect(ws.subscriptions.get('AI_NL2_MBC1')?.size).toBe(1),
+    )
+    await waitFor(() =>
+      expect(ws.subscriptions.get('SI_NL2_LATEST_WAVEFORM')?.size).toBe(1),
+    )
+
+    act(() => {
+      ws.push('AI_NL2_MBC1', 12.34)
+      ws.push('AI_NL2_MBC2', 56.78)
+      ws.push('SI_NL2_LATEST_WAVEFORM', 'narrow-50ps')
+    })
+
+    expect(screen.getByText('MBC1')).toBeInTheDocument()
+    expect(screen.getByText('MBC2')).toBeInTheDocument()
+    expect(screen.getByText('12.34')).toBeInTheDocument()
+    expect(screen.getByText('56.78')).toBeInTheDocument()
+    expect(screen.getByText('Waveform Latest')).toBeInTheDocument()
+    expect(screen.getAllByText('narrow-50ps').length).toBeGreaterThan(0)
   })
 })

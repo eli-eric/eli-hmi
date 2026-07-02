@@ -76,7 +76,7 @@ describe('FlashlampsSection', () => {
 
     const user = userEvent.setup()
     expect(
-      screen.queryByRole('button', { name: 'Set All Run' }),
+      screen.queryByRole('button', { name: 'Set All to Run' }),
     ).not.toBeInTheDocument()
 
     await user.click(
@@ -84,10 +84,10 @@ describe('FlashlampsSection', () => {
     )
 
     expect(
-      screen.getByRole('button', { name: 'Set All Run' }),
+      screen.getByRole('button', { name: 'Set All to Run' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Set All Standby' }),
+      screen.getByRole('button', { name: 'Set All to Standby' }),
     ).toBeInTheDocument()
   })
 

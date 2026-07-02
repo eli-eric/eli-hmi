@@ -7,7 +7,7 @@ import styles from './PresetIntegerInput.module.css'
 interface PresetIntegerInputProps {
   label: string
   presets: readonly number[]
-  /** PV to write the staged integer value to (e.g. `CMD_NL2_SET_DELAY` or
+  /** PV to write the integer value to (e.g. `CMD_NL2_SET_DELAY` or
    * `AI_NL2_ATT`). */
   pvName: string
   /** Optional inclusive minimum. Values below this disable Confirm. */
@@ -16,6 +16,15 @@ interface PresetIntegerInputProps {
   max?: number
 }
 
+/**
+ * Integer setter used by Trigger Delay and the Attenuator.
+ *
+ * - Preset buttons apply immediately on click (one click = one write); they do
+ *   NOT require a separate confirm.
+ * - A custom value is typed into the field and committed with the inline
+ *   Confirm button sitting directly next to the field.
+ * - There is no Cancel button.
+ */
 export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
   label,
   presets,
@@ -38,7 +47,7 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
       ? `Out of range (${min ?? '−∞'}..${max ?? '∞'})`
       : null
 
-  // Reset the staged value after a successful write. `state` is the external
+  // Clear the custom field after a successful write. `state` is the external
   // signal from usePvWrite; adjust local state during render off its transition
   // (React's "storing information from previous renders" pattern) instead of in
   // an effect, so the reset lands in the same commit.
@@ -81,17 +90,14 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
     setStaged(n)
   }, [])
 
-  const onChipClick = useCallback((value: number) => {
-    setStaged(value)
-    setCustomText('')
-    setParseError(null)
-  }, [])
-
-  const onCancel = useCallback(() => {
-    setStaged(null)
-    setCustomText('')
-    setParseError(null)
-  }, [])
+  // Preset chips apply immediately — one click writes the value.
+  const onChipClick = useCallback(
+    (value: number) => {
+      if (pending) return
+      void write(pvName, value)
+    },
+    [pending, write, pvName],
+  )
 
   const onConfirm = useCallback(() => {
     if (staged === null) return
@@ -112,7 +118,7 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
               key={p}
               type="button"
               className={styles.chip}
-              data-staged={staged === p}
+              disabled={pending}
               onClick={() => onChipClick(p)}
             >
               {p}
@@ -120,8 +126,10 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
           ))}
         </div>
       )}
-      <label className={styles.customRow} htmlFor={inputId}>
-        <span className={styles.customLabel}>Custom</span>
+      <div className={styles.customRow}>
+        <label className={styles.customLabel} htmlFor={inputId}>
+          Custom
+        </label>
         <input
           id={inputId}
           className={styles.input}
@@ -132,16 +140,6 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
           max={max}
           onChange={(e) => onCustomChange(e.target.value)}
         />
-      </label>
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.cancel}
-          onClick={onCancel}
-          disabled={staged === null && customText === ''}
-        >
-          Cancel
-        </button>
         <button
           type="button"
           className={styles.confirm}
@@ -149,11 +147,7 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
           disabled={!stagedValid || pending}
           data-state={pending ? 'pending' : error ? 'error' : 'idle'}
         >
-          {staged !== null
-            ? pending
-              ? `Setting ${staged}…`
-              : `Confirm ${staged}`
-            : 'Confirm'}
+          {pending ? 'Setting…' : 'Confirm'}
         </button>
       </div>
       {(error || rangeError || parseError) && (

@@ -69,6 +69,10 @@ lasers:
       phd2Mean: AI_NL2_PHD2_MEAN
       attenuator: AI_NL2_ATT
       loadedWaveform: SI_NL2_LOADED_WAVEFORM
+      latestWaveform: SI_NL2_LATEST_WAVEFORM
+      modboxMbc1: AI_NL2_MBC1
+      modboxMbc2: AI_NL2_MBC2
+      sequencerRunning: BI_NL2_SEQUENCER_RUNNING
     triggerDelay: [AI_NL2_TRIG_DELAY_CH1, AI_NL2_TRIG_DELAY_CH2]
     mss: [BI_NL2_MSS_1, BI_NL2_MSS_2, BI_NL2_MSS_3, BI_NL2_MSS_4, BI_NL2_MSS_5, BI_NL2_MSS_6]
     moduleErrors:

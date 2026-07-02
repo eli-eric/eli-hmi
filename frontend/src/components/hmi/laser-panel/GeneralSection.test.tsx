@@ -77,11 +77,25 @@ describe('GeneralSection', () => {
     expect(screen.getByText('FULLP')).toBeInTheDocument()
     expect(screen.getByText('MSS')).toBeInTheDocument()
     expect(screen.getByText('ERR')).toBeInTheDocument()
-    expect(screen.getByText('YES')).toBeInTheDocument()
+    // CONN=1 and MSS(all ok)=YES → two YES pills.
+    expect(screen.getAllByText('YES')).toHaveLength(2)
     expect(screen.getByText('NO')).toBeInTheDocument()
-    expect(screen.getByText('3 / 3')).toBeInTheDocument()
-    // 1 module is in error out of 2 total.
-    expect(screen.getByText('1 / 2')).toBeInTheDocument()
+    // MSS overall must be YES/NO, never a numeric count (spec).
+    expect(screen.queryByText('3/3')).not.toBeInTheDocument()
+    // ERR remains a numeric count: 1 module in error out of 2 total.
+    expect(screen.getByText('1/2')).toBeInTheDocument()
+  })
+
+  it('shows MSS overall as NO (not a count) when any indicator is not ok', async () => {
+    const ws = await setup()
+    act(() => {
+      ws.push('BI_NL2_MSS_1', 1)
+      ws.push('BI_NL2_MSS_2', 0)
+      ws.push('BI_NL2_MSS_3', 1)
+    })
+    // Only MSS has data here → exactly one NO pill, and no "2/3" count.
+    expect(screen.getByText('NO')).toBeInTheDocument()
+    expect(screen.queryByText('2/3')).not.toBeInTheDocument()
   })
 
   it('renders the Shutter row with an inline status pill', async () => {
@@ -116,10 +130,10 @@ describe('GeneralSection', () => {
       screen.getByRole('button', { name: 'Stop Laser' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Alignment Mode' }),
+      screen.getByRole('button', { name: 'Set to Alignment Mode' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'System Standby' }),
+      screen.getByRole('button', { name: 'Set to System Standby' }),
     ).toBeInTheDocument()
   })
 
@@ -185,14 +199,14 @@ describe('GeneralSection', () => {
       screen.getByRole('button', { name: 'Start Laser' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Alignment Mode' }),
+      screen.getByRole('button', { name: 'Set to Alignment Mode' }),
     ).toBeInTheDocument()
     // Not listed → hidden.
     expect(
       screen.queryByRole('button', { name: 'Stop Laser' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'System Standby' }),
+      screen.queryByRole('button', { name: 'Set to System Standby' }),
     ).not.toBeInTheDocument()
   })
 

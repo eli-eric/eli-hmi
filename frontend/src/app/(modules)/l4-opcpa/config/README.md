@@ -37,7 +37,8 @@ line at the top wires up **autocomplete and inline error checking** from
 | `pvs.regenTemp` | PV name | Regen temperature readout. |
 | `pvs.phd2Mean` | PV name | Second PHD mean readout. |
 | `pvs.attenuator` | PV name | Attenuator value (read + direct write). |
-| `pvs.loadedWaveform` | PV name | Currently loaded waveform name. |
+| `pvs.loadedWaveform` | PV name | Current waveform preset. |
+| `pvs.latestWaveform` | PV name | Previous waveform moved into Waveform Latest when a new preset is applied. Optional. |
 | `triggerDelay` | PV name[] | Trigger-delay readouts; all should read equal (mismatch is flagged). |
 | `mss` | PV name[] | MSS sub-indicators counted in the Overview. |
 | `moduleErrors` | `{label, pv}`[] | Error indicators: `label` shown in UI, `pv` is the indicator PV. |
