@@ -5,7 +5,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-text-secondary);
   padding: 0;
-  min-width: 20rem; /* = 280px at the 14px base; rem so the panel scales with the fluid root font-size */
+  min-width: 280px;
   color: var(--color-text);
 }
 
