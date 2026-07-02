@@ -59,7 +59,27 @@
               "loadedWaveform": {
                 "type": "string",
                 "minLength": 1,
-                "description": "Currently loaded waveform name."
+                "description": "Current waveform preset."
+              },
+              "latestWaveform": {
+                "description": "Previous waveform name shown in Waveform Latest after a new preset is applied.",
+                "type": "string",
+                "minLength": 1
+              },
+              "modboxMbc1": {
+                "description": "Modbox MBC1 readout (Modbox State row).",
+                "type": "string",
+                "minLength": 1
+              },
+              "modboxMbc2": {
+                "description": "Modbox MBC2 readout (Modbox State row).",
+                "type": "string",
+                "minLength": 1
+              },
+              "sequencerRunning": {
+                "description": "Sequencer running bool (Sequencer row: 1=RUNNING, 0=IDLE).",
+                "type": "string",
+                "minLength": 1
               }
             },
             "required": [

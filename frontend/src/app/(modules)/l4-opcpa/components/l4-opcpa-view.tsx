@@ -32,9 +32,11 @@ export const L4OpcpaView: FC<L4OpcpaViewProps> = ({ specs }) => {
         )}
       </div>
       <LaserGrid>
-        {specs.map((spec) => (
-          <LaserPanelInstance key={spec.laser} spec={spec} />
-        ))}
+        {specs
+          .filter((spec) => spec.laser === 'NL2')
+          .map((spec) => (
+            <LaserPanelInstance key={spec.laser} spec={spec} />
+          ))}
       </LaserGrid>
     </div>
   )

@@ -76,7 +76,7 @@ describe('LaserPanelInstance', () => {
     expect(screen.getByText('Chiller PS1225:11')).toBeInTheDocument()
     expect(screen.getByText('Flashlamps State')).toBeInTheDocument()
     expect(screen.getByText('Modbox State')).toBeInTheDocument()
-    expect(screen.getByText('Loaded Waveform')).toBeInTheDocument()
+    expect(screen.getByText('Waveform Preset')).toBeInTheDocument()
   })
 
   it('hides sections whose device bank is empty', () => {

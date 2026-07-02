@@ -34,25 +34,32 @@ describe('PresetIntegerInput', () => {
     expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled()
   })
 
-  it('stages a preset value on chip click and enables Confirm', async () => {
+  it('applies a preset immediately on chip click (no Confirm needed)', async () => {
+    const spy = vi.fn<typeof fetch>(
+      async () =>
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    )
+    globalThis.fetch = spy as unknown as typeof fetch
     const user = userEvent.setup()
     renderInput()
     await user.click(screen.getByRole('button', { name: '790' }))
-    const confirm = screen.getByRole('button', { name: /Confirm/ })
-    expect(confirm).not.toBeDisabled()
-    expect(confirm).toHaveTextContent('790')
+    await waitFor(() => expect(spy).toHaveBeenCalled())
+    expect(spy.mock.calls[0][0]).toBe(
+      'http://localhost:8080/pv/CMD_NL2_SET_DELAY',
+    )
+    const init = spy.mock.calls[0][1] as RequestInit
+    expect(JSON.parse(init.body as string)).toEqual({ value: 790 })
   })
 
-  it('stages a custom value from the integer input field', async () => {
+  it('enables Confirm once a valid custom value is typed', async () => {
     const user = userEvent.setup()
     renderInput()
+    expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled()
     await user.type(screen.getByLabelText(/custom/i), '650')
-    const confirm = screen.getByRole('button', { name: /Confirm/ })
-    expect(confirm).not.toBeDisabled()
-    expect(confirm).toHaveTextContent('650')
+    expect(screen.getByRole('button', { name: /Confirm/ })).not.toBeDisabled()
   })
 
-  it('POSTs to /pv/<pvName> with the staged value when Confirm is clicked', async () => {
+  it('POSTs to /pv/<pvName> with the custom value when Confirm is clicked', async () => {
     const spy = vi.fn<typeof fetch>(
       async () =>
         new Response(JSON.stringify({ ok: true }), { status: 200 }),
@@ -61,7 +68,7 @@ describe('PresetIntegerInput', () => {
     const user = userEvent.setup()
     renderInput()
 
-    await user.click(screen.getByRole('button', { name: '500' }))
+    await user.type(screen.getByLabelText(/custom/i), '500')
     await user.click(screen.getByRole('button', { name: /Confirm/ }))
 
     await waitFor(() => expect(spy).toHaveBeenCalled())
@@ -72,11 +79,13 @@ describe('PresetIntegerInput', () => {
     expect(JSON.parse(init.body as string)).toEqual({ value: 500 })
   })
 
-  it('Cancel clears the staged value and disables Confirm again', async () => {
+  it('disables Confirm again when the custom field is cleared', async () => {
     const user = userEvent.setup()
     renderInput()
-    await user.click(screen.getByRole('button', { name: '790' }))
-    await user.click(screen.getByRole('button', { name: /Cancel/ }))
+    const input = screen.getByLabelText(/custom/i)
+    await user.type(input, '790')
+    expect(screen.getByRole('button', { name: /Confirm/ })).not.toBeDisabled()
+    await user.clear(input)
     expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled()
   })
 

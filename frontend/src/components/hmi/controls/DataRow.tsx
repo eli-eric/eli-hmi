@@ -29,7 +29,7 @@ export const DataRow: FC<DataRowProps> = ({
   const valueClass =
     valueVariant === 'bare' ? `${styles.value} ${styles.valueBare}` : styles.value
   return (
-    <div className={styles.row}>
+    <div className={styles.row} data-has-action={action ? 'true' : 'false'}>
       <span className={styles.label}>{label}</span>
       <span className={valueClass}>{value}</span>
       {action ? <span className={styles.action}>{action}</span> : null}

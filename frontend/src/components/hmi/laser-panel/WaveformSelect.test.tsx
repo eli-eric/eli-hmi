@@ -40,7 +40,7 @@ describe('WaveformSelect', () => {
     expect(screen.getByRole('option', { name: 'broad-200ps' })).toBeInTheDocument()
   })
 
-  it('disables Load until the user picks a waveform', async () => {
+  it('disables waveform setting until the user picks a waveform', async () => {
     mockFetch()
     const user = userEvent.setup()
     render(<WaveformSelect laser="NL2" />)
@@ -48,13 +48,13 @@ describe('WaveformSelect', () => {
       expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
     )
 
-    expect(screen.getByRole('button', { name: /Load/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /CONFIRM/i })).toBeDisabled()
 
     await user.selectOptions(screen.getByRole('combobox'), 'narrow-50ps')
-    expect(screen.getByRole('button', { name: /Load/ })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /CONFIRM/i })).not.toBeDisabled()
   })
 
-  it('POSTs CMD_<laser>_LOAD_WAVEFORM with the selected name on Load click', async () => {
+  it('POSTs CMD_<laser>_LOAD_WAVEFORM with the selected name on Set Waveform click', async () => {
     const spy = mockFetch()
     const user = userEvent.setup()
     render(<WaveformSelect laser="NL2" />)
@@ -63,7 +63,7 @@ describe('WaveformSelect', () => {
     )
 
     await user.selectOptions(screen.getByRole('combobox'), 'broad-200ps')
-    await user.click(screen.getByRole('button', { name: /Load/ }))
+    await user.click(screen.getByRole('button', { name: /CONFIRM/i }))
 
     await waitFor(() => {
       const seqCall = spy.mock.calls.find(([url]) =>

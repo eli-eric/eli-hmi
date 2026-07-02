@@ -1,13 +1,13 @@
 'use client'
 
-import { FC, ReactNode, useMemo, useState } from 'react'
+import { FC, ReactNode, useMemo, useRef, useState } from 'react'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import {
   DetailList,
   DetailListItem,
 } from '@/components/hmi/controls/DetailList'
-import { ChevronIcon } from '@/components/ui/icons'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
 import styles from './OverviewBar.module.css'
 
 interface OverviewBarProps {
@@ -19,6 +19,9 @@ interface OverviewBarProps {
 }
 
 type Expanded = 'mss' | 'err' | null
+
+const MSS_NOTE =
+  'This is a selection of some MSS indicators, it is NOT an exhaustive list of all parameters that lead to the overall MSS indicator.'
 
 /**
  * Four-cell header cluster at the top of the General box per the Confluence
@@ -33,6 +36,12 @@ export const OverviewBar: FC<OverviewBarProps> = ({
   moduleErrors,
 }) => {
   const [expanded, setExpanded] = useState<Expanded>(null)
+  const triggerRef = useRef<HTMLDivElement | null>(null)
+  useCollapseOnAnyClick(
+    expanded !== null,
+    () => setExpanded(null),
+    triggerRef,
+  )
 
   const moduleErrorPvs = useMemo(
     () => moduleErrors.map((m) => m.pv),
@@ -94,7 +103,7 @@ export const OverviewBar: FC<OverviewBarProps> = ({
     <div className={styles.wrapper}>
       <div className={styles.row}>
         <span className={styles.rowLabel}>Overview</span>
-        <div className={styles.grid}>
+        <div className={styles.grid} ref={triggerRef}>
           <Cell label="CONN">
             <OverviewBoolCell value={connMsg?.value} onText="YES" offText="NO" />
           </Cell>
@@ -114,9 +123,14 @@ export const OverviewBar: FC<OverviewBarProps> = ({
               aria-label="Toggle MSS detail"
               onClick={() => toggle('mss')}
             >
-              <CountPill
-                count={mssOk}
-                total={mssTotal}
+              <OverallPill
+                text={
+                  mssTotal === 0 || mssUnknown === mssTotal
+                    ? '<>'
+                    : mssOk === mssTotal
+                      ? 'YES'
+                      : 'NO'
+                }
                 tone={
                   mssTotal === 0 || mssUnknown === mssTotal
                     ? 'unknown'
@@ -154,7 +168,9 @@ export const OverviewBar: FC<OverviewBarProps> = ({
           </Cell>
         </div>
       </div>
-      {expanded === 'mss' && <DetailList items={mssItems} />}
+      {expanded === 'mss' && (
+        <DetailList items={mssItems} note={MSS_NOTE} />
+      )}
       {expanded === 'err' && <DetailList items={errItems} />}
     </div>
   )
@@ -223,12 +239,41 @@ const CountPill: FC<{
   return (
     <span className={styles.pill} data-tone={tone}>
       <span className={styles.pillCount}>
-        {count} / {total}
+        {count}/{total}
       </span>
       {expandable && (
-        <span className={styles.chevron}>
-          <ChevronIcon expanded={expanded} />
-        </span>
+        <span
+          className={styles.cornerTriangle}
+          data-expanded={expanded || undefined}
+          aria-hidden
+        />
+      )}
+    </span>
+  )
+}
+
+// Overall boolean indicator (e.g. MSS): renders a single YES/NO/<> word, never
+// a count. Spec: "MSS overall states must be shown as YES/NO, not numbers."
+// Keeps the expand affordance so the per-indicator DetailList still opens.
+const OverallPill: FC<{
+  text: string
+  tone:
+    | 'positive-important'
+    | 'positive-neutral'
+    | 'negative-important'
+    | 'unknown'
+  expandable?: boolean
+  expanded?: boolean
+}> = ({ text, tone, expandable, expanded }) => {
+  return (
+    <span className={styles.pill} data-tone={tone}>
+      <span className={styles.pillCount}>{text}</span>
+      {expandable && (
+        <span
+          className={styles.cornerTriangle}
+          data-expanded={expanded || undefined}
+          aria-hidden
+        />
       )}
     </span>
   )

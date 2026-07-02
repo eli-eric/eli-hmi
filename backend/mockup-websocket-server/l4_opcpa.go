@@ -3,7 +3,9 @@
 // `${L}` as a placeholder for the laser id; substituteLaser swaps it in.
 //
 // PV names mirror the canonical frontend registry at:
-//   frontend/src/app/(modules)/l4-opcpa/lib/pv-names.ts
+//
+//	frontend/src/app/(modules)/l4-opcpa/lib/pv-names.ts
+//
 // Keep these two files in sync — drift = the mock seeds PVs the frontend
 // doesn't subscribe to, or vice versa.
 //
@@ -11,7 +13,8 @@
 // mirror frontend/src/app/(modules)/l4-opcpa/components/laser-specs.ts.
 //
 // Source spec:
-//   https://eli-eric.atlassian.net/wiki/spaces/CS/pages/2333902150
+//
+//	https://eli-eric.atlassian.net/wiki/spaces/CS/pages/2333902150
 package main
 
 import (
@@ -39,7 +42,8 @@ const (
 // sequenceFailRate is 1/N: write fails with probability 1/N. Controlled at
 // runtime via `GET /mode/fail-rate/<n>` (0 disables, default 0 = off).
 // Demos that want to exercise the error UX should opt in:
-//   curl http://localhost:8080/mode/fail-rate/10   # 10% failures
+//
+//	curl http://localhost:8080/mode/fail-rate/10   # 10% failures
 var sequenceFailRate int32 = 0
 
 var (
@@ -207,10 +211,20 @@ var sequences = map[string]sequenceFunc{
 	// Attenuator + Shutter are direct PV writes (`AI_<L>_ATT`, `BI_<L>_SHUTTER`)
 	// — no sequence needed, the operator just writes the value/state.
 	"load_waveform": func(laser string, value interface{}) ([]pvEffect, error) {
-		if value == nil {
+		waveform, ok := value.(string)
+		if !ok || strings.TrimSpace(waveform) == "" {
 			return nil, fmt.Errorf("load_waveform requires a waveform name")
 		}
-		return tpls(laser, pvEffect{"SI_${L}_LOADED_WAVEFORM", value}), nil
+
+		// Waveform Preset is the newly selected waveform. Waveform Latest is
+		// the preset that was active immediately before this command. This
+		// mirrors the UI requirement: changing the waveform pushes the previous
+		// preset into the Latest row instead of echoing the new preset there.
+		previousPreset := currentPVValue(fmt.Sprintf("SI_%s_LOADED_WAVEFORM", laser))
+		return tpls(laser,
+			pvEffect{"SI_${L}_LATEST_WAVEFORM", previousPreset},
+			pvEffect{"SI_${L}_LOADED_WAVEFORM", strings.TrimSpace(waveform)},
+		), nil
 	},
 }
 
@@ -223,10 +237,10 @@ type writePvRequest struct {
 // writePvHandler is the single write endpoint. Every action in the UI is a
 // `POST /pv/<NAME>` with body `{value: ...}`. Two flavours:
 //
-//   * Command PVs (prefix `CMD_<LASER>_<NAME>`): the value is the trigger; the
+//   - Command PVs (prefix `CMD_<LASER>_<NAME>`): the value is the trigger; the
 //     dispatcher looks up the named effect chain in `sequences` and applies it
 //     to all affected PVs in addition to setting the command PV itself.
-//   * Plain PVs (everything else): a direct manual write, broadcast to
+//   - Plain PVs (everything else): a direct manual write, broadcast to
 //     subscribed clients over WS.
 func writePvHandler(c echo.Context) error {
 	name := strings.TrimSpace(c.Param("name"))
@@ -293,6 +307,25 @@ func writePvHandler(c echo.Context) error {
 		// Reflect the command PV itself so subscribers can see it was fired.
 		ps := getOrCreateSim(name)
 		ps.setManualValueHeld(body.Value, "", sequenceHold)
+
+		// PROOF-OF-CONCEPT: drive the per-sequence + overall Sequencer state.
+		// Firing CMD_<laser>_<ID> shows that sequence (and the Sequencer) as
+		// RUNNING for the hold window, then returns to IDLE. Real control system
+		// has no per-sequence state PV yet — this mocks it for the expanded
+		// Sequencer view.
+		if rest := strings.TrimPrefix(name, "CMD_"); rest != name {
+			if parts := strings.SplitN(rest, "_", 2); len(parts) == 2 && parts[0] != "" {
+				seqPv := fmt.Sprintf("BI_%s_SEQ_%s", parts[0], strings.ToUpper(parts[1]))
+				runPv := fmt.Sprintf("BI_%s_SEQUENCER_RUNNING", parts[0])
+				getOrCreateSim(seqPv).setManualValue(1, "")
+				getOrCreateSim(runPv).setManualValue(1, "")
+				time.AfterFunc(sequenceHold, func() {
+					getOrCreateSim(seqPv).setManualValue(0, "")
+					getOrCreateSim(runPv).setManualValue(0, "")
+				})
+			}
+		}
+
 		log.Printf("pv write %s = %v → %d effects", name, body.Value, len(effects))
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"ok":      true,
@@ -344,6 +377,13 @@ func commandPVEffects(name string, value interface{}) ([]pvEffect, error) {
 	return seq(laser, value)
 }
 
+func currentPVValue(name string) interface{} {
+	ps := getOrCreateSim(name)
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	return ps.value
+}
+
 func isKnownLaser(id string) bool {
 	for _, l := range allLasers {
 		if l == id {
@@ -378,6 +418,18 @@ func setFailRateHandler(c echo.Context) error {
 
 // seedLaserPVs primes the per-laser PV registry with at-rest defaults so the
 // frontend has a stable picture immediately after boot.
+// sequencerSeqIDs are the command ids surfaced as individual sequences in the
+// expanded Sequencer (PROOF-OF-CONCEPT). They mirror the frontend
+// L4_OPCPA_SEQUENCES ids; the per-sequence state PV is BI_<laser>_SEQ_<id>.
+var sequencerSeqIDs = []string{
+	"START_LASER",
+	"STOP_LASER",
+	"ALIGNMENT_MODE",
+	"SYSTEM_STANDBY",
+	"FLASHLAMPS_RUN",
+	"FLASHLAMPS_STANDBY",
+}
+
 func seedLaserPVs() {
 	for _, laser := range allLasers {
 		// general
@@ -415,6 +467,14 @@ func seedLaserPVs() {
 			setSeed(fmt.Sprintf("BI_%s_MODBOX_%d", laser, i), 1)
 		}
 		setSeed(fmt.Sprintf("SI_%s_LOADED_WAVEFORM", laser), "(none)")
+		setSeed(fmt.Sprintf("SI_%s_LATEST_WAVEFORM", laser), "(none)")
+		// Sequencer (PROOF-OF-CONCEPT): overall + per-sequence state, all IDLE
+		// at start. No real per-sequence PV exists yet; these are mocked so the
+		// expanded Sequencer can show individual IDLE/RUNNING per the spec.
+		setSeed(fmt.Sprintf("BI_%s_SEQUENCER_RUNNING", laser), 0)
+		for _, id := range sequencerSeqIDs {
+			setSeed(fmt.Sprintf("BI_%s_SEQ_%s", laser, id), 0)
+		}
 	}
 }
 

@@ -24,28 +24,18 @@ export const FloatValue: FC<{ data: NumMsg; precision?: number }> = ({
   data,
   precision = 3,
 }) => {
-  if (!data || !data.ok || typeof data.value !== 'number') {
+  if (!data || !data.ok || !Number.isFinite(data.value)) {
     return <span className={styles.placeholder}>{EMPTY}</span>
   }
-  return (
-    <>
-      <span className={styles.number}>{data.value.toFixed(precision)}</span>
-      {data.units && <span className={styles.units}>{data.units}</span>}
-    </>
-  )
+  return <span className={styles.number}>{data.value!.toFixed(precision)}</span>
 }
 
 /** Integer value. */
 export const IntegerValue: FC<{ data: NumMsg }> = ({ data }) => {
-  if (!data || !data.ok || typeof data.value !== 'number') {
+  if (!data || !data.ok || !Number.isFinite(data.value)) {
     return <span className={styles.placeholder}>{EMPTY}</span>
   }
-  return (
-    <>
-      <span className={styles.number}>{Math.round(data.value)}</span>
-      {data.units && <span className={styles.units}>{data.units}</span>}
-    </>
-  )
+  return <span className={styles.number}>{Math.round(data.value!)}</span>
 }
 
 /** String value. */

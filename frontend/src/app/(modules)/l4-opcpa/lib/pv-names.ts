@@ -34,4 +34,14 @@ export const pv = {
    * surface at compile time instead of as a 400 from the backend.
    */
   cmd: (laser: string, name: LaserCommand) => `CMD_${laser}_${name}`,
+  /**
+   * Per-sequence state PV (`BI_<laser>_SEQ_<id>`, 1 = RUNNING, 0 = IDLE).
+   *
+   * PROOF-OF-CONCEPT: the real control system does not yet expose a state PV
+   * per sequence — this is mocked in the backend (l4_opcpa.go) so the expanded
+   * Sequencer can demonstrate per-sequence IDLE/RUNNING per the spec. The wire
+   * name reuses the command id so firing CMD_<laser>_<id> flips the matching
+   * SEQ state PV.
+   */
+  seqState: (laser: string, id: LaserCommand) => `BI_${laser}_SEQ_${id}`,
 } as const

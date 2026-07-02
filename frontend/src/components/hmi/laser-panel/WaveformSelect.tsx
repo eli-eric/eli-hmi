@@ -68,7 +68,7 @@ export const WaveformSelect: FC<WaveformSelectProps> = ({ laser }) => {
         onChange={(e) => setSelected(e.target.value)}
         aria-label="Waveform"
       >
-        <option value="">— pick a waveform —</option>
+        <option value="">Select Waveform</option>
         {catalog.map((name) => (
           <option key={name} value={name}>
             {name}
@@ -82,7 +82,7 @@ export const WaveformSelect: FC<WaveformSelectProps> = ({ laser }) => {
         disabled={!selected || state === 'pending'}
         data-state={state}
       >
-        {state === 'pending' ? 'Loading…' : 'Load'}
+        {state === 'pending' ? 'Setting…' : 'CONFIRM'}
       </button>
       {error && <div className={styles.errorRow}>{error}</div>}
     </div>

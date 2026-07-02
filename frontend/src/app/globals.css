@@ -25,6 +25,15 @@
   --color-text-secondary: var(--color-gray-600);
   --color-nav-background: var(--color-gray-800);
 
+  /* CSI-782 — L4 OPCPA panel design tokens (single source of truth for the
+   * panel width, spacing scale and typography; referenced by LaserPanel,
+   * laser-grid, SectionCard, DataRow and the section/control modules). */
+  --hmi-panel-width: 22rem; /* Density pass, then relaxed 21rem -> 22rem after a real truncation report: 21rem + a 7.25rem label left only ~8px label margin and truncated on machines where the font renders wider (browser min-font-size, or font-load fallback). 22rem restores robust margin on both the label column and the Modbox MBC cells while still fitting ~5 panels across (5*22rem = 1540px). */
+  --hmi-gap: 0.1429rem; /* between sections / inside the panel */
+  --hmi-gap-sm: 0.1429rem; /* between rows inside a card */
+  --hmi-font-size: 0.8125rem; /* one text size across the panel */
+  --hmi-row-min-h: 1.375rem; /* single row/control height across the panel (previously mixed 1.5rem for DataRow/Values vs 1.375rem for grid cells) */
+
   /* Status colors with light/dark variants */
   --color-primary-light: #3b91d2;
   --color-primary: #0284c7;
@@ -99,13 +108,22 @@ body {
   align-self: stretch;
 }
 
+/* Narrow screens (portrait phones / small tablets): stack the status sidebar
+   above the content so a panel gets the full viewport width instead of being
+   crushed beside a 168px sidebar. */
+@media (max-width: 640px) {
+  .layout-container {
+    flex-direction: column;
+  }
+}
+
 a {
   text-decoration: none;
 }
 
 html {
-  font-size: 14px;
-  font-family: 'Roboto Condensed', sans-serif;
+  font-size: clamp(12.5px, 0.5vw + 4.5px, 18px); /* fluid base unit so the fully rem-based UI adapts across phones -> monitors -> TVs. 12.5px floor (readable, and 5 panels fit in one row at 1600px), scaling to 18px on large/4K displays for across-room readability. Panels, gaps, sidebar and text all scale together, so nothing truncates. Browser zoom (Ctrl +/-) still works on top of this. */
+  font-family: 'Roboto Condensed', 'Arial Narrow', 'Roboto', system-ui, sans-serif; /* narrow fallbacks: if Roboto Condensed fails to load, degrade to a condensed-ish font instead of wide sans-serif (which overflows and truncates the fixed-width labels) */
   background: var(--color-background);
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { FC, useMemo, useState } from 'react'
+import { FC, useMemo, useRef, useState } from 'react'
 import { SectionCard } from '@/components/hmi/controls/SectionCard'
 import { DataRow } from '@/components/hmi/controls/DataRow'
 import { CogToggle } from '@/components/hmi/controls/CogToggle'
@@ -10,11 +10,11 @@ import {
   DetailList,
   DetailListItem,
 } from '@/components/hmi/controls/DetailList'
-import { ChevronIcon } from '@/components/ui/icons'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import { makeCommandGate } from './commandGate'
+import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
 import styles from './sections.module.css'
 
 interface FlashlampsSectionProps {
@@ -64,6 +64,8 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
   commands,
 }) => {
   const [expanded, setExpanded] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  useCollapseOnAnyClick(expanded, () => setExpanded(false), triggerRef)
   const can = makeCommandGate(commands)
   const hasFlashlampActions = can('FLASHLAMPS_RUN') || can('FLASHLAMPS_STANDBY')
 
@@ -137,6 +139,7 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
         <span />
 
         <button
+          ref={triggerRef}
           type="button"
           className={styles.flashlampStateButton}
           aria-expanded={expanded}
@@ -144,9 +147,11 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
           onClick={() => setExpanded((v) => !v)}
         >
           <span>Flashlamps State</span>
-          <span className={styles.flashlampStateChevron}>
-            <ChevronIcon expanded={expanded} />
-          </span>
+          <span
+            className={styles.cornerTriangle}
+            data-expanded={expanded || undefined}
+            aria-hidden
+          />
         </button>
         {STATES.map((s) => (
           <span
@@ -162,13 +167,13 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
           <CogToggle ariaLabel="Flashlamps actions">
             {can('FLASHLAMPS_RUN') && (
               <ActionButton
-                label="Set All Run"
+                label="Set All to Run"
                 pvName={pv.cmd(laser, 'FLASHLAMPS_RUN')}
               />
             )}
             {can('FLASHLAMPS_STANDBY') && (
               <ActionButton
-                label="Set All Standby"
+                label="Set All to Standby"
                 pvName={pv.cmd(laser, 'FLASHLAMPS_STANDBY')}
                 variant="secondary"
               />

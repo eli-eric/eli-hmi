@@ -1,6 +1,7 @@
 'use client'
 
 import { FC, PropsWithChildren } from 'react'
+import { SequencerSection } from './SequencerSection'
 import { GeneralSection } from './GeneralSection'
 import { RegenSection } from './RegenSection'
 import { ChillersSection } from './ChillersSection'
@@ -21,6 +22,7 @@ interface LaserPanelProps {
  * code. `laser` is passed only where command PVs are needed.
  */
 export const LaserPanel: FC<PropsWithChildren<LaserPanelProps>> & {
+  Sequencer: typeof SequencerSection
   General: typeof GeneralSection
   Regen: typeof RegenSection
   Chillers: typeof ChillersSection
@@ -37,6 +39,7 @@ export const LaserPanel: FC<PropsWithChildren<LaserPanelProps>> & {
   )
 }
 
+LaserPanel.Sequencer = SequencerSection
 LaserPanel.General = GeneralSection
 LaserPanel.Regen = RegenSection
 LaserPanel.Chillers = ChillersSection

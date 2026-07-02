@@ -2,6 +2,8 @@
 
 import { FC } from 'react'
 import { LaserPanel } from '@/components/hmi/laser-panel'
+import { L4_OPCPA_SEQUENCES } from '@/components/hmi/laser-panel/SequencerSection'
+import { pv } from '../lib/pv-names'
 import type { LaserSpec } from '../config/schema'
 
 interface LaserPanelInstanceProps {
@@ -17,6 +19,15 @@ interface LaserPanelInstanceProps {
  */
 export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => (
   <LaserPanel title={spec.laser}>
+    {spec.pvs.sequencerRunning && (
+      <LaserPanel.Sequencer
+        sequencerRunningPv={spec.pvs.sequencerRunning}
+        sequences={L4_OPCPA_SEQUENCES.map((s) => ({
+          label: s.label,
+          statePv: pv.seqState(spec.laser, s.id),
+        }))}
+      />
+    )}
     <LaserPanel.General
       laser={spec.laser}
       connectionPv={spec.pvs.connection}
@@ -50,6 +61,9 @@ export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => (
         laser={spec.laser}
         modbox={spec.modbox}
         loadedWaveformPv={spec.pvs.loadedWaveform}
+        latestWaveformPv={spec.pvs.latestWaveform}
+        mbc1Pv={spec.pvs.modboxMbc1}
+        mbc2Pv={spec.pvs.modboxMbc2}
         commands={spec.commands}
       />
     )}
