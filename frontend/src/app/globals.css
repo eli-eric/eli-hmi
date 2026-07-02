@@ -105,7 +105,7 @@ a {
 
 html {
   font-size: 14px;
-  font-family: 'Roboto Condensed', sans-serif;
+  font-family: 'Roboto Condensed', 'Arial Narrow', 'Roboto', system-ui, sans-serif; /* condensed fallbacks: if Roboto Condensed fails to load, degrade to a narrow face instead of a wide sans-serif that overflows fixed-width labels */
   background: var(--color-background);
 }
 
