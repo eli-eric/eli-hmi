@@ -1,13 +1,16 @@
 .grid {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap; /* panels wrap to fit any width: 1/row on phones, 5+/row on wide monitors */
   gap: 0.75rem;
   padding: 0.5rem 0;
   align-items: start;
+  align-content: flex-start;
   color: var(--color-text);
 }
 
 .grid > * {
-  width: 280px;
-  flex-shrink: 0;
+  width: 20rem; /* = 280px at the 14px base; rem so panels scale with the fluid root font-size */
+  max-width: 100%; /* never overflow a viewport narrower than a single panel */
+  flex: 0 0 auto;
 }

@@ -99,13 +99,22 @@ body {
   align-self: stretch;
 }
 
+/* Narrow screens (portrait phones / small tablets): stack the status sidebar
+   above the content so a panel gets the full viewport width instead of being
+   crushed beside the sidebar. */
+@media (max-width: 640px) {
+  .layout-container {
+    flex-direction: column;
+  }
+}
+
 a {
   text-decoration: none;
 }
 
 html {
-  font-size: 14px;
-  font-family: 'Roboto Condensed', sans-serif;
+  font-size: clamp(12.5px, 0.5vw + 4.5px, 18px); /* fluid base unit so the rem-based UI adapts from phones to large control-room displays: 12.5px floor keeps five panels in one row at ~1600px, scaling to 18px on 4K for across-room readability. Panels, gaps and text scale together, so nothing truncates; browser zoom still layers on top. */
+  font-family: 'Roboto Condensed', 'Arial Narrow', 'Roboto', system-ui, sans-serif; /* condensed fallbacks: if Roboto Condensed fails to load, degrade to a narrow face instead of a wide sans-serif that overflows fixed-width labels */
   background: var(--color-background);
 }
 
