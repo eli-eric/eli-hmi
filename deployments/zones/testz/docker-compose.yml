@@ -1,0 +1,31 @@
+services:
+  mock-backend:
+    image: lcs-harbor.lcs.local/lcs/eli-hmi-backend-mockup-demo:latest
+    container_name: eli-hmi-mock-backend-testz
+    network_mode: host
+    restart: unless-stopped
+
+  python-backend:
+    image: lcs-harbor.lcs.local/lcs/eli-hmi-backend-python:latest
+    container_name: eli-hmi-python-backend-testz
+    network_mode: host
+    restart: unless-stopped
+    # Override image default 8080 to avoid collision with mock backend on host networking.
+    command:
+      ["fastapi", "run", "server.py", "--host", "0.0.0.0", "--port", "8081"]
+
+  frontend:
+    image: lcs-harbor.lcs.local/lcs/eli-hmi-frontend:latest
+    container_name: eli-hmi-frontend-testz
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      - mock-backend
+      - python-backend
+    environment:
+      NEXTAUTH_SECRET: change-me-in-production
+      NEXTAUTH_URL: http://localhost:8082/api/auth
+      # Default frontend backend target to mock server on port 8080.
+      NEXT_PUBLIC_API_URL: localhost:8080
+      NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:8080/ws/pvs
+      NEXT_PUBLIC_ZONE_CODE: test
