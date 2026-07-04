@@ -39,7 +39,7 @@ frontend-test:
     - docker-in-docker # run on the runner that can do docker-in-docker
   # Pin to a major.minor tag so unreviewed minor bumps don't change build
   # behaviour. Pin to a digest as well if reproducibility ever bites.
-  image: docker pull harbor.eli-beams.eu/eli_images/eli-node:22-alpine
+  image: harbor.eli-beams.eu/eli_images/eli-node:22-alpine
   # No docker-in-docker needed; this job just runs `npm test`.
   services: []
   variables:
