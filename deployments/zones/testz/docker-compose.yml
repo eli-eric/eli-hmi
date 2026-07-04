@@ -1,13 +1,13 @@
 services:
   mock-backend:
     image: lcs-harbor.lcs.local/lcs/eli-hmi-backend-mockup-demo:latest
-    container_name: eli-hmi-mock-backend-testz
+    container_name: lcs-deploy-testz-hmi-mock-backend
     network_mode: host
     restart: unless-stopped
 
   python-backend:
     image: lcs-harbor.lcs.local/lcs/eli-hmi-backend-python:latest
-    container_name: eli-hmi-python-backend-testz
+    container_name: lcs-deploy-testz-hmi-python-backend
     network_mode: host
     restart: unless-stopped
     # Override image default 8080 to avoid collision with mock backend on host networking.
@@ -16,7 +16,7 @@ services:
 
   frontend:
     image: lcs-harbor.lcs.local/lcs/eli-hmi-frontend:latest
-    container_name: eli-hmi-frontend-testz
+    container_name: lcs-deploy-testz-hmi-frontend
     network_mode: host
     restart: unless-stopped
     depends_on:
