@@ -24,8 +24,8 @@ services:
       - python-backend
     environment:
       NEXTAUTH_SECRET: change-me-in-production
-      NEXTAUTH_URL: http://localhost:8082/api/auth
+      NEXTAUTH_URL: http://testz-deploy20:8082/api/auth
       # Default frontend backend target to mock server on port 8080.
-      NEXT_PUBLIC_API_URL: localhost:8080
-      NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:8080/ws/pvs
+      NEXT_PUBLIC_API_URL: testz-deploy20:8080
+      NEXT_PUBLIC_WEBSOCKET_URL: ws://testz-deploy20:8080/ws/pvs
       NEXT_PUBLIC_ZONE_CODE: test
