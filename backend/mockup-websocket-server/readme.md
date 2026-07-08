@@ -17,8 +17,13 @@ A lightweight Go service that fakes an EPICS gateway:
 ### Run from source
 
 ```bash
+export MOCKUP_JWT_HS256_SECRET=dev-secret
 go run main.go
 ```
+
+If `MOCKUP_JWT_HS256_SECRET` is not set, the server will try
+`NEXTAUTH_SECRET`. If neither is set, the mockup server runs in local
+compatibility mode (no signature verification, actor best-effort from token).
 
 The server listens on **`localhost:8080`**.
 Change the port (and the simulation/manual flags) by editing the constants at the top of _main.go_:
@@ -44,13 +49,17 @@ docker run -p 8080:8080 mockup-ws-gateway
 
 Connect to **`ws://localhost:8080/ws/pvs?auth=jwt_token_please`**.
 
+With a configured secret, the token must be an HS256 JWT containing a
+non-empty `username` claim (or `preferred_username` / `name` / `sub`).
+You can also pass `Authorization: Bearer <jwt>` header during the handshake.
+
 ### Subscribe
 
 ```jsonc
 // request
 {
   "type": "subscribe",
-  "pvs": { "AI_TEMP": true, "BI_DOOR": true }
+  "pvs": { "AI_TEMP": true, "BI_DOOR": true },
 }
 ```
 
@@ -59,7 +68,7 @@ Connect to **`ws://localhost:8080/ws/pvs?auth=jwt_token_please`**.
 ```jsonc
 {
   "type": "unsubscribe",
-  "pvs": { "BI_DOOR": true }
+  "pvs": { "BI_DOOR": true },
 }
 ```
 
@@ -68,7 +77,7 @@ Connect to **`ws://localhost:8080/ws/pvs?auth=jwt_token_please`**.
 ```jsonc
 {
   "type": "set",
-  "pvs": { "BI_DOOR": true, "AI_MOTOR_POS_X": 42.5 }
+  "pvs": { "BI_DOOR": true, "AI_MOTOR_POS_X": 42.5 },
 }
 ```
 
@@ -82,7 +91,7 @@ Connect to **`ws://localhost:8080/ws/pvs?auth=jwt_token_please`**.
   "severity": 0,
   "ok": true,
   "timestamp": 1746000001.7116504,
-  "units": "°C"
+  "units": "°C",
 }
 ```
 
@@ -91,6 +100,10 @@ A fresh message is broadcast roughly every **400 ms** (by default) for every PV 
 ---
 
 ## REST API (manual overrides)
+
+Mutation endpoints require `Authorization: Bearer <jwt>`. With a configured
+secret (`MOCKUP_JWT_HS256_SECRET` or fallback `NEXTAUTH_SECRET`), tokens are
+HS256-verified and must include actor claim (`username` preferred).
 
 Even if a PV is in _auto_ mode you can override its value at any time; the change is broadcast immediately to every subscriber.
 
@@ -115,13 +128,11 @@ If `aiMode` or `biMode` is `2` (manual-only) the simulator stops its random upda
 ## How it works (under the hood)
 
 1. The **first** client that mentions a PV creates a global _simulator_ (`pvSim`), which
-
    - owns a single ticker goroutine,
    - keeps the latest value,
    - holds a subscriber list.
 
 2. Every 400 ms the simulator:
-
    - updates the value (unless the prefix is in manual-only mode),
    - broadcasts one JSON blob to **all** connected WebSockets that subscribed.
 

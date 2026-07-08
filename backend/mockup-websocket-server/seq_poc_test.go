@@ -51,7 +51,7 @@ func TestSequencerPerSequenceStatePoC(t *testing.T) {
 	body := strings.NewReader(`{"value":1}`)
 	req := httptest.NewRequest(http.MethodPost, "/pv/CMD_NL2_START_LASER", body)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "test")
+	setTestAuthHeader(t, req, "sequencer-tester")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {

@@ -243,22 +243,19 @@ type writePvRequest struct {
 //   - Plain PVs (everything else): a direct manual write, broadcast to
 //     subscribed clients over WS.
 func writePvHandler(c echo.Context) error {
+	actor, err := actorFromContext(c)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]interface{}{
+			"ok":    false,
+			"error": "unauthorized: missing actor",
+		})
+	}
+
 	name := strings.TrimSpace(c.Param("name"))
 	if name == "" {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{
 			"ok":    false,
 			"error": "empty pv name",
-		})
-	}
-
-	// Auth: same shape as the WS handler — any non-empty `auth` query param /
-	// `Authorization` header is accepted. The python backend should replace
-	// this with a real session check; documenting the API shape here so
-	// frontends always send credentials.
-	if !hasAuth(c) {
-		return c.JSON(http.StatusUnauthorized, map[string]interface{}{
-			"ok":    false,
-			"error": "unauthorized: missing auth",
 		})
 	}
 
@@ -280,7 +277,7 @@ func writePvHandler(c echo.Context) error {
 	// Atomic failure simulation: write rejected, no PVs mutated.
 	failRate := int(atomic.LoadInt32(&sequenceFailRate))
 	if failRate > 0 && rand.Intn(failRate) == 0 {
-		log.Printf("pv write %s simulated failure", name)
+		log.Printf("actor=%s pv write %s simulated failure", actor, name)
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"ok":    false,
 			"error": "simulated EPICS write failure",
@@ -294,7 +291,7 @@ func writePvHandler(c echo.Context) error {
 	if strings.HasPrefix(name, "CMD_") {
 		effects, cmdErr := commandPVEffects(name, body.Value)
 		if cmdErr != nil {
-			log.Printf("pv write %s rejected: %v", name, cmdErr)
+			log.Printf("actor=%s pv write %s rejected: %v", actor, name, cmdErr)
 			return c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"ok":    false,
 				"error": cmdErr.Error(),
@@ -326,7 +323,7 @@ func writePvHandler(c echo.Context) error {
 			}
 		}
 
-		log.Printf("pv write %s = %v → %d effects", name, body.Value, len(effects))
+		log.Printf("actor=%s pv write %s = %v -> %d effects", actor, name, body.Value, len(effects))
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"ok":      true,
 			"effects": len(effects) + 1,
@@ -336,20 +333,8 @@ func writePvHandler(c echo.Context) error {
 	// Plain PV write.
 	ps := getOrCreateSim(name)
 	ps.setManualValueHeld(body.Value, "", sequenceHold)
-	log.Printf("pv write %s = %v", name, body.Value)
+	log.Printf("actor=%s pv write %s = %v", actor, name, body.Value)
 	return c.JSON(http.StatusOK, map[string]interface{}{"ok": true})
-}
-
-// hasAuth returns true if the request carries any auth credential. Mock-level
-// only — accepts any non-empty value.
-func hasAuth(c echo.Context) bool {
-	if strings.TrimSpace(c.QueryParam("auth")) != "" {
-		return true
-	}
-	if strings.TrimSpace(c.Request().Header.Get(echo.HeaderAuthorization)) != "" {
-		return true
-	}
-	return false
 }
 
 // commandPVEffects expands a CMD_<LASER>_<NAME> PV write into its effect chain.
@@ -400,6 +385,11 @@ func listWaveformsHandler(c echo.Context) error {
 // setFailRateHandler exposes `GET /mode/fail-rate/<n>` so demos can disable the
 // 10% simulated failure (n=0 disables; otherwise 1/n probability).
 func setFailRateHandler(c echo.Context) error {
+	actor, err := actorFromContext(c)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]interface{}{"ok": false, "error": "unauthorized: missing actor"})
+	}
+
 	n, err := strconv.Atoi(c.Param("n"))
 	if err != nil || n < 0 {
 		return c.JSON(http.StatusBadRequest, map[string]interface{}{
@@ -408,6 +398,7 @@ func setFailRateHandler(c echo.Context) error {
 		})
 	}
 	atomic.StoreInt32(&sequenceFailRate, int32(n))
+	log.Printf("actor=%s mode set fail-rate=%d", actor, n)
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"ok":       true,
 		"failRate": n,

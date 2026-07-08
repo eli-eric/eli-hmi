@@ -23,7 +23,7 @@ func postWaveformCommand(t *testing.T, e http.Handler, laser string, waveform st
 	body := strings.NewReader(`{"value":"` + waveform + `"}`)
 	req := httptest.NewRequest(http.MethodPost, "/pv/CMD_"+laser+"_LOAD_WAVEFORM", body)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "test")
+	setTestAuthHeader(t, req, "waveform-tester")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {

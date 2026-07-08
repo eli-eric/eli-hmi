@@ -52,7 +52,6 @@ var (
 	biMode   = 2 // 1 = autosimulate, 2 = manual
 	siMode   = 2 // 1 = autosimulate, 2 = manual
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	rng      = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// Update period in milliseconds
 	updatePeriodMs = 300
@@ -86,6 +85,7 @@ func newServer() *echo.Echo {
 		AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodOptions},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
+	e.Use(mutationActorMiddleware)
 
 	e.GET("/", rootHandler)
 	e.GET("/ws/pvs", wsHandler) // main ws route
@@ -252,7 +252,7 @@ func (ps *pvSim) setManualValueHeld(v interface{}, errorMsg string, hold time.Du
 type client struct {
 	writeCh   chan []byte
 	subs      map[string]*pvSim
-	authInfo  string
+	username  string
 	clientKey string
 }
 
@@ -261,6 +261,11 @@ type client struct {
 const errorWsUnathorized = "error: unathorized ws connection request"
 
 func wsHandler(c echo.Context) error {
+	actor, err := usernameFromWSAuth(c.Request().Header.Get(echo.HeaderAuthorization), c.QueryParam("auth"))
+	if err != nil {
+		log.Printf("%s: %v", errorWsUnathorized, err)
+		return c.String(http.StatusUnauthorized, errorWsUnathorized)
+	}
 
 	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
@@ -271,90 +276,84 @@ func wsHandler(c echo.Context) error {
 	_, cancelSocket := context.WithCancel(context.Background())
 	defer cancelSocket()
 
-	authToken := c.QueryParam("auth")
 	clientKey := c.Request().Header.Get("Sec-Websocket-Key")
 
-	if authToken == "" {
-		log.Println(errorWsUnathorized)
-		conn.WriteMessage(websocket.TextMessage, []byte(errorWsUnathorized))
-
-		cancelSocket()
-		conn.Close()
-		return nil
-	} else {
-
-		cl := &client{
-			writeCh:   make(chan []byte, 32),
-			subs:      make(map[string]*pvSim),
-			authInfo:  authToken,
-			clientKey: clientKey,
-		}
-		log.Println("New WS client connected: ", cl)
-
-		var wg sync.WaitGroup
-
-		/* writer */
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for msg := range cl.writeCh {
-				if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-					cancelSocket()
-					return
-				}
-			}
-		}()
-
-		/* reader */
-		for {
-			_, raw, err := conn.ReadMessage()
-			if err != nil {
-				break
-			}
-			var req RequestMessage
-			if json.Unmarshal(raw, &req) != nil {
-				continue
-			}
-
-			switch req.Type {
-			case "subscribe":
-				for pvName, _ := range req.PVs {
-					pv := strings.TrimSpace(pvName)
-					if pv == "" || cl.subs[pv] != nil {
-						continue
-					}
-					ps := getOrCreateSim(pv)
-					ps.add(cl)
-					cl.subs[pv] = ps
-				}
-			case "unsubscribe":
-				for pvName, _ := range req.PVs {
-					pv := strings.TrimSpace(pvName)
-					if pv == "" {
-						continue
-					}
-					if ps := cl.subs[pv]; ps != nil {
-						ps.remove(cl)
-						delete(cl.subs, pv)
-					}
-				}
-			}
-		}
-
-		/* teardown */
-		for pv, ps := range cl.subs {
-			ps.remove(cl)
-			delete(cl.subs, pv)
-		}
-		close(cl.writeCh)
-		wg.Wait()
-		return nil
+	cl := &client{
+		writeCh:   make(chan []byte, 32),
+		subs:      make(map[string]*pvSim),
+		username:  actor,
+		clientKey: clientKey,
 	}
+	log.Printf("ws client connected actor=%s clientKey=%s", cl.username, cl.clientKey)
+
+	var wg sync.WaitGroup
+
+	/* writer */
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for msg := range cl.writeCh {
+			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				cancelSocket()
+				return
+			}
+		}
+	}()
+
+	/* reader */
+	for {
+		_, raw, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+		var req RequestMessage
+		if json.Unmarshal(raw, &req) != nil {
+			continue
+		}
+
+		switch req.Type {
+		case "subscribe":
+			for pvName, _ := range req.PVs {
+				pv := strings.TrimSpace(pvName)
+				if pv == "" || cl.subs[pv] != nil {
+					continue
+				}
+				ps := getOrCreateSim(pv)
+				ps.add(cl)
+				cl.subs[pv] = ps
+			}
+		case "unsubscribe":
+			for pvName, _ := range req.PVs {
+				pv := strings.TrimSpace(pvName)
+				if pv == "" {
+					continue
+				}
+				if ps := cl.subs[pv]; ps != nil {
+					ps.remove(cl)
+					delete(cl.subs, pv)
+				}
+			}
+		}
+	}
+
+	/* teardown */
+	for pv, ps := range cl.subs {
+		ps.remove(cl)
+		delete(cl.subs, pv)
+	}
+	close(cl.writeCh)
+	wg.Wait()
+	return nil
 }
 
 /* --------------------- simulate real-like set PV value ------------------- */
 
 func setRealLikePVHandler(c echo.Context) error {
+	actor, err := actorFromContext(c)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]interface{}{"ok": false, "error": "unauthorized: missing actor"})
+	}
+
 	name := strings.TrimSpace(c.Param("name"))
 
 	if name == "" {
@@ -365,17 +364,19 @@ func setRealLikePVHandler(c echo.Context) error {
 
 	if err := c.Bind(requestBody); err == nil {
 
-		log.Println("BODY: ", requestBody)
+		log.Printf("actor=%s pv write %s body=%+v", actor, name, requestBody)
 
 		// simulate random waiting time
-		time.Sleep(time.Duration(rng.Intn(3000)) * time.Millisecond)
+		time.Sleep(time.Duration(rand.Intn(3000)) * time.Millisecond)
 
 		//randomly simulate error
-		errOccures := rng.Intn(5) == 1
+		errOccures := rand.Intn(5) == 1
 
 		if errOccures {
+			log.Printf("actor=%s pv write %s simulated real-like failure", actor, name)
 			return c.JSON(200, SetPvResponseMessage{OK: false, Error: "Some error on EPICS..."})
 		}
+		log.Printf("actor=%s pv write %s real-like set ok", actor, name)
 
 		return c.JSON(200, SetPvResponseMessage{OK: true})
 	}
@@ -387,6 +388,11 @@ func setRealLikePVHandler(c echo.Context) error {
 /* ----------------------- manual set endpoint ----------------------------- */
 
 func setPvHandler(c echo.Context) error {
+	actor, actorErr := actorFromContext(c)
+	if actorErr != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]interface{}{"ok": false, "error": "unauthorized: missing actor"})
+	}
+
 	name := strings.TrimSpace(c.Param("name"))
 	rawVal := strings.TrimSpace(c.Param("value"))
 	errorMsg := c.QueryParam("error")
@@ -417,6 +423,7 @@ func setPvHandler(c echo.Context) error {
 	ps.setManualValue(val, errorMsg)
 
 	if errorMsg != "" {
+		log.Printf("actor=%s pv write %s error=%s", actor, name, errorMsg)
 		return c.JSON(http.StatusOK, ResponseMessage{
 			Type:      "pv",
 			Name:      name,
@@ -427,6 +434,7 @@ func setPvHandler(c echo.Context) error {
 			Error:     errorMsg,
 		})
 	}
+	log.Printf("actor=%s pv write %s = %v", actor, name, val)
 
 	return c.JSON(http.StatusOK, ResponseMessage{
 		Type:      "pv",
@@ -442,6 +450,11 @@ func setPvHandler(c echo.Context) error {
 /* --------------------------switch simulation/manual mode------------------ */
 
 func setPvModeHandler(c echo.Context) error {
+	actor, err := actorFromContext(c)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]interface{}{"ok": false, "error": "unauthorized: missing actor"})
+	}
+
 	modeName := c.Param("name")
 	modeValue := c.Param("value")
 
@@ -454,6 +467,7 @@ func setPvModeHandler(c echo.Context) error {
 	} else {
 		return c.JSON(400, "Value param has to be 1 or 2. 1=simulation mode, 2=manual mode. Example: /mode/ai/2")
 	}
+	log.Printf("actor=%s mode set %s=%s (aiMode=%d biMode=%d)", actor, strings.ToLower(modeName), modeValue, aiMode, biMode)
 	return c.JSON(200, map[string]interface{}{"aiMode": aiMode, "biMode": biMode})
 }
 
@@ -474,14 +488,14 @@ func synthValue(name string) interface{} {
 	switch {
 	case strings.HasPrefix(name, "AI_"):
 		// Use a smaller deviation (1-3 units) to make changes less dramatic
-		return 50 + float64(rng.Intn(3)-1) // Changes between -1, 0, +1 added to base value
+		return 50 + float64(rand.Intn(3)-1) // Changes between -1, 0, +1 added to base value
 	case strings.HasPrefix(name, "BI_"):
-		return rng.Intn(2)
+		return rand.Intn(2)
 	case strings.HasPrefix(name, "SI_"):
-		return randomWords[rng.Intn(len(randomWords))]
+		return randomWords[rand.Intn(len(randomWords))]
 	default:
 		// Smaller changes for default numeric values too
-		return rng.Float64() * 3 // Limit to 0-3 range
+		return rand.Float64() * 3 // Limit to 0-3 range
 	}
 }
 
@@ -518,21 +532,21 @@ func simStepFrom(name string, prev interface{}) interface{} {
 			return int(base)
 		}
 		// Drift ±0.5 around the current value.
-		return base + (rng.Float64()*2-1)*0.5
+		return base + (rand.Float64()*2-1)*0.5
 	case strings.HasPrefix(name, "BI_"):
 		// Binary PVs default to manual mode (biMode=2), so this branch is
 		// rarely hit; keep prev to avoid flipping when autosim is enabled.
 		if v, ok := prev.(int); ok {
 			return v
 		}
-		return rng.Intn(2)
+		return rand.Intn(2)
 	case strings.HasPrefix(name, "SI_"):
 		if s, ok := prev.(string); ok && s != "" {
 			return s
 		}
-		return randomWords[rng.Intn(len(randomWords))]
+		return randomWords[rand.Intn(len(randomWords))]
 	default:
-		return rng.Float64() * 3
+		return rand.Float64() * 3
 	}
 }
 
