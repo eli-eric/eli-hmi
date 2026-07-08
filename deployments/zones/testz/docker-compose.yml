@@ -25,7 +25,10 @@ services:
     environment:
       NEXTAUTH_SECRET: change-me-in-production
       NEXTAUTH_URL: http://testz-deploy20:8082/api/auth
-      # Default frontend backend target to mock server on port 8080.
+      # NOTE: NEXT_PUBLIC_* values are baked into the frontend at image build time.
+      # Runtime docker-compose env does not rewrite already-built client bundles.
+      # The app includes a runtime fallback that replaces baked localhost with
+      # the browser host so this deployment still targets testz-deploy20.
       NEXT_PUBLIC_API_URL: testz-deploy20:8080
       NEXT_PUBLIC_WEBSOCKET_URL: ws://testz-deploy20:8080/ws/pvs
       NEXT_PUBLIC_ZONE_CODE: test
