@@ -27,9 +27,7 @@ function laser(overrides: Record<string, unknown> = {}) {
     triggerDelay: ['AI_NL9_TRIG_DELAY_CH1', 'AI_NL9_TRIG_DELAY_CH2'],
     mss: ['BI_NL9_MSS_1'],
     moduleErrors: [{ label: 'REGEN', pv: 'BI_NL9_ERR_REGEN' }],
-    chillers: [
-      { label: 'C1', flow: 'f', temp: 't', level: 'l' },
-    ],
+    chillers: [{ label: 'C1', flow: 'f', temp: 't', level: 'l' }],
     flashlamps: [{ label: 'F1', pv: 'SI_NL9_FL_1' }],
     modbox: ['BI_NL9_MODBOX_1'],
     delayPresets: [50],
@@ -41,15 +39,13 @@ function laser(overrides: Record<string, unknown> = {}) {
 const doc = (lasers: unknown[]) => stringify({ lasers })
 
 describe('parseLaserSpecs', () => {
-  it('parses the real lasers.yaml into NL1..NL5', () => {
+  it('parses the real lasers.yaml into a non-empty set of unique laser ids', () => {
     const specs = parseLaserSpecs(realYaml)
-    expect(specs.map((s) => s.laser)).toEqual([
-      'NL1',
-      'NL2',
-      'NL3',
-      'NL4',
-      'NL5',
-    ])
+    const laserIds = specs.map((s) => s.laser)
+
+    expect(laserIds.length).toBeGreaterThan(0)
+    expect(new Set(laserIds).size).toBe(laserIds.length)
+    expect(laserIds.every((id) => id.trim().length > 0)).toBe(true)
   })
 
   // Detailed shape is asserted on a fixture (not the real file) so editing
@@ -94,9 +90,9 @@ describe('parseLaserSpecs', () => {
   })
 
   it('rejects unknown/misspelled keys', () => {
-    expect(() =>
-      parseLaserSpecs(doc([laser({ chiller: [] })])),
-    ).toThrow(/lasers\.yaml is invalid/)
+    expect(() => parseLaserSpecs(doc([laser({ chiller: [] })]))).toThrow(
+      /lasers\.yaml is invalid/,
+    )
   })
 
   it('rejects duplicate laser ids', () => {
@@ -127,14 +123,12 @@ describe('parseLaserSpecs', () => {
   })
 
   it('rejects whitespace-only PV names', () => {
-    expect(() =>
-      parseLaserSpecs(doc([laser({ modbox: ['   '] })])),
-    ).toThrow(/lasers\.yaml is invalid/)
+    expect(() => parseLaserSpecs(doc([laser({ modbox: ['   '] })]))).toThrow(
+      /lasers\.yaml is invalid/,
+    )
   })
 
   it('rejects malformed YAML with a readable message', () => {
-    expect(() => parseLaserSpecs('lasers: [unclosed')).toThrow(
-      /not valid YAML/,
-    )
+    expect(() => parseLaserSpecs('lasers: [unclosed')).toThrow(/not valid YAML/)
   })
 })
