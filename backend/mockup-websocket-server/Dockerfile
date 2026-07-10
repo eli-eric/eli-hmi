@@ -1,7 +1,7 @@
 ############################
 # Builder stage            #
 ############################
-FROM harbor.eli-beams.eu/proxy-dockerhub/golang:1.22-alpine AS builder
+FROM harbor.eli-beams.eu/proxy-dockerhub/golang:1.25-alpine AS builder
 WORKDIR /app
 
 # Copy module metadata and vendored dependencies first for better cache utilisation

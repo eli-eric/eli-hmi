@@ -114,7 +114,7 @@ docker-build-job-mockup-demo:
   tags:
     - docker-in-docker
   script:
-    - docker pull harbor.eli-beams.eu/proxy-dockerhub/golang:1.22-alpine
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/golang:1.25-alpine
     - docker pull harbor.eli-beams.eu/proxy-dockerhub/alpine:latest
     - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup-demo:${CI_COMMIT_REF_SLUG} backend/mockup-websocket-server
     - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
