@@ -1,0 +1,463 @@
+# connection
+record(bi, "BI_NL2_CONN") {
+    field(VAL,  "1")
+    field(ZNAM, "Disconnected")
+    field(ONAM, "Connected")
+}
+
+# full power
+record(bi, "BI_NL2_FULLP") {
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+
+# shutter
+record(bi, "BI_NL2_SHUTTER") {
+    field(DESC, "Shutter")
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+
+# photodiode mean energy
+record(ai, "AI_NL2_PHD_MEAN") {
+    field(DESC, "Photodiode mean energy")
+}
+record(ai, "AI_NL2_PHD2_MEAN") {
+    field(DESC, "Photodiode mean energy")
+}
+
+record(bi, "BI_NL2_MSS_1") {
+    field(VAL,  "1")
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+
+# error codes of all modules
+# mockup
+record(bi, "BI_NL2_ERR_CHILLER_11") {
+    field(VAL,  "1")
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+record(bi, "BI_NL2_ERR_CHILLER_12") {
+    field(VAL,  "1")
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+record(bi, "BI_NL2_ERR_CHILLER_13") {
+    field(VAL,  "1")
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+record(bi, "BI_NL2_ERR_CHILLER_14") {
+    field(VAL,  "1")
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+record(bi, "BI_NL2_ERR_REGEN") {
+    field(VAL,  "1")
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+record(bi, "BI_NL2_ERR_FLASHLAMPS") {
+    field(VAL,  "1")
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+
+
+# chiller error
+record(stringin, "$(CP):PS1225:10:ErrorCode") {
+    field(VAL,  "0000")
+}
+
+record(stringin, "$(CP):IO:15:ErrorCode") {
+    field(VAL,  "0000")
+}
+
+record(stringin, "$(CP):LDM150V5:17:ErrorCode") {
+    field(VAL,  "0000")
+}
+
+record(stringin, "$(CP):PS5059:22:ErrorCode") {
+    field(VAL,  "0000")
+}
+
+record(stringin, "$(CP):PS5059:28:ErrorCode") {
+    field(VAL,  "0000")
+}
+
+# regen error
+record(stringin, "$(CP):SY3PL50M:32:ErrorCode") {
+    field(VAL,  "0000")
+}
+
+record(stringin, "$(CP):HV40W:40:ErrorCode") {
+    field(VAL,  "0000")
+}
+
+record(stringin, "$(CP):TK6:44:ErrorCode") {
+    field(VAL,  "0000")
+}
+
+record(stringin, "$(CP):PD1-REG:48:ErrorCode") {
+    field(VAL,  "0000")
+}
+
+record(stringin, "$(CP):SM5-SH:50:ErrorCode") {
+    field(VAL,  "0000")
+}
+
+record(stringin, "$(CP):SM5-ATT:51:ErrorCode") {
+    field(VAL,  "0000")
+}
+
+# regen state
+record(stringin, "$(CP):SY3PL50M:32:State") {
+    field(VAL,  "OFF")
+}
+record(stringin, "BI_NL2_REGEN_STATE") {
+    field(VAL,  "OFF")
+}
+
+record(ai, "$(CP):TK6:44:DisplayTemperature") {
+    field(VAL,  "32.00")
+    field(PREC, "2")
+}
+record(ai, "AI_TEMP_NL2_REGEN") {
+    field(VAL,  "32.00")
+    field(PREC, "2")
+}
+
+record(longin, "$(CP):SM5-ATT:51:CurrentPosition") {
+    field(DESC, "Attenuator position")
+    field(VAL,  "900")
+}
+record(longin, "AI_NL2_ATT") {
+    field(DESC, "Attenuator position")
+    field(VAL,  "900")
+}
+
+record(longin, "$(CP):PS5059:22:Ch1TriggeringDelay") {
+    field(VAL, "50")
+}
+
+record(longin, "$(CP):PS5059:22:Ch2TriggeringDelay") {
+    field(VAL, "50")
+}
+
+record(longout, "$(CP):PS5059:22:Ch1TriggeringDelay:SET") {
+    field(OUT,  "$(CP):PS5059:22:Ch1TriggeringDelay PP")
+}
+
+record(longout, "$(CP):PS5059:22:Ch2TriggeringDelay:SET") {
+    field(OUT,  "$(CP):PS5059:22:Ch2TriggeringDelay PP")
+}
+
+record(mbbi, "$(CP):PS5059:22:Ch1State") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+
+record(mbbi, "$(CP):PS5059:22:Ch2State") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+
+record(mbbo, "$(CP):PS5059:22:Ch1State:SET") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+    field(OUT,  "$(CP):PS5059:22:Ch1State PP")
+}
+
+record(mbbo, "$(CP):PS5059:22:Ch2State:SET") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+    field(OUT,  "$(CP):PS5059:22:Ch2State PP")
+}
+
+record(longin, "$(CP):PS5059:28:Ch1TriggeringDelay") {
+    field(VAL, "50")
+}
+
+record(longin, "$(CP):PS5059:28:Ch2TriggeringDelay") {
+    field(VAL, "50")
+}
+
+record(longin, "AI_NL2_TRIG_DELAY_CH1") {
+    field(VAL, "50")
+}
+
+record(longin, "AI_NL2_TRIG_DELAY_CH2") {
+    field(VAL, "50")
+}
+
+record(dfanout, "SET_DELAY") {
+    field(DESC, "set mockup triggering delay")
+    field(OUTA, "AI_NL2_TRIG_DELAY_CH1 PP")
+    field(OUTB, "AI_NL2_TRIG_DELAY_CH2 PP")
+    field(OMSL, "supervisory")
+}
+
+record(longout, "$(CP):PS5059:28:Ch1TriggeringDelay:SET") {
+    field(OUT,  "$(CP):PS5059:28:Ch1TriggeringDelay PP")
+}
+
+record(longout, "$(CP):PS5059:28:Ch2TriggeringDelay:SET") {
+    field(OUT,  "$(CP):PS5059:28:Ch2TriggeringDelay PP")
+}
+
+record(mbbi, "$(CP):PS5059:28:Ch1State") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+
+record(mbbi, "$(CP):PS5059:28:Ch2State") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+
+record(mbbo, "$(CP):PS5059:28:Ch1State:SET") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+    field(OUT,  "$(CP):PS5059:28:Ch1State PP")
+}
+
+record(mbbo, "$(CP):PS5059:28:Ch2State:SET") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+    field(OUT,  "$(CP):PS5059:28:Ch2State PP")
+}
+
+# mockup flashlamps
+record(mbbi, "SI_NL2_FL_22_CH1") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_22_CH2") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_23_CH1") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_23_CH2") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_24_CH1") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_24_CH2") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_25_CH1") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_25_CH2") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_26_CH1") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_26_CH2") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_27_CH1") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_27_CH2") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_28_CH1") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+record(mbbi, "SI_NL2_FL_28_CH2") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+}
+
+record(ai, "$(CP):PS1225:10:Tout") {
+    field(EGU,  "deg C")
+    field(PREC, "2")
+    field(VAL,  "24.2")
+}
+
+record(ai, "$(CP):PS1225:10:Ttank") {
+    field(EGU,  "deg C")
+    field(PREC, "2")
+    field(VAL,  "24.2")
+}
+
+record(ai, "$(CP):PS1225:10:Treturn") {
+    field(EGU,  "deg C")
+    field(PREC, "2")
+    field(VAL,  "24")
+}
+
+record(ai, "$(CP):PS1225:10:Tsupply") {
+    field(EGU,  "deg C")
+    field(PREC, "2")
+    field(VAL,  "23.5")
+}
+
+record(ai, "$(CP):PS1225:10:MeasuredFlow") {
+    field(EGU,  "l/min")
+    field(PREC, "3")
+    field(VAL,  "4.435")
+}
+
+record(longin, "$(CP):PS1225:10:MeasuredLevel") {
+    field(EGU,  "%")
+    field(VAL,  "65")
+}
+
+# mockup chillers
+record(ai, "AI_NL2_CHILLER_11_TEMP") {
+    field(EGU,  "deg C")
+    field(PREC, "2")
+    field(VAL,  "23.5")
+}
+record(ai, "AI_NL2_CHILLER_11_FLOW") {
+    field(EGU,  "l/min")
+    field(PREC, "3")
+    field(VAL,  "4.435")
+}
+record(longin, "AI_NL2_CHILLER_11_LEVEL") {
+    field(EGU,  "%")
+    field(VAL,  "65")
+}
+record(ai, "AI_NL2_CHILLER_12_TEMP") {
+    field(EGU,  "deg C")
+    field(PREC, "2")
+    field(VAL,  "24.5")
+}
+record(ai, "AI_NL2_CHILLER_12_FLOW") {
+    field(EGU,  "l/min")
+    field(PREC, "3")
+    field(VAL,  "4.435")
+}
+record(longin, "AI_NL2_CHILLER_12_LEVEL") {
+    field(EGU,  "%")
+    field(VAL,  "65")
+}
+record(ai, "AI_NL2_CHILLER_13_TEMP") {
+    field(EGU,  "deg C")
+    field(PREC, "2")
+    field(VAL,  "25.5")
+}
+record(ai, "AI_NL2_CHILLER_13_FLOW") {
+    field(EGU,  "l/min")
+    field(PREC, "3")
+    field(VAL,  "4.435")
+}
+record(longin, "AI_NL2_CHILLER_13_LEVEL") {
+    field(EGU,  "%")
+    field(VAL,  "45")
+    field(LSV,  "MINOR")
+    field(LOW,  "50")
+}
+record(ai, "AI_NL2_CHILLER_14_TEMP") {
+    field(EGU,  "deg C")
+    field(PREC, "2")
+    field(VAL,  "23.5")
+}
+record(ai, "AI_NL2_CHILLER_14_FLOW") {
+    field(EGU,  "l/min")
+    field(PREC, "3")
+    field(VAL,  "4.435")
+}
+record(longin, "AI_NL2_CHILLER_14_LEVEL") {
+    field(EGU,  "%")
+    field(VAL,  "70")
+}
+
+record(dfanout, "$(CP):PS5059:22:SetTriggeringDelay") {
+    field(OUTA, "$(CP):PS5059:22:Ch1TriggeringDelay:SET PP")
+    field(OUTB, "$(CP):PS5059:22:Ch2TriggeringDelay:SET PP")
+}
+
+record(mbbo, "SetFlashlamps") {
+    field(ZRST, "STANDBY")
+    field(ONST, "STOP")
+    field(TWST, "RUN")
+    field(FLNK, "FlashlampsCMD")
+}
+
+record(dfanout, "FlashlampsCMD") {
+    field(OUTA, "SI_NL2_FL_22_CH1 PP")
+    field(OUTB, "SI_NL2_FL_22_CH2 PP")
+    field(OUTC, "SI_NL2_FL_23_CH1 PP")
+    field(OUTD, "SI_NL2_FL_23_CH2 PP")
+    field(OUTE, "SI_NL2_FL_24_CH1 PP")
+    field(OUTF, "SI_NL2_FL_24_CH2 PP")
+    field(OUTG, "SI_NL2_FL_25_CH1 PP")
+    field(OUTH, "SI_NL2_FL_25_CH2 PP")
+    field(FLNK, "FlashlampsCMD2")
+}
+record(dfanout, "FlashlampsCMD2") {
+    field(OUTA, "SI_NL2_FL_26_CH1 PP")
+    field(OUTB, "SI_NL2_FL_26_CH2 PP")
+    field(OUTC, "SI_NL2_FL_27_CH1 PP")
+    field(OUTD, "SI_NL2_FL_27_CH2 PP")
+    field(OUTE, "SI_NL2_FL_28_CH1 PP")
+    field(OUTF, "SI_NL2_FL_28_CH2 PP")
+}
+
+record(bo, "BI_NL2_SEQUENCER_RUNNING") {
+    field(SCAN, "1 second")
+    field(DOL,  "0")
+    field(OMSL, "closed_loop")
+}
+
+record(bo, "FLASHLAMPS_RUN") {
+    field(FLNK, "_FlashlampsRun")
+}
+
+record(longout, "_FlashlampsRun") {
+    field(DOL,  "2")
+    field(OMSL, "closed_loop")
+    field(OUT,  "SetFlashlamps PP")
+}
+
+record(bo, "FLASHLAMPS_STANDBY") {
+    field(FLNK, "_FlashlampsStandby")
+}
+
+record(longout, "_FlashlampsStandby") {
+    field(DOL,  "0")
+    field(OMSL, "closed_loop")
+    field(OUT,  "SetFlashlamps PP")
+}

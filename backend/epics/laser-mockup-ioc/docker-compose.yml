@@ -1,0 +1,8 @@
+services:
+  laser-mockup-ioc:
+    build:
+      context: ..
+      dockerfile: laser-mockup-ioc/Dockerfile
+    container_name: laser-mockup-ioc
+    network_mode: host
+    restart: unless-stopped
