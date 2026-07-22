@@ -48,3 +48,6 @@ frontend/yarn.lock
 __pycache__
 .venv/
 frontend/.npm
+backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.tar.gz
+backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.tar.gz.sha256
+backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.tar.gz.tmp
