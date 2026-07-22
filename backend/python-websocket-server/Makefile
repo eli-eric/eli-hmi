@@ -5,7 +5,7 @@ FASTAPI := $(VENV_BIN)/fastapi
 PIP := $(VENV_BIN)/pip
 IMAGE ?= eli-hmi-epics-gateway
 HOST ?= 127.0.0.1
-PORT ?= 8000
+PORT ?= 8080
 
 .PHONY: help venv install dev run docker-build docker-run clean
 
