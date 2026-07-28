@@ -88,6 +88,24 @@ class ProtocolCompatibilityTests(unittest.TestCase):
         self.assertEqual(response.json(), {"ok": True})
         put_once.assert_awaited_once()
 
+    def test_write_endpoint_allows_cross_origin_preflight(self) -> None:
+        # Frontend and backend are served from different origins (see
+        # docker-compose.yml) with no shared reverse proxy, so the browser
+        # sends a CORS preflight OPTIONS request before the real POST.
+        server.ws_manager = make_manager()
+        with TestClient(app) as client:
+            response = client.options(
+                "/pv/CMD_NL2_START_LASER",
+                headers={
+                    "Origin": "http://localhost:8082",
+                    "Access-Control-Request-Method": "POST",
+                    "Access-Control-Request-Headers": "authorization,content-type",
+                },
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("access-control-allow-origin"), "*")
+        self.assertIn("POST", response.headers.get("access-control-allow-methods", ""))
+
     def test_waveforms_endpoint_matches_mock_shape(self) -> None:
         server.ws_manager = make_manager()
         with TestClient(app) as client:

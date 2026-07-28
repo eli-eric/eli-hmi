@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, Header, Query, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
@@ -52,6 +53,19 @@ app = FastAPI(
     docs_url="/docs" if settings.enable_docs else None,
     redoc_url="/redoc" if settings.enable_docs else None,
     lifespan=lifespan,
+)
+
+# Frontend and backend are served from different origins (see docker-compose.yml,
+# deployments/zones/*/docker-compose.yml — distinct host:port pairs, no shared
+# reverse proxy), so browser fetch()/caput calls need CORS headers to get through
+# at all. Mirrors the existing mock backend's policy
+# (backend/mockup-websocket-server/main.go: AllowOrigins "*", GET/PUT/POST/DELETE/OPTIONS,
+# Origin/Content-Type/Accept/Authorization).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Origin", "Content-Type", "Accept", "Authorization"],
 )
 
 
