@@ -33,7 +33,7 @@ Mock server has REST helpers: `GET /pv/:name/:value` to set a value, `GET /mode/
 
 ```
 NEXTAUTH_SECRET=...
-NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8080/ws/pvs
+NEXT_PUBLIC_API_URL=localhost:8080
 NEXT_PUBLIC_ZONE_CODE=test           # see "Zones" below
 LDAP_SERVER_URL=ldap://10.78.0.11    # only used in prod auth
 LDAP_BASE_DN=dc=lcs,dc=local

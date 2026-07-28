@@ -18,7 +18,7 @@ nvm install 18
 
 ```bash
 nvm use                                    # Node 18, per .nvmrc
-cp env.example .env.local                  # set NEXTAUTH_SECRET, NEXT_PUBLIC_WEBSOCKET_URL, NEXT_PUBLIC_ZONE_CODE
+cp env.example .env.local                  # set NEXTAUTH_SECRET, NEXT_PUBLIC_API_URL, NEXT_PUBLIC_ZONE_CODE
 npm install
 npm run dev                                # http://localhost:8082  (port 8082, not 3000)
 ```
@@ -35,7 +35,7 @@ Login `test` / `test` (LDAP bypass; see `src/lib/server/auth/ldap-auth.ts`).
 
 ```env
 NEXTAUTH_SECRET=...                         # any strong random value
-NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8080/ws/pvs
+NEXT_PUBLIC_API_URL=localhost:8080
 NEXT_PUBLIC_ZONE_CODE=test                  # see "Zones in production" below
 LDAP_SERVER_URL=ldap://10.78.0.11           # only used in prod auth
 LDAP_BASE_DN=dc=lcs,dc=local

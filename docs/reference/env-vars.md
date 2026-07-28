@@ -17,8 +17,6 @@ Consolidated reference across the three modules. *Source of truth, not aspiratio
 
 A template lives at `frontend/env.example`.
 
-⚠ **Naming.** `AGENTS.md` and older READMEs refer to `NEXT_PUBLIC_WEBSOCKET_URL`. The code (since the L4 OPCPA work) uses `NEXT_PUBLIC_API_URL` as the single host:port for both WS and write traffic. If you see the older variable name in legacy docs, treat it as a synonym for `NEXT_PUBLIC_API_URL`.
-
 `NEXT_PUBLIC_*` is baked at build time. Changing them post-build requires a rebuild.
 
 ## Mock backend (Go)

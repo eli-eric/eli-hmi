@@ -30,5 +30,4 @@ services:
       # The app includes a runtime fallback that replaces baked localhost with
       # the browser host so this deployment still targets testz-deploy20.
       NEXT_PUBLIC_API_URL: testz-deploy20:8080
-      NEXT_PUBLIC_WEBSOCKET_URL: ws://testz-deploy20:8080/ws/pvs
       NEXT_PUBLIC_ZONE_CODE: test

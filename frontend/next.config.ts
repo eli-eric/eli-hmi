@@ -25,9 +25,6 @@ const nextConfig: NextConfig = {
       './src/app/(modules)/l4-opcpa/config/lasers.yaml',
     ],
   },
-  env: {
-    NEXT_PUBLIC_WEBSOCKET_URL: process.env.NEXT_PUBLIC_WEBSOCKET_URL,
-  },
 }
 
 export default nextConfig

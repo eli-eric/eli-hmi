@@ -21,7 +21,7 @@
 - `npm run lint` — Next.js/ESLint rules; fix reported issues before committing.
 - `npm test` / `npm run test:run` — Vitest, watch / one-shot.
 - `npm run test:coverage` — runs with the CI threshold gate (70/70/70/60 on the include scope).
-- Create `.env.local` from `env.example` before running (`NEXTAUTH_SECRET`, `NEXT_PUBLIC_WEBSOCKET_URL`, `NEXT_PUBLIC_ZONE_CODE`).
+- Create `.env.local` from `env.example` before running (`NEXTAUTH_SECRET`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_ZONE_CODE`).
 
 ## Testing
 
