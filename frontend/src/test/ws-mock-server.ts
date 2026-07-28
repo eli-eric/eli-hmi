@@ -19,12 +19,15 @@ export interface MockWebSocketServer {
   close: () => Promise<void>
 }
 
-type SubscribeMessage = { type: 'subscribe'; pvs: Record<string, boolean> }
+type LegacySubscribeMessage = { type: 'subscribe'; pvs: Record<string, boolean> }
+type BatchedSubscribeMessage = { type: 'subscribe'; pvs: string[] }
 
 function isSubscribeFor(msg: unknown, name: string): boolean {
   if (msg === null || typeof msg !== 'object') return false
-  const m = msg as Partial<SubscribeMessage>
-  return m.type === 'subscribe' && !!m.pvs && name in m.pvs
+  const m = msg as Partial<LegacySubscribeMessage & BatchedSubscribeMessage>
+  if (m.type !== 'subscribe' || !m.pvs) return false
+  if (Array.isArray(m.pvs)) return m.pvs.includes(name)
+  return name in m.pvs
 }
 
 export function mockWebSocketServer(url: string = DEFAULT_URL): MockWebSocketServer {

@@ -313,22 +313,21 @@ class WebSocketPVsManager:
         return f"legacy:{pv_name}"
 
     async def _handle_legacy_subscribe(self, connection_id: str, pvs: dict[str, Any]) -> None:
-        for pv_name, wanted in pvs.items():
-            if not wanted:
-                continue
-            message = SubscribeMessage(
+        messages = [
+            SubscribeMessage(
                 type="subscribe",
                 subscription_id=self._legacy_subscription_id(pv_name),
                 pvs=[pv_name],
                 detail=DetailLevel.CONTROL,
             )
-            await self._subscribe(connection_id, message)
+            for pv_name, wanted in pvs.items()
+            if wanted
+        ]
+        await asyncio.gather(*(self._subscribe(connection_id, message) for message in messages))
 
     async def _handle_legacy_unsubscribe(self, connection_id: str, pvs: dict[str, Any]) -> None:
-        for pv_name, wanted in pvs.items():
-            if not wanted:
-                continue
-            await self._unsubscribe(connection_id, self._legacy_subscription_id(pv_name))
+        subscription_ids = [self._legacy_subscription_id(pv_name) for pv_name, wanted in pvs.items() if wanted]
+        await asyncio.gather(*(self._unsubscribe(connection_id, subscription_id) for subscription_id in subscription_ids))
 
     async def _subscribe(self, connection_id: str, message: SubscribeMessage) -> None:
         connection = self.connections.get(connection_id)
@@ -391,41 +390,63 @@ class WebSocketPVsManager:
 
         created_records: list[MonitorKey] = []
         try:
-            async with self._lock:
-                for pv_name in message.pvs:
-                    key = MonitorKey(
-                        pv_name=pv_name,
-                        detail=options.detail,
-                        datatype_alias=options.datatype_alias.value if options.datatype_alias else None,
-                        count=options.count,
-                        timeout=options.timeout,
-                        all_updates=options.all_updates,
-                        notify_disconnect=options.notify_disconnect,
+            for pv_name in message.pvs:
+                key = MonitorKey(
+                    pv_name=pv_name,
+                    detail=options.detail,
+                    datatype_alias=options.datatype_alias.value if options.datatype_alias else None,
+                    count=options.count,
+                    timeout=options.timeout,
+                    all_updates=options.all_updates,
+                    notify_disconnect=options.notify_disconnect,
+                )
+                log_extra = {
+                    "connection_id": connection_id,
+                    "subscription_id": message.subscription_id,
+                    "pv": pv_name,
+                }
+                try:
+                    async with self._lock:
+                        record = self.monitors.get(key)
+                        reused = record is not None
+                        if record is None:
+                            record = MonitorRecord(
+                                key=key,
+                                subscription=self._create_monitor(key, options),
+                            )
+                            self.monitors[key] = record
+                            created_records.append(key)
+                        record.subscribers.add(subscriber_ref)
+                except Exception as exc:
+                    self.logger.error(
+                        "Failed to create monitor for PV %s: %s",
+                        pv_name,
+                        exc,
+                        extra=log_extra,
                     )
-                    record = self.monitors.get(key)
-                    if record is None:
-                        record = MonitorRecord(
-                            key=key,
-                            subscription=self._create_monitor(key, options),
-                        )
-                        self.monitors[key] = record
-                        created_records.append(key)
-                    record.subscribers.add(subscriber_ref)
-                    client_subscription.monitor_keys.append(key)
+                    raise
+                self.logger.debug(
+                    "%s monitor for PV %s",
+                    "Reused existing" if reused else "Created new",
+                    pv_name,
+                    extra=log_extra,
+                )
+                client_subscription.monitor_keys.append(key)
+            async with self._lock:
                 connection.subscriptions[message.subscription_id] = client_subscription
         except Exception:
             self.logger.exception(
                 "Failed to register subscription",
                 extra={"connection_id": connection_id, "subscription_id": message.subscription_id},
             )
-            async with self._lock:
-                for key in created_records:
+            for key in created_records:
+                async with self._lock:
                     record = self.monitors.pop(key, None)
-                    if record is not None:
-                        try:
-                            record.subscription.close()
-                        except Exception:
-                            self.logger.exception("Failed to roll back monitor for PV %s", key.pv_name)
+                if record is not None:
+                    try:
+                        record.subscription.close()
+                    except Exception:
+                        self.logger.exception("Failed to roll back monitor for PV %s", key.pv_name)
             await self._safe_send(
                 connection,
                 {
@@ -459,33 +480,34 @@ class WebSocketPVsManager:
             },
         )
 
-        for pv_name in message.pvs:
-            await self._send_snapshot(connection, message.subscription_id, pv_name, options)
+        await asyncio.gather(
+            *(self._send_snapshot(connection, message.subscription_id, pv_name, options) for pv_name in message.pvs)
+        )
 
     async def _unsubscribe(self, connection_id: str, subscription_id: str) -> bool:
         async with self._lock:
             connection = self.connections.get(connection_id)
             if connection is None:
                 return False
-
             client_subscription = connection.subscriptions.pop(subscription_id, None)
-            if client_subscription is None:
-                return False
 
-            subscriber_ref = SubscriberRef(connection_id=connection_id, subscription_id=subscription_id)
-            empty_monitors: list[MonitorKey] = []
-            for key in client_subscription.monitor_keys:
+        if client_subscription is None:
+            return False
+
+        subscriber_ref = SubscriberRef(connection_id=connection_id, subscription_id=subscription_id)
+        for key in client_subscription.monitor_keys:
+            record_to_close: MonitorRecord | None = None
+            async with self._lock:
                 record = self.monitors.get(key)
                 if record is None:
                     continue
                 record.subscribers.discard(subscriber_ref)
                 if not record.subscribers:
-                    empty_monitors.append(key)
-
-            for key in empty_monitors:
-                record = self.monitors.pop(key)
+                    self.monitors.pop(key, None)
+                    record_to_close = record
+            if record_to_close is not None:
                 try:
-                    record.subscription.close()
+                    record_to_close.subscription.close()
                 except Exception:
                     self.logger.exception("Failed to close monitor for PV %s", key.pv_name)
 
@@ -523,6 +545,17 @@ class WebSocketPVsManager:
                 return
             record.last_value = value
             subscribers = list(record.subscribers)
+
+        if value.ok:
+            self.logger.debug("Monitor update ok for PV %s", key.pv_name, extra={"pv": key.pv_name})
+        else:
+            self.logger.warning(
+                "Monitor update failed for PV %s: %s (%s)",
+                key.pv_name,
+                str(value),
+                getattr(value, "errorcode", None),
+                extra={"pv": key.pv_name, "error_code": getattr(value, "errorcode", None)},
+            )
 
         payload = self._monitor_payload(key, value)
         for subscriber in subscribers:
@@ -617,12 +650,20 @@ class WebSocketPVsManager:
         pv_name: str,
         options: ResolvedReadOptions,
     ) -> None:
+        log_extra = {
+            "connection_id": connection.connection_id,
+            "subscription_id": subscription_id,
+            "pv": pv_name,
+        }
+        start = time.monotonic()
         try:
             response = await get_once(pv_name, options)
         except Exception:
             self.logger.exception(
-                "Failed to get initial snapshot",
-                extra={"connection_id": connection.connection_id, "subscription_id": subscription_id, "pv": pv_name},
+                "Snapshot failed for PV %s (raised after %.3fs)",
+                pv_name,
+                time.monotonic() - start,
+                extra=log_extra,
             )
             response = build_pv_response(
                 operation="monitor",
@@ -635,6 +676,25 @@ class WebSocketPVsManager:
             )
             await self._safe_send(connection, response)
             return
+
+        elapsed = time.monotonic() - start
+        if response.get("ok"):
+            self.logger.debug(
+                "Snapshot ok for PV %s (%.3fs)",
+                pv_name,
+                elapsed,
+                extra=log_extra,
+            )
+        else:
+            error = response.get("error") or {}
+            self.logger.warning(
+                "Snapshot failed for PV %s after %.3fs: %s (%s)",
+                pv_name,
+                elapsed,
+                error.get("message"),
+                error.get("code"),
+                extra={**log_extra, "error_code": error.get("code")},
+            )
 
         response["type"] = "snapshot"
         response["operation"] = "monitor"

@@ -56,10 +56,38 @@ describe('useWebSocket', () => {
     })
 
     await server.waitForSubscribe('AI_X')
-    expect(server.getSent()).toContainEqual({
-      type: 'subscribe',
-      pvs: { AI_X: true },
+    expect(server.getSent()).toContainEqual(
+      expect.objectContaining({
+        type: 'subscribe',
+        subscription_id: expect.any(String),
+        pvs: ['AI_X'],
+      }),
+    )
+  })
+
+  it('batches PVs subscribed in the same tick into one wire message', async () => {
+    const { result } = renderHook(() => useWebSocket())
+    await waitFor(() => expect(result.current.isConnected).toBe(true))
+
+    act(() => {
+      result.current.subscribe('AI_X', () => undefined)
+      result.current.subscribe('AI_Y', () => undefined)
+      result.current.subscribe('AI_Z', () => undefined)
     })
+
+    await server.waitForSubscribe('AI_Z')
+    const subscribeMessages = server
+      .getSent()
+      .filter(
+        (m): m is { type: string; pvs: string[] } =>
+          typeof m === 'object' &&
+          m !== null &&
+          (m as { type?: unknown }).type === 'subscribe',
+      )
+    expect(subscribeMessages).toHaveLength(1)
+    expect(subscribeMessages[0].pvs).toEqual(
+      expect.arrayContaining(['AI_X', 'AI_Y', 'AI_Z']),
+    )
   })
 
   it('delivers server-pushed Messages to subscribers', async () => {

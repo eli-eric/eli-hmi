@@ -29,6 +29,82 @@ interface WebSocketState {
 const INITIAL_RECONNECT_INTERVAL_MS = 5000
 const MAX_RECONNECT_DELAY_MS = 30000
 const COUNTDOWN_TICK_MS = 1000
+// Mirrors AppSettings.max_pvs_per_subscription in the backend gateway.
+const MAX_PVS_PER_SUBSCRIPTION = 64
+
+interface WireError {
+  code?: string | null
+  message?: string | null
+}
+
+interface WireMetadata {
+  severity?: number
+  units?: string | null
+  timestamp?: number
+}
+
+interface WireMessage {
+  type?: string
+  name?: string
+  pv?: string
+  value?: unknown
+  severity?: number
+  units?: string | null
+  timestamp?: number
+  metadata?: WireMetadata
+  ok?: boolean
+  error?: string | WireError | null
+}
+
+function errorMessageOf(error: WireMessage['error']): string | null {
+  if (error === null || error === undefined) return null
+  if (typeof error === 'string') return error
+  return error.message ?? null
+}
+
+/**
+ * The gateway speaks two shapes over the same socket: the batched protocol
+ * (`snapshot`/`event`, PV name in `pv`, metadata nested) and the legacy
+ * per-PV shape (`pv` type, flat fields, PV name in `name`). Normalize both
+ * into the `Message` shape every consumer already expects. Other message
+ * types (`subscribed`, `unsubscribed`, `connected`, `pong`, `error`) carry no
+ * per-PV payload and are not dispatched to subscribers.
+ */
+function normalizeIncomingMessage(raw: unknown): Message | null {
+  if (raw === null || typeof raw !== 'object') return null
+  const msg = raw as WireMessage
+
+  if (msg.type === 'snapshot' || msg.type === 'event') {
+    if (!msg.pv) return null
+    const meta = msg.metadata ?? {}
+    return {
+      type: msg.type,
+      name: msg.pv,
+      value: (msg.value ?? null) as Message['value'],
+      severity: meta.severity ?? 0,
+      units: meta.units ?? null,
+      timestamp: meta.timestamp ?? Date.now() / 1000,
+      ok: msg.ok ?? false,
+      error: errorMessageOf(msg.error),
+    }
+  }
+
+  if (msg.type === 'pv') {
+    if (!msg.name) return null
+    return {
+      type: msg.type,
+      name: msg.name,
+      value: (msg.value ?? null) as Message['value'],
+      severity: msg.severity ?? 0,
+      units: msg.units ?? null,
+      timestamp: msg.timestamp ?? Date.now() / 1000,
+      ok: msg.ok ?? false,
+      error: errorMessageOf(msg.error),
+    }
+  }
+
+  return null
+}
 
 /**
  * React hook for WebSocket connection management.
@@ -42,6 +118,17 @@ export function useWebSocket() {
   const subscriptionsRef = useRef<Map<string, Set<SubscriptionCallback>>>(
     new Map(),
   )
+  // Wire-level batching: many PVs share one `subscription_id` so a burst of
+  // `subscribe()` calls (e.g. a dashboard mounting many PV widgets at once)
+  // becomes one `subscribe` message instead of one per PV — the gateway
+  // otherwise processes messages on a connection strictly sequentially, so a
+  // single slow/nonexistent PV would stall every other pending subscribe.
+  const channelGroupRef = useRef<Map<string, string>>(new Map())
+  const groupsRef = useRef<Map<string, Set<string>>>(new Map())
+  const pendingAddsRef = useRef<Set<string>>(new Set())
+  const pendingRemovesRef = useRef<Set<string>>(new Set())
+  const flushScheduledRef = useRef(false)
+  const subscriptionIdSeqRef = useRef(0)
   const reconnectAttemptsRef = useRef<number>(0)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
@@ -89,12 +176,112 @@ export function useWebSocket() {
     }
   }, [])
 
-  const replaySubscriptions = useCallback(() => {
-    subscriptionsRef.current.forEach((_, channel) => {
-      debug('ws:subscribe', 'replay', channel)
-      send({ type: 'subscribe', pvs: { [channel]: true } })
+  const nextSubscriptionId = useCallback(() => {
+    subscriptionIdSeqRef.current += 1
+    return `fe-${subscriptionIdSeqRef.current}`
+  }, [])
+
+  const flushPending = useCallback(() => {
+    flushScheduledRef.current = false
+
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      // Not connected — `subscriptionsRef` already reflects desired state;
+      // `replaySubscriptions` rebuilds every group from scratch on the next
+      // 'open', so there's nothing meaningful to flush right now.
+      pendingAddsRef.current.clear()
+      pendingRemovesRef.current.clear()
+      return
+    }
+
+    const removes = pendingRemovesRef.current
+    const adds = pendingAddsRef.current
+    pendingRemovesRef.current = new Set()
+    pendingAddsRef.current = new Set()
+
+    // The wire protocol only supports unsubscribing a whole subscription_id,
+    // not one PV out of a batch. So a partial removal means: unsubscribe the
+    // old group, then re-subscribe whichever siblings are still wanted as a
+    // fresh group (they'll get a superfluous re-snapshot, which is cheap and
+    // rare compared to serializing every subscribe on the wire).
+    const affectedGroups = new Map<string, Set<string>>()
+    removes.forEach((channel) => {
+      const groupId = channelGroupRef.current.get(channel)
+      if (!groupId) return
+      channelGroupRef.current.delete(channel)
+      if (!affectedGroups.has(groupId)) affectedGroups.set(groupId, new Set())
+      affectedGroups.get(groupId)?.add(channel)
     })
-  }, [send])
+
+    affectedGroups.forEach((removedChannels, groupId) => {
+      const group = groupsRef.current.get(groupId)
+      groupsRef.current.delete(groupId)
+      debug('ws:unsubscribe', 'batch', groupId)
+      send({ type: 'unsubscribe', subscription_id: groupId })
+      group?.forEach((channel) => {
+        if (!removedChannels.has(channel)) adds.add(channel)
+      })
+    })
+
+    const channels = [...adds]
+    for (let i = 0; i < channels.length; i += MAX_PVS_PER_SUBSCRIPTION) {
+      const chunk = channels.slice(i, i + MAX_PVS_PER_SUBSCRIPTION)
+      const subscriptionId = nextSubscriptionId()
+      groupsRef.current.set(subscriptionId, new Set(chunk))
+      chunk.forEach((channel) =>
+        channelGroupRef.current.set(channel, subscriptionId),
+      )
+      debug('ws:subscribe', 'batch', subscriptionId, chunk)
+      // `detail: 'control'` matches what the legacy per-PV protocol always
+      // requested — omitting it would default to the gateway's 'value'
+      // level, which drops severity/units/timestamp from `metadata` and
+      // silently starves every consumer that reads those fields.
+      send({
+        type: 'subscribe',
+        subscription_id: subscriptionId,
+        pvs: chunk,
+        detail: 'control',
+      })
+    }
+  }, [send, nextSubscriptionId])
+
+  const scheduleFlush = useCallback(() => {
+    if (flushScheduledRef.current) return
+    flushScheduledRef.current = true
+    queueMicrotask(flushPending)
+  }, [flushPending])
+
+  const queueAdd = useCallback(
+    (channel: string) => {
+      pendingRemovesRef.current.delete(channel)
+      pendingAddsRef.current.add(channel)
+      scheduleFlush()
+    },
+    [scheduleFlush],
+  )
+
+  const queueRemove = useCallback(
+    (channel: string) => {
+      if (pendingAddsRef.current.has(channel)) {
+        // Never made it to the wire — nothing to undo.
+        pendingAddsRef.current.delete(channel)
+        return
+      }
+      pendingRemovesRef.current.add(channel)
+      scheduleFlush()
+    },
+    [scheduleFlush],
+  )
+
+  const replaySubscriptions = useCallback(() => {
+    groupsRef.current.clear()
+    channelGroupRef.current.clear()
+    pendingRemovesRef.current.clear()
+    subscriptionsRef.current.forEach((_, channel) => {
+      pendingAddsRef.current.add(channel)
+    })
+    debug('ws:subscribe', 'replay', pendingAddsRef.current.size, 'channel(s)')
+    flushPending()
+  }, [flushPending])
 
   const clearCountdown = useCallback(() => {
     if (countdownIntervalRef.current !== null) {
@@ -169,6 +356,12 @@ export function useWebSocket() {
 
     ws.onclose = (event) => {
       debug('ws:connect', 'closed', event.code, event.reason)
+      // Groups live on the now-dead connection; the next 'open' rebuilds
+      // them all from scratch via replaySubscriptions.
+      groupsRef.current.clear()
+      channelGroupRef.current.clear()
+      pendingAddsRef.current.clear()
+      pendingRemovesRef.current.clear()
       setState((prev) => ({ ...prev, status: 'disconnected' }))
       scheduleReconnectRef.current()
     }
@@ -181,7 +374,8 @@ export function useWebSocket() {
 
     ws.onmessage = (event) => {
       try {
-        const message: Message = JSON.parse(event.data)
+        const message = normalizeIncomingMessage(JSON.parse(event.data))
+        if (!message) return
         const callbacks = subscriptionsRef.current.get(message.name)
         if (callbacks) callbacks.forEach((cb) => cb(message))
       } catch (e) {
@@ -261,11 +455,13 @@ export function useWebSocket() {
         .get(channel)
         ?.add(callback as SubscriptionCallback)
 
-      // First subscriber: send to wire if open; otherwise replaySubscriptions
-      // on the next 'open' will pick it up.
-      if (isFirst && wsRef.current?.readyState === WebSocket.OPEN) {
-        debug('ws:subscribe', 'send', channel)
-        send({ type: 'subscribe', pvs: { [channel]: true } })
+      // First subscriber: queue it for the next microtask flush, which
+      // batches it with any other channels subscribed in the same tick. If
+      // the socket isn't open yet, replaySubscriptions on the next 'open'
+      // picks it up from subscriptionsRef directly.
+      if (isFirst) {
+        debug('ws:subscribe', 'queue', channel)
+        queueAdd(channel)
       }
 
       return () => {
@@ -274,14 +470,12 @@ export function useWebSocket() {
         set.delete(callback as SubscriptionCallback)
         if (set.size === 0) {
           subscriptionsRef.current.delete(channel)
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            debug('ws:unsubscribe', channel)
-            send({ type: 'unsubscribe', pvs: { [channel]: true } })
-          }
+          debug('ws:unsubscribe', 'queue', channel)
+          queueRemove(channel)
         }
       }
     },
-    [send],
+    [queueAdd, queueRemove],
   )
 
   const reconnect = useCallback(() => {
@@ -298,11 +492,19 @@ export function useWebSocket() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     connect()
     const subs = subscriptionsRef
+    const groups = groupsRef
+    const channelGroups = channelGroupRef
+    const pendingAdds = pendingAddsRef
+    const pendingRemoves = pendingRemovesRef
     return () => {
       clearReconnectTimer()
       clearCountdown()
       closeSocket()
       subs.current.clear()
+      groups.current.clear()
+      channelGroups.current.clear()
+      pendingAdds.current.clear()
+      pendingRemoves.current.clear()
     }
   }, [connect, url, clearReconnectTimer, clearCountdown, closeSocket])
 
