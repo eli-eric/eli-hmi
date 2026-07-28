@@ -5,8 +5,8 @@ The browser-locked machines in the control room that operators use day-to-day. E
 ## Station-level configuration
 
 1. **Browser.** Chromium or Firefox in kiosk mode pointing at `http://<frontend-host>:8082/`. Kiosk config is the OS distribution's job; the HMI itself doesn't enforce it.
-2. **Zone.** The frontend bundle deployed to that station is built with `NEXT_PUBLIC_ZONE_CODE=<station-zone>` (e.g. `e3`, `l3bt-hall`, `p3-hall`). Switching zones requires a rebuild — `NEXT_PUBLIC_*` is baked at build time.
-3. **Backend URL.** `NEXT_PUBLIC_API_URL=<backend-host>:<port>` baked into the same build. The same host:port serves both the WebSocket (`/ws/pvs`) and the write endpoint (`/pv/<NAME>`).
+2. **Zone.** The one global frontend image is deployed to that station with `ZONE_CODE=<station-zone>` (e.g. `e3`, `l3bt-hall`, `p3-hall`) set in the station's `docker-compose.yml`. Switching zones is a compose restart, not a rebuild — see [zones](../frontend/zones.md#runtime-not-build-time).
+3. **Backend URL.** `API_URL=<backend-host>:<port>` in the same `docker-compose.yml`. The same host:port serves both the WebSocket (`/ws/pvs`) and the write endpoint (`/pv/<NAME>`).
 
 ## Adding a new station / zone
 
@@ -22,16 +22,15 @@ The browser-locked machines in the control room that operators use day-to-day. E
    }
    ```
 
-3. Build the frontend with that zone:
+3. Add (or copy) a per-zone compose file under `deployments/zones/<zone-name>/docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml`), setting:
 
-   ```bash
-   docker build \
-     --build-arg NEXT_PUBLIC_ZONE_CODE=l3bt-hall \
-     --build-arg NEXT_PUBLIC_API_URL=epics-gateway.lcs.local:8080 \
-     -t harbor.eli-beams.eu/.../eli-hmi-frontend:l3bt-hall ...
+   ```yaml
+   environment:
+     ZONE_CODE: l3bt-hall
+     API_URL: epics-gateway.lcs.local:8080
    ```
 
-4. Deploy that image to the station.
+4. Deploy that compose file to the station — no image rebuild needed, since CI publishes one global `eli-hmi-frontend` image for every zone.
 
 ## Production image in CI
 
@@ -40,14 +39,9 @@ The browser-locked machines in the control room that operators use day-to-day. E
 - `${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:${CI_COMMIT_REF_SLUG}`
 - `${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest`
 
-That job expects these CI variables to be set:
+This job takes no zone/backend-specific build args — it's the same image regardless of deployment target. `ZONE_CODE` and `API_URL` are supplied per station by that station's `docker-compose.yml`, not by CI.
 
-- `NEXT_PUBLIC_ZONE_CODE`
-- `NEXT_PUBLIC_API_URL`
-
-Without `NEXT_PUBLIC_ZONE_CODE`, the frontend can build into the intentionally empty `production` zone and ship with no accessible routes.
-
-The shipped `production` zone in `zone-config.ts` is **intentionally empty** — see [zones](../frontend/zones.md#production-override).
+The shipped `production` zone in `zone-config.ts` is **intentionally empty** — if a station's compose file omits `ZONE_CODE` (or sets it to `production`), that station ships with no accessible routes. See [zones](../frontend/zones.md#production-override).
 
 ## Login
 
@@ -59,7 +53,7 @@ Operators authenticate via LDAP credentials. The dev bypass (`test`/`test`) only
 | --------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | Login succeeds; nav bar empty                             | Zone has no `navigationItems`                                                    | `zone-config.ts` for the station's zone                                                                      |
 | Login succeeds; clicking a link redirects to `/no-access` | Route not in `allowedRoutes` for the zone                                        | Same                                                                                                         |
-| WebSocket spinner forever                                 | Backend unreachable or wrong host:port                                           | `NEXT_PUBLIC_API_URL` baked in, network path to backend                                                      |
+| WebSocket spinner forever                                 | Backend unreachable or wrong host:port                                           | Station's `API_URL` (docker-compose env), network path to backend                                            |
 | Backend reachable; readings show `<>` glyphs              | Subscribed PV doesn't exist on the backend                                       | Mock prefix conventions ([pv-naming](../reference/pv-naming.md)) or EPICS IOC reachability                   |
 | Writes silently fail with error toast                     | Mock failure injection on, or write endpoint not yet implemented on prod backend | `curl http://<backend>/mode/fail-rate/0` (mock); [pv-write-endpoint](../backend/pv-write-endpoint.md) (prod) |
 

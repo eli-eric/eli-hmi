@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, act, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SequencerSection, L4_OPCPA_SEQUENCES } from './SequencerSection'
@@ -7,9 +7,6 @@ import {
   TestWebSocketProvider,
 } from '@/test/ws-test-provider'
 
-beforeEach(() => {
-  vi.stubEnv('NEXT_PUBLIC_API_URL', 'localhost:8080')
-})
 afterEach(() => {
   vi.unstubAllEnvs()
 })

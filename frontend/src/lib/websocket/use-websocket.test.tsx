@@ -8,9 +8,12 @@ vi.mock('next-auth/react', () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
-vi.mock('@/types/constants', () => ({
-  WS_URL: 'ws://localhost:8080/ws/pvs',
-  API_URL: 'http://localhost:8080/pv',
+vi.mock('@/lib/runtime-config/context', () => ({
+  useRuntimeConfig: () => ({
+    status: 'ready',
+    apiUrl: 'http://localhost:8080/pv',
+    wsUrl: 'ws://localhost:8080/ws/pvs',
+  }),
 }))
 
 import {

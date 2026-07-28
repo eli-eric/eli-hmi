@@ -8,8 +8,9 @@ Consolidated reference across the three modules. *Source of truth, not aspiratio
 | --- | --- | --- | --- |
 | `NEXTAUTH_SECRET` | yes | — | NextAuth JWT signing |
 | `NEXTAUTH_URL` | dev | `http://localhost:8080/api/auth` | NextAuth callback base — set per host |
-| `NEXT_PUBLIC_API_URL` | yes | — | host:port for both `ws://<host>/ws/pvs` and `http://<host>/pv` (see `frontend/src/types/constants.ts`) |
-| `NEXT_PUBLIC_ZONE_CODE` | yes | (empty zone = no routes) | Build-time zone selector — see [zones](../frontend/zones.md) |
+| `API_URL` | yes | — | host:port for both `ws://<host>/ws/pvs` and `http://<host>/pv` (see `frontend/src/types/constants.ts`) |
+| `API_SCHEME` | optional | `http` | Scheme for `API_URL`; set `https` for TLS deployments |
+| `ZONE_CODE` | yes | (empty zone = no routes) | Runtime zone selector — see [zones](../frontend/zones.md) |
 | `LDAP_SERVER_URL` | prod | — | LDAP bind URL for the production auth path |
 | `LDAP_BASE_DN` | prod | — | LDAP base DN |
 | `LDAP_USE_TLS` | optional | `false` | Toggle StartTLS on the LDAP bind |
@@ -17,7 +18,7 @@ Consolidated reference across the three modules. *Source of truth, not aspiratio
 
 A template lives at `frontend/env.example`.
 
-`NEXT_PUBLIC_*` is baked at build time. Changing them post-build requires a rebuild.
+`API_URL`, `API_SCHEME`, and `ZONE_CODE` are deliberately **not** `NEXT_PUBLIC_*` — that prefix would make Next.js bake them into the compiled bundle at build time. Instead they're read live at container runtime: directly via `process.env` in server code (`middleware.ts`, `zone-service.ts`), and via a small `/api/runtime-config` route fetched once by the client (`frontend/src/lib/runtime-config/`). This lets CI publish one image and each deployment's `docker-compose.yml` supply its own values — see [zones](../frontend/zones.md#runtime-not-build-time) and [operator-stations](../runbooks/operator-stations.md).
 
 ## Mock backend (Go)
 

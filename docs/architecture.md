@@ -19,7 +19,7 @@ A map of the three top-level **modules** in the eli-hmi stack and the **seams** 
 The user-facing **module**. Its **interface** is composed of:
 
 - Routes under `src/app/(modules)/<name>/page.tsx`, each gated by a [zone](frontend/zones.md).
-- A single **WebSocket client adapter** (`useWebSocket` + `useWebSocketContext`) that consumes whichever backend `NEXT_PUBLIC_API_URL` resolves to (the same host:port serves WS and the write endpoint — see `frontend/src/types/constants.ts`). Callers go through `useWebSocketData` which buries the dev-prefix mapping (see [pv-naming](reference/pv-naming.md)).
+- A single **WebSocket client adapter** (`useWebSocket` + `useWebSocketContext`) that consumes whichever backend the runtime-config `API_URL` resolves to (the same host:port serves WS and the write endpoint — see `frontend/src/types/constants.ts` and `frontend/src/lib/runtime-config/`). Callers go through `useWebSocketData` which buries the dev-prefix mapping (see [pv-naming](reference/pv-naming.md)).
 - A single **write adapter** — `fetch('POST /pv/<NAME>', { headers: { Authorization } })` — used by exactly two call sites (`WarningErrorControl.tsx`, `DropDownStateControl.tsx`).
 
 Depth claim: `useWebSocketData` is deep. Behind a 2-arity hook (`pv` or `{pvs:[]}`) sits: NextAuth JWT acquisition, reconnect with backoff + jitter, subscription replay, prefix resolution, typed message envelope. Deleting the hook would scatter that complexity across every PV consumer — the deletion test passes.

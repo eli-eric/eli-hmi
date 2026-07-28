@@ -11,7 +11,7 @@ import {
 } from 'react'
 
 import { Message } from '@/app/providers/types'
-import { WS_URL } from '@/types/constants'
+import { useRuntimeConfig } from '@/lib/runtime-config/context'
 
 import { debug } from './debug'
 
@@ -156,11 +156,12 @@ export function useWebSocket() {
 
   const { data: session } = useSession()
   const accessToken = session?.accessToken
+  const { status: runtimeConfigStatus, wsUrl } = useRuntimeConfig()
 
   const url = useMemo(() => {
-    if (!accessToken) return null
-    return `${WS_URL}?auth=${accessToken}`
-  }, [accessToken])
+    if (!accessToken || runtimeConfigStatus !== 'ready') return null
+    return `${wsUrl}?auth=${accessToken}`
+  }, [accessToken, runtimeConfigStatus, wsUrl])
 
   const send = useCallback((message: unknown) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) {

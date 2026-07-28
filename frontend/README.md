@@ -18,7 +18,7 @@ nvm install 18
 
 ```bash
 nvm use                                    # Node 18, per .nvmrc
-cp env.example .env.local                  # set NEXTAUTH_SECRET, NEXT_PUBLIC_API_URL, NEXT_PUBLIC_ZONE_CODE
+cp env.example .env.local                  # set NEXTAUTH_SECRET, API_URL, ZONE_CODE
 npm install
 npm run dev                                # http://localhost:8082  (port 8082, not 3000)
 ```
@@ -35,8 +35,8 @@ Login `test` / `test` (LDAP bypass; see `src/lib/server/auth/ldap-auth.ts`).
 
 ```env
 NEXTAUTH_SECRET=...                         # any strong random value
-NEXT_PUBLIC_API_URL=localhost:8080
-NEXT_PUBLIC_ZONE_CODE=test                  # see "Zones in production" below
+API_URL=localhost:8080
+ZONE_CODE=test                              # see "Zones in production" below
 LDAP_SERVER_URL=ldap://10.78.0.11           # only used in prod auth
 LDAP_BASE_DN=dc=lcs,dc=local
 ```
@@ -107,14 +107,12 @@ Wire protocol: client sends `{ type: 'subscribe', pvs: { NAME: true } }`; server
 
 ## Zones in production
 
-`NEXT_PUBLIC_ZONE_CODE` selects a zone at **build time** from `src/lib/settings/zone-config.ts`. Each zone declares `navigationItems` and `allowedRoutes`. The middleware (`src/middleware.ts`) blocks unauthorized routes.
+`ZONE_CODE` selects a zone at **runtime** from `src/lib/settings/zone-config.ts` — it's a plain server env var (no `NEXT_PUBLIC_` prefix), supplied by each deployment's `docker-compose.yml`. The middleware (`src/middleware.ts`) blocks unauthorized routes, reading `ZONE_CODE` live on every request; the nav bar (a client component) gets it from `/api/runtime-config` via `useRuntimeConfig()`.
 
 The shipped `production` zone is **intentionally empty**. To deploy:
 
-1. **Recommended:** add a per-site zone (e.g. `e3`, `p3-hall`) with the routes the site operates, then build with `NEXT_PUBLIC_ZONE_CODE=p3-hall`. Use `docker build --build-arg`, a GitLab CI variable, or `.env.production`.
+1. **Recommended:** add a per-site zone (e.g. `e3`, `p3-hall`) with the routes the site operates, then set `ZONE_CODE=p3-hall` in that site's `docker-compose.yml` — no rebuild needed, CI ships one global image.
 2. Alternatively, override the empty `production` entry in a fork or deploy-time patch of `zone-config.ts`.
-
-`NEXT_PUBLIC_*` is baked at build time — switching zones means a rebuild. There is no runtime toggle.
 
 ## Testing
 

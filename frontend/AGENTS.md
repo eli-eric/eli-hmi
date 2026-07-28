@@ -21,7 +21,7 @@
 - `npm run lint` — Next.js/ESLint rules; fix reported issues before committing.
 - `npm test` / `npm run test:run` — Vitest, watch / one-shot.
 - `npm run test:coverage` — runs with the CI threshold gate (70/70/70/60 on the include scope).
-- Create `.env.local` from `env.example` before running (`NEXTAUTH_SECRET`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_ZONE_CODE`).
+- Create `.env.local` from `env.example` before running (`NEXTAUTH_SECRET`, `API_URL`, `ZONE_CODE`).
 
 ## Testing
 
@@ -43,21 +43,15 @@
 
 ## Zones
 
-`NEXT_PUBLIC_ZONE_CODE` selects a zone at **build time** from `src/lib/settings/zone-config.ts`. The middleware blocks routes not in `allowedRoutes`; the nav bar shows only `navigationItems`. Adding a page = adding both the file *and* a route entry.
+`ZONE_CODE` selects a zone at **runtime** from `src/lib/settings/zone-config.ts` (a plain server env var, no `NEXT_PUBLIC_` prefix, supplied by docker-compose). The middleware blocks routes not in `allowedRoutes`, reading `ZONE_CODE` live per request; the nav bar (client-side) sources it from `/api/runtime-config` via `useRuntimeConfig()`. Adding a page = adding both the file *and* a route entry.
 
-### Production zone override (currently undocumented elsewhere)
+### Production zone override
 
-The shipped `production` zone is **intentionally empty** (no routes allowed). A real production build needs one of:
+The shipped `production` zone is **intentionally empty** (no routes allowed). A real production deployment needs one of:
 
-1. **Per-deployment build env (recommended)** — set `NEXT_PUBLIC_ZONE_CODE=<deployment-zone>` at build time:
-   - Docker: `docker build --build-arg NEXT_PUBLIC_ZONE_CODE=p3-hall ...`
-   - GitLab CI: define `NEXT_PUBLIC_ZONE_CODE` as a project/group variable.
-   - Local prod build: drop a `.env.production` with the value.
-   Add a new entry in `zone-config.ts` for each physical site (e.g. `e3`, `l3bt-hall`, `p3-hall`) with the routes that site is allowed to operate.
+1. **Per-deployment compose env (recommended)** — set `ZONE_CODE=<deployment-zone>` in that deployment's `docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml`). Add a new entry in `zone-config.ts` for each physical site (e.g. `e3`, `l3bt-hall`, `p3-hall`) with the routes that site is allowed to operate. No rebuild required — CI ships one global image, per-zone config lives entirely in each zone's compose file.
 
 2. **Override the empty `production` entry** — only for one-off deployments that should not introduce a new zone code. Patch `zone-config.ts` in a fork or at deploy time.
-
-`NEXT_PUBLIC_*` is baked at build time. Switching zones post-build requires a rebuild — there is no runtime zone toggle.
 
 ## Commit & Pull Request Guidelines
 

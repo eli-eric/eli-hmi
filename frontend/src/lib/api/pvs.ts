@@ -8,16 +8,18 @@
 
 import { getSession } from 'next-auth/react'
 
-// Resolved lazily so vitest's beforeEach `stubEnv` takes effect (constants.ts
-// captures the env at module-import time, before stubs run).
+import { getRuntimeConfig } from '@/lib/runtime-config/client'
+
+// Resolved lazily (not at module-import time) so it reads whatever
+// runtime-config has been fetched by the time a write/read actually happens.
 //
-// `NEXT_PUBLIC_API_URL` is `host:port` (e.g. `localhost:8080`); the scheme
-// comes from `NEXT_PUBLIC_API_SCHEME` (default `http`). For TLS deployments
-// set `NEXT_PUBLIC_API_SCHEME=https`.
+// `apiUrl` is `host:port` (e.g. `localhost:8080`); the scheme comes from
+// `apiScheme` (default `http`). For TLS deployments set `API_SCHEME=https`
+// in the deployment's docker-compose file.
 //
-// Falls back to `localhost:8080` if the env var is unset in non-production —
-// without this an unset NEXT_PUBLIC_API_URL produces opaque "http://undefined/..."
-// fetch errors at write-time instead of at boot.
+// Falls back to `localhost:8080` if unset in non-production — without this
+// a missing config produces opaque "http://undefined/..." fetch errors at
+// write-time instead of at boot.
 //
 // PV name handling: this module passes `pvName` to the backend verbatim.
 // L4 OPCPA names are already fully-qualified wire names (`BI_<L>_SHUTTER`,
@@ -31,14 +33,15 @@ import { getSession } from 'next-auth/react'
 // relevant once the python backend lands and the L4 PV catalog moves
 // behind the same prefix scheme as the vacuum modules).
 function apiBase(): string {
-  const env = process.env.NEXT_PUBLIC_API_URL
-  const scheme = process.env.NEXT_PUBLIC_API_SCHEME || 'http'
+  const config = getRuntimeConfig()
+  const env = config?.apiUrl
+  const scheme = config?.apiScheme || 'http'
   if (!env || env === 'undefined') {
     if (process.env.NODE_ENV !== 'production') {
       return `${scheme}://localhost:8080`
     }
     throw new Error(
-      'NEXT_PUBLIC_API_URL is not set; cannot determine backend URL',
+      'Runtime config API_URL is not set; cannot determine backend URL',
     )
   }
   return `${scheme}://${env}`

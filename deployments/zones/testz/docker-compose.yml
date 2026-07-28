@@ -25,9 +25,8 @@ services:
     environment:
       NEXTAUTH_SECRET: change-me-in-production
       NEXTAUTH_URL: http://testz-deploy20:8082/api/auth
-      # NOTE: NEXT_PUBLIC_* values are baked into the frontend at image build time.
-      # Runtime docker-compose env does not rewrite already-built client bundles.
-      # The app includes a runtime fallback that replaces baked localhost with
-      # the browser host so this deployment still targets testz-deploy20.
-      NEXT_PUBLIC_API_URL: testz-deploy20:8080
-      NEXT_PUBLIC_ZONE_CODE: test
+      # API_URL/ZONE_CODE are read live at container start (via
+      # /api/runtime-config for the client, process.env directly for
+      # middleware) — the image is the same global build for every zone.
+      API_URL: testz-deploy20:8080
+      ZONE_CODE: test

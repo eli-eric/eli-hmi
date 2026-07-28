@@ -20,7 +20,7 @@ Two backends as **distinct modules**:
 - **Mock (`backend/mockup-websocket-server/`, Go).** Synthesises PVs from name-prefix conventions (`AI_*` float, `BI_*` bool, `SI_*` string). Single binary, no deps. Used in local dev and frontend integration tests.
 - **Python (`backend/python-websocket-server/`, FastAPI + aioca).** Production target. Talks to a real EPICS network.
 
-The frontend points at one or the other via `NEXT_PUBLIC_API_URL`. The frontend's WS client is the **adapter** on its side of the **seam**.
+The frontend points at one or the other via `API_URL`. The frontend's WS client is the **adapter** on its side of the **seam**.
 
 ## Consequences
 

@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { pvWrite, listWaveforms } from './pvs'
 import { mockUnauthenticated, resetSessionMock } from '@/test/setup'
+import { getRuntimeConfig } from '@/lib/runtime-config/client'
+
+vi.mock('@/lib/runtime-config/client', () => ({
+  getRuntimeConfig: vi.fn(),
+}))
 
 const ORIGINAL_FETCH = globalThis.fetch
 
@@ -11,7 +16,11 @@ function mockFetch(impl: (...args: Parameters<typeof fetch>) => Response | Promi
 }
 
 beforeEach(() => {
-  vi.stubEnv('NEXT_PUBLIC_API_URL', 'localhost:8080')
+  vi.mocked(getRuntimeConfig).mockReturnValue({
+    apiUrl: 'localhost:8080',
+    apiScheme: null,
+    zoneCode: null,
+  })
 })
 
 afterEach(() => {
@@ -116,5 +125,16 @@ describe('listWaveforms', () => {
       'std-100ps',
       'narrow-50ps',
     ])
+  })
+})
+
+describe('apiBase fallback', () => {
+  it('falls back to localhost:8080 in dev when runtime config has not resolved yet', async () => {
+    vi.mocked(getRuntimeConfig).mockReturnValue(null)
+    const spy = mockFetch(
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    )
+    await pvWrite('BI_NL2_SHUTTER', 1)
+    expect(spy.mock.calls[0][0]).toBe('http://localhost:8080/pv/BI_NL2_SHUTTER')
   })
 })

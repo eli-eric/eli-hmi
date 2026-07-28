@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { usePvWrite } from './usePvWrite'
 
@@ -15,10 +15,6 @@ function mockFail(status = 500) {
     async () => new Response('nope', { status }),
   ) as unknown as typeof fetch
 }
-
-beforeEach(() => {
-  vi.stubEnv('NEXT_PUBLIC_API_URL', 'localhost:8080')
-})
 
 afterEach(() => {
   globalThis.fetch = ORIGINAL_FETCH

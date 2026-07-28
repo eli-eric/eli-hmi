@@ -100,8 +100,8 @@ The Python server now includes a legacy compatibility path: it accepts frontend 
 
 ## What this means in practice
 
-- `NEXT_PUBLIC_API_URL=localhost:8080` → `ws://localhost:8080/ws/pvs` (mock) — works.
-- `NEXT_PUBLIC_API_URL=<python-host>:<port>` → `ws://<python-host>:<port>/ws/pvs` — works via the Python server's legacy compatibility path.
+- `API_URL=localhost:8080` → `ws://localhost:8080/ws/pvs` (mock) — works.
+- `API_URL=<python-host>:<port>` → `ws://<python-host>:<port>/ws/pvs` — works via the Python server's legacy compatibility path.
 
 ## How to resolve
 

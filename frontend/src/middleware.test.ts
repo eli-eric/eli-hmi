@@ -19,7 +19,7 @@ function makeRequest(pathname: string): NextRequest {
 
 describe('middleware', () => {
   beforeEach(() => {
-    vi.stubEnv('NEXT_PUBLIC_ZONE_CODE', 'test')
+    vi.stubEnv('ZONE_CODE', 'test')
     getToken.mockResolvedValue(null)
   })
   afterEach(() => {

@@ -8,7 +8,7 @@ import Dropdown from '@/components/ui/dropdown'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 import { Message } from '@/app/providers/types'
-import { API_URL } from '@/types/constants'
+import { useRuntimeConfig } from '@/lib/runtime-config/context'
 
 import commonStyles from '../../styles/common.module.css'
 
@@ -76,6 +76,8 @@ export const DropDownStateControl: FC<ControlProps> = ({
   pvNameCurrent,
   pvNameTarget,
 }) => {
+  const { apiUrl } = useRuntimeConfig()
+
   const renderTrigger = () => {
     return (
       <Trigger
@@ -91,7 +93,7 @@ export const DropDownStateControl: FC<ControlProps> = ({
         controlPvs?.map((control) => ({
           label: control.label,
           onClick: () => {
-            fetch(`${API_URL}/${getPrefixedPV(control.pvName)}`, {
+            fetch(`${apiUrl}/${getPrefixedPV(control.pvName)}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ value: 1, type: 'short' }),

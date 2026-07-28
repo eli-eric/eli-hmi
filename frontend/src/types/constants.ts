@@ -10,17 +10,16 @@ function browserAuthorityFrom(authority: string | null): string | null {
   return `${window.location.hostname}:${port}`
 }
 
-function apiAuthority(): string {
-  const envAuthority = process.env.NEXT_PUBLIC_API_URL
-  const sanitized =
-    envAuthority && envAuthority !== 'undefined' ? envAuthority : null
+function apiAuthority(rawApiUrl: string | null): string {
+  const sanitized = rawApiUrl && rawApiUrl !== 'undefined' ? rawApiUrl : null
 
   if (!sanitized) {
     return browserAuthorityFrom(null) ?? 'localhost:8080'
   }
 
-  // NEXT_PUBLIC_* vars are baked at build time. If an image is built with
-  // localhost and then deployed remotely, prefer the runtime browser host.
+  // Runtime config is fetched once on load; if it points at localhost (e.g.
+  // an image built/tested locally and then deployed remotely), prefer the
+  // browser's own host so the app still reaches a real backend.
   if (isLocalAuthority(sanitized)) {
     return browserAuthorityFrom(sanitized) ?? sanitized
   }
@@ -28,20 +27,28 @@ function apiAuthority(): string {
   return sanitized
 }
 
-function apiScheme(): string {
-  const envScheme = process.env.NEXT_PUBLIC_API_SCHEME
-  if (envScheme === 'http' || envScheme === 'https') return envScheme
+function apiScheme(rawApiScheme: string | null): string {
+  if (rawApiScheme === 'http' || rawApiScheme === 'https') return rawApiScheme
   if (typeof window !== 'undefined') {
     return window.location.protocol === 'https:' ? 'https' : 'http'
   }
   return 'http'
 }
 
-function wsScheme(): string {
-  return apiScheme() === 'https' ? 'wss' : 'ws'
+function wsScheme(rawApiScheme: string | null): string {
+  return apiScheme(rawApiScheme) === 'https' ? 'wss' : 'ws'
 }
 
-const authority = apiAuthority()
+export function buildApiUrl(
+  rawApiUrl: string | null,
+  rawApiScheme: string | null,
+): string {
+  return `${apiScheme(rawApiScheme)}://${apiAuthority(rawApiUrl)}/pv`
+}
 
-export const WS_URL = `${wsScheme()}://${authority}/ws/pvs`
-export const API_URL = `${apiScheme()}://${authority}/pv`
+export function buildWsUrl(
+  rawApiUrl: string | null,
+  rawApiScheme: string | null,
+): string {
+  return `${wsScheme(rawApiScheme)}://${apiAuthority(rawApiUrl)}/ws/pvs`
+}

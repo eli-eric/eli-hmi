@@ -18,7 +18,7 @@ describe('zone-service', () => {
 
   describe('test zone', () => {
     beforeEach(() => {
-      vi.stubEnv('NEXT_PUBLIC_ZONE_CODE', 'test')
+      vi.stubEnv('ZONE_CODE', 'test')
     })
 
     it('isRouteAllowed returns true for the allowed L4 OPCPA route', () => {
@@ -57,7 +57,7 @@ describe('zone-service', () => {
 
   describe('production zone (intentionally empty)', () => {
     beforeEach(() => {
-      vi.stubEnv('NEXT_PUBLIC_ZONE_CODE', 'production')
+      vi.stubEnv('ZONE_CODE', 'production')
     })
 
     it('isRouteAllowed returns false for every route', () => {
@@ -83,7 +83,7 @@ describe('zone-service', () => {
 
   describe('unknown zone', () => {
     beforeEach(() => {
-      vi.stubEnv('NEXT_PUBLIC_ZONE_CODE', 'fhqwhgads')
+      vi.stubEnv('ZONE_CODE', 'fhqwhgads')
     })
 
     it('falls back to empty config', () => {
@@ -95,7 +95,7 @@ describe('zone-service', () => {
 
   describe('unset zone', () => {
     beforeEach(() => {
-      vi.stubEnv('NEXT_PUBLIC_ZONE_CODE', '')
+      vi.stubEnv('ZONE_CODE', '')
     })
 
     it('falls back to empty config', () => {

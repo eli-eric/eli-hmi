@@ -33,8 +33,8 @@ Mock server has REST helpers: `GET /pv/:name/:value` to set a value, `GET /mode/
 
 ```
 NEXTAUTH_SECRET=...
-NEXT_PUBLIC_API_URL=localhost:8080
-NEXT_PUBLIC_ZONE_CODE=test           # see "Zones" below
+API_URL=localhost:8080
+ZONE_CODE=test                       # see "Zones" below
 LDAP_SERVER_URL=ldap://10.78.0.11    # only used in prod auth
 LDAP_BASE_DN=dc=lcs,dc=local
 ```
@@ -60,13 +60,13 @@ The hook **buries** the dev-vs-prod PV-name prefix (`getPrefixedPV` in `src/lib/
 
 Wire protocol: client sends `{ type: 'subscribe', pvs: { NAME: true, ... } }`; server pushes `{ type: 'pv', name, value, severity, units, timestamp, ok }`. Mock server infers value type from PV prefix (`AI_*` float, `BI_*` bool, `SI_*` string).
 
-### Zones (build-time access control)
+### Zones (runtime access control)
 
-Build-time env var `NEXT_PUBLIC_ZONE_CODE` selects a zone from `frontend/src/lib/settings/zone-config.ts`. Each zone declares `navigationItems` and `allowedRoutes`. The middleware (`src/middleware.ts`) enforces this on every request — unauthorized routes redirect to `/no-access`. The nav bar reads from the same config. **To add a page, register its route in the zone config or it will 403 even if the file exists.**
+Runtime env var `ZONE_CODE` (no `NEXT_PUBLIC_` prefix — supplied by each deployment's `docker-compose.yml`) selects a zone from `frontend/src/lib/settings/zone-config.ts`. Each zone declares `navigationItems` and `allowedRoutes`. The middleware (`src/middleware.ts`) enforces this on every request by reading `ZONE_CODE` live — unauthorized routes redirect to `/no-access`. The nav bar (client-side) sources the same value from `/api/runtime-config` via `useRuntimeConfig()`. **To add a page, register its route in the zone config or it will 403 even if the file exists.**
 
-`production` zone is intentionally empty (no routes allowed) — production deployments override the config or set a different zone code at **build time**. See `frontend/AGENTS.md` for the override mechanism (`docker build --build-arg`, GitLab CI variable, or `.env.production`).
+`production` zone is intentionally empty (no routes allowed) — production deployments override the config or set a different zone code in that deployment's compose file. See `frontend/AGENTS.md` for the override mechanism.
 
-`NEXT_PUBLIC_*` is baked at build time. There is no runtime zone switch — switching zones means a rebuild.
+CI builds one global frontend image; `ZONE_CODE`/`API_URL` are never baked in, so switching zones is a compose restart, not a rebuild.
 
 ### Module pages
 
@@ -92,5 +92,5 @@ Reusable HMI panels (`src/components/hmi/volume-panel`, `connector-line`) use th
 
 `.gitlab-ci.yml`:
 - `frontend-test` — `npm ci && npm test -- --run --coverage` with threshold gate. Fails if coverage drops below 70/70/70/60 on `src/lib/websocket/**`, `src/lib/settings/**`, `src/middleware.ts`, `src/components/module-page/**`.
-- `docker-build-job` — builds and pushes the Python backend image to Harbor.
-Frontend Docker build is currently commented out (deployment plumbing tracked separately).
+- `docker-build-job-frontend` — builds and pushes the frontend image to Harbor. One global image for every deployment zone; `ZONE_CODE`/`API_URL` are supplied at runtime by each zone's `docker-compose.yml`, not baked in by CI (see [docs/frontend/zones.md](docs/frontend/zones.md)).
+- `docker-build-job-demo`, `docker-build-job-mockup-demo`, `docker-build-job-python` — build and push the demo frontend and mock/Python backend images to Harbor.

@@ -8,7 +8,7 @@ If you sharpen a term during a grilling conversation, edit it here.
 
 **eli-hmi** is the Human-Machine Interface for ELI Beamlines laser-control rooms. Operators read live values, switch states, and drive command sequences on lab hardware. Hardware speaks EPICS; this stack proxies EPICS through a WebSocket to a browser HMI.
 
-Two backends, one frontend. The frontend is environment-agnostic: `NEXT_PUBLIC_API_URL` (e.g. `localhost:8080`) is the single host:port used to derive both `ws://<host>/ws/pvs` and `http://<host>/pv` (`frontend/src/types/constants.ts`).
+Two backends, one frontend. The frontend is environment-agnostic: `API_URL` (e.g. `localhost:8080`, supplied at container runtime — see [zones](frontend/zones.md#runtime-not-build-time)) is the single host:port used to derive both `ws://<host>/ws/pvs` and `http://<host>/pv` (`frontend/src/types/constants.ts`).
 
 ## Modules (top-level)
 

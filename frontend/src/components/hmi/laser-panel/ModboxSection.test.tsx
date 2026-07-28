@@ -11,7 +11,6 @@ import {
 const ORIGINAL_FETCH = globalThis.fetch
 
 beforeEach(() => {
-  vi.stubEnv('NEXT_PUBLIC_API_URL', 'localhost:8080')
   globalThis.fetch = vi.fn(
     async () =>
       new Response(JSON.stringify(['std-100ps', 'narrow-50ps']), {

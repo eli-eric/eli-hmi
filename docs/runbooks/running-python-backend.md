@@ -72,7 +72,7 @@ open  http://localhost:8000/stats/ui      # HTML dashboard
 
 ## Connecting the frontend (with caveats)
 
-The frontend currently emits the [mock dialect](../backend/websocket-protocol.md). Pointing `NEXT_PUBLIC_API_URL` at this server's host:port will fail until [ADR-0009](../adr/0009-shared-ws-protocol-contract.md) resolves the protocol gap.
+The frontend currently emits the [mock dialect](../backend/websocket-protocol.md). Pointing `API_URL` at this server's host:port will fail until [ADR-0009](../adr/0009-shared-ws-protocol-contract.md) resolves the protocol gap.
 
 For read-only verification, hit `GET /pv/<name>` directly from `curl` or the OpenAPI UI at `/docs`.
 

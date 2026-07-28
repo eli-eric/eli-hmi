@@ -55,7 +55,6 @@ function renderSpec(spec: LaserSpec) {
 const ORIGINAL_FETCH = globalThis.fetch
 
 beforeEach(() => {
-  vi.stubEnv('NEXT_PUBLIC_API_URL', 'localhost:8080')
   globalThis.fetch = vi.fn(
     async () => new Response(JSON.stringify([]), { status: 200 }),
   ) as unknown as typeof fetch

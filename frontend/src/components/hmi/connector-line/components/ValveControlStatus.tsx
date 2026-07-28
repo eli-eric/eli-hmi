@@ -5,7 +5,7 @@ import { SettingsButton } from '@/components/ui/buttons'
 // import { useWebSocketContext } from '@/app/providers/socket-provider'
 import { VALVE_STATE, ValveStatus } from './Valve'
 import styles from '../styles/valve.module.css'
-import { API_URL } from '@/types/constants'
+import { useRuntimeConfig } from '@/lib/runtime-config/context'
 
 interface ValveControlStatusProps {
   statusOpenPV: string
@@ -21,6 +21,7 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
 }) => {
   const [status, setStatus] = useState<VALVE_STATE>(VALVE_STATE.CLOSED)
   const [fetching, setFetching] = useState(false)
+  const { apiUrl } = useRuntimeConfig()
   // const { send } = useWebSocketContext()
 
   const onStatusUpdate = (newStatus: VALVE_STATE) => {
@@ -54,7 +55,7 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
                 onClick: () => {
                   // send({ type: 'set', pvs: { [controlOpenPV]: true } })
                   setFetching(true)
-                  fetch(`${API_URL}/${controlOpenPV}`, {
+                  fetch(`${apiUrl}/${controlOpenPV}`, {
                     method: 'PUT',
                     headers: {
                       'Content-Type': 'application/json',
@@ -75,7 +76,7 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
                 onClick: () => {
                   // send({ type: 'set', pvs: { [controlClosePV]: true } })
                   setFetching(true)
-                  fetch(`${API_URL}/${controlClosePV}`, {
+                  fetch(`${apiUrl}/${controlClosePV}`, {
                     method: 'PUT',
                     headers: {
                       'Content-Type': 'application/json',

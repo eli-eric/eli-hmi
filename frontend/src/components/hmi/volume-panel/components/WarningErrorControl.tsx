@@ -5,7 +5,7 @@ import { FC } from 'react'
 import { ClearButton } from '@/components/ui/buttons'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { getPrefixedPV } from '@/lib/utils/pv-helpers'
-import { API_URL } from '@/types/constants'
+import { useRuntimeConfig } from '@/lib/runtime-config/context'
 
 import commonStyles from '../styles/common.module.css'
 
@@ -27,6 +27,7 @@ export const WarningErrorControl: FC<WarningErrorControlProps> = ({
   const { isConnected, byPv } = useWebSocketData<1 | 0 | null>({
     pvs: [warningPv, checkClearPv, errorPv],
   })
+  const { apiUrl } = useRuntimeConfig()
 
   const warning = byPv(warningPv)?.value === 1 ? 'Yes' : 'No'
   const error = byPv(errorPv)?.value === 1 ? 'Yes' : 'No'
@@ -45,7 +46,7 @@ export const WarningErrorControl: FC<WarningErrorControlProps> = ({
         <ClearButton
           disabled
           onClick={() => {
-            fetch(`${API_URL}/${getPrefixedPV(checkClearPv)}`, {
+            fetch(`${apiUrl}/${getPrefixedPV(checkClearPv)}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ value: 1 }),

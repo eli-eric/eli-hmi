@@ -15,8 +15,8 @@ services:
     environment:
       NEXTAUTH_SECRET: local-dev-secret
       NEXTAUTH_URL: http://localhost:8082/api/auth
-      NEXT_PUBLIC_API_URL: localhost:8080
-      NEXT_PUBLIC_ZONE_CODE: test
+      API_URL: localhost:8080
+      ZONE_CODE: test
       NODE_ENV: development
     ports:
       - "8082:8082"

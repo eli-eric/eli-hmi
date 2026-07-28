@@ -22,8 +22,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_ZONE_CODE
 ARG LDAP_SERVER_URL=ldap://10.78.0.11
 ARG LDAP_BASE_DN=dc=lcs,dc=local
 ARG LDAP_USE_TLS=false
@@ -34,17 +32,11 @@ ARG LDAP_USE_TLS=false
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_ZONE_CODE=$NEXT_PUBLIC_ZONE_CODE
 
 # LDAP Authentication Settings
 ENV LDAP_SERVER_URL=$LDAP_SERVER_URL
 ENV LDAP_BASE_DN=$LDAP_BASE_DN
 ENV LDAP_USE_TLS=$LDAP_USE_TLS
-
-RUN test -n "$NEXT_PUBLIC_API_URL"
-RUN test -n "$NEXT_PUBLIC_ZONE_CODE"
-
 
 RUN \
   if [ -f package-lock.json ]; then npm run build; \
@@ -57,8 +49,6 @@ RUN \
 FROM base AS runner
 WORKDIR /app
 
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_ZONE_CODE
 ARG LDAP_SERVER_URL=ldap://10.78.0.11
 ARG LDAP_BASE_DN=dc=lcs,dc=local
 ARG LDAP_USE_TLS=false
@@ -86,8 +76,10 @@ ENV PORT=8082
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
 ENV HOSTNAME="0.0.0.0"
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_ZONE_CODE=$NEXT_PUBLIC_ZONE_CODE
+
+# API_URL, API_SCHEME, ZONE_CODE are intentionally left unset here — they're
+# supplied at container start by the deployment's docker-compose.yml
+# (`environment:`) and read live by /api/runtime-config and middleware.ts.
 
 # LDAP Authentication Settings
 ENV LDAP_SERVER_URL=$LDAP_SERVER_URL
