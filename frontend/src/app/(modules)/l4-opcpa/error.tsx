@@ -8,16 +8,20 @@
  * instrumentation.ts for config errors, so reaching this at runtime usually
  * means the config dir changed under a running server).
  */
+import styles from './error.module.css'
+
 export default function L4OpcpaError({ error }: { error: Error }) {
   return (
-    <div style={{ padding: '2rem' }}>
+    <div className={styles.container}>
       <h2>L4 OPCPA configuration error</h2>
       <p>
         The page could not load its configuration. Check the server logs for
         the exact reason (zone file, laser config reference, or validation
         error).
       </p>
-      {process.env.NODE_ENV !== 'production' && <pre>{error.message}</pre>}
+      {process.env.NODE_ENV !== 'production' && (
+        <pre className={styles.detail}>{error.message}</pre>
+      )}
     </div>
   )
 }

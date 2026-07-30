@@ -109,4 +109,24 @@ allowedRoutes:
     const text = VALID.replace('- /l4-opcpa\n', '- l4-opcpa\n')
     expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(/route/)
   })
+
+  it('rejects trailing slashes and empty segments (middleware matches exactly)', () => {
+    for (const bad of ['/l4-opcpa/', '/a//b', '//']) {
+      const text = VALID.replace('href: /l4-opcpa', `href: ${bad}`).replace(
+        '- /l4-opcpa',
+        `- ${bad}`,
+      )
+      expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(/route/)
+    }
+  })
+
+  it('returns a deeply frozen object (cached config is shared by reference)', () => {
+    const zone = parseZoneFile(VALID, 'zones/test.yaml')
+    expect(Object.isFrozen(zone)).toBe(true)
+    expect(Object.isFrozen(zone.allowedRoutes)).toBe(true)
+    expect(Object.isFrozen(zone.navigationItems[0])).toBe(true)
+    expect(() => {
+      ;(zone.allowedRoutes as string[]).push('/hacked')
+    }).toThrow()
+  })
 })

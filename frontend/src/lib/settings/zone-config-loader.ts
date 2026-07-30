@@ -18,7 +18,7 @@
  * it still must never be imported from client components (it uses `node:fs`).
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { isAbsolute, join, resolve, sep } from 'node:path'
 
 import { parseZoneFile, type ZoneFile } from './zone-schema'
@@ -44,8 +44,12 @@ export function getConfigDir(): string {
   return process.env.CONFIG_DIR ?? DEFAULT_CONFIG_DIR
 }
 
-/** Free-form zone codes, but traversal-safe (used as a filename). */
-const ZONE_CODE_RE = /^[A-Za-z0-9_-]+$/
+/**
+ * Free-form zone codes, but traversal-safe (used as a filename). Exported so
+ * `scripts/validate-config.ts` enforces the exact same rule in the config
+ * repo's CI — a stem this regex rejects must never validate green there.
+ */
+export const ZONE_CODE_RE = /^[A-Za-z0-9_-]+$/
 
 type CacheEntry =
   | { ok: true; zone: ZoneFile }
@@ -62,15 +66,6 @@ export function clearZoneCache(): void {
 
 function zoneFilePath(configDir: string, zoneCode: string): string {
   return join(configDir, 'zones', `${zoneCode}.yaml`)
-}
-
-/**
- * True iff `zones/<zoneCode>.yaml` exists — this is what makes a ZONE_CODE
- * valid; the app has no hardcoded zone list.
- */
-export function zoneFileExists(zoneCode: string): boolean {
-  if (!ZONE_CODE_RE.test(zoneCode)) return false
-  return existsSync(zoneFilePath(getConfigDir(), zoneCode))
 }
 
 /**
@@ -127,8 +122,9 @@ function readZoneFile(configDir: string, zoneCode: string): CacheEntry {
 
 /**
  * Read a module config file referenced from a zone file. `relPath` must stay
- * inside the config dir (references are relative by contract; escapes and
- * absolute paths are rejected). Throws `ZoneConfigError` when missing.
+ * inside the config dir (references are relative by contract; escapes,
+ * absolute paths, and symlinks pointing outside are rejected). Throws
+ * `ZoneConfigError` when missing.
  */
 export function readModuleConfigText(relPath: string): string {
   const configDir = resolve(getConfigDir())
@@ -152,5 +148,17 @@ export function readModuleConfigText(relPath: string): string {
     )
   }
 
-  return readFileSync(full, 'utf8')
+  // Re-check after resolving symlinks: `resolve` catches `..` escapes, but a
+  // symlink inside the config dir can still point outside it. The config dir
+  // itself may legitimately be reached via a symlink (e.g. a mount alias), so
+  // both sides are realpath'd before comparing.
+  const realDir = realpathSync(configDir)
+  const realFull = realpathSync(full)
+  if (realFull !== realDir && !realFull.startsWith(realDir + sep)) {
+    throw new ZoneConfigError(
+      `module config reference escapes the config dir via a symlink: ${relPath}`,
+    )
+  }
+
+  return readFileSync(realFull, 'utf8')
 }

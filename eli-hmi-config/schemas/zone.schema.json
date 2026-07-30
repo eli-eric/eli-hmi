@@ -19,7 +19,7 @@
           },
           "href": {
             "type": "string",
-            "pattern": "^\\/[a-z0-9\\-/]*$",
+            "pattern": "^\\/(?:[a-z0-9-]+(?:\\/[a-z0-9-]+)*)?$",
             "description": "Route the item links to; must be in allowedRoutes."
           }
         },
@@ -35,7 +35,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "pattern": "^\\/[a-z0-9\\-/]*$"
+        "pattern": "^\\/(?:[a-z0-9-]+(?:\\/[a-z0-9-]+)*)?$"
       },
       "description": "Routes reachable in this zone; first entry is the home route. Anything else redirects to /no-access."
     },

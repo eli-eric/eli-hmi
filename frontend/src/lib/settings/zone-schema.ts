@@ -17,6 +17,8 @@
 import { z } from 'zod'
 import { parse as parseYaml } from 'yaml'
 
+import { deepFreeze } from '@/lib/utils/deep-freeze'
+
 /**
  * The one zone-file schema version this app build understands. Bumped on
  * breaking shape changes; a config written for another version fails fast with
@@ -34,11 +36,14 @@ export const MODULE_ROUTES = {
 
 export type ModuleKey = keyof typeof MODULE_ROUTES
 
+// "/" or "/"-separated non-empty segments — no trailing slash, no empty
+// segment. Middleware matches pathnames exactly, so a "/l4-opcpa/" entry
+// would validate but never match; reject it here instead.
 const routePath = z
   .string()
   .regex(
-    /^\/[a-z0-9\-/]*$/,
-    'route must start with "/" and use lowercase letters, digits, "-" or "/"',
+    /^\/(?:[a-z0-9-]+(?:\/[a-z0-9-]+)*)?$/,
+    'route must be "/" or "/"-separated segments of lowercase letters, digits and "-" (no trailing slash)',
   )
 
 const moduleRef = z.strictObject({
@@ -137,5 +142,7 @@ export function parseZoneFile(text: string, name: string): ZoneFile {
     throw new Error(`${name} is invalid:\n${z.prettifyError(result.error)}`)
   }
 
-  return result.data
+  // The parsed file is cached for the process lifetime and shared by
+  // reference across requests — freeze so mutation fails loudly.
+  return deepFreeze(result.data)
 }

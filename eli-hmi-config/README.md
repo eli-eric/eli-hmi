@@ -31,7 +31,10 @@ YAML with editor autocomplete, and every field is documented.
   No application rebuild, ever.
 - A broken or missing config **stops the container at startup** with a
   readable error in the logs — check `docker logs` if the frontend
-  crash-loops after a config change.
+  crash-loops after a config change. NB: with `restart: unless-stopped` the
+  outward symptom is just "the GUI port is dead" — make sure the deploy host
+  monitors/alerts on restart-looping containers, otherwise fail-fast is
+  invisible to operators.
 
 ## Layout & contract
 

@@ -1,10 +1,12 @@
 import 'server-only'
 
 import {
+  getConfigDir,
   loadZoneFile,
   readModuleConfigText,
   ZoneConfigError,
 } from '@/lib/settings/zone-config-loader'
+import { deepFreeze } from '@/lib/utils/deep-freeze'
 import { getCurrentZoneCode } from '@/lib/settings/zone-service'
 import { parseLaserSpecs, type LaserSpec } from './schema'
 
@@ -47,11 +49,13 @@ export function loadLaserSpecs(): LaserSpec[] {
     )
   }
 
-  const key = `${zoneCode}\0${ref.config}`
+  // configDir is part of the key for the same reason as in the zone cache:
+  // tests stub CONFIG_DIR per case; in production it never changes.
+  const key = `${getConfigDir()}\0${zoneCode}\0${ref.config}`
   const cached = specsCache.get(key)
   if (cached) return cached
 
-  const specs = parseLaserSpecs(readModuleConfigText(ref.config))
+  const specs = deepFreeze(parseLaserSpecs(readModuleConfigText(ref.config)))
   specsCache.set(key, specs)
   return specs
 }

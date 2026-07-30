@@ -1,3 +1,5 @@
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -7,7 +9,6 @@ import {
   loadZoneFile,
   readModuleConfigText,
   ZoneConfigError,
-  zoneFileExists,
 } from './zone-config-loader'
 
 const FIXTURE_DIR = join(__dirname, '__fixtures__', 'config-dir')
@@ -30,22 +31,6 @@ describe('zone-config-loader', () => {
     it('falls back to the in-repo template when unset', () => {
       vi.stubEnv('CONFIG_DIR', undefined as unknown as string)
       expect(getConfigDir()).toBe(join(process.cwd(), '..', 'eli-hmi-config'))
-    })
-  })
-
-  describe('zoneFileExists', () => {
-    it('is true for an existing zone file', () => {
-      expect(zoneFileExists('test')).toBe(true)
-    })
-
-    it('is false for a missing zone file', () => {
-      expect(zoneFileExists('nope')).toBe(false)
-    })
-
-    it('is false for traversal-shaped codes', () => {
-      expect(zoneFileExists('../zones/test')).toBe(false)
-      expect(zoneFileExists('a/b')).toBe(false)
-      expect(zoneFileExists('')).toBe(false)
     })
   })
 
@@ -124,6 +109,24 @@ describe('zone-config-loader', () => {
       expect(() => readModuleConfigText('modules/nope.yaml')).toThrow(
         /module config not found/,
       )
+    })
+
+    it('rejects a symlink pointing outside the config dir', () => {
+      const scratch = mkdtempSync(join(tmpdir(), 'zone-config-'))
+      try {
+        const outside = join(scratch, 'outside.yaml')
+        writeFileSync(outside, 'secret: true\n')
+        const dir = join(scratch, 'config')
+        mkdirSync(join(dir, 'modules'), { recursive: true })
+        symlinkSync(outside, join(dir, 'modules', 'sneaky.yaml'))
+        vi.stubEnv('CONFIG_DIR', dir)
+
+        expect(() => readModuleConfigText('modules/sneaky.yaml')).toThrow(
+          /escapes the config dir via a symlink/,
+        )
+      } finally {
+        rmSync(scratch, { recursive: true, force: true })
+      }
     })
   })
 })
