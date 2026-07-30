@@ -12,8 +12,8 @@
  * rules — what passes here is exactly what the container accepts at startup.
  * Reports every invalid zone, then exits non-zero if there was any.
  */
-import { existsSync, readdirSync } from 'node:fs'
-import { basename, join, resolve } from 'node:path'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { basename, join, relative, resolve } from 'node:path'
 
 function usage(): never {
   console.error(
@@ -85,16 +85,33 @@ async function main(): Promise<void> {
     zoneCodes = [zoneArg as string]
   }
 
+  const referenced = new Set<string>()
   for (const zoneCode of zoneCodes) {
     try {
       const zone = loadZoneFile(zoneCode)
 
       const l4 = zone.modules['l4-opcpa']
-      if (l4) parseLaserSpecs(readModuleConfigText(l4.config))
+      if (l4) {
+        parseLaserSpecs(readModuleConfigText(l4.config))
+        referenced.add(resolve(configDir, l4.config))
+      }
 
       console.log(`✓ ${zoneCode}`)
     } catch (e) {
       fail(zoneCode, (e as Error).message)
+    }
+  }
+
+  // Non-fatal hygiene warnings (--all only — a single-zone run can't know
+  // what the other zones reference, and may run against a partial checkout).
+  if (all) {
+    for (const orphan of findUnreferencedModuleFiles(configDir, referenced)) {
+      console.warn(`⚠ ${orphan}: not referenced by any zone`)
+    }
+    for (const stale of await findStaleSchemas(configDir)) {
+      console.warn(
+        `⚠ schemas/${stale}: differs from the app's zod schema — re-copy from \`npm run gen:schema\` output (editor autocomplete is stale; validation itself is unaffected)`,
+      )
     }
   }
 
@@ -103,6 +120,47 @@ async function main(): Promise<void> {
     process.exit(1)
   }
   console.log(`\nall ${zoneCodes.length} zone(s) valid`)
+}
+
+function findUnreferencedModuleFiles(
+  configDir: string,
+  referenced: Set<string>,
+): string[] {
+  const modulesDir = join(configDir, 'modules')
+  if (!existsSync(modulesDir)) return []
+  const orphans: string[] = []
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir).sort()) {
+      const full = join(dir, entry)
+      if (statSync(full).isDirectory()) walk(full)
+      else if (entry.endsWith('.yaml') && !referenced.has(full)) {
+        orphans.push(relative(configDir, full))
+      }
+    }
+  }
+  walk(modulesDir)
+  return orphans
+}
+
+/**
+ * The copied-out config repo vendors `schemas/*.json` for editor tooling;
+ * nothing regenerates them there, so flag drift against the app's zod source.
+ */
+async function findStaleSchemas(configDir: string): Promise<string[]> {
+  const schemasDir = join(configDir, 'schemas')
+  if (!existsSync(schemasDir)) return []
+  const { buildSchema } = await import('./build-laser-schema')
+  const { buildZoneSchema } = await import('./build-zone-schema')
+  const expected: Record<string, string> = {
+    'zone.schema.json': buildZoneSchema(),
+    'l4-opcpa-lasers.schema.json': buildSchema(),
+  }
+  return Object.entries(expected)
+    .filter(([file, content]) => {
+      const path = join(schemasDir, file)
+      return existsSync(path) && readFileSync(path, 'utf8') !== content
+    })
+    .map(([file]) => file)
 }
 
 void main()

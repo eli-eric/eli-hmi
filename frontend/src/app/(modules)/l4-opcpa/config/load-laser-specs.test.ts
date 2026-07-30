@@ -51,13 +51,19 @@ describe('loadLaserSpecs', () => {
     expect(() => loadLaserSpecs()).toThrow(/zone config not found/)
   })
 
-  it('caches per zone (same reference back) and clearLaserSpecsCache resets', () => {
+  it('production: caches per zone (same reference back) and clearLaserSpecsCache resets', () => {
+    vi.stubEnv('NODE_ENV', 'production')
     const first = loadLaserSpecs()
     expect(loadLaserSpecs()).toBe(first)
     clearLaserSpecsCache()
     const fresh = loadLaserSpecs()
     expect(fresh).not.toBe(first)
     expect(fresh).toEqual(first)
+  })
+
+  it('development: does not cache (config edits reload per request)', () => {
+    vi.stubEnv('NODE_ENV', 'development')
+    expect(loadLaserSpecs()).not.toBe(loadLaserSpecs())
   })
 
   it('returns frozen specs (cached and shared by reference)', () => {

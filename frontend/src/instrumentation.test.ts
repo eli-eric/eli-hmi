@@ -1,10 +1,6 @@
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// register() dynamically imports the l4-opcpa loader, whose `server-only`
-// import throws outside a React Server environment — neutralize it here.
-vi.mock('server-only', () => ({}))
-
 import { clearZoneCache } from './lib/settings/zone-config-loader'
 import { register } from './instrumentation'
 

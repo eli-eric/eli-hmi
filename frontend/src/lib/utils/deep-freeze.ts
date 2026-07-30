@@ -4,7 +4,7 @@
  * freezing turns an accidental mutation into a loud TypeError (in strict
  * mode) instead of silent corruption of all subsequent requests.
  */
-export function deepFreeze<T>(value: T): T {
+export function deepFreeze<T>(value: T): Readonly<T> {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
     Object.freeze(value)
     for (const key of Object.keys(value)) {

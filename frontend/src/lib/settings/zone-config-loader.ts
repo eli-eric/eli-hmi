@@ -9,10 +9,11 @@
  *   <CONFIG_DIR>/modules/...              ← module config files, referenced
  *                                            from zone files by relative path
  *
- * Reads are synchronous (middleware + zone-service call sites are sync) and
- * cached per zone code for the process lifetime: container restart = config
- * reload. Failures are cached too, so a broken file doesn't re-parse and
- * re-log on every request.
+ * Reads are synchronous (middleware + zone-service call sites are sync) and,
+ * in production, cached per zone code for the process lifetime: container
+ * restart = config reload. Failures are cached too, so a broken file doesn't
+ * re-parse on every request. In development nothing is cached — edits to a
+ * config being authored take effect on the next request.
  *
  * NOT marked `server-only` because `middleware.ts` imports the call chain;
  * it still must never be imported from client components (it uses `node:fs`).
@@ -69,9 +70,10 @@ function zoneFilePath(configDir: string, zoneCode: string): string {
 }
 
 /**
- * Load + validate the zone file for `zoneCode`. Cached (success and failure)
- * for the process lifetime. Throws `ZoneConfigError` with an operator-readable
- * message on a bad code, missing file, malformed YAML, or schema violation.
+ * Load + validate the zone file for `zoneCode`. In production, cached
+ * (success and failure) for the process lifetime; uncached in development.
+ * Throws `ZoneConfigError` with an operator-readable message on a bad code,
+ * missing file, malformed YAML, or schema violation.
  */
 export function loadZoneFile(zoneCode: string): ZoneFile {
   const configDir = getConfigDir()
@@ -84,7 +86,13 @@ export function loadZoneFile(zoneCode: string): ZoneFile {
   }
 
   const entry = readZoneFile(configDir, zoneCode)
-  zoneCache.set(key, entry)
+  // Cache only in production ("restart = reload" is a deployment semantic).
+  // In development the config is being actively authored — an edited file
+  // (broken or fixed) must be picked up on the next request without
+  // restarting `next dev`.
+  if (process.env.NODE_ENV === 'production') {
+    zoneCache.set(key, entry)
+  }
   if (entry.ok) return entry.zone
   throw entry.error
 }

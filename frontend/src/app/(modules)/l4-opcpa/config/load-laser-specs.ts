@@ -20,20 +20,21 @@ import { parseLaserSpecs, type LaserSpec } from './schema'
  * is caught loudly at container start by `instrumentation.ts`), not a build
  * failure.
  *
- * Parses are cached per (zone, path) for the process lifetime — container
- * restart = config reload, same policy as the zone loader.
+ * In production, parses are cached per (configDir, zone, path) for the
+ * process lifetime — container restart = config reload; uncached in
+ * development, same policy as the zone loader.
  *
  * The actual parse/validation lives in `schema.ts` (no `server-only`), so it
  * stays unit-testable from a plain string.
  */
-const specsCache = new Map<string, LaserSpec[]>()
+const specsCache = new Map<string, readonly LaserSpec[]>()
 
 /** Tests only. */
 export function clearLaserSpecsCache(): void {
   specsCache.clear()
 }
 
-export function loadLaserSpecs(): LaserSpec[] {
+export function loadLaserSpecs(): readonly LaserSpec[] {
   const zoneCode = getCurrentZoneCode()
   if (!zoneCode) {
     throw new ZoneConfigError(
@@ -56,6 +57,10 @@ export function loadLaserSpecs(): LaserSpec[] {
   if (cached) return cached
 
   const specs = deepFreeze(parseLaserSpecs(readModuleConfigText(ref.config)))
-  specsCache.set(key, specs)
+  // Production only, same policy as the zone cache: dev edits reload per
+  // request, deployments reload on container restart.
+  if (process.env.NODE_ENV === 'production') {
+    specsCache.set(key, specs)
+  }
   return specs
 }

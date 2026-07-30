@@ -110,6 +110,38 @@ allowedRoutes:
     expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(/route/)
   })
 
+  it('rejects "/" as the home route (would redirect to itself)', () => {
+    const text = `
+schemaVersion: ${ZONE_SCHEMA_VERSION}
+navigationItems: []
+allowedRoutes:
+  - /
+  - /l4-opcpa
+modules:
+  l4-opcpa:
+    config: modules/l4-opcpa/lasers.yaml
+`
+    expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
+      /cannot be the home route/,
+    )
+  })
+
+  it('accepts "/" as a non-home allowed route', () => {
+    const text = `
+schemaVersion: ${ZONE_SCHEMA_VERSION}
+navigationItems: []
+allowedRoutes:
+  - /l4-opcpa
+  - /
+modules:
+  l4-opcpa:
+    config: modules/l4-opcpa/lasers.yaml
+`
+    expect(parseZoneFile(text, 'zones/test.yaml').allowedRoutes[0]).toBe(
+      '/l4-opcpa',
+    )
+  })
+
   it('rejects trailing slashes and empty segments (middleware matches exactly)', () => {
     for (const bad of ['/l4-opcpa/', '/a//b', '//']) {
       const text = VALID.replace('href: /l4-opcpa', `href: ${bad}`).replace(

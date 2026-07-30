@@ -57,11 +57,13 @@ describe('zone-config-loader', () => {
       expect(() => loadZoneFile('broken')).toThrow(/broken\.yaml is invalid/)
     })
 
-    it('caches successes (same object back)', () => {
+    it('production: caches successes (same object back)', () => {
+      vi.stubEnv('NODE_ENV', 'production')
       expect(loadZoneFile('test')).toBe(loadZoneFile('test'))
     })
 
-    it('caches failures (same error back)', () => {
+    it('production: caches failures (same error back)', () => {
+      vi.stubEnv('NODE_ENV', 'production')
       let first: unknown
       let second: unknown
       try {
@@ -78,12 +80,34 @@ describe('zone-config-loader', () => {
       expect(second).toBe(first)
     })
 
-    it('clearZoneCache forces a re-read', () => {
+    it('production: clearZoneCache forces a re-read', () => {
+      vi.stubEnv('NODE_ENV', 'production')
       const before = loadZoneFile('test')
       clearZoneCache()
       const after = loadZoneFile('test')
       expect(after).not.toBe(before)
       expect(after).toEqual(before)
+    })
+
+    it('development: does not cache — a fixed file is picked up without restart', () => {
+      vi.stubEnv('NODE_ENV', 'development')
+      const scratch = mkdtempSync(join(tmpdir(), 'zone-config-'))
+      try {
+        mkdirSync(join(scratch, 'zones'), { recursive: true })
+        const zonePath = join(scratch, 'zones', 'wip.yaml')
+        writeFileSync(zonePath, 'schemaVersion: 1\nnavigationItems: []\n')
+        vi.stubEnv('CONFIG_DIR', scratch)
+
+        expect(() => loadZoneFile('wip')).toThrow(ZoneConfigError)
+
+        writeFileSync(
+          zonePath,
+          'schemaVersion: 1\nnavigationItems: []\nallowedRoutes: []\n',
+        )
+        expect(loadZoneFile('wip').allowedRoutes).toEqual([])
+      } finally {
+        rmSync(scratch, { recursive: true, force: true })
+      }
     })
   })
 

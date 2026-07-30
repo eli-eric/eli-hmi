@@ -86,6 +86,17 @@ export const zoneFileSchema = z
       .describe('Per-module config file references.'),
   })
   .superRefine((zone, ctx) => {
+    // The root page redirects to the home route (= allowedRoutes[0]) — "/"
+    // as home therefore redirects to itself in an infinite loop. Schema-valid,
+    // boots green, unusable; reject here so CI and startup both catch it.
+    if (zone.allowedRoutes[0] === '/') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['allowedRoutes', 0],
+        message: '"/" cannot be the home route — it redirects to itself',
+      })
+    }
+
     const allowed = new Set(zone.allowedRoutes)
     if (allowed.size !== zone.allowedRoutes.length) {
       const seen = new Set<string>()

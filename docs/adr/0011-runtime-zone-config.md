@@ -62,7 +62,17 @@ at runtime**, read via `CONFIG_DIR` + `ZONE_CODE` env:
   surface moves from CI to deploy (crash-looping container). Mitigated by the
   config-repo CI step.
 - Negative: Node-runtime middleware is newer Next territory (stable since
-  15.5) — verify in the standalone image on Next upgrades.
+  15.5) — verify in the standalone image on Next upgrades. Next 16 deprecates
+  `middleware` in favour of `proxy` (Node-runtime by default); migrating would
+  delete the `runtime: 'nodejs'` workaround — tracked as a follow-up.
+- Note: the fs/exit work of the startup check lives in `instrumentation-node.ts`,
+  dynamically imported behind the `NEXT_RUNTIME` guard, so the edge compilation
+  of `instrumentation.ts` emits no "Node.js API not supported in Edge Runtime"
+  build warnings. If such warnings reappear after a Next upgrade, check that
+  the guard still dead-code-eliminates for the edge bundle.
+- Note: `/api/runtime-config` is deliberately unauthenticated and now returns
+  the zone's nav items + home route pre-auth (rationale in the route file);
+  flagged for a security-posture review rather than silently accepted.
 - Open: migrating the remaining modules' hardcoded TS configs; final zone
   naming at cutover (`test` vs `TESTZ`); creating the actual standalone config
   repo (copy-out procedure in `eli-hmi-config/README.md`).
