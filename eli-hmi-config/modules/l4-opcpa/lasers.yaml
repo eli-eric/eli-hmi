@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=./lasers.schema.json
+# yaml-language-server: $schema=../../schemas/l4-opcpa-lasers.schema.json
 #
 # L4 OPCPA per-laser config — the FRONTEND source of truth.
 # Every value is the FULL PV name for that signal, exactly as the controls team

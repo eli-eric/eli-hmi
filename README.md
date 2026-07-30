@@ -8,6 +8,9 @@ Application for **control system operators** and **control system engineers** at
 frontend/                            Next.js 15 / React 19 / TS app (port 8082)
 backend/mockup-websocket-server/     Go simulator (Echo + Gorilla); port 8080
 backend/python-websocket-server/     FastAPI + aioca gateway to a real EPICS network
+eli-hmi-config/                      Zone-config template + dev default (CSI-861) — per-zone
+                                     navigation/routes/PV config, mounted at runtime in deployments;
+                                     ready to copy out as the controls-team config repo
 ```
 
 The two backends speak the **same WebSocket protocol** (`/ws/pvs`); the frontend doesn't know which is on the other end.
@@ -17,6 +20,8 @@ The two backends speak the **same WebSocket protocol** (`/ws/pvs`); the frontend
 Next.js 15, App Router, TypeScript, CSS Modules. Operator pages are composed from a per-module **config object** (`src/lib/modules/<m>.config.ts`) that drives a shared `<ModuleControlPage>` shell. WebSocket data flows through a single hook `useWebSocketData(pv | { pvs })` that buries the dev-vs-prod PV-name prefix.
 
 See [frontend/README.md](frontend/README.md) for setup, environment variables, the WebSocket pub/sub protocol, and how to add a new control module.
+
+**Zone configuration:** which pages a deployment shows (top navigation, allowed routes) and every PV name the modules display come from a per-zone YAML config read **at runtime** from a mounted directory (`CONFIG_DIR` + `ZONE_CODE`), not from the build — one image serves every zone; config change = config commit + container restart. [`eli-hmi-config/`](eli-hmi-config/README.md) is the documented template (and dev default), designed to be copied out as a standalone controls-team git repo. See [ADR-0011](docs/adr/0011-runtime-zone-config.md).
 
 ## Backend
 

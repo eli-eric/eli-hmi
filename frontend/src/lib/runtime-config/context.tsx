@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 
 import { buildApiUrl, buildWsUrl } from '@/types/constants'
+import type { NavigationItem } from '@/lib/settings/navigation'
 import { loadRuntimeConfig } from './client'
 
 type RuntimeConfigStatus = 'loading' | 'ready' | 'error'
@@ -12,6 +13,10 @@ interface RuntimeConfigContextValue {
   apiUrl: string
   wsUrl: string
   zoneCode?: string
+  /** Zone nav items; empty until status === 'ready'. */
+  navigationItems: NavigationItem[]
+  /** Zone home route; null until status === 'ready'. */
+  homeRoute: string | null
 }
 
 const RuntimeConfigContext = createContext<RuntimeConfigContextValue | null>(
@@ -27,6 +32,8 @@ export function RuntimeConfigProvider({
     status: 'loading',
     apiUrl: buildApiUrl(null, null),
     wsUrl: buildWsUrl(null, null),
+    navigationItems: [],
+    homeRoute: null,
   })
 
   useEffect(() => {
@@ -39,6 +46,8 @@ export function RuntimeConfigProvider({
           apiUrl: buildApiUrl(config.apiUrl, config.apiScheme),
           wsUrl: buildWsUrl(config.apiUrl, config.apiScheme),
           zoneCode: config.zoneCode ?? undefined,
+          navigationItems: config.navigationItems ?? [],
+          homeRoute: config.homeRoute ?? null,
         })
       })
       .catch(() => {

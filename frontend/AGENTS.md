@@ -4,7 +4,7 @@
 
 - Next.js app centered in `src/app` (routes, providers).
 - `src/lib/websocket/` — WebSocket layer: connection hook, data hook, provider, types, `PVDisplay`, `debug` helper.
-- `src/lib/settings/` — zone-config + helpers (`getDefaultRoute`, `isRouteAllowed`).
+- `src/lib/settings/` — zone schema + runtime config loader + helpers (`getDefaultRoute`, `isRouteAllowed`).
 - `src/lib/modules/` — typed `ModuleConfig` + per-module configs that drive the shared `<ModuleControlPage>`.
 - `src/components/hmi/` — reusable HMI compound components (`VolumePanel`, `ConnectorLine`, `StatusBar`).
 - `src/components/ui/` — generic primitives (buttons, dropdown, tooltip, icons, heading).
@@ -41,17 +41,15 @@
 - Use theme tokens from `src/app/globals.css` (`--color-*`, `--shadow-*`); avoid inline hex.
 - WebSocket data: always go through `useWebSocketData` — never call `getPrefixedPV` at a read-side call site.
 
-## Zones
+## Zones (CSI-861)
 
-`ZONE_CODE` selects a zone at **runtime** from `src/lib/settings/zone-config.ts` (a plain server env var, no `NEXT_PUBLIC_` prefix, supplied by docker-compose). The middleware blocks routes not in `allowedRoutes`, reading `ZONE_CODE` live per request; the nav bar (client-side) sources it from `/api/runtime-config` via `useRuntimeConfig()`. Adding a page = adding both the file *and* a route entry.
+`ZONE_CODE` selects a zone file `zones/<ZONE_CODE>.yaml` at **runtime** from the config directory (`CONFIG_DIR` env; dev fallback `../eli-hmi-config` — the in-repo template, see its README for the format). No zone list in code — a zone exists iff its file does. The middleware (Node runtime) blocks routes not in the zone's `allowedRoutes`; the nav bar (client-side) sources `navigationItems`/`homeRoute` from `/api/runtime-config` via `useRuntimeConfig()`. Adding a page = adding both the file *and* an `allowedRoutes` entry in the zone file(s).
 
-### Production zone override
+Config is validated at server start (`src/instrumentation.ts`; prod exits non-zero on broken config) and by `npm run validate:config -- --dir <path> --all`. Schemas regenerate with `npm run gen:schema` (drift-tested). See `docs/adr/0011-runtime-zone-config.md`.
 
-The shipped `production` zone is **intentionally empty** (no routes allowed). A real production deployment needs one of:
+### Production deployment
 
-1. **Per-deployment compose env (recommended)** — set `ZONE_CODE=<deployment-zone>` in that deployment's `docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml`). Add a new entry in `zone-config.ts` for each physical site (e.g. `e3`, `l3bt-hall`, `p3-hall`) with the routes that site is allowed to operate. No rebuild required — CI ships one global image, per-zone config lives entirely in each zone's compose file.
-
-2. **Override the empty `production` entry** — only for one-off deployments that should not introduce a new zone code. Patch `zone-config.ts` in a fork or at deploy time.
+Set `ZONE_CODE=<site>` + mount the config repo clone at `CONFIG_DIR` in that site's `docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml`); add `zones/<site>.yaml` to the config repo. No rebuild required — CI ships one global image.
 
 ## Commit & Pull Request Guidelines
 

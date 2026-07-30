@@ -1,0 +1,17 @@
+# Example CI job for the standalone config repo: validate every zone against
+# the app's real zod schemas on each push. Copy into the config repo and adapt
+# (shown for GitLab CI; the steps translate 1:1 to GitHub Actions).
+#
+# APP_REPO_REF pins the app version this config targets — bump it together
+# with schemaVersion changes (config + app image deploy together).
+
+validate-config:
+  image: node:22
+  variables:
+    APP_REPO: 'https://gitlab.example.com/lcs/eli-hmi.git'
+    APP_REPO_REF: 'main' # ← pin to a tag/release matching the deployed image
+  script:
+    - git clone --depth 1 --branch "$APP_REPO_REF" "$APP_REPO" /tmp/eli-hmi
+    - cd /tmp/eli-hmi/frontend
+    - npm ci
+    - npm run validate:config -- --dir "$CI_PROJECT_DIR" --all

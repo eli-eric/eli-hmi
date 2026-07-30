@@ -1,7 +1,12 @@
 /**
- * Pure builder for `lasers.schema.json` — no side effects, so the drift test
- * can import `buildSchema` without triggering a file write. The actual write
- * lives in `gen-laser-schema.ts` (run via `npm run gen:schema`).
+ * Pure builder for `l4-opcpa-lasers.schema.json` — no side effects, so the
+ * drift test can import `buildSchema` without triggering a file write. The
+ * actual write lives in `gen-schemas.ts` (run via `npm run gen:schema`).
+ *
+ * Output lands in the repo-root `eli-hmi-config/schemas/` — the config
+ * template dir that the controls team copies out as their own repo — so the
+ * `# yaml-language-server` lines in the template YAMLs resolve both here and
+ * in the copied repo.
  */
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,7 +17,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 
 export const SCHEMA_PATH = join(
   HERE,
-  '../src/app/(modules)/l4-opcpa/config/lasers.schema.json',
+  '../../eli-hmi-config/schemas/l4-opcpa-lasers.schema.json',
 )
 
 export function buildSchema(): string {

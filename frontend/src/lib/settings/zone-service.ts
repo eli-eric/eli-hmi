@@ -1,6 +1,19 @@
 import { NavigationItem } from './navigation'
-import { getConfigForZone } from './zone-config'
-import { ZoneConfig } from './zone-config.types'
+import { loadZoneFile, ZoneConfigError } from './zone-config-loader'
+import { EMPTY_ZONE_CONFIG, ZoneConfig } from './zone-config.types'
+
+/**
+ * Server-side zone resolution, backed by the runtime config directory
+ * (`zone-config-loader.ts`) instead of a hardcoded zone map. The public API is
+ * unchanged and synchronous, so middleware and server components keep working
+ * as before.
+ *
+ * Failure policy: an unset/unknown ZONE_CODE or a broken zone file degrades to
+ * `EMPTY_ZONE_CONFIG` here (UI falls back to /no-access, exactly like an
+ * unconfigured zone always has). Hard fail-fast on truly broken config is the
+ * job of the startup check in `instrumentation.ts`; per-request code must not
+ * crash the whole app for it. Errors are logged once per zone code.
+ */
 
 /**
  * Get the current zone code from the live server environment.
@@ -9,22 +22,42 @@ import { ZoneConfig } from './zone-config.types'
  * inline it at build time — this reads fresh from the container's env on
  * every middleware/server-component invocation. Client components have no
  * access to this at all and must instead source the zone code from
- * `useRuntimeConfig()` and pass it explicitly to the helpers below.
+ * `useRuntimeConfig()`-derived data (see /api/runtime-config).
  * @returns The zone code or undefined if not set
  */
 export function getCurrentZoneCode(): string | undefined {
   return process.env.ZONE_CODE
 }
 
+const loggedZones = new Set<string>()
+
 /**
  * Get the configuration for the current zone
- * Returns empty config if zone is not configured
+ * Returns empty config if the zone is not set, has no zone file, or its file
+ * fails validation (logged once; startup check reports it loudly).
  * @param zoneCode - Optional zone code, defaults to current zone
  * @returns Zone configuration
  */
 export function getZoneConfig(zoneCode?: string): ZoneConfig {
   const zone = zoneCode ?? getCurrentZoneCode()
-  return getConfigForZone(zone)
+  if (!zone) {
+    return EMPTY_ZONE_CONFIG
+  }
+
+  try {
+    const file = loadZoneFile(zone)
+    return {
+      navigationItems: file.navigationItems,
+      allowedRoutes: file.allowedRoutes,
+    }
+  } catch (e) {
+    if (!loggedZones.has(zone)) {
+      loggedZones.add(zone)
+      const detail = e instanceof ZoneConfigError ? e.message : String(e)
+      console.error(`[zone-service] falling back to empty zone: ${detail}`)
+    }
+    return EMPTY_ZONE_CONFIG
+  }
 }
 
 /**

@@ -8,9 +8,14 @@ vi.mock('next-auth/jwt', () => ({
   getToken,
 }))
 
+import { join } from 'node:path'
+
 import { NextRequest } from 'next/server'
 
 import { middleware } from './middleware'
+import { clearZoneCache } from './lib/settings/zone-config-loader'
+
+const FIXTURE_DIR = join(__dirname, 'lib', 'settings', '__fixtures__', 'config-dir')
 
 function makeRequest(pathname: string): NextRequest {
   const url = `http://localhost:8082${pathname}`
@@ -19,11 +24,14 @@ function makeRequest(pathname: string): NextRequest {
 
 describe('middleware', () => {
   beforeEach(() => {
+    vi.stubEnv('CONFIG_DIR', FIXTURE_DIR)
     vi.stubEnv('ZONE_CODE', 'test')
+    clearZoneCache()
     getToken.mockResolvedValue(null)
   })
   afterEach(() => {
     vi.unstubAllEnvs()
+    clearZoneCache()
   })
 
   it('redirects unauthenticated users to /auth/signin', async () => {

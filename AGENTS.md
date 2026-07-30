@@ -60,19 +60,19 @@ The hook **buries** the dev-vs-prod PV-name prefix (`getPrefixedPV` in `src/lib/
 
 Wire protocol: client sends `{ type: 'subscribe', pvs: { NAME: true, ... } }`; server pushes `{ type: 'pv', name, value, severity, units, timestamp, ok }`. Mock server infers value type from PV prefix (`AI_*` float, `BI_*` bool, `SI_*` string).
 
-### Zones (runtime access control)
+### Zones (runtime access control, CSI-861)
 
-Runtime env var `ZONE_CODE` (no `NEXT_PUBLIC_` prefix — supplied by each deployment's `docker-compose.yml`) selects a zone from `frontend/src/lib/settings/zone-config.ts`. Each zone declares `navigationItems` and `allowedRoutes`. The middleware (`src/middleware.ts`) enforces this on every request by reading `ZONE_CODE` live — unauthorized routes redirect to `/no-access`. The nav bar (client-side) sources the same value from `/api/runtime-config` via `useRuntimeConfig()`. **To add a page, register its route in the zone config or it will 403 even if the file exists.**
+Runtime env vars `ZONE_CODE` + `CONFIG_DIR` (no `NEXT_PUBLIC_` prefix — supplied by each deployment's `docker-compose.yml`) select a zone file `zones/<ZONE_CODE>.yaml` from the mounted zone-config directory (in-repo template + dev default: `eli-hmi-config/`, see its README). A zone file declares `navigationItems`, `allowedRoutes`, and per-module config refs (`modules.<name>.config`). There is no zone list in the code — a zone exists iff its file does. The middleware (`src/middleware.ts`, Node runtime) enforces routes on every request; the nav bar (client-side) gets `navigationItems`/`homeRoute` from `/api/runtime-config` via `useRuntimeConfig()`. **To add a page, allow its route in the zone file(s) or it will redirect to /no-access even if the file exists.**
 
-`production` zone is intentionally empty (no routes allowed) — production deployments override the config or set a different zone code in that deployment's compose file. See `frontend/AGENTS.md` for the override mechanism.
+Config is validated at container start (`src/instrumentation.ts`): broken/missing config exits non-zero in production (visible crash-loop), warns in dev. Pre-deploy check: `npm run validate:config -- --dir <config-dir> --all`. See ADR-0011.
 
-CI builds one global frontend image; `ZONE_CODE`/`API_URL` are never baked in, so switching zones is a compose restart, not a rebuild.
+CI builds one global frontend image; `ZONE_CODE`/`API_URL`/`CONFIG_DIR` are never baked in, so switching zones (or changing config) is a compose restart, not a rebuild.
 
 ### Module pages
 
 Three control pages (`l3bt-controls`, `l4fbt-controls`, `p3-controls`) all use a single `<ModuleControlPage config={...} bottomRow={...} />` (`src/components/module-page/module-control-page.tsx`). The `config` is a typed `ModuleConfig` (`src/lib/modules/types.ts`) carried in `src/lib/modules/<m>.config.ts`. The `bottomRow` slot is bespoke per-module JSX — volumes and connectors with site-specific PV wiring stay in `src/app/(modules)/<m>-controls/parts/`.
 
-To add a new module: write a new `<m>.config.ts`, add a new page under `src/app/(modules)/<m>-controls/page.tsx` rendering `<ModuleControlPage>`, register the route in `zone-config.ts`. See `frontend/src/lib/modules/README.md`.
+To add a new module: write a new `<m>.config.ts`, add a new page under `src/app/(modules)/<m>-controls/page.tsx` rendering `<ModuleControlPage>`, allow the route in the relevant zone file(s) (`eli-hmi-config/zones/*.yaml`). See `frontend/src/lib/modules/README.md`.
 
 ### Compound HMI components
 

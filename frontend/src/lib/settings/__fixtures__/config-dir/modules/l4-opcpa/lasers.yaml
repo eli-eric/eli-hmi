@@ -1,0 +1,20 @@
+lasers:
+  - id: TST
+    pvs:
+      connection: BI_TST_CONN
+      fullPower: BI_TST_FULLP
+      shutter: BI_TST_SHUTTER
+      phdMean: AI_TST_PHD_MEAN
+      regenState: BI_TST_REGEN_STATE
+      regenTemp: AI_TST_REGEN_TEMP
+      phd2Mean: AI_TST_PHD2_MEAN
+      attenuator: AI_TST_ATT
+      loadedWaveform: SI_TST_LOADED_WAVEFORM
+    triggerDelay: [AI_TST_TRIG_DELAY_CH1]
+    mss: []
+    moduleErrors: []
+    chillers: []
+    flashlamps: []
+    modbox: []
+    delayPresets: [50]
+    commands: [START_LASER]

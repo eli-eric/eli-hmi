@@ -56,8 +56,11 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-// Configure middleware to run on specific paths
+// Configure middleware to run on specific paths.
+// runtime: 'nodejs' (Next ≥15.5) because zone-service now fs-reads the mounted
+// zone config dir — the default edge runtime has no `node:fs`.
 export const config = {
+  runtime: 'nodejs',
   matcher: [
     '/((?!api|_next/static|_next/image|favicon|.*\\.ico$|.*\\.(?:jpg|jpeg|gif|png|svg)$).*)',
   ],

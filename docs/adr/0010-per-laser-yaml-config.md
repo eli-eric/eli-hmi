@@ -1,6 +1,6 @@
 # ADR-0010: Per-laser L4 OPCPA config as full PV names in YAML (zod-validated)
 
-**Status:** Accepted
+**Status:** Accepted; loading mechanism superseded by [ADR-0011](0011-runtime-zone-config.md) (YAML/zod format stands; the file now lives in the zone-config dir and is read at runtime, not at build)
 **Date:** 2026-05-25
 **Deciders:** ELI-HMI team (L4 OPCPA workstream)
 **Supersedes:** [ADR-0008](0008-laser-specs-location.md); supersedes the read-PV registry of [ADR-0006](0006-pv-name-registry-l4-opcpa.md) (command PVs excepted)
