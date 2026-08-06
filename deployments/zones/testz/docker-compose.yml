@@ -27,7 +27,7 @@ services:
       NEXTAUTH_URL: http://testz-deploy20:8082/api/auth
       # API_URL/ZONE_CODE are read live at container start (via
       # /api/runtime-config for the client, process.env directly for
-      # middleware) — the image is the same global build for every zone.
+      # Proxy) — the image is the same global build for every zone.
       API_URL: testz-deploy20:8080
       ZONE_CODE: test
       # Zone + module config (CSI-861) is read at runtime from this mounted

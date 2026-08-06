@@ -126,6 +126,18 @@ modules:
     )
   })
 
+  it('rejects "/auth/signin" as the home route (would redirect to itself)', () => {
+    const text = `
+schemaVersion: ${ZONE_SCHEMA_VERSION}
+navigationItems: []
+allowedRoutes:
+  - /auth/signin
+`
+    expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
+      /cannot be the home route/,
+    )
+  })
+
   it('accepts "/" as a non-home allowed route', () => {
     const text = `
 schemaVersion: ${ZONE_SCHEMA_VERSION}
@@ -142,13 +154,26 @@ modules:
     )
   })
 
-  it('rejects trailing slashes and empty segments (middleware matches exactly)', () => {
+  it('rejects trailing slashes and empty segments (Proxy matches exactly)', () => {
     for (const bad of ['/l4-opcpa/', '/a//b', '//']) {
       const text = VALID.replace('href: /l4-opcpa', `href: ${bad}`).replace(
         '- /l4-opcpa',
         `- ${bad}`,
       )
       expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(/route/)
+    }
+  })
+
+  it('rejects absolute and parent-traversing module config references', () => {
+    for (const bad of [
+      '/etc/passwd',
+      '../secrets.yaml',
+      'modules/../secrets.yaml',
+    ]) {
+      const text = VALID.replace('modules/l4-opcpa/lasers.yaml', bad)
+      expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
+        /module config reference/,
+      )
     }
   })
 

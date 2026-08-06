@@ -36,7 +36,7 @@ Principles drawn from the same source:
 | **`AI_*` / `BI_*` / `SI_*`** | Mock-backend PV-name prefixes that disambiguate value type: Analog Input (float), Binary Input (bool), String Input. | Encoded in the mock module's implementation. The real EPICS network does not use these prefixes. |
 | **`CMD_*` / `PV_*`** | Command and writable-PV prefixes used by the L4 OPCPA registry. | [pv-naming](reference/pv-naming.md). |
 | **Dev-prefix** | A per-environment prefix (`DEV:`, `STAGE:`, …) prepended to logical PV names at subscribe-time by `getPrefixedPV`. | [pv-naming](reference/pv-naming.md). |
-| **Zone** | A build-time deployment profile that declares which routes are reachable. | The middleware module enforces this — [frontend/zones](frontend/zones.md). |
+| **Zone** | A runtime deployment profile: `ZONE_CODE` selects a YAML file under `CONFIG_DIR` that declares navigation, reachable routes, and supported module config references. | The Next.js Proxy enforces route access — [frontend/zones](frontend/zones.md). |
 | **MSS** | Machine Safety System — the interlock layer that prevents unsafe states. | Surfaced via PVs; the frontend renders state but does not implement it. |
 | **Regen** | Regenerative amplifier in the L4 OPCPA laser chain. | One of the five [LaserPanel](frontend/l4-opcpa.md) sections. |
 | **Flashlamp** | Pump-light source for laser amplifiers; arranged in channels with timing and energy controls. | Section of the LaserPanel. |
@@ -53,5 +53,5 @@ Principles drawn from the same source:
 | PV (write path) | `POST /pv/<NAME>` seam → `fetch` adapter |
 | Severity, units, timestamp | WS frame interface |
 | Dev-prefix | Module-internal: `getPrefixedPV` in the frontend WS client implementation |
-| Zone | Module-internal seam: middleware adapter over zone-config interface |
+| Zone | Module-internal seam: Next.js Proxy adapter over the runtime zone-config interface |
 | Regen / Flashlamp / Modbox | Implementation detail of the LaserPanel module (compound component) |

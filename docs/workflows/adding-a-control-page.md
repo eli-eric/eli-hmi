@@ -66,28 +66,28 @@ Anything not data-only (volumes with mixed compound children, connectors with cr
 
 ### 4. Register the route in a zone
 
-`frontend/src/lib/settings/zone-config.ts`:
+In every config directory that should expose it, edit `zones/<ZONE_CODE>.yaml`:
 
-```ts
-test: {
-  navigationItems: [
-    /* existing … */
-    { text: 'My Module', href: '/<m>-controls' },
-  ],
-  allowedRoutes: [
-    /* existing … */
-    '/<m>-controls',
-  ],
-}
+```yaml
+navigationItems:
+  # existing …
+  - text: My Module
+    href: /<m>-controls
+allowedRoutes:
+  # existing …
+  - /<m>-controls
 ```
 
-Skip this and the middleware redirects to `/no-access` even though the file exists.
+Skip this and Next.js Proxy redirects to `/no-access` even though the page exists. `CONFIG_DIR` selects the config directory and `ZONE_CODE` selects its zone file at runtime; deployments mount the directory read-only at `/app/zone-config`.
+
+The new `ModuleConfig` and bespoke `parts/` are still app code. Runtime module YAML currently supports only L4 OPCPA, so do not add an invented `modules.<m>` key; the strict zone schema rejects unknown module keys.
 
 ### 5. Test it
 
 ```bash
 npm test                # vitest watch
 npm run dev             # localhost:8082
+npm run validate:config -- --dir ../eli-hmi-config --all
 ```
 
 Hit the new page; subscribe traffic should appear in the network panel.

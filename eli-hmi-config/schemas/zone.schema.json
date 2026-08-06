@@ -51,6 +51,7 @@
             "config": {
               "type": "string",
               "minLength": 1,
+              "pattern": "^(?!\\/)(?!.*(?:^|\\/)\\.\\.(?:\\/|$)).+$",
               "description": "Path to this module's config file, relative to the config dir root, e.g. modules/l4-opcpa/lasers.yaml."
             }
           },

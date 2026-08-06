@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -29,7 +35,7 @@ describe('zone-config-loader', () => {
     })
 
     it('falls back to the in-repo template when unset', () => {
-      vi.stubEnv('CONFIG_DIR', undefined as unknown as string)
+      vi.stubEnv('CONFIG_DIR', undefined)
       expect(getConfigDir()).toBe(join(process.cwd(), '..', 'eli-hmi-config'))
     })
   })

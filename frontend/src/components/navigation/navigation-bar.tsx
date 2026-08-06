@@ -26,7 +26,7 @@ export default function NavigationBar() {
   // server-side (client components cannot fs-read the config dir). They are
   // empty/null until the fetch resolves shortly after first paint — the
   // shell renders immediately and nav items pop in. Purely cosmetic: the
-  // actual route gate is enforced server-side in middleware.ts.
+  // actual route gate is enforced server-side in proxy.ts.
   const { navigationItems, homeRoute } = useRuntimeConfig()
   const handleSignOut = () => signOut({ callbackUrl: '/auth/signin' })
 

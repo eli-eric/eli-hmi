@@ -9,13 +9,13 @@
  *   <CONFIG_DIR>/modules/...              ← module config files, referenced
  *                                            from zone files by relative path
  *
- * Reads are synchronous (middleware + zone-service call sites are sync) and,
+ * Reads are synchronous (Proxy + zone-service call sites are sync) and,
  * in production, cached per zone code for the process lifetime: container
  * restart = config reload. Failures are cached too, so a broken file doesn't
  * re-parse on every request. In development nothing is cached — edits to a
  * config being authored take effect on the next request.
  *
- * NOT marked `server-only` because `middleware.ts` imports the call chain;
+ * NOT marked `server-only` because `proxy.ts` imports the call chain;
  * it still must never be imported from client components (it uses `node:fs`).
  */
 
@@ -39,7 +39,11 @@ export class ZoneConfigError extends Error {
  * not baked into the image, so a missing mount fails fast instead of silently
  * serving dev config.
  */
-const DEFAULT_CONFIG_DIR = join(process.cwd(), '..', 'eli-hmi-config')
+const DEFAULT_CONFIG_DIR = join(
+  /* turbopackIgnore: true */ process.cwd(),
+  '..',
+  'eli-hmi-config',
+)
 
 export function getConfigDir(): string {
   return process.env.CONFIG_DIR ?? DEFAULT_CONFIG_DIR
@@ -53,8 +57,7 @@ export function getConfigDir(): string {
 export const ZONE_CODE_RE = /^[A-Za-z0-9_-]+$/
 
 type CacheEntry =
-  | { ok: true; zone: ZoneFile }
-  | { ok: false; error: ZoneConfigError }
+  { ok: true; zone: ZoneFile } | { ok: false; error: ZoneConfigError }
 
 // Keyed by `${configDir}\0${zoneCode}` so tests stubbing CONFIG_DIR don't
 // bleed into each other; in production the dir never changes.
@@ -66,7 +69,11 @@ export function clearZoneCache(): void {
 }
 
 function zoneFilePath(configDir: string, zoneCode: string): string {
-  return join(configDir, 'zones', `${zoneCode}.yaml`)
+  return join(
+    /* turbopackIgnore: true */ configDir,
+    'zones',
+    `${zoneCode}.yaml`,
+  )
 }
 
 /**
@@ -108,7 +115,7 @@ function readZoneFile(configDir: string, zoneCode: string): CacheEntry {
   }
 
   const path = zoneFilePath(configDir, zoneCode)
-  if (!existsSync(path)) {
+  if (!existsSync(/* turbopackIgnore: true */ path)) {
     return {
       ok: false,
       error: new ZoneConfigError(
@@ -118,7 +125,10 @@ function readZoneFile(configDir: string, zoneCode: string): CacheEntry {
   }
 
   try {
-    const zone = parseZoneFile(readFileSync(path, 'utf8'), `zones/${zoneCode}.yaml`)
+    const zone = parseZoneFile(
+      readFileSync(/* turbopackIgnore: true */ path, 'utf8'),
+      `zones/${zoneCode}.yaml`,
+    )
     return { ok: true, zone }
   } catch (e) {
     return {
@@ -135,7 +145,7 @@ function readZoneFile(configDir: string, zoneCode: string): CacheEntry {
  * `ZoneConfigError` when missing.
  */
 export function readModuleConfigText(relPath: string): string {
-  const configDir = resolve(getConfigDir())
+  const configDir = resolve(/* turbopackIgnore: true */ getConfigDir())
 
   if (isAbsolute(relPath)) {
     throw new ZoneConfigError(
@@ -143,14 +153,14 @@ export function readModuleConfigText(relPath: string): string {
     )
   }
 
-  const full = resolve(configDir, relPath)
+  const full = resolve(/* turbopackIgnore: true */ configDir, relPath)
   if (full !== configDir && !full.startsWith(configDir + sep)) {
     throw new ZoneConfigError(
       `module config reference escapes the config dir: ${relPath}`,
     )
   }
 
-  if (!existsSync(full)) {
+  if (!existsSync(/* turbopackIgnore: true */ full)) {
     throw new ZoneConfigError(
       `module config not found: ${full} (referenced as ${relPath})`,
     )
@@ -160,13 +170,13 @@ export function readModuleConfigText(relPath: string): string {
   // symlink inside the config dir can still point outside it. The config dir
   // itself may legitimately be reached via a symlink (e.g. a mount alias), so
   // both sides are realpath'd before comparing.
-  const realDir = realpathSync(configDir)
-  const realFull = realpathSync(full)
+  const realDir = realpathSync(/* turbopackIgnore: true */ configDir)
+  const realFull = realpathSync(/* turbopackIgnore: true */ full)
   if (realFull !== realDir && !realFull.startsWith(realDir + sep)) {
     throw new ZoneConfigError(
       `module config reference escapes the config dir via a symlink: ${relPath}`,
     )
   }
 
-  return readFileSync(realFull, 'utf8')
+  return readFileSync(/* turbopackIgnore: true */ realFull, 'utf8')
 }

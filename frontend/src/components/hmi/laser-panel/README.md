@@ -23,12 +23,13 @@ import { LaserPanel } from '@/components/hmi/laser-panel'
 ```
 
 Sections receive **full PV-name strings** as props (resolved from
-`config/lasers.yaml`); `laser` is passed only where command PVs are needed.
+the current zone's `modules.l4-opcpa.config` file); `laser` is passed only where command PVs are needed.
 
 Engineer-author UX: each laser's wiring is one declarative tree in
 `src/app/(modules)/l4-opcpa/components/laser-panel-instance.tsx`, fed by the
-per-laser specs loaded from `config/lasers.yaml` (see that folder's README and
-[ADR-0010](../../../../../docs/adr/0010-per-laser-yaml-config.md)). Sections
+per-laser specs loaded at runtime from the directory selected by `CONFIG_DIR`
+(template: `eli-hmi-config/modules/l4-opcpa/lasers.yaml`; see
+[ADR-0011](../../../../../docs/adr/0011-runtime-zone-config.md)). Sections
 whose device bank is empty are omitted; `commands` (per laser) gates which
 action buttons render.
 
@@ -49,7 +50,7 @@ action buttons render.
 
 ### PV naming
 
-Signal PV names are full strings in `config/lasers.yaml`, passed into these
+Signal PV names are full strings in the zone-referenced mounted YAML, passed into these
 sections as props — never assembled here. Only the command PV is built in code,
 via `pv.cmd` in `src/app/(modules)/l4-opcpa/lib/pv-names.ts`. The test-only mock
 backend (`backend/mockup-websocket-server/l4_opcpa.go`) seeds the names

@@ -37,7 +37,7 @@ export const MODULE_ROUTES = {
 export type ModuleKey = keyof typeof MODULE_ROUTES
 
 // "/" or "/"-separated non-empty segments — no trailing slash, no empty
-// segment. Middleware matches pathnames exactly, so a "/l4-opcpa/" entry
+// segment. Proxy matches pathnames exactly, so a "/l4-opcpa/" entry
 // would validate but never match; reject it here instead.
 const routePath = z
   .string()
@@ -51,14 +51,20 @@ const moduleRef = z.strictObject({
     .string()
     .trim()
     .min(1)
+    .regex(
+      /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$)).+$/,
+      'module config reference must be relative and stay inside the config dir',
+    )
     .describe(
-      'Path to this module\'s config file, relative to the config dir root, e.g. modules/l4-opcpa/lasers.yaml.',
+      "Path to this module's config file, relative to the config dir root, e.g. modules/l4-opcpa/lasers.yaml.",
     ),
 })
 
 const navigationItemSchema = z.strictObject({
   text: z.string().trim().min(1).describe('Label shown in the top navigation.'),
-  href: routePath.describe('Route the item links to; must be in allowedRoutes.'),
+  href: routePath.describe(
+    'Route the item links to; must be in allowedRoutes.',
+  ),
 })
 
 export const zoneFileSchema = z
@@ -86,14 +92,14 @@ export const zoneFileSchema = z
       .describe('Per-module config file references.'),
   })
   .superRefine((zone, ctx) => {
-    // The root page redirects to the home route (= allowedRoutes[0]) — "/"
-    // as home therefore redirects to itself in an infinite loop. Schema-valid,
-    // boots green, unusable; reject here so CI and startup both catch it.
-    if (zone.allowedRoutes[0] === '/') {
+    // The root page and authenticated sign-in page both redirect to the home
+    // route (= allowedRoutes[0]); using either as home creates a redirect loop.
+    const homeRoute = zone.allowedRoutes[0]
+    if (homeRoute === '/' || homeRoute === '/auth/signin') {
       ctx.addIssue({
         code: 'custom',
         path: ['allowedRoutes', 0],
-        message: '"/" cannot be the home route — it redirects to itself',
+        message: `"${homeRoute}" cannot be the home route — it redirects to itself`,
       })
     }
 

@@ -32,7 +32,7 @@ function fail(message: string): void {
  */
 export function validateZoneConfigAtStartup(): void {
   const configDir = getConfigDir()
-  if (!existsSync(configDir)) {
+  if (!existsSync(/* turbopackIgnore: true */ configDir)) {
     return fail(
       `config directory not found: ${configDir} (is the config repo mounted and CONFIG_DIR set?)`,
     )

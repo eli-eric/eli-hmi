@@ -5,23 +5,23 @@ Application for **control system operators** and **control system engineers** at
 ## Project structure
 
 ```
-frontend/                            Next.js 15 / React 19 / TS app (port 8082)
+frontend/                            Next.js 16 / React 19 / TS app (port 8082)
 backend/mockup-websocket-server/     Go simulator (Echo + Gorilla); port 8080
 backend/python-websocket-server/     FastAPI + aioca gateway to a real EPICS network
 eli-hmi-config/                      Zone-config template + dev default (CSI-861) — per-zone
-                                     navigation/routes/PV config, mounted at runtime in deployments;
-                                     ready to copy out as the controls-team config repo
+                                     navigation/routes and L4 OPCPA PV config, mounted at runtime;
+                                     future seed for a controls-team config repo
 ```
 
 The two backends speak the **same WebSocket protocol** (`/ws/pvs`); the frontend doesn't know which is on the other end.
 
 ## Frontend
 
-Next.js 15, App Router, TypeScript, CSS Modules. Operator pages are composed from a per-module **config object** (`src/lib/modules/<m>.config.ts`) that drives a shared `<ModuleControlPage>` shell. WebSocket data flows through a single hook `useWebSocketData(pv | { pvs })` that buries the dev-vs-prod PV-name prefix.
+Next.js 16, App Router, TypeScript, CSS Modules. Operator pages are composed from a per-module **config object** (`src/lib/modules/<m>.config.ts`) that drives a shared `<ModuleControlPage>` shell. WebSocket data flows through a single hook `useWebSocketData(pv | { pvs })` that buries the dev-vs-prod PV-name prefix.
 
 See [frontend/README.md](frontend/README.md) for setup, environment variables, the WebSocket pub/sub protocol, and how to add a new control module.
 
-**Zone configuration:** which pages a deployment shows (top navigation, allowed routes) and every PV name the modules display come from a per-zone YAML config read **at runtime** from a mounted directory (`CONFIG_DIR` + `ZONE_CODE`), not from the build — one image serves every zone; config change = config commit + container restart. [`eli-hmi-config/`](eli-hmi-config/README.md) is the documented template (and dev default), designed to be copied out as a standalone controls-team git repo. See [ADR-0011](docs/adr/0011-runtime-zone-config.md).
+**Zone configuration:** which pages a deployment shows (top navigation and allowed routes) comes from per-zone YAML read **at runtime** from a mounted directory selected by `CONFIG_DIR` + `ZONE_CODE`, not from the build. L4 OPCPA's per-laser topology and signal PV names are runtime YAML too. The p3/l3bt/l4fbt `ModuleConfig` objects and their bespoke volume/connector wiring remain TypeScript/TSX in this app. One image serves every zone; a config change requires a config commit/pull and container restart. [`eli-hmi-config/`](eli-hmi-config/README.md) is the documented template and development default; creating the standalone controls-team repository is still a deployment follow-up. See [ADR-0011](docs/adr/0011-runtime-zone-config.md).
 
 ## Backend
 

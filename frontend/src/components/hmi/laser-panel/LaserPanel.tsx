@@ -17,9 +17,9 @@ interface LaserPanelProps {
  * LaserPanel - compound shell for one laser's column on the L4 OPCPA page.
  *
  * Composed via `laser-panel-instance.tsx`, which unpacks a `LaserSpec` resolved
- * from `config/lasers.yaml`. Sections receive full PV-name strings as props
- * (e.g. `shutterPv`, `chillers`, `flashlamps`); only command PVs are built in
- * code. `laser` is passed only where command PVs are needed.
+ * from the zone-referenced runtime YAML. Sections receive full PV-name strings
+ * as props (e.g. `shutterPv`, `chillers`, `flashlamps`); only command PVs are
+ * built in code. `laser` is passed only where command PVs are needed.
  */
 export const LaserPanel: FC<PropsWithChildren<LaserPanelProps>> & {
   Sequencer: typeof SequencerSection

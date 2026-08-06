@@ -17,6 +17,9 @@ services:
       NEXTAUTH_URL: http://localhost:8082/api/auth
       API_URL: localhost:8080
       ZONE_CODE: test
+      CONFIG_DIR: /app/zone-config
       NODE_ENV: development
+    volumes:
+      - ./eli-hmi-config:/app/zone-config:ro
     ports:
       - "8082:8082"

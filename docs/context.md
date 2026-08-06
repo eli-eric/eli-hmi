@@ -12,7 +12,7 @@ Two backends, one frontend. The frontend is environment-agnostic: `API_URL` (e.g
 
 ## Modules (top-level)
 
-- **frontend** — Next.js 15 App Router. Renders routes selected by a build-time zone.
+- **frontend** — Next.js 16 App Router. Renders routes allowed by runtime-mounted zone config.
 - **mock-backend** — Go service. Fakes PVs from name-prefix conventions. Dev/test only.
 - **python-backend** — FastAPI + aioca. Production adapter onto a real EPICS network.
 
@@ -21,9 +21,9 @@ Two backends, one frontend. The frontend is environment-agnostic: `API_URL` (e.g
 (Architecture vocabulary lives in [glossary](glossary.md). This section lists the *domain* names a future architecture review should use.)
 
 - **PV** — process variable. Atomic read/write unit. Name + value + severity + units + timestamp.
-- **Zone** — build-time deployment profile. Determines which routes a particular operator station can reach.
+- **Zone** — runtime deployment profile selected by `ZONE_CODE`. Its YAML file in `CONFIG_DIR` determines which routes a particular operator station can reach and what appears in navigation.
 - **Module page** — a control page driven by a `ModuleConfig` declarative descriptor (`l3bt-controls`, `l4fbt-controls`, `p3-controls`). One renderer (`ModuleControlPage`), three configs.
-- **L4 OPCPA** — exception to the module-page pattern. Has its own custom shell and a PV-name registry.
+- **L4 OPCPA** — exception to the module-page pattern. Has its own custom shell; its per-laser topology and signal PV names are the only module data currently loaded from runtime YAML.
 - **HMI panel** — a reusable compound component (`VolumePanel`, `ConnectorLine`, `LaserPanel`) that engineers compose into pages.
 - **PV write** — a single `POST /pv/<NAME>` endpoint that both backends honour and that two frontend call sites use.
 
@@ -32,13 +32,14 @@ Two backends, one frontend. The frontend is environment-agnostic: `API_URL` (e.g
 Recorded as ADRs in [`/docs/adr/`](adr/):
 
 - WS pub/sub pattern (single connection, channel registry, replay on reconnect)
-- Zone-based access control (build-time, no runtime switch)
+- Zone-based access control from runtime-mounted YAML (`CONFIG_DIR` + `ZONE_CODE`), enforced by Next.js Proxy
 - Compound components for HMI panels
 - Single PV write endpoint
 - Mock vs Python backend split
 - L4 OPCPA's PV-name registry
 - L4 OPCPA's custom shell (deliberate opt-out from `ModuleControlPage`)
 - Laser specs location
+- Runtime zone and L4 OPCPA config ([ADR-0011](adr/0011-runtime-zone-config.md)); config changes require a container restart, not an app rebuild
 
 The open architectural question — explicitly *not yet* an accepted ADR — is whether the mock and Python WS adapters should converge on one shared protocol contract. See [ADR-0009](adr/0009-shared-ws-protocol-contract.md).
 
@@ -56,3 +57,4 @@ Deepening candidates worth surfacing should typically:
 - Translating Confluence product specs into source files. Confluence stays canonical for product/spec.
 - Generating TS-type docs (TypeDoc et al.). The team prefers hand-written prose.
 - Renaming HMI subcomponents to satisfy uniform-case rules across all directories — [the policy already permits PascalCase for single-component files](../frontend/AGENTS.md) (per commit `e9965be`).
+- Treating p3/l3bt/l4fbt as runtime-YAML modules before they are migrated. Their `ModuleConfig` objects and bespoke `parts/` wiring remain app code today.

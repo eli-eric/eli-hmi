@@ -39,8 +39,8 @@ at runtime**, read via `CONFIG_DIR` + `ZONE_CODE` env:
   DX, and `npm run validate:config -- --dir <path> --all` runs the real
   validation for the config repo's CI.
 - **Loading:** sync `readFileSync` + process-lifetime cache
-  (`zone-config-loader.ts`); container restart = reload. `middleware.ts`
-  switches to `runtime: 'nodejs'` so route gating keeps using the fs-backed
+  (`zone-config-loader.ts`); container restart = reload. Next.js 16
+  `proxy.ts` performs route gating in the Node runtime using the fs-backed
   zone-service. The l4-opcpa page becomes `force-dynamic`; client nav gets
   zone data via `/api/runtime-config` (extended with `navigationItems` +
   `homeRoute`).
@@ -61,10 +61,9 @@ at runtime**, read via `CONFIG_DIR` + `ZONE_CODE` env:
 - Negative: `next build` no longer validates the laser config — the failure
   surface moves from CI to deploy (crash-looping container). Mitigated by the
   config-repo CI step.
-- Negative: Node-runtime middleware is newer Next territory (stable since
-  15.5) — verify in the standalone image on Next upgrades. Next 16 deprecates
-  `middleware` in favour of `proxy` (Node-runtime by default); migrating would
-  delete the `runtime: 'nodejs'` workaround — tracked as a follow-up.
+- Note: the request gate uses Next.js 16 `proxy.ts`, whose default Node runtime
+  supports the filesystem-backed zone loader. Verify that path in the
+  standalone image on Next upgrades.
 - Note: the fs/exit work of the startup check lives in `instrumentation-node.ts`,
   dynamically imported behind the `NEXT_RUNTIME` guard, so the edge compilation
   of `instrumentation.ts` emits no "Node.js API not supported in Edge Runtime"

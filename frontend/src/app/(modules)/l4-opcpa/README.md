@@ -45,13 +45,14 @@ the vacuum-specific panels.
 
 Per-laser **topology** (laser counts, chiller ids, delay presets, commands)
 lives in a human-editable, zod-validated YAML in the **zone-config directory**
-(`eli-hmi-config/modules/l4-opcpa/lasers.yaml` in-repo; a mounted config-repo
-clone in deployments — see [ADR-0011](../../../../../docs/adr/0011-runtime-zone-config.md)),
+(`eli-hmi-config/modules/l4-opcpa/lasers.yaml` in-repo; a read-only mounted
+config checkout in deployments — see [ADR-0011](../../../../../docs/adr/0011-runtime-zone-config.md)),
 not in `lib/modules/` (which is panel-layout `ModuleConfig` for
 `ModuleControlPage`). Format docs: `eli-hmi-config/modules/l4-opcpa/README.md`.
 
-`loadLaserSpecs()` resolves the current zone's file at request time (cached;
-container restart = reload). It remains the seam for a future
+`loadLaserSpecs()` resolves the current zone's file at request time (cached in
+production; container restart = reload, while development reloads per request).
+It remains the seam for a future
 `GET /lasers` gateway endpoint: swap the file read for a `fetch`.
 
 ## PV naming

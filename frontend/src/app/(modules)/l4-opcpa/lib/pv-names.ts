@@ -2,8 +2,9 @@
  * Command vocabulary for the L4 OPCPA page.
  *
  * Read/write *signal* PV names are NOT built here any more — they are full
- * strings in `config/lasers.yaml` (provided by controls). The one thing still
- * assembled in code is the **command PV** (`CMD_<laser>_<NAME>`): a command is
+ * strings in the zone-referenced runtime YAML (provided by controls). The one
+ * thing still assembled in code is the **command PV**
+ * (`CMD_<laser>_<NAME>`): a command is
  * not a single PV, it triggers a coordinated sequence of writes dispatched by
  * the backend (see backend/mockup-websocket-server/l4_opcpa.go, `sequences`).
  *

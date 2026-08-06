@@ -21,7 +21,7 @@
 - `npm run lint` — Next.js/ESLint rules; fix reported issues before committing.
 - `npm test` / `npm run test:run` — Vitest, watch / one-shot.
 - `npm run test:coverage` — runs with the CI threshold gate (70/70/70/60 on the include scope).
-- Create `.env.local` from `env.example` before running (`NEXTAUTH_SECRET`, `API_URL`, `ZONE_CODE`).
+- Create `.env.local` from `env.example` before running (`NEXTAUTH_SECRET`, `API_URL`, `ZONE_CODE`; `CONFIG_DIR` may stay unset for the in-repo dev fallback).
 
 ## Testing
 
@@ -29,7 +29,7 @@
 - Two WebSocket test seams:
   - `mockWebSocketServer()` in `src/test/ws-mock-server.ts` — replaces `globalThis.WebSocket`. Use for `useWebSocket` connection-lifecycle and integration tests. Honors the real wire protocol (`{type:'subscribe', pvs}` ↔ `{type:'pv', name, value, ...}`).
   - `<TestWebSocketProvider value={fakeContext}>` + `makeFakeWebSocketContext()` in `src/test/ws-test-provider.tsx` — short-circuits the connection layer for fast component tests.
-- Coverage gate scope: `src/lib/websocket/**`, `src/lib/settings/**`, `src/middleware.ts`, `src/components/module-page/**`. HMI compounds (`src/components/hmi/**`) and UI primitives are not in the gate yet — add tests as their PV maps stabilize.
+- Coverage gate scope: `src/lib/websocket/**`, `src/lib/settings/**`, `src/proxy.ts`, `src/components/module-page/**`. HMI compounds (`src/components/hmi/**`) and UI primitives are not in the gate yet — add tests as their PV maps stabilize.
 
 ## Coding Style & Naming Conventions
 
@@ -43,7 +43,9 @@
 
 ## Zones (CSI-861)
 
-`ZONE_CODE` selects a zone file `zones/<ZONE_CODE>.yaml` at **runtime** from the config directory (`CONFIG_DIR` env; dev fallback `../eli-hmi-config` — the in-repo template, see its README for the format). No zone list in code — a zone exists iff its file does. The middleware (Node runtime) blocks routes not in the zone's `allowedRoutes`; the nav bar (client-side) sources `navigationItems`/`homeRoute` from `/api/runtime-config` via `useRuntimeConfig()`. Adding a page = adding both the file *and* an `allowedRoutes` entry in the zone file(s).
+`ZONE_CODE` selects `zones/<ZONE_CODE>.yaml` at **runtime** from the config directory (`CONFIG_DIR`; deployments mount it at `/app/zone-config`, while local development falls back to `../eli-hmi-config`). No zone list exists in code — a zone exists iff its file does. The Next.js 16 Proxy (`src/proxy.ts`, Node runtime) blocks routes not in the zone's `allowedRoutes`; the client nav sources `navigationItems`/`homeRoute` from `/api/runtime-config` via `useRuntimeConfig()`. Adding a page means adding an `allowedRoutes` entry (and optional nav item) to every zone file that should expose it.
+
+Runtime module YAML currently covers only L4 OPCPA's per-laser topology and signal PV names. The p3/l3bt/l4fbt `ModuleConfig` objects and their bespoke `parts/` remain TypeScript/TSX in this app.
 
 Config is validated at server start (`src/instrumentation.ts`; prod exits non-zero on broken config) and by `npm run validate:config -- --dir <path> --all`. Schemas regenerate with `npm run gen:schema` (drift-tested). See `docs/adr/0011-runtime-zone-config.md`.
 

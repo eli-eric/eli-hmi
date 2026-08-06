@@ -59,6 +59,7 @@ frontend-test:
     - npm ci --prefer-offline --no-audit --loglevel=verbose --fetch-retries=3 --fetch-retry-mintimeout=15000 --fetch-retry-maxtimeout=20000
     - test -x node_modules/.bin/vitest
   script:
+    - npm run validate:config -- --dir ../eli-hmi-config --all
     - npm test -- --run --coverage
   artifacts:
     when: always

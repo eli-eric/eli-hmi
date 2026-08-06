@@ -69,16 +69,19 @@ Each entry in this folder describes a single control module (L3BT, L4fBT, P3, ..
    )
    ```
 
-4. **Register the route** in `src/lib/settings/zone-config.ts`:
+4. **Register the route** in every `zones/<ZONE_CODE>.yaml` that should expose it (under the directory selected by `CONFIG_DIR`):
 
-   ```ts
-   {
-     navigationItems: [..., { text: 'My Module', href: '/my-module-controls' }],
-     allowedRoutes: [..., '/my-module-controls'],
-   }
+   ```yaml
+   navigationItems:
+     - text: My Module
+       href: /my-module-controls
+   allowedRoutes:
+     - /my-module-controls
    ```
 
-   Skip step 4 and the middleware will redirect to `/no-access` even though the file exists.
+   Preserve the zone's existing entries. Skip step 4 and Next.js Proxy redirects to `/no-access` even though the page exists.
+
+`ModuleConfig` for L3BT, L4fBT, and P3 remains TypeScript in this directory, and bespoke volume/connector parts remain TSX. Runtime module YAML currently supports only L4 OPCPA; do not add an unknown `modules.<name>` key to a zone file.
 
 ## What goes in the config vs. in `parts/`?
 

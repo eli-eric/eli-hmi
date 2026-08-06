@@ -77,9 +77,9 @@ ENV PORT=8082
 # https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
 ENV HOSTNAME="0.0.0.0"
 
-# API_URL, API_SCHEME, ZONE_CODE are intentionally left unset here — they're
-# supplied at container start by the deployment's docker-compose.yml
-# (`environment:`) and read live by /api/runtime-config and middleware.ts.
+# API_URL, API_SCHEME, ZONE_CODE, and CONFIG_DIR are intentionally left unset
+# here — they are supplied at container start by the deployment's Compose
+# configuration and read live by /api/runtime-config, Proxy, and config loaders.
 
 # LDAP Authentication Settings
 ENV LDAP_SERVER_URL=$LDAP_SERVER_URL

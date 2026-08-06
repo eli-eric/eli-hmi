@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { getHomeRoute, isRouteAllowed } from './lib/settings/zone-service'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Set Cache-Control headers for font files
@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest) {
   // Zone-based route authorization for authenticated users
   if (token) {
     // Routes that bypass zone checks
-    const bypassRoutes = ['/no-access', '/auth/signin']
+    const bypassRoutes = ['/', '/no-access', '/auth/signin']
     const shouldBypassZoneCheck =
       bypassRoutes.includes(pathname) || pathname.startsWith('/api/auth')
 
@@ -56,11 +56,8 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-// Configure middleware to run on specific paths.
-// runtime: 'nodejs' (Next ≥15.5) because zone-service now fs-reads the mounted
-// zone config dir — the default edge runtime has no `node:fs`.
+// Configure Proxy to run on specific paths.
 export const config = {
-  runtime: 'nodejs',
   matcher: [
     '/((?!api|_next/static|_next/image|favicon|.*\\.ico$|.*\\.(?:jpg|jpeg|gif|png|svg)$).*)',
   ],

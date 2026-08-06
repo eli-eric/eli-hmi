@@ -5,7 +5,7 @@ import { EMPTY_ZONE_CONFIG, ZoneConfig } from './zone-config.types'
 /**
  * Server-side zone resolution, backed by the runtime config directory
  * (`zone-config-loader.ts`) instead of a hardcoded zone map. The public API is
- * unchanged and synchronous, so middleware and server components keep working
+ * unchanged and synchronous, so Proxy and server components keep working
  * as before.
  *
  * Failure policy: an unset/unknown ZONE_CODE or a broken zone file degrades to
@@ -20,7 +20,7 @@ import { EMPTY_ZONE_CONFIG, ZoneConfig } from './zone-config.types'
  *
  * `ZONE_CODE` deliberately has no `NEXT_PUBLIC_` prefix so Next.js does not
  * inline it at build time — this reads fresh from the container's env on
- * every middleware/server-component invocation. Client components have no
+ * every Proxy/server-component invocation. Client components have no
  * access to this at all and must instead source the zone code from
  * `useRuntimeConfig()`-derived data (see /api/runtime-config).
  * @returns The zone code or undefined if not set
