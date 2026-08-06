@@ -79,6 +79,18 @@ describe('instrumentation register (startup fail-fast)', () => {
     expect(exitSpy).toHaveBeenCalledWith(1)
   })
 
+  it('production: validates referenced module config even when its route is disabled', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('ZONE_CODE', 'invalid-module')
+    await register()
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /modules\.p3 \(modules\/p3\/invalid\.yaml\).*invalid/,
+      ),
+    )
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
   it('production: exits 1 for an unknown zone', async () => {
     vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('ZONE_CODE', 'nope')

@@ -59,6 +59,54 @@
             "config"
           ],
           "additionalProperties": false
+        },
+        "p3": {
+          "description": "P3 module config reference.",
+          "type": "object",
+          "properties": {
+            "config": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!\\/)(?!.*(?:^|\\/)\\.\\.(?:\\/|$)).+$",
+              "description": "Path to this module's config file, relative to the config dir root, e.g. modules/l4-opcpa/lasers.yaml."
+            }
+          },
+          "required": [
+            "config"
+          ],
+          "additionalProperties": false
+        },
+        "l3bt": {
+          "description": "L3BT module config reference.",
+          "type": "object",
+          "properties": {
+            "config": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!\\/)(?!.*(?:^|\\/)\\.\\.(?:\\/|$)).+$",
+              "description": "Path to this module's config file, relative to the config dir root, e.g. modules/l4-opcpa/lasers.yaml."
+            }
+          },
+          "required": [
+            "config"
+          ],
+          "additionalProperties": false
+        },
+        "l4fbt": {
+          "description": "L4FBT module config reference.",
+          "type": "object",
+          "properties": {
+            "config": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!\\/)(?!.*(?:^|\\/)\\.\\.(?:\\/|$)).+$",
+              "description": "Path to this module's config file, relative to the config dir root, e.g. modules/l4-opcpa/lasers.yaml."
+            }
+          },
+          "required": [
+            "config"
+          ],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

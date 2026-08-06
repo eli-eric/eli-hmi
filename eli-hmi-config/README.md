@@ -2,9 +2,9 @@
 
 Per-environment ("zone") configuration for the ELI HMI frontend (CSI-861).
 One directory holds runtime-owned deployment data: which pages are reachable,
-what shows in the top navigation, and L4 OPCPA's per-laser topology and signal
-PV names. The p3/l3bt/l4fbt `ModuleConfig` objects and bespoke parts are still
-compiled app code.
+what shows in the top navigation, L4 OPCPA's per-laser topology and signal PV
+names, and p3/l3bt/l4fbt `ModuleConfig` data. The vacuum pages' structurally
+bespoke bottom rows remain compiled TSX.
 
 **This folder in the app repo is a ready-to-copy template and the current
 local-development default.** Creating the separate controls-team git repository
@@ -19,7 +19,7 @@ YAML with editor autocomplete, and every field is documented.
 ```
 ┌ config checkout (this layout) ┐        ┌ frontend container ┐
 │ zones/test.yaml               │ volume │ CONFIG_DIR=/app/…  │
-│ modules/l4-opcpa/…            │ ─────► │ ZONE_CODE=test     │
+│ modules/{l4-opcpa,p3,…}/…     │ ─────► │ ZONE_CODE=test     │
 │ schemas/…                     │ mount  │ reads at startup   │
 └───────────────────────────────┘        └────────────────────┘
 ```
@@ -65,9 +65,15 @@ allowedRoutes:              # reachable pages; FIRST entry = home route
   - /l4-opcpa               # (login redirect + logo link);
                             # everything else redirects to /no-access
 
-modules:                    # config file for each enabled module,
+modules:                    # referenced runtime data files;
   l4-opcpa:                 # path relative to this directory's root
     config: modules/l4-opcpa/lasers.yaml
+  p3:
+    config: modules/p3/config.yaml
+  l3bt:
+    config: modules/l3bt/config.yaml
+  l4fbt:
+    config: modules/l4fbt/config.yaml
 ```
 
 Validation rules (enforced by the app and by `validate:config`):
@@ -75,18 +81,21 @@ Validation rules (enforced by the app and by `validate:config`):
 - every `navigationItems[].href` must appear in `allowedRoutes`
 - no duplicate `allowedRoutes`
 - if a module's route is allowed, its `modules.<name>.config` must be set
+- every referenced module file is validated, even when its route is disabled
 - unknown keys are rejected (typo protection)
 
-Module routes currently understood by the app: `/l4-opcpa`. Other GUIs
-(p3/l3bt/l4fbt vacuum controls) are not yet zone-configurable; their slots
-will appear under `modules:` as they are migrated.
+Module routes currently understood by the app: `/l4-opcpa`, `/p3-controls`,
+`/l3bt-controls`, and `/l4fbt-controls`. A reference does not enable a route;
+`allowedRoutes` and `navigationItems` remain the access-control source.
 
 The final production zone names (including whether `test` becomes `TESTZ`)
 have not been chosen. Zone codes are case-sensitive; keep using `test` for the
 checked-in template until deployment naming is agreed.
 
-Module config formats are documented next to the files —
-see [modules/l4-opcpa/README.md](modules/l4-opcpa/README.md).
+See [modules/README.md](modules/README.md) for the shared ownership/scope
+rules. L4 OPCPA's distinct format is documented in
+[modules/l4-opcpa/README.md](modules/l4-opcpa/README.md); the vacuum module
+files use the generated `schemas/module-config.schema.json` contract.
 
 ### `schemaVersion`
 
@@ -110,8 +119,8 @@ npm run validate:config -- --dir /path/to/this/directory --all
 ```
 
 This runs the app's real validation — including cross-checks the editor
-cannot do (duplicate PV names, nav/route consistency, module file
-resolution).
+cannot do (L4 laser duplicate PV names, nav/route consistency, module file
+resolution, and orphan module-file warnings).
 
 ## Future: copying out as a standalone repo
 

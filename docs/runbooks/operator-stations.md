@@ -23,9 +23,17 @@ The browser-locked machines in the control room that operators use day-to-day. E
    modules:
      l4-opcpa:
        config: modules/l4-opcpa/lasers.yaml
+     p3:
+       config: modules/p3/config.yaml
+     l3bt:
+       config: modules/l3bt/config.yaml
+     l4fbt:
+       config: modules/l4fbt/config.yaml
    ```
 
-   The first allowed route is the station home route. Every nav `href` must be allowed. Runtime module YAML currently covers only L4 OPCPA; p3/l3bt/l4fbt page data and bespoke parts remain in the app image.
+   The first allowed route is the station home route. Every nav `href` must be
+   allowed. Module references are validated even when their routes are not
+   enabled; p3/l3bt/l4fbt bespoke bottom-row parts remain in the app image.
 
 3. Add (or copy) a per-zone compose file under `deployments/zones/<zone-name>/docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml`), setting:
 

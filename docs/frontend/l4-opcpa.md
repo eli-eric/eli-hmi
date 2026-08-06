@@ -59,7 +59,9 @@ The template at `eli-hmi-config/modules/l4-opcpa/lasers.yaml` mirrors NL2's topo
 
 `loadLaserSpecs()` resolves `modules.l4-opcpa.config` from `zones/<ZONE_CODE>.yaml`, reads it under `CONFIG_DIR`, validates it with `config/schema.ts`, and caches it for the production process lifetime. A container restart reloads production config; development reloads on the next request. Editor autocomplete comes from `eli-hmi-config/schemas/l4-opcpa-lasers.schema.json`. The loader remains the seam for a future `GET /lasers` gateway endpoint. Runtime loading is recorded in [ADR-0011](../adr/0011-runtime-zone-config.md).
 
-This is the only module whose data is runtime YAML today. The p3/l3bt/l4fbt `ModuleConfig` objects and bespoke bottom-row parts remain TypeScript/TSX.
+Unlike the p3/l3bt/l4fbt pages, L4 OPCPA uses a laser-specific runtime-YAML
+schema rather than the shared `ModuleConfig` schema. The vacuum pages' bespoke
+bottom-row parts remain TSX.
 
 ## Mock-backend behaviour
 

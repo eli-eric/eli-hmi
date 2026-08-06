@@ -28,10 +28,14 @@ export const ZONE_SCHEMA_VERSION = 1
 
 /**
  * Route ↔ module-config mapping: if a zone allows the route, it must also say
- * where that module's config file is. Extend when migrating p3/l3bt/l4fbt.
+ * where that module's config file is. Keeping the keys here as the source of
+ * `ModuleKey` makes parser dispatch exhaustive at compile time.
  */
 export const MODULE_ROUTES = {
   'l4-opcpa': '/l4-opcpa',
+  p3: '/p3-controls',
+  l3bt: '/l3bt-controls',
+  l4fbt: '/l4fbt-controls',
 } as const
 
 export type ModuleKey = keyof typeof MODULE_ROUTES
@@ -87,6 +91,9 @@ export const zoneFileSchema = z
         'l4-opcpa': moduleRef
           .optional()
           .describe('L4 OPCPA laser config reference.'),
+        p3: moduleRef.optional().describe('P3 module config reference.'),
+        l3bt: moduleRef.optional().describe('L3BT module config reference.'),
+        l4fbt: moduleRef.optional().describe('L4FBT module config reference.'),
       })
       .prefault({})
       .describe('Per-module config file references.'),

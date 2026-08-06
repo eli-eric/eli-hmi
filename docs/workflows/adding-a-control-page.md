@@ -6,58 +6,98 @@ For a *vacuum-system* control page (L3BT, L4fBT, P3 shape). If the page is laser
 
 ### 1. Write the config
 
-`frontend/src/lib/modules/<m>.config.ts`:
+`modules/<m>/config.yaml` in the runtime config directory:
 
-```ts
-import type { ModuleConfig } from './types'
-
-export const myModuleConfig: ModuleConfig = {
-  heading: 'My Module',
-  interlocks: {
-    title: 'My Module Interlocks',
-    checkClearPv: 'MY-MODULE:INTERLOCK',
-    items: [
-      { pvname: 'MY-MODULE:S1:INTERLOCK', title: 'Volume S1' },
-    ],
-  },
-  safetyPermission: { title: '…', items: [/* … */] },
-  cleanDryAir: {
-    title: 'My Module CDA',
-    volumes: [
-      {
-        title: 'CDA Valve Actuation',
-        pressure: { pvName: 'MY:PPS:PRESSURE', label: 'PPS' },
-        flow: { pvName: 'MY:PPS:FLOW', label: 'PFS', options: { format: 'precision' } },
-      },
-    ],
-  },
-  backing: { /* SensorGroup + PumpConfig */ },
-  roughing: { /* SensorGroup + PumpConfig + optional Locking */ },
-}
+```yaml
+# yaml-language-server: $schema=../../schemas/module-config.schema.json
+schemaVersion: 1
+heading: My Module
+interlocks:
+  title: My Module Interlocks
+  checkClearPv: MY-MODULE:INTERLOCK
+  items:
+    - pvname: MY-MODULE:S1:INTERLOCK
+      title: Volume S1
+safetyPermission:
+  title: My Module Machine Safety Permissions
+  items:
+    - pvname: MY-MODULE:S1:PERMISSION
+      title: Volume S1 Roughing
+cleanDryAir:
+  title: My Module CDA
+  volumes:
+    - title: CDA Valve Actuation
+      pressure: { pvName: MY:PPS:PRESSURE, label: PPS }
+      flow:
+        pvName: MY:PPS:FLOW
+        label: PFS
+        options: { format: precision }
+backing:
+  title: My Module Backing
+  sensorBar:
+    title: Backing Line
+    label: Pressure
+    sensorPVs: [{ pvName: MY:BACKING:PRESSURE, label: APG1 }]
+  pump:
+    title: Backing Pump
+    rpmPV: MY:BACKING:RPM
+    valvePv: MY:BACKING:VALVE
+    valveLabel: GV1
+roughing:
+  title: My Module Roughing
+  sensorBar:
+    title: Roughing Line
+    label: Pressure
+    sensorPVs: [{ pvName: MY:ROUGHING:PRESSURE, label: APG2 }]
+  pump:
+    title: Roughing Pump
+    rpmPV: MY:ROUGHING:RPM
+    valvePv: MY:ROUGHING:VALVE
+    valveLabel: GV2
 ```
+
+The schema is strict and uses the existing camelCase field names. Keep
+unconfirmed placeholders/TODO comments explicit; do not invent PVs during a
+format migration.
 
 ### 2. Add the page
 
-`frontend/src/app/(modules)/<m>-controls/page.tsx`:
+Use a dynamic server entry so config is read from the running container:
+
+```tsx
+import { loadModuleConfig } from '@/lib/modules/module-config-loader'
+import { MyModuleView } from './my-module-view'
+
+export const dynamic = 'force-dynamic'
+
+export default function MyModulePage() {
+  return <MyModuleView config={loadModuleConfig('my-module')} />
+}
+```
+
+Put the client composition in `my-module-view.tsx`:
 
 ```tsx
 'use client'
+
 import { ModuleControlPage } from '@/components/module-page/module-control-page'
-import { myModuleConfig } from '@/lib/modules/<m>.config'
+import type { ModuleConfig } from '@/lib/modules/types'
 import { MyVolumes } from './parts/volumes'
 import { MyConnector } from './parts/connector'
 
-export default () => (
-  <ModuleControlPage
-    config={myModuleConfig}
-    bottomRow={
-      <>
-        <MyConnector />
-        <MyVolumes />
-      </>
-    }
-  />
-)
+export function MyModuleView({ config }: { config: ModuleConfig }) {
+  return (
+    <ModuleControlPage
+      config={config}
+      bottomRow={
+        <>
+          <MyConnector />
+          <MyVolumes />
+        </>
+      }
+    />
+  )
+}
 ```
 
 ### 3. Build the `parts/`
@@ -66,9 +106,17 @@ Anything not data-only (volumes with mixed compound children, connectors with cr
 
 ### 4. Register the route in a zone
 
-In every config directory that should expose it, edit `zones/<ZONE_CODE>.yaml`:
+First add the new key/route to `MODULE_ROUTES`, the `ModuleConfigKey` registry,
+and the exhaustive module parser registry. TypeScript then forces every
+runtime validation path to understand the key.
+
+In every applicable config directory, reference the data file. Add the route
+and nav item only to zones that should expose the page:
 
 ```yaml
+modules:
+  my-module:
+    config: modules/my-module/config.yaml
 navigationItems:
   # existing …
   - text: My Module
@@ -78,9 +126,11 @@ allowedRoutes:
   - /<m>-controls
 ```
 
-Skip this and Next.js Proxy redirects to `/no-access` even though the page exists. `CONFIG_DIR` selects the config directory and `ZONE_CODE` selects its zone file at runtime; deployments mount the directory read-only at `/app/zone-config`.
-
-The new `ModuleConfig` and bespoke `parts/` are still app code. Runtime module YAML currently supports only L4 OPCPA, so do not add an invented `modules.<m>` key; the strict zone schema rejects unknown module keys.
+The module reference makes startup/CI validate the file; it does not grant
+route access. Skip `allowedRoutes` and Next.js Proxy redirects to `/no-access`
+even though the page exists. `CONFIG_DIR` selects the config directory and
+`ZONE_CODE` selects its zone file at runtime; deployments mount the directory
+read-only at `/app/zone-config`.
 
 ### 5. Test it
 

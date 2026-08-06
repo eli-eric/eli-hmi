@@ -20,6 +20,7 @@ export default defineConfig({
       include: [
         'src/lib/websocket/**/*.{ts,tsx}',
         'src/lib/settings/**/*.{ts,tsx}',
+        'src/lib/modules/**/*.{ts,tsx}',
         'src/proxy.ts',
         'src/components/module-page/**/*.{ts,tsx}',
         'src/app/(modules)/l4-opcpa/**/*.{ts,tsx}',

@@ -2,108 +2,86 @@
 
 > Architecture context: [`docs/frontend/module-pages.md`](../../../../docs/frontend/module-pages.md). End-to-end recipe: [`docs/workflows/adding-a-control-page.md`](../../../../docs/workflows/adding-a-control-page.md).
 
-Each entry in this folder describes a single control module (L3BT, L4fBT, P3, ...) as a typed `ModuleConfig` (`./types.ts`). The shared `<ModuleControlPage>` (`@/components/module-page/module-control-page`) renders the config plus a bespoke `bottomRow` slot for volumes and connectors.
+P3, L3BT, and L4fBT share a `ModuleConfig` data shape that drives
+`<ModuleControlPage>`. The app owns the schema and loading code in this
+directory; the editable data lives in the runtime config directory under
+`modules/<module>/config.yaml`.
+
+## Files and ownership
+
+- `module-config-schema.ts` — strict Zod schema, YAML parser, and inferred
+  types. The file format adds `schemaVersion: 1`; the object passed to the UI
+  retains the original `ModuleConfig` shape.
+- `types.ts` — compatibility type exports for components.
+- `module-config-loader.ts` — resolves the current zone's module reference,
+  parses it, deeply freezes it, and caches successful production reads.
+- `eli-hmi-config/schemas/module-config.schema.json` — generated editor schema;
+  never hand-edit it.
+- `eli-hmi-config/modules/{p3,l3bt,l4fbt}/config.yaml` — controls-owned data.
+
+The small route `page.tsx` files are server entries. They call
+`loadModuleConfig(key)` and pass the result to a colocated `'use client'` view,
+which composes `<ModuleControlPage>` with the module's bespoke `bottomRow`.
 
 ## Adding a new module
 
-1. **Write a config file** `src/lib/modules/<module>.config.ts`:
-
-   ```ts
-   import type { ModuleConfig } from './types'
-
-   export const myModuleConfig: ModuleConfig = {
-     heading: 'My Module',
-
-     interlocks: {
-       title: 'My Module Interlocks',
-       checkClearPv: 'MY-MODULE:INTERLOCK',
-       items: [
-         { pvname: 'MY-MODULE:S1:INTERLOCK', title: 'Volume S1' },
-         // ...
-       ],
-     },
-
-     safetyPermission: {
-       title: 'My Module Machine Safety Permissions',
-       items: [/* ... */],
-     },
-
-     cleanDryAir: {
-       title: 'My Module CDA',
-       volumes: [
-         {
-           title: 'CDA Valve Actuation',
-           pressure: { pvName: 'MY:PPS:PRESSURE', label: 'PPS' },
-           flow: { pvName: 'MY:PPS:FLOW', label: 'PFS', options: { format: 'precision' } },
-         },
-         // 1 volume → renders a single Container; 2+ → wrapped in MultiVolumes
-       ],
-     },
-
-     backing: { /* SensorGroup + PumpConfig */ },
-     roughing: { /* SensorGroup + PumpConfig + optional Locking */ },
-   }
-   ```
-
-2. **Add bespoke parts** under `src/app/(modules)/<module>-controls/parts/` for volumes and connectors. Their PV-to-component wiring is too structural for the config schema — these stay as React components.
-
-3. **Add the page** at `src/app/(modules)/<module>-controls/page.tsx`:
-
-   ```tsx
-   'use client'
-   import { ModuleControlPage } from '@/components/module-page/module-control-page'
-   import { myModuleConfig } from '@/lib/modules/my-module.config'
-   import { MyModuleVolumes } from './parts/volumes'
-   import { MyModuleConnector } from './parts/connector'
-
-   export default () => (
-     <ModuleControlPage
-       config={myModuleConfig}
-       bottomRow={
-         <>
-           <MyModuleConnector />
-           <MyModuleVolumes />
-         </>
-       }
-     />
-   )
-   ```
-
-4. **Register the route** in every `zones/<ZONE_CODE>.yaml` that should expose it (under the directory selected by `CONFIG_DIR`):
+1. Add the module key and route to `MODULE_ROUTES` in
+   `src/lib/settings/zone-schema.ts`, to `MODULE_CONFIG_KEYS` in
+   `module-config-loader.ts`, and to the exhaustive parser registry in
+   `src/lib/settings/module-config-validation.ts`.
+2. Add `modules/<module>/config.yaml` to the config directory. Start with:
 
    ```yaml
-   navigationItems:
-     - text: My Module
-       href: /my-module-controls
-   allowedRoutes:
-     - /my-module-controls
+   # yaml-language-server: $schema=../../schemas/module-config.schema.json
+   schemaVersion: 1
+   heading: My Module
+   # interlocks, safetyPermission, cleanDryAir, backing, roughing …
    ```
 
-   Preserve the zone's existing entries. Skip step 4 and Next.js Proxy redirects to `/no-access` even though the page exists.
+   Use the generated schema/editor completion and an existing module file for
+   the complete shape.
+3. Add bespoke parts under
+   `src/app/(modules)/<module>-controls/parts/`. Their PV-to-component wiring
+   stays React code because it is structural.
+4. Add a dynamic server page and explicit client view following one of the
+   existing three routes.
+5. Add `modules.<module>.config` to every zone that should validate the data.
+   Add its route/nav entry only to zones that should expose the page.
+6. Run `npm run validate:config -- --dir ../eli-hmi-config --all` plus the
+   normal test/build gates.
 
-`ModuleConfig` for L3BT, L4fBT, and P3 remains TypeScript in this directory, and bespoke volume/connector parts remain TSX. Runtime module YAML currently supports only L4 OPCPA; do not add an unknown `modules.<name>` key to a zone file.
+## What goes in YAML vs. `parts/`?
 
-## What goes in the config vs. in `parts/`?
+| Lives in `ModuleConfig` YAML | Lives in `parts/` TSX |
+| --- | --- |
+| Interlocks (PV name + title pairs) | Volumes with mixed `VolumePanel.*` children |
+| Safety permissions | Connectors, gates, and cross-module hyperlinks |
+| Backing, roughing, and clean-dry-air sensor/pump data | Any non-uniform structural composition |
 
-| Lives in config | Lives in `parts/` |
-|---|---|
-| Interlocks (PV name + title pairs) | Volumes (`MultiVolumes` ribbon, mixed `SensorBar`/`Config`/`Doors`/`MasterKey`/`TurbopumpBasic` children) |
-| Safety Permissions | Connectors (`Gate`, `Valve`, `LabelValue`, `ValveStatus`, hyperlinks to other modules) |
-| Backing / Roughing / Clean-Dry-Air (sensor lists, pump PVs, optional Locking) | Anything that wires PVs through specific compound children in a non-uniform shape |
-
-The split exists because volumes and connectors have **structural** variance per module (number of sub-volumes, mix of compound children, cross-module `href`s), while the five panel kinds in the config have **data-only** variance (PV names, titles, sensor counts).
+The split is deliberate: the shared panels have data-only variance, while the
+bottom rows differ as component trees. Do not turn JSX into a YAML component
+language.
 
 ## PV names
 
-Pass **logical** PV names. `useWebSocketData` applies the dev-vs-prod prefix (`getPrefixedPV` in `src/lib/utils/pv-helpers.ts`) internally. The mock server expects prefixed names — the production server expects raw names — same source string, both work.
+Store logical PV names. `useWebSocketData` applies the development prefix
+internally; the production backend receives the raw names.
 
 ### Deliberate placeholders
 
-Many entries currently use placeholder values that are **deliberate, not oversights**, carried over from the legacy per-module components:
+The migration preserves every legacy placeholder, duplicate, and TODO comment
+instead of inventing control-system names. Examples in the YAML include
+`undefined1:PRESSURE`, `AI_RPM_SPEED_P000`, and P3 entries that intentionally
+reuse the EGV501 PV for the SGV503 label.
 
-- `undefined1:PRESSURE`, `SI_???`, `AI_RPM_SPEED_P04` — control engineers haven't settled on canonical names yet.
-- `// TODO PV name unclear` — translated from Czech `// TODO zatim nevim`; mark of an unverified PV name.
-- `// TODO PVs unknown` — entire group of PVs not yet defined upstream.
-- Real data-quality issues from the legacy code are preserved verbatim, e.g. P3's interlock and safety-permission lists reuse `L3BT-VCS-EGV501:INTERLOCK` for both EGV501 and SGV503 (`p3.config.ts`). The refactor explicitly does not invent canonical names; replace placeholders only when an engineer has confirmed them.
+The bespoke bottom-row files were intentionally out of migration scope, so
+their existing placeholders (for example `SI_???` and `AI_RPM_SPEED_P04`) also
+remain in TSX. Replace any placeholder only after controls confirms the
+canonical PV.
 
-Use grep to find all of them: `grep -rn "TODO PV name unclear\|TODO PVs unknown\|undefined[0-9]\|SI_???"`.
+Useful searches from the repository root:
+
+```bash
+grep -RIn 'TODO\|undefined[0-9]' eli-hmi-config/modules/{p3,l3bt,l4fbt}
+grep -RIn 'TODO\|SI_???\|AI_RPM_SPEED_P04' frontend/src/app/'(modules)'/{p3,l3bt,l4fbt}-controls/parts
+```

@@ -65,11 +65,11 @@ Server-side LDAP bind on credentials login (or dev bypass `test/test`); the Next
 Three patterns recur inside the frontend and earn their own pages:
 
 - **Zone config** (`src/lib/settings/zone-schema.ts`, `zone-config-loader.ts`, and `src/proxy.ts`) — runtime access control from `zones/<ZONE_CODE>.yaml` under `CONFIG_DIR`. Proxy is the request adapter; the validated zone file is the interface. See [frontend/zones](frontend/zones.md).
-- **ModuleConfig** (`src/lib/modules/types.ts` + per-module config files) — deep declarative shape that drives `<ModuleControlPage>`. Used by three pages today; the pattern is a real seam. See [frontend/module-pages](frontend/module-pages.md). L4 OPCPA opts out — see [ADR-0007](adr/0007-l4-custom-shell-not-modulecontrolpage.md).
+- **ModuleConfig** (`src/lib/modules/` schema/loader + zone-referenced YAML) — deep declarative shape that drives `<ModuleControlPage>`. Used by three pages today; the pattern is a real seam. See [frontend/module-pages](frontend/module-pages.md). L4 OPCPA opts out — see [ADR-0007](adr/0007-l4-custom-shell-not-modulecontrolpage.md).
 - **Compound HMI components** (`components/hmi/{volume-panel,connector-line,laser-panel,controls}`) — parent attaches subcomponents as static properties so pages compose declaratively. See [frontend/hmi-components](frontend/hmi-components.md) and [ADR-0003](adr/0003-compound-components-for-hmi-panels.md).
 
 ## Cross-cutting concerns
 
 - **PV naming.** Logical PV names in code (`MOD1.AI_TEMP`) are resolved to prefixed wire names (`DEV:MOD1:AI_TEMP`) by `getPrefixedPV` (`src/lib/utils/pv-helpers.ts`). The hook does this on subscribe; one write site does it inline. See [reference/pv-naming](reference/pv-naming.md).
 - **L4 OPCPA PV names.** Signal PV names live as full strings in the zone-referenced runtime YAML; only command PVs are assembled by the page's small registry. See [ADR-0010](adr/0010-per-laser-yaml-config.md) and [frontend/l4-opcpa](frontend/l4-opcpa.md).
-- **Runtime config scope.** Zone navigation/routes and L4 OPCPA per-laser signal data come from mounted YAML. The p3/l3bt/l4fbt `ModuleConfig` objects and their bespoke bottom rows remain compiled app code.
+- **Runtime config scope.** Zone navigation/routes, L4 OPCPA per-laser signal data, and p3/l3bt/l4fbt `ModuleConfig` data come from mounted YAML. The vacuum pages' structurally bespoke bottom rows remain compiled TSX.

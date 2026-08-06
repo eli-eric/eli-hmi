@@ -33,23 +33,27 @@ at runtime**, read via `CONFIG_DIR` + `ZONE_CODE` env:
   refs. The in-repo `eli-hmi-config/` is simultaneously the dev fallback
   (`CONFIG_DIR` unset → `../eli-hmi-config`) and the ready-to-copy template
   for the future standalone controls-team repo.
-- **App stays schema owner.** Zod schemas (`zone-schema.ts`, l4-opcpa
-  `config/schema.ts`) remain in the app; JSON Schemas are generated into
+- **App stays schema owner.** Zod schemas (`zone-schema.ts`,
+  `module-config-schema.ts`, and l4-opcpa `config/schema.ts`) remain in the
+  app; JSON Schemas are generated into
   `eli-hmi-config/schemas/` (`npm run gen:schema`, drift-tested) for editor
   DX, and `npm run validate:config -- --dir <path> --all` runs the real
   validation for the config repo's CI.
 - **Loading:** sync `readFileSync` + process-lifetime cache
   (`zone-config-loader.ts`); container restart = reload. Next.js 16
   `proxy.ts` performs route gating in the Node runtime using the fs-backed
-  zone-service. The l4-opcpa page becomes `force-dynamic`; client nav gets
-  zone data via `/api/runtime-config` (extended with `navigationItems` +
-  `homeRoute`).
-- **Failure policy:** per-request lookups degrade to the empty zone
+  zone-service. Every runtime-configured module page is `force-dynamic` and
+  passes validated data from a small server entry to its client view; client
+  nav gets zone data via `/api/runtime-config` (extended with
+  `navigationItems` + `homeRoute`).
+- **Failure policy:** per-request zone lookups degrade to the empty zone
   (`/no-access`), but `instrumentation.ts` validates the whole config at
   server start and **exits non-zero in production** — a config error is a
-  visible crash-loop at deploy, not a silently useless UI.
-- **Scope:** only l4-opcpa is zone-configurable now; `modules:` is the
-  extension point for p3/l3bt/l4fbt later.
+  visible crash-loop at deploy, not a silently useless UI. A module-file
+  failure after startup surfaces as a page error.
+- **Scope:** L4 OPCPA uses a laser-specific runtime schema; p3/l3bt/l4fbt use
+  the shared `ModuleConfig` runtime schema. Their bespoke bottom-row JSX stays
+  in the app because it is structural, not data-only.
 
 ## Consequences
 
@@ -57,10 +61,11 @@ at runtime**, read via `CONFIG_DIR` + `ZONE_CODE` env:
   container restart; zones are added by adding a file; controls team owns
   content without app-repo access.
 - Positive: validation is layered — editor (JSON Schema), config-repo CI
-  (`validate:config`), container start (fail-fast), per-request (degrade).
-- Negative: `next build` no longer validates the laser config — the failure
-  surface moves from CI to deploy (crash-looping container). Mitigated by the
-  config-repo CI step.
+  (`validate:config`), container start (fail-fast), per-request zone lookup
+  (degrade).
+- Negative: `next build` no longer validates deployment module data — the
+  failure surface moves from app-image CI to config CI/deploy (crash-looping
+  container). Mitigated by the config-repo CI step.
 - Note: the request gate uses Next.js 16 `proxy.ts`, whose default Node runtime
   supports the filesystem-backed zone loader. Verify that path in the
   standalone image on Next upgrades.
@@ -72,9 +77,8 @@ at runtime**, read via `CONFIG_DIR` + `ZONE_CODE` env:
 - Note: `/api/runtime-config` is deliberately unauthenticated and now returns
   the zone's nav items + home route pre-auth (rationale in the route file);
   flagged for a security-posture review rather than silently accepted.
-- Open: migrating the remaining modules' hardcoded TS configs; final zone
-  naming at cutover (`test` vs `TESTZ`); creating the actual standalone config
-  repo (copy-out procedure in `eli-hmi-config/README.md`).
+- Open: final zone naming at cutover (`test` vs `TESTZ`); creating the actual
+  standalone config repo (copy-out procedure in `eli-hmi-config/README.md`).
 
 ## Alternatives considered
 

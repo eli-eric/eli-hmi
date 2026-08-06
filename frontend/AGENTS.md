@@ -5,7 +5,7 @@
 - Next.js app centered in `src/app` (routes, providers).
 - `src/lib/websocket/` — WebSocket layer: connection hook, data hook, provider, types, `PVDisplay`, `debug` helper.
 - `src/lib/settings/` — zone schema + runtime config loader + helpers (`getDefaultRoute`, `isRouteAllowed`).
-- `src/lib/modules/` — typed `ModuleConfig` + per-module configs that drive the shared `<ModuleControlPage>`.
+- `src/lib/modules/` — `ModuleConfig` schema/types + runtime loader for the shared `<ModuleControlPage>`; data files live under `eli-hmi-config/modules/`.
 - `src/components/hmi/` — reusable HMI compound components (`VolumePanel`, `ConnectorLine`, `StatusBar`).
 - `src/components/ui/` — generic primitives (buttons, dropdown, tooltip, icons, heading).
 - `src/components/module-page/` — `<ModuleControlPage>` shell + 5 config-driven panels.
@@ -29,7 +29,7 @@
 - Two WebSocket test seams:
   - `mockWebSocketServer()` in `src/test/ws-mock-server.ts` — replaces `globalThis.WebSocket`. Use for `useWebSocket` connection-lifecycle and integration tests. Honors the real wire protocol (`{type:'subscribe', pvs}` ↔ `{type:'pv', name, value, ...}`).
   - `<TestWebSocketProvider value={fakeContext}>` + `makeFakeWebSocketContext()` in `src/test/ws-test-provider.tsx` — short-circuits the connection layer for fast component tests.
-- Coverage gate scope: `src/lib/websocket/**`, `src/lib/settings/**`, `src/proxy.ts`, `src/components/module-page/**`. HMI compounds (`src/components/hmi/**`) and UI primitives are not in the gate yet — add tests as their PV maps stabilize.
+- Coverage gate scope: `src/lib/websocket/**`, `src/lib/settings/**`, `src/lib/modules/**`, `src/proxy.ts`, `src/components/module-page/**`. HMI compounds (`src/components/hmi/**`) and UI primitives are not in the gate yet — add tests as their PV maps stabilize.
 
 ## Coding Style & Naming Conventions
 
@@ -45,13 +45,15 @@
 
 `ZONE_CODE` selects `zones/<ZONE_CODE>.yaml` at **runtime** from the config directory (`CONFIG_DIR`; deployments mount it at `/app/zone-config`, while local development falls back to `../eli-hmi-config`). No zone list exists in code — a zone exists iff its file does. The Next.js 16 Proxy (`src/proxy.ts`, Node runtime) blocks routes not in the zone's `allowedRoutes`; the client nav sources `navigationItems`/`homeRoute` from `/api/runtime-config` via `useRuntimeConfig()`. Adding a page means adding an `allowedRoutes` entry (and optional nav item) to every zone file that should expose it.
 
-Runtime module YAML currently covers only L4 OPCPA's per-laser topology and signal PV names. The p3/l3bt/l4fbt `ModuleConfig` objects and their bespoke `parts/` remain TypeScript/TSX in this app.
+Runtime YAML covers L4 OPCPA laser data and p3/l3bt/l4fbt `ModuleConfig`
+data. The vacuum pages' bespoke `parts/` remain TSX; do not move structural
+compound-component wiring into the data schema.
 
 Config is validated at server start (`src/instrumentation.ts`; prod exits non-zero on broken config) and by `npm run validate:config -- --dir <path> --all`. Schemas regenerate with `npm run gen:schema` (drift-tested). See `docs/adr/0011-runtime-zone-config.md`.
 
 ### Production deployment
 
-Set `ZONE_CODE=<site>` + mount the config repo clone at `CONFIG_DIR` in that site's `docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml`); add `zones/<site>.yaml` to the config repo. No rebuild required — CI ships one global image.
+Set `ZONE_CODE=<site>` and mount the config checkout at `CONFIG_DIR` in that site's `docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml`); add `zones/<site>.yaml` to the checkout. No rebuild required — CI ships one global image.
 
 ## Commit & Pull Request Guidelines
 

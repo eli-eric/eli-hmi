@@ -1,7 +1,7 @@
 /**
  * Regenerates the JSON Schemas in `eli-hmi-config/schemas/` from the zod
- * schemas (zone files + L4 OPCPA laser config). The committed schemas power
- * editor autocomplete / inline validation for the YAMLs (via their
+ * schemas (zone files, shared ModuleConfig files, and L4 OPCPA laser config).
+ * The committed schemas power editor autocomplete / inline validation (via
  * `# yaml-language-server` lines) — both in the in-repo template and in the
  * controls team's copied-out config repo.
  *
@@ -11,9 +11,15 @@
  */
 import { writeFileSync } from 'node:fs'
 import { buildSchema, SCHEMA_PATH } from './build-laser-schema'
+import {
+  buildModuleConfigSchema,
+  MODULE_CONFIG_SCHEMA_PATH,
+} from './build-module-config-schema'
 import { buildZoneSchema, ZONE_SCHEMA_PATH } from './build-zone-schema'
 
 writeFileSync(SCHEMA_PATH, buildSchema())
 console.log(`wrote ${SCHEMA_PATH}`)
 writeFileSync(ZONE_SCHEMA_PATH, buildZoneSchema())
 console.log(`wrote ${ZONE_SCHEMA_PATH}`)
+writeFileSync(MODULE_CONFIG_SCHEMA_PATH, buildModuleConfigSchema())
+console.log(`wrote ${MODULE_CONFIG_SCHEMA_PATH}`)
