@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=../schemas/zone.schema.json
+#
+# Zone config for the local-dev / test-zone deployment (ZONE_CODE=test).
+# One file per zone; the zone code IS the filename stem. See ../README.md.
+
+schemaVersion: 1
+
+# Items shown in the top navigation, in order. Every href must also be listed
+# in allowedRoutes below.
+navigationItems:
+  - text: L4 OPCPA Controls
+    href: /l4-opcpa
+
+# Routes reachable in this zone; the FIRST entry is the home route (login
+# redirect + logo link). Anything not listed redirects to /no-access.
+allowedRoutes:
+  - /l4-opcpa
+
+# Where each enabled module's own config file lives, relative to this config
+# directory's root.
+modules:
+  l4-opcpa:
+    config: modules/l4-opcpa/lasers.yaml

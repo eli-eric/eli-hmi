@@ -8,7 +8,6 @@ import { TextButton } from '../ui/buttons'
 
 import { NavigationItem } from './navigation-item'
 import { useRuntimeConfig } from '@/lib/runtime-config/context'
-import { getHomeRoute, getNavigationItems } from '@/lib/settings/zone-service'
 
 import styles from './navigation-bar.module.css'
 import navItemStyles from './navigation-item.module.css'
@@ -23,16 +22,13 @@ const NavigationLogo = ({ href }: { href: string | null }) => {
 }
 
 export default function NavigationBar() {
-  const { status, zoneCode } = useRuntimeConfig()
+  // Items/home come from /api/runtime-config, which resolves the zone file
+  // server-side (client components cannot fs-read the config dir). They are
+  // empty/null until the fetch resolves shortly after first paint — the
+  // shell renders immediately and nav items pop in. Purely cosmetic: the
+  // actual route gate is enforced server-side in proxy.ts.
+  const { navigationItems, homeRoute } = useRuntimeConfig()
   const handleSignOut = () => signOut({ callbackUrl: '/auth/signin' })
-
-  // Zone data resolves a moment after first paint (see runtime-config
-  // context) — render the shell immediately and let nav items pop in rather
-  // than guessing a home route or blocking the whole page. This is purely
-  // cosmetic: the actual route gate is enforced server-side in middleware.ts.
-  const isReady = status === 'ready'
-  const items = isReady ? getNavigationItems(zoneCode) : []
-  const homeRoute = isReady ? getHomeRoute(zoneCode) : null
 
   return (
     <nav className={styles.container}>
@@ -40,7 +36,7 @@ export default function NavigationBar() {
         <NavigationLogo href={homeRoute} />
         <TextButton text="sign out" onClick={handleSignOut} />
       </div>
-      {items.map((item) => (
+      {navigationItems.map((item) => (
         <NavigationItem href={item.href} text={item.text} key={item.href} />
       ))}
     </nav>

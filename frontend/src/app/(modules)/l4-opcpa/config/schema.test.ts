@@ -4,8 +4,10 @@ import { join } from 'node:path'
 import { stringify } from 'yaml'
 import { parseLaserSpecs } from './schema'
 
+// The real config moved to the in-repo template dir (CSI-861) — validate the
+// template so a broken example never ships to the controls-team config repo.
 const realYaml = readFileSync(
-  join(process.cwd(), 'src/app/(modules)/l4-opcpa/config/lasers.yaml'),
+  join(process.cwd(), '..', 'eli-hmi-config/modules/l4-opcpa/lasers.yaml'),
   'utf8',
 )
 

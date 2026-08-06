@@ -20,6 +20,8 @@ beforeEach(() => {
     apiUrl: 'localhost:8080',
     apiScheme: null,
     zoneCode: null,
+    navigationItems: [],
+    homeRoute: '/no-access',
   })
 })
 

@@ -10,8 +10,10 @@ COPY frontend/package.json frontend/package-lock.json* frontend/.npmrc* ./
 RUN npm ci
 
 COPY frontend/ ./
+COPY eli-hmi-config/ /app/zone-config/
 
-ENV HOSTNAME=0.0.0.0
+ENV HOSTNAME=0.0.0.0 \
+    CONFIG_DIR=/app/zone-config
 
 EXPOSE 8082
 

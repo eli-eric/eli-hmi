@@ -14,15 +14,17 @@ code.**
 You do not need to know TypeScript. Open `lasers.yaml` in an editor with the
 YAML extension (e.g. VS Code "YAML" by Red Hat); the `# yaml-language-server`
 line at the top wires up **autocomplete and inline error checking** from
-`lasers.schema.json`.
+`../../schemas/l4-opcpa-lasers.schema.json`.
 
 ## How it works
 
 - Each item under `lasers:` is one laser. **File order = panel order** (left to right).
 - Every field is required and explicit — no hidden defaults.
-- On `next build` (and during `next dev`) the file is parsed and validated. An
-  invalid file **fails the build** with a readable message. Changing the config
-  in a deployed build therefore needs a rebuild.
+- The file is loaded **at runtime** from the mounted config directory: the
+  zone file (`zones/<ZONE_CODE>.yaml`) points at it via `modules.l4-opcpa.config`.
+  It is parsed + validated at container start (a broken file stops the
+  container with a readable message) and cached — **restart the container to
+  pick up changes**; no application rebuild is needed.
 
 ## Fields
 
@@ -72,8 +74,9 @@ SET_DELAY, LOAD_WAVEFORM
 A laser only shows buttons for the commands it lists — omit one and its button
 is hidden for that laser. Commands are **not** plain PVs: each triggers a
 coordinated backend sequence of writes (the wire name `CMD_<id>_<NAME>` is built
-in code, in `../lib/pv-names.ts`). Adding a **brand-new** command needs code
-changes (the `LASER_COMMANDS` tuple + the Go backend `sequences` map + a button).
+in code, in the app repo's `l4-opcpa/lib/pv-names.ts`). Adding a **brand-new**
+command needs code changes in the app repo (the `LASER_COMMANDS` tuple + the Go
+backend `sequences` map + a button).
 
 ## Empty banks hide sections
 
@@ -81,16 +84,12 @@ changes (the `LASER_COMMANDS` tuple + the Go backend `sequences` map + a button)
 Flashlamps / Modbox section for that laser (it simply doesn't have that
 subsystem). General and Regen always render.
 
-## `lasers.schema.json`
+## `../../schemas/l4-opcpa-lasers.schema.json`
 
-Generated from the zod schema in `schema.ts`. **Do not hand-edit it.** After
-changing `schema.ts`, regenerate:
-
-```bash
-npm run gen:schema
-```
-
-A test (`schema.drift.test.ts`) fails if the committed file is stale.
+Generated from the zod schema in the app repo (`l4-opcpa/config/schema.ts`,
+`npm run gen:schema`). **Do not hand-edit it.** It only powers editor
+autocomplete/validation here; the authoritative validation runs in the app at
+startup and in CI via the app repo's `npm run validate:config`.
 
 ## Mock backend caveat (test-only)
 

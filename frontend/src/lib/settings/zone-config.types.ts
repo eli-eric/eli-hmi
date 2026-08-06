@@ -1,13 +1,9 @@
 import { NavigationItem } from './navigation'
 
 /**
- * Supported zone codes
- * Add new zones here to extend the system
- */
-export type ZoneCode = 'test' | 'production' | string
-
-/**
- * Configuration for a specific zone
+ * Configuration for a specific zone, resolved from its zone file
+ * (`zones/<ZONE_CODE>.yaml` in the runtime config dir — see ADR-0011).
+ * There is no zone-code type: a zone exists iff its file does.
  */
 export interface ZoneConfig {
   /** Navigation items visible in the menu for this zone */
@@ -15,11 +11,6 @@ export interface ZoneConfig {
   /** Routes that are accessible for this zone */
   allowedRoutes: string[]
 }
-
-/**
- * Map of zone codes to their configurations
- */
-export type ZoneConfigMap = Record<string, ZoneConfig>
 
 /**
  * Default empty zone configuration

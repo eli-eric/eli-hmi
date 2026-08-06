@@ -1,45 +1,74 @@
 # Zones
 
-Deployment profiles. Each zone declares which routes are reachable and what shows up in the nav bar. The shipped `production` zone is **intentionally empty**.
+Deployment profiles (CSI-861). Each zone declares which routes are reachable,
+what shows up in the nav bar, and references config for supported runtime
+modules (currently L4 OPCPA).
+Since [ADR-0011](../adr/0011-runtime-zone-config.md) zones are **files in a
+runtime-mounted config directory**, not code.
 
 ## Interface
 
-`src/lib/settings/zone-config.ts`:
+`zones/<ZONE_CODE>.yaml` in the config dir (`CONFIG_DIR` env; dev default
+`eli-hmi-config/` at the repo root — its README documents the full format):
 
-```ts
-type ZoneConfig = {
-  navigationItems: NavItem[]      // visible nav entries
-  allowedRoutes: string[]         // route paths the middleware allows
-}
-
-const ZONES: Record<string, ZoneConfig> = { test: {...}, production: {...}, ... }
+```yaml
+schemaVersion: 1
+navigationItems: [{ text: L4 OPCPA Controls, href: /l4-opcpa }]
+allowedRoutes: [/l4-opcpa]          # first entry = home route
+modules:
+  l4-opcpa: { config: modules/l4-opcpa/lasers.yaml }
 ```
 
-The **adapter** is `src/middleware.ts`. It looks up the zone keyed by `ZONE_CODE` and 302-redirects any request whose path isn't in `allowedRoutes` to `/no-access`. The nav bar reads `navigationItems` from the same source, but — being a client component — gets the zone code from `useRuntimeConfig()` (see below) rather than reading `process.env` directly.
+There is **no zone list in the app** — a `ZONE_CODE` is valid exactly when its
+file exists. Validation: zod (`src/lib/settings/zone-schema.ts`), loaded +
+cached by `src/lib/settings/zone-config-loader.ts`, exposed through the
+unchanged sync `zone-service.ts` API.
+
+The `modules:` extension point currently accepts only `l4-opcpa`; its YAML
+contains per-laser topology and signal PV names. The p3/l3bt/l4fbt
+`ModuleConfig` objects and bespoke parts remain TypeScript/TSX.
+
+The **adapter** is the Next.js 16 `src/proxy.ts` entrypoint (Node runtime — it
+can use the filesystem-backed loader). It redirects any request whose path
+isn't in `allowedRoutes` to `/no-access`. The nav bar — being a client
+component — receives `navigationItems`/`homeRoute` from `/api/runtime-config`
+via `useRuntimeConfig()` instead.
 
 ## Runtime, not build-time
 
-`ZONE_CODE` is a plain server env var (no `NEXT_PUBLIC_` prefix) supplied by each deployment's `docker-compose.yml` at container start. CI builds one global image with no zone baked in; switching a station's zone is a `docker compose up` with a different `ZONE_CODE`, not a rebuild.
+`ZONE_CODE` + `CONFIG_DIR` are plain server env vars supplied by each
+deployment's `docker-compose.yml`; the config dir is a read-only volume mount
+of a config checkout (currently the in-repo template; eventually the
+controls-team repository — see
+`deployments/zones/testz/docker-compose.yml`). CI builds one global image with
+no zone baked in; switching a station's zone — or changing its config — is a
+compose restart, not a rebuild.
 
-- `middleware.ts` reads `process.env.ZONE_CODE` directly — live, on every request, no extra network call.
-- The nav bar (and any other client component) fetches it once via `/api/runtime-config`, exposed through `RuntimeConfigProvider`/`useRuntimeConfig()` (`src/lib/runtime-config/`).
+Failure policy: the whole config is validated at server start
+(`src/instrumentation.ts`) — production exits non-zero on a broken/missing
+config (visible crash-loop at deploy); per-request lookups degrade to the
+empty zone (`/no-access`). Pre-deploy check:
+`npm run validate:config -- --dir <config-dir> --all`.
 
-This partially reverses [ADR-0002](../adr/0002-zone-based-access-control.md)'s rejection of "runtime config served from the backend" — see the ADR for the rationale and what still holds (the actual route gate in `middleware.ts` is unaffected: still synchronous, still server-side, still no per-request DB/network lookup).
-
-## Production override
-
-The `production` zone in the repo is deliberately empty (no allowed routes). For real production deployments:
-
-1. **Recommended — per-deployment compose env.** Set `ZONE_CODE=<site-zone>` in that zone's `docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml` for the template) and add a per-site zone entry (e.g. `e3`, `l3bt-hall`, `p3-hall`) to `zone-config.ts`.
-2. **Override the empty `production` entry.** Only for one-off deployments. Patch `zone-config.ts` in a fork or at deploy time.
+This supersedes the `zone-config.ts` hardcoded map and partially reverses
+[ADR-0002](../adr/0002-zone-based-access-control.md)'s rejection of runtime
+config (the route gate itself is unchanged: synchronous, server-side, no
+per-request network lookup — one cached fs read per process).
 
 ## Adding a page
 
-The middleware enforces zone gating *before* the route handler. If you ship a `page.tsx` without registering it in the relevant zones, the file resolves but every request 302s to `/no-access`. Always:
+Proxy enforces zone gating *before* the route handler. If you ship a
+`page.tsx` without allowing it in the relevant zone files, the file resolves
+but every request redirects to `/no-access`. Always:
 
 1. Create the route.
-2. Add it to `allowedRoutes` (and optionally `navigationItems`) of every zone that should reach it.
+2. Add it to `allowedRoutes` (and optionally `navigationItems`) of every zone
+   file that should reach it.
 
 ## Tests
 
-`src/middleware.ts` is in the coverage gate. Tests live next to it; they exercise route allow/deny per zone configuration.
+`src/proxy.ts` is in the coverage gate. Tests live next to it and stub
+`CONFIG_DIR` to the fixture dir in `src/lib/settings/__fixtures__/config-dir/`;
+they exercise route allow/deny per zone file. Schema/loader tests:
+`zone-schema.test.ts`, `zone-config-loader.test.ts`, drift tests for the
+generated JSON Schemas.

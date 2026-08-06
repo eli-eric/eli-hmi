@@ -1,5 +1,7 @@
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { clearZoneCache } from './zone-config-loader'
 import {
   getDefaultRoute,
   getHomeRoute,
@@ -8,15 +10,20 @@ import {
   isRouteAllowed,
 } from './zone-service'
 
+const FIXTURE_DIR = join(__dirname, '__fixtures__', 'config-dir')
+
 describe('zone-service', () => {
   beforeEach(() => {
     vi.unstubAllEnvs()
+    vi.stubEnv('CONFIG_DIR', FIXTURE_DIR)
+    clearZoneCache()
   })
   afterEach(() => {
     vi.unstubAllEnvs()
+    clearZoneCache()
   })
 
-  describe('test zone', () => {
+  describe('test zone (fixture with l4-opcpa)', () => {
     beforeEach(() => {
       vi.stubEnv('ZONE_CODE', 'test')
     })
@@ -55,9 +62,9 @@ describe('zone-service', () => {
     })
   })
 
-  describe('production zone (intentionally empty)', () => {
+  describe('empty zone (intentionally no routes)', () => {
     beforeEach(() => {
-      vi.stubEnv('ZONE_CODE', 'production')
+      vi.stubEnv('ZONE_CODE', 'empty')
     })
 
     it('isRouteAllowed returns false for every route', () => {
@@ -81,7 +88,7 @@ describe('zone-service', () => {
     })
   })
 
-  describe('unknown zone', () => {
+  describe('unknown zone (no zone file)', () => {
     beforeEach(() => {
       vi.stubEnv('ZONE_CODE', 'fhqwhgads')
     })
@@ -93,6 +100,19 @@ describe('zone-service', () => {
     })
   })
 
+  describe('broken zone file', () => {
+    beforeEach(() => {
+      vi.stubEnv('ZONE_CODE', 'broken')
+    })
+
+    it('falls back to empty config instead of throwing', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      expect(isRouteAllowed('/l4-opcpa')).toBe(false)
+      expect(getHomeRoute()).toBe('/no-access')
+      errorSpy.mockRestore()
+    })
+  })
+
   describe('unset zone', () => {
     beforeEach(() => {
       vi.stubEnv('ZONE_CODE', '')
@@ -101,6 +121,17 @@ describe('zone-service', () => {
     it('falls back to empty config', () => {
       expect(isRouteAllowed('/p3-controls')).toBe(false)
       expect(hasAccessibleRoutes()).toBe(false)
+    })
+  })
+
+  describe('explicit zoneCode argument overrides env', () => {
+    beforeEach(() => {
+      vi.stubEnv('ZONE_CODE', 'empty')
+    })
+
+    it('uses the passed code', () => {
+      expect(isRouteAllowed('/l4-opcpa', 'test')).toBe(true)
+      expect(getHomeRoute('test')).toBe('/l4-opcpa')
     })
   })
 })

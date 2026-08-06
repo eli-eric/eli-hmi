@@ -18,20 +18,15 @@ export default defineConfig({
       // shipped in PR #26 (pv-names, usePvWrite, sections, etc.) participate
       // in the threshold check below.
       include: [
-        'src/lib/websocket/**',
-        'src/lib/settings/**',
-        'src/middleware.ts',
-        'src/components/module-page/**',
-        'src/app/(modules)/l4-opcpa/**',
-        'src/components/hmi/laser-panel/**',
-        'src/components/hmi/controls/**',
+        'src/lib/websocket/**/*.{ts,tsx}',
+        'src/lib/settings/**/*.{ts,tsx}',
+        'src/proxy.ts',
+        'src/components/module-page/**/*.{ts,tsx}',
+        'src/app/(modules)/l4-opcpa/**/*.{ts,tsx}',
+        'src/components/hmi/laser-panel/**/*.{ts,tsx}',
+        'src/components/hmi/controls/**/*.{ts,tsx}',
       ],
-      exclude: [
-        'src/test/**',
-        '**/*.config.*',
-        '**/types.ts',
-        '**/index.ts',
-      ],
+      exclude: ['src/test/**', '**/*.config.*', '**/types.ts', '**/index.ts'],
       thresholds: {
         lines: 70,
         functions: 70,

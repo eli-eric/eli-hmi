@@ -4,7 +4,7 @@
 
 - Next.js app centered in `src/app` (routes, providers).
 - `src/lib/websocket/` — WebSocket layer: connection hook, data hook, provider, types, `PVDisplay`, `debug` helper.
-- `src/lib/settings/` — zone-config + helpers (`getDefaultRoute`, `isRouteAllowed`).
+- `src/lib/settings/` — zone schema + runtime config loader + helpers (`getDefaultRoute`, `isRouteAllowed`).
 - `src/lib/modules/` — typed `ModuleConfig` + per-module configs that drive the shared `<ModuleControlPage>`.
 - `src/components/hmi/` — reusable HMI compound components (`VolumePanel`, `ConnectorLine`, `StatusBar`).
 - `src/components/ui/` — generic primitives (buttons, dropdown, tooltip, icons, heading).
@@ -21,7 +21,7 @@
 - `npm run lint` — Next.js/ESLint rules; fix reported issues before committing.
 - `npm test` / `npm run test:run` — Vitest, watch / one-shot.
 - `npm run test:coverage` — runs with the CI threshold gate (70/70/70/60 on the include scope).
-- Create `.env.local` from `env.example` before running (`NEXTAUTH_SECRET`, `API_URL`, `ZONE_CODE`).
+- Create `.env.local` from `env.example` before running (`NEXTAUTH_SECRET`, `API_URL`, `ZONE_CODE`; `CONFIG_DIR` may stay unset for the in-repo dev fallback).
 
 ## Testing
 
@@ -29,7 +29,7 @@
 - Two WebSocket test seams:
   - `mockWebSocketServer()` in `src/test/ws-mock-server.ts` — replaces `globalThis.WebSocket`. Use for `useWebSocket` connection-lifecycle and integration tests. Honors the real wire protocol (`{type:'subscribe', pvs}` ↔ `{type:'pv', name, value, ...}`).
   - `<TestWebSocketProvider value={fakeContext}>` + `makeFakeWebSocketContext()` in `src/test/ws-test-provider.tsx` — short-circuits the connection layer for fast component tests.
-- Coverage gate scope: `src/lib/websocket/**`, `src/lib/settings/**`, `src/middleware.ts`, `src/components/module-page/**`. HMI compounds (`src/components/hmi/**`) and UI primitives are not in the gate yet — add tests as their PV maps stabilize.
+- Coverage gate scope: `src/lib/websocket/**`, `src/lib/settings/**`, `src/proxy.ts`, `src/components/module-page/**`. HMI compounds (`src/components/hmi/**`) and UI primitives are not in the gate yet — add tests as their PV maps stabilize.
 
 ## Coding Style & Naming Conventions
 
@@ -41,17 +41,17 @@
 - Use theme tokens from `src/app/globals.css` (`--color-*`, `--shadow-*`); avoid inline hex.
 - WebSocket data: always go through `useWebSocketData` — never call `getPrefixedPV` at a read-side call site.
 
-## Zones
+## Zones (CSI-861)
 
-`ZONE_CODE` selects a zone at **runtime** from `src/lib/settings/zone-config.ts` (a plain server env var, no `NEXT_PUBLIC_` prefix, supplied by docker-compose). The middleware blocks routes not in `allowedRoutes`, reading `ZONE_CODE` live per request; the nav bar (client-side) sources it from `/api/runtime-config` via `useRuntimeConfig()`. Adding a page = adding both the file *and* a route entry.
+`ZONE_CODE` selects `zones/<ZONE_CODE>.yaml` at **runtime** from the config directory (`CONFIG_DIR`; deployments mount it at `/app/zone-config`, while local development falls back to `../eli-hmi-config`). No zone list exists in code — a zone exists iff its file does. The Next.js 16 Proxy (`src/proxy.ts`, Node runtime) blocks routes not in the zone's `allowedRoutes`; the client nav sources `navigationItems`/`homeRoute` from `/api/runtime-config` via `useRuntimeConfig()`. Adding a page means adding an `allowedRoutes` entry (and optional nav item) to every zone file that should expose it.
 
-### Production zone override
+Runtime module YAML currently covers only L4 OPCPA's per-laser topology and signal PV names. The p3/l3bt/l4fbt `ModuleConfig` objects and their bespoke `parts/` remain TypeScript/TSX in this app.
 
-The shipped `production` zone is **intentionally empty** (no routes allowed). A real production deployment needs one of:
+Config is validated at server start (`src/instrumentation.ts`; prod exits non-zero on broken config) and by `npm run validate:config -- --dir <path> --all`. Schemas regenerate with `npm run gen:schema` (drift-tested). See `docs/adr/0011-runtime-zone-config.md`.
 
-1. **Per-deployment compose env (recommended)** — set `ZONE_CODE=<deployment-zone>` in that deployment's `docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml`). Add a new entry in `zone-config.ts` for each physical site (e.g. `e3`, `l3bt-hall`, `p3-hall`) with the routes that site is allowed to operate. No rebuild required — CI ships one global image, per-zone config lives entirely in each zone's compose file.
+### Production deployment
 
-2. **Override the empty `production` entry** — only for one-off deployments that should not introduce a new zone code. Patch `zone-config.ts` in a fork or at deploy time.
+Set `ZONE_CODE=<site>` + mount the config repo clone at `CONFIG_DIR` in that site's `docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml`); add `zones/<site>.yaml` to the config repo. No rebuild required — CI ships one global image.
 
 ## Commit & Pull Request Guidelines
 

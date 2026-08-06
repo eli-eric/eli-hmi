@@ -1,6 +1,6 @@
 # Frontend overview
 
-Next.js 15 / React 19 / TypeScript under `frontend/`. App Router. Turbopack dev server on **port 8082** (not 3000).
+Next.js 16 / React 19 / TypeScript under `frontend/`. App Router. Turbopack dev server on **port 8082** (not 3000).
 
 ## What the frontend is
 
@@ -10,7 +10,7 @@ A control-system HMI rendered in the browser, run from operator stations. The au
 
 | Path | Role |
 | --- | --- |
-| `app/` | Routes (App Router), providers, layouts, `middleware.ts`. |
+| `app/` | Routes (App Router), providers, layouts. |
 | `app/(modules)/<m>-controls/` | One route per control module — usually a 5-line `<ModuleControlPage>` call. |
 | `app/(modules)/l4-opcpa/` | Exception: custom shell, custom PV registry. [Detail.](l4-opcpa.md) |
 | `app/providers/` | `WebSocketProvider`, session provider, theme. |
@@ -18,13 +18,14 @@ A control-system HMI rendered in the browser, run from operator stations. The au
 | `components/module-page/` | `<ModuleControlPage>` shell + 5 config-driven panels. |
 | `components/navigation/` `components/ui/` | Nav bar, generic primitives. |
 | `lib/websocket/` | WS client adapter — `useWebSocket`, `useWebSocketData`, `PVDisplay`, `WebSocketProvider`. [Detail.](websocket-client.md) |
-| `lib/settings/` | `zone-config.ts` + zone helpers. [Detail.](zones.md) |
+| `lib/settings/` | Runtime zone schema, YAML loader, and route helpers. [Detail.](zones.md) |
+| `lib/runtime-config/` | Client context populated by `/api/runtime-config`. |
 | `lib/modules/` | `ModuleConfig` types + per-module configs. [Detail.](module-pages.md) |
 | `lib/server/auth/` | NextAuth + LDAP. [Detail.](auth.md) |
 | `lib/utils/pv-helpers.ts` | `getPrefixedPV`, `getFormattedValue`. [Detail.](../reference/pv-naming.md) |
 | `lib/api/pvs.ts` | `pvWrite()` — the single PV-write adapter onto `POST /pv/<NAME>`. |
 | `test/` | Vitest setup + two WS test seams (`ws-mock-server.ts`, `ws-test-provider.tsx`). |
-| `middleware.ts` | Zone + auth gate. |
+| `proxy.ts` | Next.js 16 Proxy: zone + auth gate. |
 
 ## Conventions
 
@@ -49,4 +50,4 @@ The split is itself an example of *adapter vs implementation*: same interface (`
 
 ## Coverage gate
 
-`.gitlab-ci.yml` `frontend-test` enforces 70/70/70/60 over `src/lib/websocket/**`, `src/lib/settings/**`, `src/middleware.ts`, `src/components/module-page/**` (the parts most expensive to break).
+`.gitlab-ci.yml` `frontend-test` enforces 70/70/70/60 over TypeScript sources in `src/lib/websocket/**`, `src/lib/settings/**`, `src/proxy.ts`, and `src/components/module-page/**` (the parts most expensive to break).

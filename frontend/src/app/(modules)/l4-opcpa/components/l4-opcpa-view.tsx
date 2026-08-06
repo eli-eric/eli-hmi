@@ -13,8 +13,9 @@ interface L4OpcpaViewProps {
 
 /**
  * Client view for the L4 OPCPA page. Receives the validated per-laser specs
- * from the server `page.tsx` (which reads them from `lasers.yaml` at build
- * time) and renders the grid. Client because of the live connection banner.
+ * from the server `page.tsx` (which resolves the current zone's `lasers.yaml`
+ * at runtime) and renders the grid. Client because of the live connection
+ * banner.
  */
 export const L4OpcpaView: FC<L4OpcpaViewProps> = ({ specs }) => {
   const { isConnected } = useWebSocketContext()

@@ -1,6 +1,6 @@
 # L4 OPCPA Control System
 
-> Architecture context: [`docs/frontend/l4-opcpa.md`](../../../../../docs/frontend/l4-opcpa.md). Related ADRs: [0006](../../../../../docs/adr/0006-pv-name-registry-l4-opcpa.md), [0007](../../../../../docs/adr/0007-l4-custom-shell-not-modulecontrolpage.md), [0010](../../../../../docs/adr/0010-per-laser-yaml-config.md) (supersedes [0008](../../../../../docs/adr/0008-laser-specs-location.md)).
+> Architecture context: [`docs/frontend/l4-opcpa.md`](../../../../../docs/frontend/l4-opcpa.md). Related ADRs: [0006](../../../../../docs/adr/0006-pv-name-registry-l4-opcpa.md), [0007](../../../../../docs/adr/0007-l4-custom-shell-not-modulecontrolpage.md), [0010](../../../../../docs/adr/0010-per-laser-yaml-config.md) (supersedes [0008](../../../../../docs/adr/0008-laser-specs-location.md)), [0011](../../../../../docs/adr/0011-runtime-zone-config.md) (runtime zone config).
 
 Operator UI for the L4 OPCPA laser system. Five lasers (NL1–NL5) rendered
 side-by-side, each with five stacked sections (General, Regen, Chillers,
@@ -12,13 +12,12 @@ Flashlamps, Modbox).
 
 ```
 app/(modules)/l4-opcpa/
-├── page.tsx                  # Server shell — loads + validates lasers.yaml, renders L4OpcpaView
+├── page.tsx                  # Server shell (force-dynamic) — loads the zone's laser config, renders L4OpcpaView
 ├── page.module.css
-├── config/                   # Per-laser topology config (see config/README.md + ADR-0010)
-│   ├── lasers.yaml           # SOURCE OF TRUTH — human-edited per-laser topology
-│   ├── lasers.schema.json    # Generated for editor autocomplete (npm run gen:schema)
+├── error.tsx                 # Error boundary for runtime config failures
+├── config/                   # Schema + loader; the YAML itself lives in the zone-config dir (ADR-0011)
 │   ├── schema.ts             # zod schema + LaserSpec type + parseLaserSpecs()
-│   └── load-laser-specs.ts   # server-only fs wrapper around parseLaserSpecs
+│   └── load-laser-specs.ts   # server-only loader: zone file → modules.l4-opcpa.config → parse
 ├── lib/
 │   ├── pv-names.ts           # PV-name registry — canonical source for BI_/AI_/SI_/CMD_ names
 │   └── pv-names.test.ts
@@ -45,18 +44,20 @@ ribbons. Forcing it into `ModuleControlPage` would mean stubbing out all of
 the vacuum-specific panels.
 
 Per-laser **topology** (laser counts, chiller ids, delay presets, commands)
-lives in `config/lasers.yaml` — a human-editable, zod-validated config under
-this module, not in `lib/modules/` (which is panel-layout `ModuleConfig` for
-`ModuleControlPage`). See [ADR-0010](../../../../../docs/adr/0010-per-laser-yaml-config.md)
-(supersedes [ADR-0008](../../../../../docs/adr/0008-laser-specs-location.md))
-and `config/README.md`.
+lives in a human-editable, zod-validated YAML in the **zone-config directory**
+(`eli-hmi-config/modules/l4-opcpa/lasers.yaml` in-repo; a read-only mounted
+config checkout in deployments — see [ADR-0011](../../../../../docs/adr/0011-runtime-zone-config.md)),
+not in `lib/modules/` (which is panel-layout `ModuleConfig` for
+`ModuleControlPage`). Format docs: `eli-hmi-config/modules/l4-opcpa/README.md`.
 
-`loadLaserSpecs()` is the seam for the future: when a Python EPICS gateway
-exposes `GET /lasers`, swap the `fs` read for a `fetch`.
+`loadLaserSpecs()` resolves the current zone's file at request time (cached in
+production; container restart = reload, while development reloads per request).
+It remains the seam for a future
+`GET /lasers` gateway endpoint: swap the file read for a `fetch`.
 
 ## PV naming
 
-Signal PV names are **full strings in `config/lasers.yaml`** (what controls
+Signal PV names are **full strings in the zone's `lasers.yaml`** (what controls
 provides) — the frontend reads them verbatim; it does **not** assemble names
 from prefixes. The only thing built in code is the **command PV**
 (`CMD_<laser>_<NAME>`), because a command maps to a backend sequence of writes,
@@ -69,7 +70,7 @@ pv.cmd('NL2', 'START_LASER') // 'CMD_NL2_START_LASER'
 
 The mock backend (`backend/mockup-websocket-server/l4_opcpa.go`) is test-only
 and seeds the names currently in `lasers.yaml` (the mock convention). It does
-**not** read the YAML — see `config/README.md`. See
+**not** read the YAML — see `eli-hmi-config/modules/l4-opcpa/README.md`. See
 [ADR-0010](../../../../../docs/adr/0010-per-laser-yaml-config.md).
 
 ## Write path
@@ -103,6 +104,6 @@ curl http://localhost:8080/mode/fail-rate/10
 
 NL1, NL3, NL4, NL5 mirror NL2's topology because Confluence only documents
 NL2 and APL. Once divergent topology is confirmed (chiller bank counts,
-flashlamp box ids per laser), edit the per-laser entries in
-`config/lasers.yaml` — each laser is configured independently. Tracked via
+flashlamp box ids per laser), edit the per-laser entries in the zone's
+`lasers.yaml` — each laser is configured independently. Tracked via
 footer comments on the source Confluence page.
