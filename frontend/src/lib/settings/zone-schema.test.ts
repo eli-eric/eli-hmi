@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseZoneFile, ZONE_SCHEMA_VERSION } from './zone-schema'
+import {
+  MODULE_ROUTES,
+  parseZoneFile,
+  ZONE_SCHEMA_VERSION,
+} from './zone-schema'
 
 const VALID = `
 schemaVersion: ${ZONE_SCHEMA_VERSION}
@@ -35,6 +39,41 @@ describe('parseZoneFile', () => {
     expect(zone.navigationItems).toEqual([])
     expect(zone.allowedRoutes).toEqual([])
     expect(zone.modules).toEqual({})
+  })
+
+  it('accepts runtime config references for every module route', () => {
+    const zone = parseZoneFile(
+      `
+schemaVersion: ${ZONE_SCHEMA_VERSION}
+navigationItems: []
+allowedRoutes:
+  - /l4-opcpa
+modules:
+  l4-opcpa:
+    config: modules/l4-opcpa/lasers.yaml
+  p3:
+    config: modules/p3/config.yaml
+  l3bt:
+    config: modules/l3bt/config.yaml
+  l4fbt:
+    config: modules/l4fbt/config.yaml
+`,
+      'zones/all-modules.yaml',
+    )
+
+    expect(ZONE_SCHEMA_VERSION).toBe(1)
+    expect(MODULE_ROUTES).toEqual({
+      'l4-opcpa': '/l4-opcpa',
+      p3: '/p3-controls',
+      l3bt: '/l3bt-controls',
+      l4fbt: '/l4fbt-controls',
+    })
+    expect(zone.modules).toEqual({
+      'l4-opcpa': { config: 'modules/l4-opcpa/lasers.yaml' },
+      p3: { config: 'modules/p3/config.yaml' },
+      l3bt: { config: 'modules/l3bt/config.yaml' },
+      l4fbt: { config: 'modules/l4fbt/config.yaml' },
+    })
   })
 
   it('rejects malformed YAML with the file name in the message', () => {
@@ -104,6 +143,25 @@ allowedRoutes:
       /modules\.l4-opcpa has no config reference/,
     )
   })
+
+  it.each([
+    ['p3', '/p3-controls'],
+    ['l3bt', '/l3bt-controls'],
+    ['l4fbt', '/l4fbt-controls'],
+  ])(
+    'rejects allowed %s route without its module config reference',
+    (moduleKey, route) => {
+      const text = `
+schemaVersion: ${ZONE_SCHEMA_VERSION}
+navigationItems: []
+allowedRoutes:
+  - ${route}
+`
+      expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
+        new RegExp(`modules\\.${moduleKey} has no config reference`),
+      )
+    },
+  )
 
   it('rejects a route not starting with /', () => {
     const text = VALID.replace('- /l4-opcpa\n', '- l4-opcpa\n')

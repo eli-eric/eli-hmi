@@ -22,8 +22,8 @@ Two backends, one frontend. The frontend is environment-agnostic: `API_URL` (e.g
 
 - **PV** — process variable. Atomic read/write unit. Name + value + severity + units + timestamp.
 - **Zone** — runtime deployment profile selected by `ZONE_CODE`. Its YAML file in `CONFIG_DIR` determines which routes a particular operator station can reach and what appears in navigation.
-- **Module page** — a control page driven by a `ModuleConfig` declarative descriptor (`l3bt-controls`, `l4fbt-controls`, `p3-controls`). One renderer (`ModuleControlPage`), three configs.
-- **L4 OPCPA** — exception to the module-page pattern. Has its own custom shell; its per-laser topology and signal PV names are the only module data currently loaded from runtime YAML.
+- **Module page** — a control page driven by a runtime-loaded `ModuleConfig` declarative descriptor (`l3bt-controls`, `l4fbt-controls`, `p3-controls`). One renderer (`ModuleControlPage`), three zone-referenced YAML configs.
+- **L4 OPCPA** — exception to the `ModuleConfig` page pattern. It has its own custom shell and a separate runtime-YAML schema for per-laser topology and signal PV names.
 - **HMI panel** — a reusable compound component (`VolumePanel`, `ConnectorLine`, `LaserPanel`) that engineers compose into pages.
 - **PV write** — a single `POST /pv/<NAME>` endpoint that both backends honour and that two frontend call sites use.
 
@@ -39,7 +39,7 @@ Recorded as ADRs in [`/docs/adr/`](adr/):
 - L4 OPCPA's PV-name registry
 - L4 OPCPA's custom shell (deliberate opt-out from `ModuleControlPage`)
 - Laser specs location
-- Runtime zone and L4 OPCPA config ([ADR-0011](adr/0011-runtime-zone-config.md)); config changes require a container restart, not an app rebuild
+- Runtime zone and module config ([ADR-0011](adr/0011-runtime-zone-config.md)); config changes require a container restart, not an app rebuild
 
 The open architectural question — explicitly *not yet* an accepted ADR — is whether the mock and Python WS adapters should converge on one shared protocol contract. See [ADR-0009](adr/0009-shared-ws-protocol-contract.md).
 
@@ -57,4 +57,4 @@ Deepening candidates worth surfacing should typically:
 - Translating Confluence product specs into source files. Confluence stays canonical for product/spec.
 - Generating TS-type docs (TypeDoc et al.). The team prefers hand-written prose.
 - Renaming HMI subcomponents to satisfy uniform-case rules across all directories — [the policy already permits PascalCase for single-component files](../frontend/AGENTS.md) (per commit `e9965be`).
-- Treating p3/l3bt/l4fbt as runtime-YAML modules before they are migrated. Their `ModuleConfig` objects and bespoke `parts/` wiring remain app code today.
+- Encoding the p3/l3bt/l4fbt bespoke `parts/` trees as YAML. Only their data-only `ModuleConfig` fields belong in runtime config; structural compound-component wiring remains TSX.

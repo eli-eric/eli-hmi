@@ -1,0 +1,11 @@
+schemaVersion: 1
+navigationItems:
+  - text: L4 OPCPA Controls
+    href: /l4-opcpa
+allowedRoutes:
+  - /l4-opcpa
+modules:
+  l4-opcpa:
+    config: modules/l4-opcpa/lasers.yaml
+  p3:
+    config: modules/p3/invalid.yaml

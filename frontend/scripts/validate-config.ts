@@ -48,12 +48,10 @@ async function main(): Promise<void> {
   // Point the app loader at the directory under validation, then import it —
   // the loader reads CONFIG_DIR through getConfigDir() on every call.
   process.env.CONFIG_DIR = configDir
-  const { loadZoneFile, readModuleConfigText, ZONE_CODE_RE } = await import(
-    '../src/lib/settings/zone-config-loader'
-  )
-  const { parseLaserSpecs } = await import(
-    '../src/app/(modules)/l4-opcpa/config/schema'
-  )
+  const { loadZoneFile, ZONE_CODE_RE } =
+    await import('../src/lib/settings/zone-config-loader')
+  const { listReferencedModuleConfigs, validateReferencedModuleConfigs } =
+    await import('../src/lib/settings/module-config-validation')
 
   let failures = 0
   const fail = (name: string, message: string): void => {
@@ -89,12 +87,13 @@ async function main(): Promise<void> {
   for (const zoneCode of zoneCodes) {
     try {
       const zone = loadZoneFile(zoneCode)
-
-      const l4 = zone.modules['l4-opcpa']
-      if (l4) {
-        parseLaserSpecs(readModuleConfigText(l4.config))
-        referenced.add(resolve(configDir, l4.config))
+      const moduleReferences = listReferencedModuleConfigs(zone)
+      // Record references before parsing: a malformed referenced file is a
+      // validation failure, not an orphan as well.
+      for (const { config } of moduleReferences) {
+        referenced.add(resolve(configDir, config))
       }
+      validateReferencedModuleConfigs(zone)
 
       console.log(`✓ ${zoneCode}`)
     } catch (e) {
@@ -150,10 +149,13 @@ async function findStaleSchemas(configDir: string): Promise<string[]> {
   const schemasDir = join(configDir, 'schemas')
   if (!existsSync(schemasDir)) return []
   const { buildSchema } = await import('./build-laser-schema')
+  const { buildModuleConfigSchema, MODULE_CONFIG_SCHEMA_PATH } =
+    await import('./build-module-config-schema')
   const { buildZoneSchema } = await import('./build-zone-schema')
   const expected: Record<string, string> = {
     'zone.schema.json': buildZoneSchema(),
     'l4-opcpa-lasers.schema.json': buildSchema(),
+    [basename(MODULE_CONFIG_SCHEMA_PATH)]: buildModuleConfigSchema(),
   }
   return Object.entries(expected)
     .filter(([file, content]) => {

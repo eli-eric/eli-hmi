@@ -8,12 +8,8 @@
  */
 import { existsSync } from 'node:fs'
 
-import {
-  getConfigDir,
-  loadZoneFile,
-  readModuleConfigText,
-} from './lib/settings/zone-config-loader'
-import { parseLaserSpecs } from './app/(modules)/l4-opcpa/config/schema'
+import { validateReferencedModuleConfigs } from './lib/settings/module-config-validation'
+import { getConfigDir, loadZoneFile } from './lib/settings/zone-config-loader'
 
 function fail(message: string): void {
   if (process.env.NODE_ENV === 'production') {
@@ -45,17 +41,17 @@ export function validateZoneConfigAtStartup(): void {
 
   try {
     const zone = loadZoneFile(zoneCode)
-
-    const l4 = zone.modules['l4-opcpa']
-    if (l4) {
-      parseLaserSpecs(readModuleConfigText(l4.config))
-    }
+    const moduleReferences = validateReferencedModuleConfigs(zone)
 
     console.log(
       `[zone-config] zone "${zoneCode}" OK (${configDir}): ` +
         `${zone.allowedRoutes.length} route(s), ` +
         `${zone.navigationItems.length} nav item(s)` +
-        (l4 ? `, l4-opcpa config ${l4.config}` : ''),
+        (moduleReferences.length > 0
+          ? `, module config(s): ${moduleReferences
+              .map(({ moduleKey, config }) => `${moduleKey}=${config}`)
+              .join(', ')}`
+          : ''),
     )
   } catch (e) {
     return fail((e as Error).message)

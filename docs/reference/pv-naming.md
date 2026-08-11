@@ -41,4 +41,11 @@ template's signal names and the command shapes. See [ADR-0010](../adr/0010-per-l
 
 ## Deliberate placeholders
 
-`src/lib/modules/<m>.config.ts` files carry placeholder PV names — `undefined1:PRESSURE`, `SI_???`, `AI_RPM_SPEED_P04`, `// TODO PV name unclear`, `// TODO PVs unknown`. These are **deliberate**, not oversights. Control engineers haven't settled on canonical names yet; the refactor preserves the legacy ambiguity rather than inventing names. Replace placeholders only when an engineer has confirmed them. Detail: [`frontend/src/lib/modules/README.md`](../../frontend/src/lib/modules/README.md#deliberate-placeholders).
+`eli-hmi-config/modules/{p3,l3bt,l4fbt}/config.yaml` carries placeholder PV
+names and TODO comments inherited from the legacy TypeScript configs. Examples
+include `undefined1:PRESSURE` and `AI_RPM_SPEED_P000`. These are **deliberate**,
+not oversights: the migration preserves ambiguity instead of inventing control
+system names. Replace placeholders only when an engineer has confirmed them.
+The bespoke bottom-row `parts/` were not data-migrated, so placeholders such
+as `SI_???` and `AI_RPM_SPEED_P04` still live in those TSX files.
+Detail: [`frontend/src/lib/modules/README.md`](../../frontend/src/lib/modules/README.md#deliberate-placeholders).

@@ -1,0 +1,99 @@
+# yaml-language-server: $schema=../../schemas/module-config.schema.json
+
+# The placeholder values below are intentionally preserved from the legacy
+# TypeScript config. Replace them only when controls supplies confirmed PVs.
+schemaVersion: 1
+heading: L4fBT
+interlocks:
+  title: L4fBT Interlocks
+  # TODO: PV name unclear; legacy code had the typo "undefinded".
+  checkClearPv: undefined:INTERLOCK
+  items:
+    # TODO: PV name unclear.
+    - pvname: undefined:INTERLOCK
+      title: L4fBT S3 Volume
+    # TODO: PV name unclear.
+    - pvname: undefined:INTERLOCK
+      title: Valve EGV802
+safetyPermission:
+  title: L4fBT Machine Safety Permissions
+  items:
+    # TODO: PV name unclear.
+    - pvname: undefined3:S1_ROUGHING_PERMISSION
+      title: L4fBT S3 Volume Roughing
+    # TODO: PV name unclear.
+    - pvname: undefined2:S1_HIGH_VAC_PERMISSION
+      title: L4fBT S3 Volume High Vacuum Pumping
+    # TODO: PV name unclear.
+    - pvname: undefined1:S3_ROUGHING_PERMISSION
+      title: Valve EGV802 to Open
+cleanDryAir:
+  title: L4fBT Clean Dry Air (CDA)
+  volumes:
+    - title: L4fBT CDA Valve Actuation
+      # TODO: PV name unclear.
+      pressure:
+        pvName: undefined1:CDA_PRESSURE
+        label: PPS583
+        options:
+          format: precision
+      # TODO: PV name unclear; legacy note said "Add PV + change to Flow".
+      flow:
+        pvName: undefined2:PRESSURE
+        label: PFS583
+        options:
+          format: precision
+    - title: L4fBT CDA Venting
+      # TODO: PV name unclear.
+      pressure:
+        pvName: undefined3:CDA_PRESSURE
+        label: PPS584
+        options:
+          format: precision
+      # TODO: PV name unclear.
+      flow:
+        pvName: undefined4:PRESSURE
+        label: PFS584
+        options:
+          format: precision
+backing:
+  title: L4fBT Backing
+  width: 100%
+  containerWidth: 9rem
+  sensorBar:
+    title: L4fBT Backing Line
+    label: Pressure
+    height: 20rem
+    # TODO: PV name unclear.
+    sensorPVs:
+      - pvName: undefined1:PRESSURE
+        label: APG585
+  pump:
+    title: Backing Pump P025
+    # TODO: PV name unclear.
+    rpmPV: undefined3:ActualFrequency
+    # TODO: PV name unclear.
+    valvePv: undefined4:OPEN
+    valveLabel: GV02
+roughing:
+  title: Roughing
+  width: 100%
+  containerWidth: 9rem
+  sensorBar:
+    title: Roughing Line L4fBT Outlet
+    label: Pressure
+    height: 20rem
+    # TODO: PV name unclear.
+    sensorPVs:
+      - pvName: undefined1:PRESSURE
+        label: APG584
+  pump:
+    title: Roughing Pump P00
+    # TODO: PV name unclear.
+    rpmPV: L3BT-VCS-PUMP-P04:ActualFrequency
+    # TODO: PV name unclear.
+    valvePv: L3BT-PUMP-P04:VALVE
+    valveLabel: GV000
+  locking:
+    label: Used And Locked By
+    pvName: SI_LOCKED_TEST

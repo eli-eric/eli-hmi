@@ -16,8 +16,16 @@ navigationItems:
 allowedRoutes:
   - /l4-opcpa
 
-# Where each enabled module's own config file lives, relative to this config
-# directory's root.
+# Runtime data files, relative to this config directory's root. A reference
+# does not enable a route; allowedRoutes/navigationItems remain the station's
+# access-control source. Keeping all template modules referenced makes CI and
+# startup validate their data before a zone exposes the corresponding page.
 modules:
   l4-opcpa:
     config: modules/l4-opcpa/lasers.yaml
+  p3:
+    config: modules/p3/config.yaml
+  l3bt:
+    config: modules/l3bt/config.yaml
+  l4fbt:
+    config: modules/l4fbt/config.yaml

@@ -1,21 +1,11 @@
-'use client'
+import { loadModuleConfig } from '@/lib/modules/module-config-loader'
 
-import { ModuleControlPage } from '@/components/module-page/module-control-page'
-import { p3Config } from '@/lib/modules/p3.config'
+import { P3ControlsView } from './p3-controls-view'
 
-import { P3EGVConnector } from './parts/p3-egv-connector'
-import { P3Volumes } from './parts/p3-volumes'
+export const dynamic = 'force-dynamic'
 
 export default function P3ControlsPage() {
-  return (
-    <ModuleControlPage
-      config={p3Config}
-      bottomRow={
-        <>
-          <P3EGVConnector />
-          <P3Volumes />
-        </>
-      }
-    />
-  )
+  const config = loadModuleConfig('p3')
+
+  return <P3ControlsView config={config} />
 }

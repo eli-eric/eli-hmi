@@ -2,7 +2,7 @@
 
 Deployment profiles (CSI-861). Each zone declares which routes are reachable,
 what shows up in the nav bar, and references config for supported runtime
-modules (currently L4 OPCPA).
+modules (L4 OPCPA plus the p3/l3bt/l4fbt vacuum pages).
 Since [ADR-0011](../adr/0011-runtime-zone-config.md) zones are **files in a
 runtime-mounted config directory**, not code.
 
@@ -17,6 +17,9 @@ navigationItems: [{ text: L4 OPCPA Controls, href: /l4-opcpa }]
 allowedRoutes: [/l4-opcpa]          # first entry = home route
 modules:
   l4-opcpa: { config: modules/l4-opcpa/lasers.yaml }
+  p3: { config: modules/p3/config.yaml }
+  l3bt: { config: modules/l3bt/config.yaml }
+  l4fbt: { config: modules/l4fbt/config.yaml }
 ```
 
 There is **no zone list in the app** — a `ZONE_CODE` is valid exactly when its
@@ -24,9 +27,10 @@ file exists. Validation: zod (`src/lib/settings/zone-schema.ts`), loaded +
 cached by `src/lib/settings/zone-config-loader.ts`, exposed through the
 unchanged sync `zone-service.ts` API.
 
-The `modules:` extension point currently accepts only `l4-opcpa`; its YAML
-contains per-laser topology and signal PV names. The p3/l3bt/l4fbt
-`ModuleConfig` objects and bespoke parts remain TypeScript/TSX.
+The `modules:` map accepts `l4-opcpa`, `p3`, `l3bt`, and `l4fbt`. L4 OPCPA
+uses its laser-specific schema; the other three use the shared `ModuleConfig`
+schema. A module reference makes startup and CI validate the file but does not
+grant route access. The vacuum pages' bespoke parts remain TSX.
 
 The **adapter** is the Next.js 16 `src/proxy.ts` entrypoint (Node runtime — it
 can use the filesystem-backed loader). It redirects any request whose path
@@ -46,8 +50,9 @@ compose restart, not a rebuild.
 
 Failure policy: the whole config is validated at server start
 (`src/instrumentation.ts`) — production exits non-zero on a broken/missing
-config (visible crash-loop at deploy); per-request lookups degrade to the
-empty zone (`/no-access`). Pre-deploy check:
+config (visible crash-loop at deploy); per-request zone lookups degrade to the
+empty zone (`/no-access`). A module-file failure after startup surfaces as a
+page error. Pre-deploy check:
 `npm run validate:config -- --dir <config-dir> --all`.
 
 This supersedes the `zone-config.ts` hardcoded map and partially reverses
@@ -62,7 +67,9 @@ Proxy enforces zone gating *before* the route handler. If you ship a
 but every request redirects to `/no-access`. Always:
 
 1. Create the route.
-2. Add it to `allowedRoutes` (and optionally `navigationItems`) of every zone
+2. Register its supported module key/route and parser in app code.
+3. Add its `modules.<key>.config` reference to applicable zone files.
+4. Add it to `allowedRoutes` (and optionally `navigationItems`) of every zone
    file that should reach it.
 
 ## Tests
