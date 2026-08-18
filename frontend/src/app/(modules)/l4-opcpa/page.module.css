@@ -1,15 +1,7 @@
+/* The goggles palette itself lives in globals.css under
+ * [data-palette='goggles'] — see the note there: it has to be reachable from
+ * panels this page portals to <body>, which a .page-scoped block is not. */
 .page {
-  --color-surface-lighter: var(--color-positive-neutral);
-  --color-surface-light: var(--color-negative-neutral);
-  --color-surface: var(--color-negative-neutral);
-  --color-border: var(--color-text);
-  --color-gray-800: var(--color-text);
-  --color-success-light: var(--color-positive-important);
-  --color-success: var(--color-positive-important);
-  --color-success-dark: var(--color-text);
-  --color-error-light: var(--color-negative-important);
-  --color-error: var(--color-negative-important);
-  --color-error-dark: var(--color-text);
   --header-stack-height: 2rem;
   display: flex;
   flex-direction: column;

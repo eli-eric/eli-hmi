@@ -57,6 +57,7 @@ export const CogToggle: FC<PropsWithChildren<CogToggleProps>> = ({
   const isInline = Boolean(inlineLabel)
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
+  const [palette, setPalette] = useState<string | null>(null)
   const wrapperRef = useRef<HTMLSpanElement | null>(null)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
@@ -86,6 +87,17 @@ export const CogToggle: FC<PropsWithChildren<CogToggleProps>> = ({
     window.addEventListener('mousedown', onDown)
     return () => window.removeEventListener('mousedown', onDown)
   }, [open, close])
+
+  // A page can re-map the colour tokens on its root element (the L4 OPCPA
+  // goggles palette does). The floating panel is portaled to <body>, outside
+  // that scope, so it has to carry the page's palette itself — otherwise write
+  // controls inside a dropdown fall back to the global tokens and show errors
+  // in a colour the palette exists to avoid.
+  useLayoutEffect(() => {
+    if (!open || isInline) return
+    const scope = wrapperRef.current?.closest('[data-palette]')
+    setPalette(scope?.getAttribute('data-palette') ?? null)
+  }, [open, isInline])
 
   // Position the floating dropdown: fixed, below the button, right-aligned to it,
   // flipped above if it would overflow the viewport bottom. Reposition on scroll
@@ -121,6 +133,7 @@ export const CogToggle: FC<PropsWithChildren<CogToggleProps>> = ({
         className={styles.panel}
         data-inline={isInline ? 'true' : 'false'}
         data-floating={isInline ? undefined : 'true'}
+        data-palette={isInline ? undefined : (palette ?? undefined)}
         style={
           isInline
             ? undefined

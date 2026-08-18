@@ -89,6 +89,38 @@
   --spacing-unit: 0.25rem;
 }
 
+/* Laser-goggles palette. Operators wear safety goggles that filter parts of the
+ * spectrum, so pages inside the laser hall re-map the semantic tokens onto the
+ * four approved tones (see the ColorLegend on the L4 OPCPA page).
+ *
+ * Scoped to an attribute rather than a page class on purpose: the panel a
+ * CogToggle opens is portaled to <body>, outside any page element, and would
+ * otherwise fall back to the global tokens — showing write errors in the
+ * #e91004 red this palette exists to avoid. CogToggle mirrors the nearest
+ * ancestor's data-palette onto its floating panel.
+ *
+ * The `-light`/base variants are fills; the `-dark` variants are used as text
+ * and border colours by the controls, so they collapse to black — bright fill
+ * colours are unreadable as text on a white surface. */
+[data-palette='goggles'] {
+  --color-surface-lighter: var(--color-positive-neutral);
+  --color-surface-light: var(--color-negative-neutral);
+  --color-surface: var(--color-negative-neutral);
+  --color-border: var(--color-text);
+  --color-gray-800: var(--color-text);
+  --color-success-light: var(--color-positive-important);
+  --color-success: var(--color-positive-important);
+  --color-success-dark: var(--color-text);
+  --color-error-light: var(--color-negative-important);
+  --color-error: var(--color-negative-important);
+  --color-error-dark: var(--color-text);
+  /* Amber is not one of the approved tones: a warning is "negative neutral",
+   * which is what the legend shows for the chiller warn cells. */
+  --color-warning-light: var(--color-negative-neutral);
+  --color-warning: var(--color-negative-neutral);
+  --color-warning-dark: var(--color-text);
+}
+
 *,
 *::before,
 *::after {
@@ -127,8 +159,13 @@ a {
 }
 
 html {
-  font-size: clamp(12.5px, 0.5vw + 4.5px, 18px); /* fluid base unit so the fully rem-based UI adapts across phones -> monitors -> TVs. 12.5px floor (readable, and 5 panels fit in one row at 1600px), scaling to 18px on large/4K displays for across-room readability. Panels, gaps, sidebar and text all scale together, so nothing truncates. Browser zoom (Ctrl +/-) still works on top of this. */
-  font-family: 'Roboto Condensed', 'Arial Narrow', 'Roboto', system-ui, sans-serif; /* narrow fallbacks: if Roboto Condensed fails to load, degrade to a condensed-ish font instead of wide sans-serif (which overflows and truncates the fixed-width labels) */
+  font-size: clamp(
+    12.5px,
+    0.5vw + 4.5px,
+    18px
+  ); /* fluid base unit so the fully rem-based UI adapts across phones -> monitors -> TVs. 12.5px floor (readable, and 5 panels fit in one row at 1600px), scaling to 18px on large/4K displays for across-room readability. Panels, gaps, sidebar and text all scale together, so nothing truncates. Browser zoom (Ctrl +/-) still works on top of this. */
+  font-family:
+    'Roboto Condensed', 'Arial Narrow', 'Roboto', system-ui, sans-serif; /* narrow fallbacks: if Roboto Condensed fails to load, degrade to a condensed-ish font instead of wide sans-serif (which overflows and truncates the fixed-width labels) */
   background: var(--color-background);
 }
 

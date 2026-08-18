@@ -20,7 +20,9 @@ interface L4OpcpaViewProps {
 export const L4OpcpaView: FC<L4OpcpaViewProps> = ({ specs }) => {
   const { isConnected } = useWebSocketContext()
   return (
-    <div className={styles.page}>
+    // data-palette drives the goggles token block in globals.css, and
+    // CogToggle copies it onto panels it portals to <body>.
+    <div className={styles.page} data-palette="goggles">
       <div className={styles.stickyHeader}>
         <header className={styles.header}>
           <h1 className={styles.title}>L4 OPCPA</h1>
