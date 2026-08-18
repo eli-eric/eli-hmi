@@ -42,7 +42,11 @@ func pvNamesFrom(raw json.RawMessage) []string {
 	var legacy map[string]interface{}
 	if err := json.Unmarshal(raw, &legacy); err == nil {
 		list = make([]string, 0, len(legacy))
-		for name := range legacy {
+		for name, wanted := range legacy {
+			// {"AI_X": false} means "not this one", as in the Python gateway.
+			if wanted == false {
+				continue
+			}
 			list = append(list, name)
 		}
 		return list
@@ -168,10 +172,7 @@ func (ps *pvSim) loop(ctx context.Context) {
 				ps.value = simStepFrom(ps.name, ps.value)
 				b := ps.encodeLocked()
 				for cl := range ps.subs {
-					select {
-					case cl.writeCh <- b:
-					default:
-					}
+					cl.enqueue(b)
 				}
 				ps.mu.Unlock()
 			}
@@ -227,28 +228,31 @@ func (ps *pvSim) encodeLocked() []byte {
 func (ps *pvSim) add(cl *client) {
 	ps.mu.Lock()
 	ps.subs[cl] = struct{}{}
-	b := ps.encodeLocked() // send current value immediately
+	// Queue the snapshot while still holding the lock so it can never be
+	// overtaken by an update produced by the sim loop in between.
+	cl.enqueue(ps.encodeLocked())
 	ps.mu.Unlock()
-
-	// non-blocking send
-	select {
-	case cl.writeCh <- b:
-	default:
-	}
 }
 
+// snapshot re-sends the current value to an already-attached client. The
+// gateway sends one snapshot per subscription, so a PV that a second
+// subscription group starts monitoring gets its own initial value.
+func (ps *pvSim) snapshot(cl *client) {
+	ps.mu.Lock()
+	cl.enqueue(ps.encodeLocked())
+	ps.mu.Unlock()
+}
+
+// remove detaches a client. The simulator itself stays in the registry with
+// its current value: a real IOC keeps serving a PV when nobody is monitoring
+// it, and the frontend's partial-removal flow (unsubscribe the whole group,
+// then re-subscribe the survivors) would otherwise drop every sim in the group
+// and rebuild it from a random synthValue — turning seeded state such as
+// BI_<laser>_ERR_* = 0 into a phantom module error.
 func (ps *pvSim) remove(cl *client) {
 	ps.mu.Lock()
 	delete(ps.subs, cl)
-	empty := len(ps.subs) == 0
 	ps.mu.Unlock()
-
-	if empty {
-		ps.cancel()
-		pvRegistryMu.Lock()
-		delete(pvRegistry, ps.name)
-		pvRegistryMu.Unlock()
-	}
 }
 
 func (ps *pvSim) setManualValue(v interface{}, errorMsg string) {
@@ -266,22 +270,169 @@ func (ps *pvSim) setManualValueHeld(v interface{}, errorMsg string, hold time.Du
 	}
 	b := ps.encodeLocked()
 	for cl := range ps.subs {
-		select {
-		case cl.writeCh <- b:
-		default:
-		}
+		cl.enqueue(b)
 	}
 	ps.mu.Unlock()
 }
 
 /* ---------------------- per-connection state ----------------------------- */
 
+// maxOutbox caps the per-connection queue. It is a safety valve for a socket
+// that has stopped draining entirely, not a normal-operation limit.
+const maxOutbox = 8192
+
+// clientSub is one client's attachment to a simulator, reference-counted over
+// the subscription groups that asked for the PV.
+type clientSub struct {
+	sim  *pvSim
+	refs int
+}
+
 type client struct {
-	writeCh   chan []byte
-	subs      map[string]*pvSim
-	groups    map[string]map[string]struct{}
+	// mu/cond/outbox/closed guard the outbound queue; every other field is
+	// owned by the connection's reader goroutine and needs no locking.
+	mu     sync.Mutex
+	cond   *sync.Cond
+	outbox [][]byte
+	closed bool
+
+	// subs: PV name -> attachment. groups: subscription_id -> PV names.
+	subs   map[string]*clientSub
+	groups map[string]map[string]struct{}
+
 	username  string
 	clientKey string
+}
+
+func newClient(username, clientKey string) *client {
+	cl := &client{
+		subs:      make(map[string]*clientSub),
+		groups:    make(map[string]map[string]struct{}),
+		username:  username,
+		clientKey: clientKey,
+	}
+	cl.cond = sync.NewCond(&cl.mu)
+	return cl
+}
+
+// enqueue hands one frame to the writer goroutine. It never blocks (sim loops
+// call it while holding the PV lock) and, unlike the previous fixed-size
+// channel with a non-blocking send, never silently drops a frame: a dashboard
+// subscribing to a few hundred PVs at once used to lose the tail of its
+// initial snapshots.
+func (cl *client) enqueue(b []byte) {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	if cl.closed {
+		return
+	}
+	if len(cl.outbox) >= maxOutbox {
+		// Socket is not draining at all — drop the oldest half so the mock
+		// cannot grow without bound (and so the shift is not paid per frame).
+		drop := len(cl.outbox) / 2
+		cl.outbox = append(cl.outbox[:0], cl.outbox[drop:]...)
+		log.Printf("ws client %s outbox full, dropped %d stale frames", cl.clientKey, drop)
+	}
+	cl.outbox = append(cl.outbox, b)
+	cl.cond.Signal()
+}
+
+// drain blocks until frames are queued and returns them all; it returns nil
+// once the client is closed and the queue has been emptied.
+func (cl *client) drain() [][]byte {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	for len(cl.outbox) == 0 && !cl.closed {
+		cl.cond.Wait()
+	}
+	batch := cl.outbox
+	cl.outbox = nil
+	return batch
+}
+
+func (cl *client) close() {
+	cl.mu.Lock()
+	cl.closed = true
+	cl.mu.Unlock()
+	cl.cond.Broadcast()
+}
+
+// legacySubscriptionID models the legacy per-PV protocol (a `pvs` map and no
+// subscription_id) as one single-PV subscription per PV, exactly like the
+// Python gateway does.
+func legacySubscriptionID(pv string) string { return "legacy:" + pv }
+
+// subscribeGroup makes subscriptionID monitor exactly pvs. An existing group
+// with that id is unsubscribed first (the Python gateway does the same), so
+// re-using an id cannot leak the PVs that were dropped from it.
+func (cl *client) subscribeGroup(subscriptionID string, pvs []string) {
+	cl.unsubscribeGroup(subscriptionID)
+
+	group := make(map[string]struct{}, len(pvs))
+	cl.groups[subscriptionID] = group
+	for _, pvName := range pvs {
+		pv := strings.TrimSpace(pvName)
+		if pv == "" {
+			continue
+		}
+		if _, dup := group[pv]; dup {
+			continue
+		}
+		group[pv] = struct{}{}
+		cl.retain(pv)
+	}
+}
+
+// unsubscribeGroup drops one subscription group and detaches from every PV
+// that no other group of this client still references. Reports whether the
+// group existed.
+func (cl *client) unsubscribeGroup(subscriptionID string) bool {
+	group, ok := cl.groups[subscriptionID]
+	if !ok {
+		return false
+	}
+	delete(cl.groups, subscriptionID)
+	for pv := range group {
+		cl.release(pv)
+	}
+	return true
+}
+
+func (cl *client) unsubscribeAll() {
+	for subscriptionID := range cl.groups {
+		cl.unsubscribeGroup(subscriptionID)
+	}
+	// Defensive: a bookkeeping slip must never leave the client attached to a
+	// simulator after the connection is gone.
+	for pv, sub := range cl.subs {
+		sub.sim.remove(cl)
+		delete(cl.subs, pv)
+	}
+}
+
+func (cl *client) retain(pv string) {
+	sub := cl.subs[pv]
+	if sub == nil {
+		sub = &clientSub{sim: getOrCreateSim(pv)}
+		cl.subs[pv] = sub
+		sub.sim.add(cl)
+	} else {
+		sub.sim.snapshot(cl)
+	}
+	sub.refs++
+}
+
+func (cl *client) release(pv string) {
+	sub := cl.subs[pv]
+	if sub == nil {
+		return
+	}
+	sub.refs--
+	if sub.refs > 0 {
+		return
+	}
+	delete(cl.subs, pv)
+	sub.sim.remove(cl)
 }
 
 /* ------------------------ WebSocket handler ------------------------------ */
@@ -306,15 +457,7 @@ func wsHandler(c echo.Context) error {
 
 	clientKey := c.Request().Header.Get("Sec-Websocket-Key")
 
-	cl := &client{
-		// A dashboard can subscribe to more than 32 PVs in one batch. The old
-		// buffer silently dropped the tail of the initial snapshots.
-		writeCh:   make(chan []byte, 512),
-		subs:      make(map[string]*pvSim),
-		groups:    make(map[string]map[string]struct{}),
-		username:  actor,
-		clientKey: clientKey,
-	}
+	cl := newClient(actor, clientKey)
 	log.Printf("ws client connected actor=%s clientKey=%s", cl.username, cl.clientKey)
 
 	var wg sync.WaitGroup
@@ -323,10 +466,17 @@ func wsHandler(c echo.Context) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for msg := range cl.writeCh {
-			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-				cancelSocket()
-				return
+		for {
+			batch := cl.drain()
+			if len(batch) == 0 {
+				return // closed and drained
+			}
+			for _, msg := range batch {
+				if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+					cancelSocket()
+					cl.close()
+					return
+				}
 			}
 		}
 	}()
@@ -344,57 +494,33 @@ func wsHandler(c echo.Context) error {
 
 		switch req.Type {
 		case "subscribe":
-			requested := pvNamesFrom(req.PVs)
-			var group map[string]struct{}
 			if req.SubscriptionID != "" {
-				group = make(map[string]struct{}, len(requested))
-				cl.groups[req.SubscriptionID] = group
+				cl.subscribeGroup(req.SubscriptionID, pvNamesFrom(req.PVs))
+				break
 			}
-			for _, pvName := range requested {
-				pv := strings.TrimSpace(pvName)
-				if pv == "" {
-					continue
+			for _, pvName := range pvNamesFrom(req.PVs) {
+				if pv := strings.TrimSpace(pvName); pv != "" {
+					cl.subscribeGroup(legacySubscriptionID(pv), []string{pv})
 				}
-				if group != nil {
-					group[pv] = struct{}{}
-				}
-				if cl.subs[pv] != nil {
-					continue
-				}
-				ps := getOrCreateSim(pv)
-				ps.add(cl)
-				cl.subs[pv] = ps
 			}
 		case "unsubscribe":
-			requested := pvNamesFrom(req.PVs)
+			// A subscription_id addresses the whole group; any `pvs` sent
+			// alongside it is ignored, as in the Python gateway.
 			if req.SubscriptionID != "" {
-				if group := cl.groups[req.SubscriptionID]; group != nil {
-					requested = requested[:0]
-					for pv := range group {
-						requested = append(requested, pv)
-					}
-					delete(cl.groups, req.SubscriptionID)
-				}
+				cl.unsubscribeGroup(req.SubscriptionID)
+				break
 			}
-			for _, pvName := range requested {
-				pv := strings.TrimSpace(pvName)
-				if pv == "" {
-					continue
-				}
-				if ps := cl.subs[pv]; ps != nil {
-					ps.remove(cl)
-					delete(cl.subs, pv)
+			for _, pvName := range pvNamesFrom(req.PVs) {
+				if pv := strings.TrimSpace(pvName); pv != "" {
+					cl.unsubscribeGroup(legacySubscriptionID(pv))
 				}
 			}
 		}
 	}
 
 	/* teardown */
-	for pv, ps := range cl.subs {
-		ps.remove(cl)
-		delete(cl.subs, pv)
-	}
-	close(cl.writeCh)
+	cl.unsubscribeAll()
+	cl.close()
 	wg.Wait()
 	return nil
 }
