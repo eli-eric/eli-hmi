@@ -1,4 +1,15 @@
 .page {
+  --color-surface-lighter: var(--color-positive-neutral);
+  --color-surface-light: var(--color-negative-neutral);
+  --color-surface: var(--color-negative-neutral);
+  --color-border: var(--color-text);
+  --color-gray-800: var(--color-text);
+  --color-success-light: var(--color-positive-important);
+  --color-success: var(--color-positive-important);
+  --color-success-dark: var(--color-text);
+  --color-error-light: var(--color-negative-important);
+  --color-error: var(--color-negative-important);
+  --color-error-dark: var(--color-text);
   --header-stack-height: 2rem;
   display: flex;
   flex-direction: column;
