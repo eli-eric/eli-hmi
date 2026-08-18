@@ -20,8 +20,35 @@ import (
 /* ----------------------------- payloads ---------------------------------- */
 
 type RequestMessage struct {
-	Type string                 `json:"type"` // "subscribe" | "unsubscribe"
-	PVs  map[string]interface{} `json:"pvs"`
+	Type           string          `json:"type"` // "subscribe" | "unsubscribe"
+	PVs            json.RawMessage `json:"pvs"`
+	SubscriptionID string          `json:"subscription_id"`
+}
+
+// pvNamesFrom accepts both protocol forms used by the project:
+//
+//   - current batched frontend: {"pvs": ["AI_X", "BI_Y"]}
+//   - legacy clients:           {"pvs": {"AI_X": {}, "BI_Y": {}}}
+func pvNamesFrom(raw json.RawMessage) []string {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+
+	var list []string
+	if err := json.Unmarshal(raw, &list); err == nil {
+		return list
+	}
+
+	var legacy map[string]interface{}
+	if err := json.Unmarshal(raw, &legacy); err == nil {
+		list = make([]string, 0, len(legacy))
+		for name := range legacy {
+			list = append(list, name)
+		}
+		return list
+	}
+
+	return nil
 }
 
 type ResponseMessage struct {
@@ -252,6 +279,7 @@ func (ps *pvSim) setManualValueHeld(v interface{}, errorMsg string, hold time.Du
 type client struct {
 	writeCh   chan []byte
 	subs      map[string]*pvSim
+	groups    map[string]map[string]struct{}
 	username  string
 	clientKey string
 }
@@ -279,8 +307,11 @@ func wsHandler(c echo.Context) error {
 	clientKey := c.Request().Header.Get("Sec-Websocket-Key")
 
 	cl := &client{
-		writeCh:   make(chan []byte, 32),
+		// A dashboard can subscribe to more than 32 PVs in one batch. The old
+		// buffer silently dropped the tail of the initial snapshots.
+		writeCh:   make(chan []byte, 512),
 		subs:      make(map[string]*pvSim),
+		groups:    make(map[string]map[string]struct{}),
 		username:  actor,
 		clientKey: clientKey,
 	}
@@ -313,9 +344,21 @@ func wsHandler(c echo.Context) error {
 
 		switch req.Type {
 		case "subscribe":
-			for pvName, _ := range req.PVs {
+			requested := pvNamesFrom(req.PVs)
+			var group map[string]struct{}
+			if req.SubscriptionID != "" {
+				group = make(map[string]struct{}, len(requested))
+				cl.groups[req.SubscriptionID] = group
+			}
+			for _, pvName := range requested {
 				pv := strings.TrimSpace(pvName)
-				if pv == "" || cl.subs[pv] != nil {
+				if pv == "" {
+					continue
+				}
+				if group != nil {
+					group[pv] = struct{}{}
+				}
+				if cl.subs[pv] != nil {
 					continue
 				}
 				ps := getOrCreateSim(pv)
@@ -323,7 +366,17 @@ func wsHandler(c echo.Context) error {
 				cl.subs[pv] = ps
 			}
 		case "unsubscribe":
-			for pvName, _ := range req.PVs {
+			requested := pvNamesFrom(req.PVs)
+			if req.SubscriptionID != "" {
+				if group := cl.groups[req.SubscriptionID]; group != nil {
+					requested = requested[:0]
+					for pv := range group {
+						requested = append(requested, pv)
+					}
+					delete(cl.groups, req.SubscriptionID)
+				}
+			}
+			for _, pvName := range requested {
 				pv := strings.TrimSpace(pvName)
 				if pv == "" {
 					continue
