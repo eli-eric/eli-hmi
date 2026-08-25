@@ -5,6 +5,9 @@
  *   npm run validate:config -- --dir ../eli-hmi-config --all
  *   npm run validate:config -- --dir ../eli-hmi-config --zone test
  *
+ * Also shipped as a container image so the controls team can run it without a
+ * Node checkout — see the `validator` target in `Dockerfile`.
+ *
  * Reuses the app's REAL loader + zod validation (`zone-config-loader.ts` via
  * CONFIG_DIR, incl. the zone-code filename rule and the symlink-safe module
  * ref resolution, plus the superRefine checks JSON Schema cannot express:

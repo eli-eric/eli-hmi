@@ -28,7 +28,7 @@ Use the tag of the app release you are deploying against. Errors name the file
 and the exact path inside it, e.g.:
 
 ```
-✗ p3: modules/p3/config.yaml is invalid:
+✗ test: modules.p3 (modules/p3/config.yaml): modules/p3/config.yaml is invalid:
 ✖ Unrecognized key: "pvName"
   → at interlocks.items[0]
 ✖ Invalid input: expected string, received undefined
