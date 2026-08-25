@@ -5,6 +5,14 @@
 **Deciders:** ELI-HMI team (L4 OPCPA workstream)
 **Supersedes:** [ADR-0008](0008-laser-specs-location.md); supersedes the read-PV registry of [ADR-0006](0006-pv-name-registry-l4-opcpa.md) (command PVs excepted)
 
+> **Amended (CSI-861 follow-up):** the generated JSON Schemas this ADR
+> describes were removed. They only ever powered editor autocomplete, the
+> controls team requires their config repo to hold hand-written YAML and
+> nothing else, and its members edit in different editors, so the feature had
+> no dependable consumer. Zod remains the single source for validation and
+> types; the config format is now documented in prose under `eli-hmi-config/`,
+> and `validate:config` also ships as a container image.
+
 ## Context
 
 [ADR-0008](0008-laser-specs-location.md) put per-laser topology in a TypeScript

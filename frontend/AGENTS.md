@@ -49,7 +49,7 @@ Runtime YAML covers L4 OPCPA laser data and p3/l3bt/l4fbt `ModuleConfig`
 data. The vacuum pages' bespoke `parts/` remain TSX; do not move structural
 compound-component wiring into the data schema.
 
-Config is validated at server start (`src/instrumentation.ts`; prod exits non-zero on broken config) and by `npm run validate:config -- --dir <path> --all`. Schemas regenerate with `npm run gen:schema` (drift-tested). See `docs/adr/0011-runtime-zone-config.md`.
+Config is validated at server start (`src/instrumentation.ts`; prod exits non-zero on broken config) and by `npm run validate:config -- --dir <path> --all`, which also ships as a container image (`--target validator`). There is no generated JSON Schema — the config format is documented in prose under `eli-hmi-config/`. See `docs/adr/0011-runtime-zone-config.md`.
 
 ### Production deployment
 

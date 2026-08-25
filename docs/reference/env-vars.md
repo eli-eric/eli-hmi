@@ -11,7 +11,7 @@ Consolidated reference across the three modules. *Source of truth, not aspiratio
 | `API_URL` | yes | — | host:port for both `ws://<host>/ws/pvs` and `http://<host>/pv` (see `frontend/src/types/constants.ts`) |
 | `API_SCHEME` | optional | `http` | Scheme for `API_URL`; set `https` for TLS deployments |
 | `ZONE_CODE` | yes | (empty zone = no routes) | Runtime zone selector — see [zones](../frontend/zones.md) |
-| `CONFIG_DIR` | prod | `../eli-hmi-config` in local development | Directory containing `zones/`, `modules/`, and `schemas/`; mount it at `/app/zone-config` in containers |
+| `CONFIG_DIR` | prod | `../eli-hmi-config` in local development | Directory containing `zones/` and `modules/`; mount it at `/app/zone-config` in containers |
 | `LDAP_SERVER_URL` | prod | — | LDAP bind URL for the production auth path |
 | `LDAP_BASE_DN` | prod | — | LDAP base DN |
 | `LDAP_USE_TLS` | optional | `false` | Toggle StartTLS on the LDAP bind |

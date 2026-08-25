@@ -46,7 +46,14 @@ The browser-locked machines in the control room that operators use day-to-day. E
      - /opt/eli-hmi-config:/app/zone-config:ro
    ```
 
-4. Validate the checkout from the matching app release: `npm run validate:config -- --dir /opt/eli-hmi-config --all`.
+4. Validate the checkout against the matching app release, either from an app
+   repo checkout (`npm run validate:config -- --dir /opt/eli-hmi-config --all`)
+   or with the packaged validator, which needs only Docker:
+
+   ```bash
+   docker run --rm -v /opt/eli-hmi-config:/config:ro \
+     lcs-harbor.lcs.local/lcs/eli-hmi-config-validator:<app-release-tag> --all
+   ```
 5. Deploy that compose file to the station — no image rebuild needed, since CI publishes one global `eli-hmi-frontend` image for every zone.
 
 The repository currently carries only the `test` template. Creating the standalone controls-team config repository and choosing production zone names are follow-ups; do not treat example names above as assigned production identifiers.
