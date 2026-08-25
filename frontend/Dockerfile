@@ -45,6 +45,27 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
+# Config-validator CLI — the exact check the controls team's config repo runs
+# in CI, packaged so it needs nothing but Docker on the caller's side. Reuses
+# `deps`, which installs devDependencies (tsx) because NODE_ENV is not yet
+# production at that stage. No `next build` involved.
+#
+# BuildKit skips this stage for the default build: `runner` is the last stage
+# and does not depend on it. Build it explicitly with `--target validator`.
+#
+#   docker run --rm -v "$PWD:/config:ro" <image>:<app-release-tag> --all
+#
+# Runs as root deliberately, unlike `runner`: it only ever reads a read-only
+# bind mount, and root avoids uid mismatches with whoever owns the config
+# checkout on the host.
+FROM base AS validator
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENTRYPOINT ["/app/node_modules/.bin/tsx", "scripts/validate-config.ts", "--dir", "/config"]
+CMD ["--all"]
+
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app

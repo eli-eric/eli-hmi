@@ -2,24 +2,28 @@
 # the app's real zod schemas on each push. Copy into the config repo and adapt
 # (shown for GitLab CI; the steps translate 1:1 to GitHub Actions).
 #
-# APP_REPO_REF pins the app version this config targets — bump it together
-# with schemaVersion changes (config + app image deploy together). Set it as
-# a CI variable to an explicit compatible release tag or commit SHA.
+# The image is published by the app repo's `docker-build-job-config-validator`
+# job and carries the app's real validation — the same code the container runs
+# at startup, including the checks a JSON Schema cannot express (duplicate PV
+# names, nav ⊆ allowedRoutes, module-ref resolution).
+#
+# VALIDATOR_TAG pins the app version this config targets — bump it together
+# with schemaVersion changes (config and app image deploy together). Set it as
+# a CI variable to an explicit compatible release tag or commit SHA. There is
+# deliberately no default: a moving `latest` would let CI pass against a build
+# that is not the one running in production. Leaving it unset fails the job at
+# image pull with an invalid-reference error, which is intended.
 
 validate-config:
-  image: node:22
-  variables:
-    APP_REPO: "https://github.com/eli-eric/eli-hmi.git"
+  image: lcs-harbor.lcs.local/lcs/eli-hmi-config-validator:$VALIDATOR_TAG
   script:
-    - |
-      if [ -z "${APP_REPO_REF:-}" ]; then
-        echo "APP_REPO_REF must be set to a compatible app release tag or commit SHA" >&2
-        exit 1
-      fi
-    - git init /tmp/eli-hmi
-    - git -C /tmp/eli-hmi remote add origin "$APP_REPO"
-    - git -C /tmp/eli-hmi fetch --depth 1 origin "$APP_REPO_REF"
-    - git -C /tmp/eli-hmi checkout --detach FETCH_HEAD
-    - cd /tmp/eli-hmi/frontend
-    - npm ci
-    - npm run validate:config -- --dir "$CI_PROJECT_DIR" --all
+    # GitLab overrides the image ENTRYPOINT and runs from the cloned project
+    # directory, so switch to /app first — tsx resolves node_modules and
+    # tsconfig.json relative to the working directory.
+    - cd /app
+    - node_modules/.bin/tsx scripts/validate-config.ts --dir "$CI_PROJECT_DIR" --all
+
+# Locally, where the ENTRYPOINT applies, the same check is one command:
+#
+#   docker run --rm -v "$PWD:/config:ro" \
+#     lcs-harbor.lcs.local/lcs/eli-hmi-config-validator:<app-release-tag> --all

@@ -102,6 +102,23 @@ docker-build-job-frontend:
     - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend:latest
 
+# Packages `npm run validate:config` as a standalone CLI image so the controls
+# team's config repo can validate without Node or an app checkout. The config
+# repo must pin an explicit tag — see eli-hmi-config/ci-example.yml.
+docker-build-job-config-validator:
+  stage: build
+  image: harbor.eli-beams.eu/proxy-dockerhub/docker:27.1.2
+  tags:
+    - docker-in-docker
+  script:
+    - docker info
+    - docker pull harbor.eli-beams.eu/eli_images/eli-node:22-alpine
+    - docker build --target validator -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_REF_SLUG} --file=frontend/Dockerfile frontend
+    - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_REF_SLUG}
+    - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:latest
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:latest
+
 docker-build-job-mockup-demo:
   stage: build
   image: harbor.eli-beams.eu/proxy-dockerhub/docker:27.1.2
