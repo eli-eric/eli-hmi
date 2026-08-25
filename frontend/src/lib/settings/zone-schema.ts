@@ -6,9 +6,10 @@
  * which routes are reachable, what shows up in the top navigation, and where
  * each module's own config file lives (path relative to the config dir root).
  *
- * One zod schema is the single source for: the `ZoneFile` type, runtime
- * validation (`strictObject` rejects unknown keys), and `zone.schema.json`
- * (generated for editor autocomplete via `npm run gen:schema`).
+ * One zod schema is the single source for both the `ZoneFile` type and
+ * runtime validation (`strictObject` rejects unknown keys). The config format
+ * is documented in prose in `eli-hmi-config/README.md`; there is no generated
+ * JSON Schema.
  *
  * Free of `server-only` / `fs` so it stays unit-testable from a plain string;
  * the file read lives in `zone-config-loader.ts`.

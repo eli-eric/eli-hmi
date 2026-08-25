@@ -11,10 +11,9 @@ code.**
 > EPICS names (e.g. `SY3PL50M:32`), just **replace the strings** here — no code
 > change.
 
-You do not need to know TypeScript. Open `lasers.yaml` in an editor with the
-YAML extension (e.g. VS Code "YAML" by Red Hat); the `# yaml-language-server`
-line at the top wires up **autocomplete and inline error checking** from
-`../../schemas/l4-opcpa-lasers.schema.json`.
+You do not need to know TypeScript, and there is no editor setup to do. The
+field reference below is the format's documentation; the config validator
+(see [../README.md](../README.md)) is what checks your edits.
 
 ## How it works
 
@@ -84,12 +83,13 @@ backend `sequences` map + a button).
 Flashlamps / Modbox section for that laser (it simply doesn't have that
 subsystem). General and Regen always render.
 
-## `../../schemas/l4-opcpa-lasers.schema.json`
+## Validation
 
-Generated from the zod schema in the app repo (`l4-opcpa/config/schema.ts`,
-`npm run gen:schema`). **Do not hand-edit it.** It only powers editor
-autocomplete/validation here; the authoritative validation runs in the app at
-startup and in CI via the app repo's `npm run validate:config`.
+The authoritative rules live in the app's zod schema
+(`l4-opcpa/config/schema.ts`) and run in three places: at container startup, in
+this repo's CI, and in the config validator you can run by hand — see
+[../README.md](../README.md). Beyond field types they enforce what no schema
+could express, such as rejecting duplicate PV names across lasers.
 
 ## Mock backend caveat (test-only)
 

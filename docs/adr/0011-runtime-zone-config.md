@@ -5,6 +5,14 @@
 **Deciders:** ELI-HMI team, controls team (CSI-861)
 **Supersedes:** the build-time-loading decision of [ADR-0010](0010-per-laser-yaml-config.md) (its YAML/zod format stands); the hardcoded zone map that backed the original zone-service
 
+> **Amended (CSI-861 follow-up):** the generated JSON Schemas this ADR
+> describes were removed. They only ever powered editor autocomplete, the
+> controls team requires their config repo to hold hand-written YAML and
+> nothing else, and its members edit in different editors, so the feature had
+> no dependable consumer. Zod remains the single source for validation and
+> types; the config format is now documented in prose under `eli-hmi-config/`,
+> and `validate:config` also ships as a container image.
+
 ## Context
 
 CSI-861: one frontend image must serve multiple deployment environments

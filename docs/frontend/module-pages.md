@@ -25,7 +25,6 @@ eli-hmi-config/
 │   ├── l3bt/config.yaml
 │   ├── l4fbt/config.yaml
 │   └── p3/config.yaml
-├── schemas/module-config.schema.json
 └── zones/test.yaml                  # modules.<key>.config references
 ```
 
@@ -75,5 +74,6 @@ deliberately preserved in YAML rather than guessed during migration. See
 - `npm run validate:config -- --dir <config-dir> --all` validates every module
   file referenced by every zone and warns about orphan YAML files.
 - Production startup validates every referenced file before serving traffic.
-- `module-config.schema.json` provides editor completion and has a drift test.
+- The format is documented in prose in `eli-hmi-config/modules/README.md`;
+  there is no generated JSON Schema.
 - `src/components/module-page/**` remains inside the coverage gate.

@@ -1,5 +1,3 @@
-# yaml-language-server: $schema=../schemas/zone.schema.json
-#
 # Zone config for the local-dev / test-zone deployment (ZONE_CODE=test).
 # One file per zone; the zone code IS the filename stem. See ../README.md.
 

@@ -1,5 +1,3 @@
-# yaml-language-server: $schema=../../schemas/module-config.schema.json
-
 # The placeholder values below are intentionally preserved from the legacy
 # TypeScript config. Replace them only when controls supplies confirmed PVs.
 schemaVersion: 1

@@ -5,6 +5,9 @@
  *   npm run validate:config -- --dir ../eli-hmi-config --all
  *   npm run validate:config -- --dir ../eli-hmi-config --zone test
  *
+ * Also shipped as a container image so the controls team can run it without a
+ * Node checkout — see the `validator` target in `Dockerfile`.
+ *
  * Reuses the app's REAL loader + zod validation (`zone-config-loader.ts` via
  * CONFIG_DIR, incl. the zone-code filename rule and the symlink-safe module
  * ref resolution, plus the superRefine checks JSON Schema cannot express:
@@ -12,7 +15,7 @@
  * rules — what passes here is exactly what the container accepts at startup.
  * Reports every invalid zone, then exits non-zero if there was any.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { basename, join, relative, resolve } from 'node:path'
 
 function usage(): never {
@@ -107,11 +110,6 @@ async function main(): Promise<void> {
     for (const orphan of findUnreferencedModuleFiles(configDir, referenced)) {
       console.warn(`⚠ ${orphan}: not referenced by any zone`)
     }
-    for (const stale of await findStaleSchemas(configDir)) {
-      console.warn(
-        `⚠ schemas/${stale}: differs from the app's zod schema — re-copy from \`npm run gen:schema\` output (editor autocomplete is stale; validation itself is unaffected)`,
-      )
-    }
   }
 
   if (failures > 0) {
@@ -139,30 +137,6 @@ function findUnreferencedModuleFiles(
   }
   walk(modulesDir)
   return orphans
-}
-
-/**
- * The copied-out config repo vendors `schemas/*.json` for editor tooling;
- * nothing regenerates them there, so flag drift against the app's zod source.
- */
-async function findStaleSchemas(configDir: string): Promise<string[]> {
-  const schemasDir = join(configDir, 'schemas')
-  if (!existsSync(schemasDir)) return []
-  const { buildSchema } = await import('./build-laser-schema')
-  const { buildModuleConfigSchema, MODULE_CONFIG_SCHEMA_PATH } =
-    await import('./build-module-config-schema')
-  const { buildZoneSchema } = await import('./build-zone-schema')
-  const expected: Record<string, string> = {
-    'zone.schema.json': buildZoneSchema(),
-    'l4-opcpa-lasers.schema.json': buildSchema(),
-    [basename(MODULE_CONFIG_SCHEMA_PATH)]: buildModuleConfigSchema(),
-  }
-  return Object.entries(expected)
-    .filter(([file, content]) => {
-      const path = join(schemasDir, file)
-      return existsSync(path) && readFileSync(path, 'utf8') !== content
-    })
-    .map(([file]) => file)
 }
 
 void main()

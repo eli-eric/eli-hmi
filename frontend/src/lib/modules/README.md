@@ -15,9 +15,9 @@ directory; the editable data lives in the runtime config directory under
 - `types.ts` — compatibility type exports for components.
 - `module-config-loader.ts` — resolves the current zone's module reference,
   parses it, deeply freezes it, and caches successful production reads.
-- `eli-hmi-config/schemas/module-config.schema.json` — generated editor schema;
-  never hand-edit it.
 - `eli-hmi-config/modules/{p3,l3bt,l4fbt}/config.yaml` — controls-owned data.
+- `eli-hmi-config/modules/README.md` — the format's prose field reference; keep
+  it in step with this schema, it is the only documentation controls has.
 
 The small route `page.tsx` files are server entries. They call
 `loadModuleConfig(key)` and pass the result to a colocated `'use client'` view,
@@ -32,7 +32,6 @@ which composes `<ModuleControlPage>` with the module's bespoke `bottomRow`.
 2. Add `modules/<module>/config.yaml` to the config directory. Start with:
 
    ```yaml
-   # yaml-language-server: $schema=../../schemas/module-config.schema.json
    schemaVersion: 1
    heading: My Module
    # interlocks, safetyPermission, cleanDryAir, backing, roughing …

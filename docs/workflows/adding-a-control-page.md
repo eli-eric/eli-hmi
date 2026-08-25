@@ -9,7 +9,6 @@ For a *vacuum-system* control page (L3BT, L4fBT, P3 shape). If the page is laser
 `modules/<m>/config.yaml` in the runtime config directory:
 
 ```yaml
-# yaml-language-server: $schema=../../schemas/module-config.schema.json
 schemaVersion: 1
 heading: My Module
 interlocks:

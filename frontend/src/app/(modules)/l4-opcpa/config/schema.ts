@@ -7,10 +7,10 @@
  * verbatim from here. Only command PVs (`CMD_<laser>_<NAME>`) are still built in
  * code, because a command maps to a backend sequence of writes, not one PV.
  *
- * One zod schema is the single source for: the `LaserSpec` type the UI
- * consumes, runtime validation (`.strict()` rejects unknown keys; duplicate ids
- * rejected), and `lasers.schema.json` (generated for editor autocomplete via
- * `npm run gen:schema`).
+ * One zod schema is the single source for both the `LaserSpec` type the UI
+ * consumes and runtime validation (`.strict()` rejects unknown keys; duplicate
+ * ids rejected). The file format is documented in prose in
+ * `eli-hmi-config/modules/l4-opcpa/README.md`.
  *
  * Free of `server-only` / `fs` so it stays unit-testable from a plain string;
  * the file read lives in `load-laser-specs.ts`.
