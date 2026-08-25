@@ -116,6 +116,13 @@ docker-build-job-config-validator:
     - docker build --target validator -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_REF_SLUG} --file=frontend/Dockerfile frontend
     - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_REF_SLUG}
+    - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_SHA}
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_SHA}
+    - |
+      if [ -n "${CI_COMMIT_TAG}" ]; then
+        docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_TAG}
+        docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_TAG}
+      fi
     - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:latest
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:latest
 
