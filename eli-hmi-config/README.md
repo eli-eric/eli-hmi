@@ -12,7 +12,8 @@ is still a deployment follow-up; when that happens, copy this whole directory
 as its initial commit (see [Copying out](#future-copying-out-as-a-standalone-repo)).
 
 No TypeScript knowledge is needed to edit anything here — the files are plain
-YAML with editor autocomplete, and every field is documented.
+YAML and every field is documented. There is no editor autocomplete; the
+config validator below is what checks your edits.
 
 ## How it reaches the app
 
@@ -20,7 +21,7 @@ YAML with editor autocomplete, and every field is documented.
 ┌ config checkout (this layout) ┐        ┌ frontend container ┐
 │ zones/test.yaml               │ volume │ CONFIG_DIR=/app/…  │
 │ modules/{l4-opcpa,p3,…}/…     │ ─────► │ ZONE_CODE=test     │
-│ schemas/…                     │ mount  │ reads at startup   │
+│                               │ mount  │ reads at startup   │
 └───────────────────────────────┘        └────────────────────┘
 ```
 
@@ -44,8 +45,11 @@ YAML with editor autocomplete, and every field is documented.
 zones/<ZONE_CODE>.yaml     one file per zone; the zone code IS the filename stem
                            (case-sensitive; letters, digits, _ and - only)
 modules/<module>/…         module config files, referenced from zone files
-schemas/*.schema.json      generated — power editor autocomplete; do NOT hand-edit
 ```
+
+Nothing else belongs here. This directory holds hand-written YAML and its
+documentation — no generated files, no build artifacts, no editor
+configuration.
 
 There is **no list of valid zones anywhere in the app** — a `ZONE_CODE` is
 valid exactly when `zones/<ZONE_CODE>.yaml` exists. Adding a zone = adding a
@@ -54,7 +58,6 @@ file here.
 ## Zone file format (`zones/*.yaml`)
 
 ```yaml
-# yaml-language-server: $schema=../schemas/zone.schema.json
 schemaVersion: 1            # must match what the app supports — see below
 
 navigationItems:            # top-nav entries, in order
@@ -93,9 +96,9 @@ have not been chosen. Zone codes are case-sensitive; keep using `test` for the
 checked-in template until deployment naming is agreed.
 
 See [modules/README.md](modules/README.md) for the shared ownership/scope
-rules. L4 OPCPA's distinct format is documented in
-[modules/l4-opcpa/README.md](modules/l4-opcpa/README.md); the vacuum module
-files use the generated `schemas/module-config.schema.json` contract.
+rules and the full field reference for the p3/l3bt/l4fbt vacuum format. L4
+OPCPA's distinct format is documented in
+[modules/l4-opcpa/README.md](modules/l4-opcpa/README.md).
 
 ### `schemaVersion`
 
@@ -107,39 +110,41 @@ a message naming the expected version.
 
 ## Editing
 
-Use an editor with the YAML extension (e.g. VS Code — "YAML" by Red Hat).
-The `# yaml-language-server: $schema=…` first line of each file wires up
-**autocomplete and inline validation** against `schemas/`.
+Edit the YAML in whatever you like — there is no editor setup to do and no
+autocomplete to configure. What checks your work is the config validator,
+which runs the app's **real** validation: the same code the container executes
+at startup, including the cross-checks no schema could express (L4 laser
+duplicate PV names, nav/route consistency, module file resolution, and orphan
+module-file warnings).
 
-Before deploying, validate the whole directory (from a checkout of the app
-repo, `frontend/`):
+Run it against this directory before deploying:
+
+```bash
+docker run --rm -v "$PWD:/config:ro" \
+  lcs-harbor.lcs.local/lcs/eli-hmi-config-validator:<app-release-tag> --all
+```
+
+Use the tag of the app release you are deploying against — config and app
+image are deployed together, so validating against a different build proves
+nothing. The image is published by the app repo's CI.
+
+From a checkout of the app repo (`frontend/`) the equivalent is:
 
 ```bash
 npm run validate:config -- --dir /path/to/this/directory --all
 ```
 
-This runs the app's real validation — including cross-checks the editor
-cannot do (L4 laser duplicate PV names, nav/route consistency, module file
-resolution, and orphan module-file warnings).
-
 ## Future: copying out as a standalone repo
 
 1. Copy this whole directory as the initial commit of the new repo.
 2. Add CI validation — see [`ci-example.yml`](ci-example.yml). Set
-   `APP_REPO_REF` to an explicit compatible app release tag or commit SHA; the
-   example intentionally has no moving-branch default. The job checks out that
-   exact app version and runs `validate:config` against this repo.
+   `VALIDATOR_TAG` to an explicit compatible app release tag or commit SHA;
+   the example intentionally has no moving default, because a floating
+   `latest` would let CI pass against a build that is not the one running in
+   production.
 3. Point deployments' volume mounts at a clone of the new repo (see
    `deployments/zones/testz/docker-compose.yml` in the app repo for the
    wiring: `CONFIG_DIR` env + read-only mount, readable by uid 1001).
 4. In the app repo, `frontend/`'s dev fallback keeps using the in-repo copy
    of this directory (`../eli-hmi-config`) — the app repo's copy then serves
    as the dev fixture + template only; deployment truth lives in the new repo.
-
-### Keeping `schemas/` up to date
-
-`schemas/*.schema.json` are **generated from the app's zod schemas**
-(`npm run gen:schema` in the app repo, drift-tested there). They only serve
-editor tooling here. When the app updates its schemas (e.g. a new module slot
-or a `schemaVersion` bump), re-copy the generated files from the matching app
-release.
