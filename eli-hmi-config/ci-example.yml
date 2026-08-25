@@ -17,11 +17,12 @@
 # job at image pull with an invalid-reference error, which is intended.
 
 validate-config:
-  image: lcs-harbor.lcs.local/lcs/eli-hmi-config-validator:$VALIDATOR_TAG
+  image:
+    name: lcs-harbor.lcs.local/lcs/eli-hmi-config-validator:$VALIDATOR_TAG
+    entrypoint: ['']
   script:
-    # GitLab overrides the image ENTRYPOINT and runs from the cloned project
-    # directory, so switch to /app first — tsx resolves node_modules and
-    # tsconfig.json relative to the working directory.
+    # Switch to /app so tsx resolves node_modules and tsconfig.json relative
+    # to the working directory.
     - cd /app
     - node_modules/.bin/tsx scripts/validate-config.ts --dir "$CI_PROJECT_DIR" --all
 
