@@ -1,5 +1,3 @@
-# yaml-language-server: $schema=../../schemas/module-config.schema.json
-
 schemaVersion: 1
 heading: L3BT
 interlocks:

@@ -1,5 +1,3 @@
-# yaml-language-server: $schema=../../schemas/l4-opcpa-lasers.schema.json
-#
 # L4 OPCPA per-laser config — the FRONTEND source of truth.
 # Every value is the FULL PV name for that signal, exactly as the controls team
 # / EPICS gateway provides it. The frontend reads these verbatim; it does NOT
@@ -7,8 +5,8 @@
 #
 # The names below are currently the mock-backend convention (BI_/AI_/SI_).
 # When controls deliver the real EPICS names (e.g. SY3PL50M:32), just replace
-# the strings here — no code change. Open in an editor with the YAML extension
-# for autocomplete + inline validation (from lasers.schema.json above).
+# the strings here — no code change. Validate the whole directory before
+# deploying — see ../../README.md for the config-validator command.
 #
 # NB: the mock backend (backend/mockup-websocket-server/l4_opcpa.go) is
 # TEST-ONLY and does not read this file; it has its own constants.
