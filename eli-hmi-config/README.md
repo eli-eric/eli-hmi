@@ -121,12 +121,13 @@ Run it against this directory before deploying:
 
 ```bash
 docker run --rm -v "$PWD:/config:ro" \
-  lcs-harbor.lcs.local/lcs/eli-hmi-config-validator:<app-release-tag> --all
+  ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-config-validator:<CI_COMMIT_REF_SLUG> --all
 ```
 
-Use the tag of the app release you are deploying against — config and app
-image are deployed together, so validating against a different build proves
-nothing. The image is published by the app repo's CI.
+The image is published by the app repo's CI under the branch/tag slug
+(`CI_COMMIT_REF_SLUG`) or `latest`. Use the same slug as the app build you are
+deploying against — config and app image are deployed together, so validating
+against a different build proves nothing.
 
 From a checkout of the app repo (`frontend/`) the equivalent is:
 
