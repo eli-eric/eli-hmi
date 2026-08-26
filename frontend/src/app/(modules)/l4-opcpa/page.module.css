@@ -1,3 +1,6 @@
+/* The goggles palette itself lives in globals.css under
+ * [data-palette='goggles'] — see the note there: it has to be reachable from
+ * panels this page portals to <body>, which a .page-scoped block is not. */
 .page {
   --header-stack-height: 2rem;
   display: flex;

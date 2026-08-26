@@ -53,7 +53,7 @@
   justify-content: flex-end;
   background: var(--color-surface-lighter);
   border: 1px solid var(--color-border);
-  padding: 0.0625rem 0.25rem;
+  padding: 0;
   min-height: var(--hmi-row-min-h);
   min-width: 0;
   overflow: hidden;
@@ -413,8 +413,13 @@
 
 /* CSI-783: chiller cell state rendering. One tone per derived CellKind. */
 .cellState {
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
   width: 100%;
+  padding: 0.0625rem 0.25rem;
+  box-sizing: border-box;
   text-align: center;
   font-size: var(--hmi-font-size);
   font-weight: 700;

@@ -55,15 +55,37 @@ You can also pass `Authorization: Bearer <jwt>` header during the handshake.
 
 ### Subscribe
 
+Many PVs share one `subscription_id`, so a dashboard sends one frame instead of
+one per PV:
+
 ```jsonc
 // request
 {
   "type": "subscribe",
-  "pvs": { "AI_TEMP": true, "BI_DOOR": true },
+  "subscription_id": "fe-1",
+  "pvs": ["AI_TEMP", "BI_DOOR"],
 }
 ```
 
+Re-using an existing `subscription_id` replaces that subscription's PV list —
+PVs no longer listed are released.
+
 ### Unsubscribe
+
+A `subscription_id` addresses the whole subscription; any `pvs` sent alongside
+it is ignored:
+
+```jsonc
+{
+  "type": "unsubscribe",
+  "subscription_id": "fe-1",
+}
+```
+
+### Legacy per-PV form
+
+Frames without a `subscription_id` still work and are handled as one single-PV
+subscription per PV:
 
 ```jsonc
 {
@@ -136,6 +158,9 @@ If `aiMode` or `biMode` is `2` (manual-only) the simulator stops its random upda
    - updates the value (unless the prefix is in manual-only mode),
    - broadcasts one JSON blob to **all** connected WebSockets that subscribed.
 
-3. When the _last_ subscriber for a PV disconnects, the simulator shuts down and is removed from the registry.
+3. Simulators outlive their subscribers. Like a real IOC, a PV keeps its value
+   when nobody is monitoring it — otherwise the frontend's partial-removal flow
+   (unsubscribe the group, re-subscribe the survivors) would reset every seeded
+   PV to a fresh random value.
 
 That’s it—no external dependencies, no storage, perfect for demos and front-end integration tests.

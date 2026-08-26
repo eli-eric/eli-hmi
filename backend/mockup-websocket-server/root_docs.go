@@ -211,17 +211,19 @@ func renderRootDocsHTML() string {
         <h2>WebSocket usage</h2>
         <div class="flow-list">
           <div class="flow-step">1. Connect to <code>ws://localhost:8080/ws/pvs?auth=jwt_token_please</code>.</div>
-          <div class="flow-step">2. Send a subscribe frame such as:</div>
+          <div class="flow-step">2. Send a batched subscribe frame (one <code>subscription_id</code> for many PVs):</div>
           <pre>{
   "type": "subscribe",
-  "pvs": { "AI_TEMP": true, "BI_DOOR": true }
+  "subscription_id": "fe-1",
+  "pvs": ["AI_TEMP", "BI_DOOR"]
 }</pre>
           <div class="flow-step">3. Read <code>pv</code> messages containing <code>name</code>, <code>value</code>, <code>timestamp</code>, <code>ok</code>, and <code>units</code>.</div>
-          <div class="flow-step">4. Stop a subscription with:</div>
+          <div class="flow-step">4. Stop the whole subscription with (any <code>pvs</code> sent alongside the id is ignored):</div>
           <pre>{
   "type": "unsubscribe",
-  "pvs": { "BI_DOOR": true }
+  "subscription_id": "fe-1"
 }</pre>
+          <div class="flow-step">Re-using an id replaces its PV list. The legacy per-PV form (<code>"pvs": { "BI_DOOR": true }</code> with no <code>subscription_id</code>) is still accepted and handled as one single-PV subscription per PV.</div>
         </div>
       </article>
 
@@ -240,7 +242,7 @@ curl http://localhost:8080/mode/ai/2</pre>
         <li>The first client that mentions a PV creates a global <code>pvSim</code> instance.</li>
         <li>That simulator owns the latest value, a ticker loop, and the subscriber list.</li>
         <li>On each tick, the current value is drifted when autosimulation is enabled and then broadcast to all subscribers.</li>
-        <li>When the last subscriber disconnects, the simulator is removed from the registry.</li>
+        <li>Simulators outlive their subscribers: like a real IOC, a PV keeps its value when nobody is monitoring it.</li>
       </ul>
       <p class="muted-note">For deeper background, see the mock server README and docs in the repository. This page is intentionally a concise root-path overview.</p>
     </section>
