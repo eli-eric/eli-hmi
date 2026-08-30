@@ -251,6 +251,23 @@ describe('GeneralSection', () => {
       ws.push('BI_NL2_ERR_CHILLER_11', '0000')
     })
 
+    // Aggregate pills reflect the worst child severity, not just the raw
+    // bit/code count: one MAJOR-alarm MSS indicator flips the whole overall
+    // pill to NO/error tone even though 2 of 3 read value=1; one disconnected
+    // module-error PV flips the ERR pill to the invalid tone and is counted
+    // as a real problem (not silently folded into "unknown").
+    const mssPill = screen
+      .getByRole('button', { name: 'Toggle MSS detail' })
+      .querySelector('[data-tone]')
+    expect(mssPill).toHaveAttribute('data-tone', 'negative-important')
+    expect(mssPill).toHaveTextContent('NO')
+
+    const errPill = screen
+      .getByRole('button', { name: 'Toggle module errors detail' })
+      .querySelector('[data-tone]')
+    expect(errPill).toHaveAttribute('data-tone', 'invalid')
+    expect(errPill).toHaveTextContent('1/2')
+
     await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
     const mss1 = screen.getByText('MSS 1').closest('li')
     expect(mss1?.querySelector('[data-state]')).toHaveAttribute(
@@ -275,6 +292,22 @@ describe('GeneralSection', () => {
     expect(screen.getByText('CHILLER_11').closest('li')).toHaveTextContent(
       '0000',
     )
+  })
+
+  it('MSS overall pill shows the invalid tone as soon as one child is disconnected, even while the others are still unknown', async () => {
+    const ws = await setup()
+    act(() => {
+      // Only one of three MSS PVs has reported in, and it's disconnected —
+      // the aggregate should surface that as invalid, not sit on the
+      // cold-start "<>" placeholder just because 2/3 are still unknown.
+      ws.push('BI_NL2_MSS_1', { value: null, ok: false })
+    })
+
+    const mssPill = screen
+      .getByRole('button', { name: 'Toggle MSS detail' })
+      .querySelector('[data-tone]')
+    expect(mssPill).toHaveAttribute('data-tone', 'invalid')
+    expect(mssPill).toHaveTextContent('NO')
   })
 
   it('hides buttons for commands the laser does not expose', async () => {

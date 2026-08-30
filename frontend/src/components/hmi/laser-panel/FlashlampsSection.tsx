@@ -56,10 +56,13 @@ function readState(value: unknown): FlashlampState | null {
 function toneForState(
   state: FlashlampState,
   count: number,
-): 'positive-important' | 'negative-neutral' | 'negative-important' | undefined {
+): 'positive-important' | 'negative-neutral' | 'error' | undefined {
   if (count === 0) return undefined
   if (state === 'RUN') return 'positive-important'
-  if (state === 'FAIL') return 'negative-important'
+  // A non-zero FAIL count is a MAJOR-severity condition — use the same
+  // 'error' tone as an EPICS MAJOR alarm everywhere else in the panel,
+  // not the lighter/generic 'negative-important'.
+  if (state === 'FAIL') return 'error'
   return 'negative-neutral'
 }
 
@@ -136,6 +139,12 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
   })
 
   // Trigger Delay: all readouts should be equal (spec). Flag if they differ.
+  // These PVs have no alarm limits configured (no MINOR/MAJOR expected), but
+  // INVALID severity (or a disconnected channel) on any of them still means
+  // the reading can't be trusted, and takes priority over the mismatch check.
+  const delayInvalid = triggerDelay.some(
+    (name) => severityTone(state[name]) === 'invalid',
+  )
   const delayVals = triggerDelay.map((name) => {
     const v = state[name]?.value
     return typeof v === 'number' ? Math.round(v) : null
@@ -144,7 +153,9 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
   const known = delayVals.filter((v): v is number => v !== null)
   const delayMismatch = allKnown && new Set(known).size > 1
   let delayDisplay: React.ReactNode
-  if (!allKnown) {
+  if (delayInvalid) {
+    delayDisplay = <span className={styles.delayInvalid}>INVALID</span>
+  } else if (!allKnown) {
     delayDisplay = <span data-tone="unknown">&lt;&gt;</span>
   } else if (delayMismatch) {
     delayDisplay = (

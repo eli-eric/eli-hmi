@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { severityTone } from './severity'
+import { severityTone, worstSeverityTone } from './severity'
 import type { Message } from '@/app/providers/types'
 
 function msg(over: Partial<Message<number>> = {}): Message<number> {
@@ -40,5 +40,28 @@ describe('severityTone', () => {
 
   it('is none on EPICS severity 0 — no style change', () => {
     expect(severityTone(msg({ severity: 0 }))).toBe('none')
+  })
+})
+
+describe('worstSeverityTone', () => {
+  it('is unknown for an empty list', () => {
+    expect(worstSeverityTone([])).toBe('unknown')
+  })
+
+  it('is unknown only when every child is unknown', () => {
+    expect(worstSeverityTone(['unknown', 'unknown'])).toBe('unknown')
+  })
+
+  it('ignores unknown children once any child has real data', () => {
+    expect(worstSeverityTone(['unknown', 'none'])).toBe('none')
+  })
+
+  it('picks the worst among invalid > error > warning > none', () => {
+    expect(worstSeverityTone(['none', 'warning'])).toBe('warning')
+    expect(worstSeverityTone(['warning', 'error'])).toBe('error')
+    expect(worstSeverityTone(['error', 'invalid'])).toBe('invalid')
+    expect(worstSeverityTone(['invalid', 'warning', 'error', 'none'])).toBe(
+      'invalid',
+    )
   })
 })

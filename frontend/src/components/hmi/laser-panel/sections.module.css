@@ -116,6 +116,13 @@
   text-decoration: underline double;
 }
 
+.delayInvalid {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-invalid-dark);
+  text-decoration: underline dashed;
+}
+
 .flashlampGrid {
   display: grid;
   grid-template-columns:
@@ -158,8 +165,8 @@
   border-color: var(--color-gray-800);
 }
 
-.flashlampCell[data-tone='negative-important'] {
-  background: var(--color-error-light);
+.flashlampCell[data-tone='error'] {
+  background: var(--color-error);
   border-color: var(--color-error-dark);
 }
 
@@ -217,6 +224,23 @@
   background: var(--color-surface-lighter);
   border: 1px solid var(--color-text);
   color: var(--color-text);
+}
+
+/* No bit-value colouring (1/0 isn't pass/fail) — only EPICS severity, on the
+ * worst reading among the modbox channels, gets a tone here. */
+.modboxStatePill[data-tone='warning'] {
+  background: var(--color-warning);
+  border-color: var(--color-warning-dark);
+}
+
+.modboxStatePill[data-tone='error'] {
+  background: var(--color-error);
+  border-color: var(--color-error-dark);
+}
+
+.modboxStatePill[data-tone='invalid'] {
+  background: var(--color-invalid);
+  border-color: var(--color-invalid-dark);
 }
 
 /* Corner triangle marking an expandable element (replaces the old chevron). */

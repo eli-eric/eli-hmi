@@ -114,7 +114,7 @@ var sequences = map[string]sequenceFunc{
 		effs := tpls(laser,
 			pvEffect{"BI_${L}_CONN", 1},
 			pvEffect{"BI_${L}_FULLP", 1},
-			pvEffect{"BI_${L}_REGEN_STATE", 1},
+			pvEffect{"BI_${L}_REGEN_STATE", "ON"},
 			pvEffect{"AI_${L}_TRIG_DELAY_CH1", 790},
 			pvEffect{"AI_${L}_TRIG_DELAY_CH2", 790},
 			// PHD energy jumps up when running at full power
@@ -132,7 +132,7 @@ var sequences = map[string]sequenceFunc{
 	"stop_laser": func(laser string, _ interface{}) ([]pvEffect, error) {
 		effs := tpls(laser,
 			pvEffect{"BI_${L}_FULLP", 0},
-			pvEffect{"BI_${L}_REGEN_STATE", 0},
+			pvEffect{"BI_${L}_REGEN_STATE", "OFF"},
 			pvEffect{"BI_${L}_SHUTTER", 0},
 			pvEffect{"AI_${L}_PHD_MEAN", 0.0},
 			pvEffect{"AI_${L}_PHD2_MEAN", 0.0},
@@ -146,7 +146,7 @@ var sequences = map[string]sequenceFunc{
 	},
 	"alignment_mode": func(laser string, _ interface{}) ([]pvEffect, error) {
 		effs := tpls(laser,
-			pvEffect{"BI_${L}_REGEN_STATE", 1},
+			pvEffect{"BI_${L}_REGEN_STATE", "ON"},
 			pvEffect{"BI_${L}_SHUTTER", 0},
 			pvEffect{"BI_${L}_FULLP", 0},
 			pvEffect{"AI_${L}_TRIG_DELAY_CH1", 50},
@@ -161,7 +161,7 @@ var sequences = map[string]sequenceFunc{
 	},
 	"system_standby": func(laser string, _ interface{}) ([]pvEffect, error) {
 		effs := tpls(laser,
-			pvEffect{"BI_${L}_REGEN_STATE", 0},
+			pvEffect{"BI_${L}_REGEN_STATE", "OFF"},
 			pvEffect{"BI_${L}_SHUTTER", 0},
 			pvEffect{"BI_${L}_FULLP", 0},
 			pvEffect{"AI_${L}_TRIG_DELAY_CH1", 50},
@@ -437,8 +437,8 @@ func seedLaserPVs() {
 		for _, m := range moduleErrors {
 			setSeed(fmt.Sprintf("BI_%s_ERR_%s", laser, m), "0000")
 		}
-		// Regen
-		setSeed(fmt.Sprintf("BI_%s_REGEN_STATE", laser), 0)
+		// Regen ("OFF" / "ON" / "Failure")
+		setSeed(fmt.Sprintf("BI_%s_REGEN_STATE", laser), "OFF")
 		setSeed(fmt.Sprintf("AI_TEMP_%s_REGEN", laser), 22.0)
 		setSeed(fmt.Sprintf("AI_%s_ATT", laser), 1024)
 		// Chillers

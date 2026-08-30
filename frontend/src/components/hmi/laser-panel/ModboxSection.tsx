@@ -12,7 +12,7 @@ import {
 import { FloatValue, StringValue } from '@/components/hmi/controls/Values'
 import type { Message } from '@/app/providers/types'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import { severityTone } from '@/lib/websocket/severity'
+import { severityTone, worstSeverityTone } from '@/lib/websocket/severity'
 import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import { WaveformSelect } from './WaveformSelect'
 import { makeCommandGate } from './commandGate'
@@ -90,11 +90,20 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   // typed as `unknown` and narrow at the use site.
   const { state } = useWebSocketData<unknown>({ pvs: allPvs, raw: true })
   // Modbox state is a plain status readout, not a pass/fail signal — no
-  // ok/error colour coding, here or per-channel below.
+  // colour coding from the raw 1/0 value, here or per-channel below. The
+  // summary pill's only colour comes from the worst EPICS severity among
+  // its channels.
   const okCount = modbox.filter(
     (name) => state[name]?.value === 1,
   ).length
   const total = modbox.length
+  const modboxSeverity = worstSeverityTone(
+    modbox.map((name) => severityTone(state[name])),
+  )
+  const modboxTone =
+    modboxSeverity === 'none' || modboxSeverity === 'unknown'
+      ? undefined
+      : modboxSeverity
 
   const items: DetailListItem[] = modbox.map((name, i) => {
     const msg = state[name]
@@ -134,7 +143,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
                 aria-label="Toggle Modbox state detail"
                 onClick={() => setExpanded((v) => !v)}
               >
-                <span className={styles.modboxStatePill}>
+                <span className={styles.modboxStatePill} data-tone={modboxTone}>
                   <span className={styles.modboxStateCount}>
                     {okCount}/{total}
                   </span>

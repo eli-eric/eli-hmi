@@ -146,6 +146,37 @@ describe('ModboxSection', () => {
     expect(modbox1).toHaveTextContent('ERR')
   })
 
+  it('colours the summary pill by the worst channel severity, not the raw bits', async () => {
+    const ws = renderModbox()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
+    )
+
+    act(() => {
+      ws.push('BI_NL2_MODBOX_1', 1)
+      ws.push('BI_NL2_MODBOX_2', 1)
+      ws.push('BI_NL2_MODBOX_3', 1)
+    })
+    const pill = screen
+      .getByRole('button', { name: 'Toggle Modbox state detail' })
+      .querySelector('.modboxStatePill')
+    // All channels healthy (severity none) — still no colour, per the
+    // "not pass/fail" decision for the raw bit value.
+    expect(pill).not.toHaveAttribute('data-tone')
+
+    act(() => {
+      // MINOR alarm on one channel, still value=1.
+      ws.push('BI_NL2_MODBOX_2', { value: 1, severity: 1 })
+    })
+    expect(pill).toHaveAttribute('data-tone', 'warning')
+
+    act(() => {
+      // Now a disconnected channel — worse than a MINOR alarm.
+      ws.push('BI_NL2_MODBOX_3', { value: 1, ok: false })
+    })
+    expect(pill).toHaveAttribute('data-tone', 'invalid')
+  })
+
   it('exposes the waveform selector behind a cog toggle', async () => {
     const ws = renderModbox()
     await waitFor(() =>

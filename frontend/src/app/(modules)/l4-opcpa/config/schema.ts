@@ -48,7 +48,7 @@ export const rawLaserSchema = z.strictObject({
       fullPower: pvName.describe('At-full-power bool (Overview FULLP).'),
       shutter: pvName.describe('Shutter position bool (read + direct write).'),
       phdMean: pvName.describe('PHD mean intensity readout.'),
-      regenState: pvName.describe('Regen on/off bool.'),
+      regenState: pvName.describe('Regen status string.'),
       regenTemp: pvName.describe('Regen temperature readout.'),
       phd2Mean: pvName.describe('Second PHD mean readout.'),
       attenuator: pvName.describe('Attenuator value (read + direct write).'),

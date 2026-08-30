@@ -62,6 +62,14 @@ describe('FlashlampsSection', () => {
     expect(screen.getByTestId('count-RUN')).toHaveTextContent('2')
     expect(screen.getByTestId('count-STOP')).toHaveTextContent('0')
     expect(screen.getByTestId('count-FAIL')).toHaveTextContent('1')
+    // A non-zero FAIL count styles as a MAJOR-severity (error) tone, matching
+    // an EPICS MAJOR alarm elsewhere in the panel.
+    expect(screen.getByTestId('count-FAIL')).toHaveAttribute(
+      'data-tone',
+      'error',
+    )
+    // A zero count never gets a tone.
+    expect(screen.getByTestId('count-STOP')).not.toHaveAttribute('data-tone')
   })
 
   it('exposes Set All Run / Set All Standby behind a cog toggle', async () => {
@@ -258,6 +266,38 @@ describe('FlashlampsSection', () => {
     })
 
     expect(screen.getByText(/MISMATCH 790\/50/)).toBeInTheDocument()
+  })
+
+  it('shows INVALID for Trigger Delay when any readout has invalid severity, ahead of a mismatch', async () => {
+    const ws = renderFl(['22'])
+    await waitFor(() =>
+      expect(ws.subscriptions.get('AI_NL2_TRIG_DELAY_CH2')?.size).toBe(1),
+    )
+
+    act(() => {
+      ws.push('AI_NL2_TRIG_DELAY_CH1', 790)
+      // Disconnected — even though the value that arrived also disagrees
+      // with CH1, INVALID takes priority over the mismatch display.
+      ws.push('AI_NL2_TRIG_DELAY_CH2', { value: 50, ok: false })
+    })
+
+    expect(screen.getByText('INVALID')).toBeInTheDocument()
+    expect(screen.queryByText(/MISMATCH/)).not.toBeInTheDocument()
+  })
+
+  it('shows INVALID for Trigger Delay on EPICS severity 3, even when the readouts agree', async () => {
+    const ws = renderFl(['22'])
+    await waitFor(() =>
+      expect(ws.subscriptions.get('AI_NL2_TRIG_DELAY_CH2')?.size).toBe(1),
+    )
+
+    act(() => {
+      ws.push('AI_NL2_TRIG_DELAY_CH1', { value: 790, severity: 3 })
+      ws.push('AI_NL2_TRIG_DELAY_CH2', 790)
+    })
+
+    expect(screen.getByText('INVALID')).toBeInTheDocument()
+    expect(screen.queryByText('790')).not.toBeInTheDocument()
   })
 
   it('hides the flashlamp action buttons when those commands are not exposed', async () => {

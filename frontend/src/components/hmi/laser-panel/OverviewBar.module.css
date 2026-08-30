@@ -134,6 +134,18 @@
   color: var(--color-gray-800);
 }
 
+.pill[data-tone='warning'] {
+  background: var(--color-warning);
+  border-color: var(--color-warning-dark);
+  color: var(--color-text);
+}
+
+.pill[data-tone='invalid'] {
+  background: var(--color-invalid);
+  border-color: var(--color-invalid-dark);
+  color: var(--color-text);
+}
+
 /* Corner triangle marking an expandable element (replaces the old chevron). */
 .cornerTriangle {
   position: absolute;

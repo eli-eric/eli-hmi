@@ -34,7 +34,7 @@ field reference below is the format's documentation; the config validator
 | `pvs.fullPower` | PV name | At-full-power bool (Overview FULLP). |
 | `pvs.shutter` | PV name | Shutter position bool (read + direct write). |
 | `pvs.phdMean` | PV name | PHD mean intensity readout. |
-| `pvs.regenState` | PV name | Regen on/off bool. |
+| `pvs.regenState` | PV name | Regen status string. |
 | `pvs.regenTemp` | PV name | Regen temperature readout. |
 | `pvs.phd2Mean` | PV name | Second PHD mean readout. |
 | `pvs.attenuator` | PV name | Attenuator value (read + direct write). |

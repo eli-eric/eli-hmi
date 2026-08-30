@@ -7,7 +7,11 @@ import {
   DetailListItem,
 } from '@/components/hmi/controls/DetailList'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
-import { severityTone } from '@/lib/websocket/severity'
+import {
+  severityTone,
+  worstSeverityTone,
+  type SeverityTone,
+} from '@/lib/websocket/severity'
 import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
 import { severityToDetailState } from './severity-detail-state'
 import styles from './OverviewBar.module.css'
@@ -69,25 +73,29 @@ export const OverviewBar: FC<OverviewBarProps> = ({
   const connMsg = state[connectionPv]
   const fullpMsg = state[fullPowerPv]
 
-  // "unknown" = no message received yet OR `ok=false`. We deliberately count
-  // unknown separately from error so first-paint (before any WS message)
-  // shows `<>` / unknown tone, not red "total/total error".
-  const mssTotal = mssPvs.length
-  const mssUnknown = mssPvs.filter((name) => {
-    const m = state[name]
-    return !m || !m.ok
-  }).length
-  const mssOk = mssPvs.filter(
-    (name) => state[name]?.ok && state[name]?.value === 1,
+  // The aggregate pill's colour/text is driven by the worst EPICS severity
+  // among its children first; only once every child is severity-'none' does
+  // it fall back to the old value-based YES/NO or count logic. 'unknown'
+  // (the "<>" placeholder) only wins when NO child has reported in yet —
+  // one disconnected/errored (now 'invalid', not 'unknown') child is enough
+  // to surface as a real problem instead of the cold-start placeholder.
+  const mssTotal = mss.length
+  const mssSeverity = worstSeverityTone(
+    mss.map(({ pv: name }) => severityTone(state[name])),
+  )
+  const mssOk = mss.filter(
+    ({ pv: name }) => state[name]?.ok && state[name]?.value === 1,
   ).length
 
-  const errTotal = moduleErrorPvs.length
-  const errUnknown = moduleErrorPvs.filter((name) => {
-    const m = errState[name]
-    return !m || !m.ok
-  }).length
-  const errOk = moduleErrorPvs.filter(
-    (name) => errState[name]?.ok && errState[name]?.value === '0000',
+  const errTotal = moduleErrors.length
+  const errSeverity = worstSeverityTone(
+    moduleErrors.map(({ pv: name }) => severityTone(errState[name])),
+  )
+  const errUnknown = moduleErrors.filter(
+    ({ pv: name }) => severityTone(errState[name]) === 'unknown',
+  ).length
+  const errOk = moduleErrors.filter(
+    ({ pv: name }) => errState[name]?.ok && errState[name]?.value === '0000',
   ).length
   const errCount = errTotal - errOk - errUnknown
 
@@ -117,6 +125,36 @@ export const OverviewBar: FC<OverviewBarProps> = ({
     return { label, state: 'neutral', trailing: msg!.value ?? undefined }
   })
 
+  // Maps an aggregate severity onto this file's pill tone vocabulary. 'error'
+  // reuses 'negative-important' (already the severe-red tone here) rather
+  // than adding a redundant fourth red variant.
+  const severityPillTone = (
+    sev: Exclude<SeverityTone, 'none'>,
+  ): 'negative-important' | 'warning' | 'invalid' | 'unknown' =>
+    sev === 'error' ? 'negative-important' : sev
+
+  const mssTone =
+    mssSeverity === 'none'
+      ? mssOk === mssTotal
+        ? 'positive-important'
+        : 'negative-important'
+      : severityPillTone(mssSeverity)
+  const mssText =
+    mssSeverity === 'unknown'
+      ? '<>'
+      : mssSeverity !== 'none'
+        ? 'NO'
+        : mssOk === mssTotal
+          ? 'YES'
+          : 'NO'
+
+  const errTone =
+    errSeverity === 'none'
+      ? errCount === 0
+        ? 'positive-neutral'
+        : 'negative-important'
+      : severityPillTone(errSeverity)
+
   const toggle = (cell: Expanded) =>
     setExpanded((prev) => (prev === cell ? null : cell))
 
@@ -145,20 +183,8 @@ export const OverviewBar: FC<OverviewBarProps> = ({
               onClick={() => toggle('mss')}
             >
               <OverallPill
-                text={
-                  mssTotal === 0 || mssUnknown === mssTotal
-                    ? '<>'
-                    : mssOk === mssTotal
-                      ? 'YES'
-                      : 'NO'
-                }
-                tone={
-                  mssTotal === 0 || mssUnknown === mssTotal
-                    ? 'unknown'
-                    : mssOk === mssTotal
-                      ? 'positive-important'
-                      : 'negative-important'
-                }
+                text={mssText}
+                tone={mssTone}
                 expandable
                 expanded={expanded === 'mss'}
               />
@@ -175,13 +201,7 @@ export const OverviewBar: FC<OverviewBarProps> = ({
               <CountPill
                 count={errCount}
                 total={errTotal}
-                tone={
-                  errTotal === 0 || errUnknown === errTotal
-                    ? 'unknown'
-                    : errCount === 0
-                      ? 'positive-neutral'
-                      : 'negative-important'
-                }
+                tone={errTone}
                 expandable
                 expanded={expanded === 'err'}
               />
@@ -256,6 +276,8 @@ const CountPill: FC<{
     | 'positive-neutral'
     | 'negative-important'
     | 'unknown'
+    | 'warning'
+    | 'invalid'
   expandable?: boolean
   expanded?: boolean
 }> = ({ count, total, tone, expandable, expanded }) => {
@@ -285,6 +307,8 @@ const OverallPill: FC<{
     | 'positive-neutral'
     | 'negative-important'
     | 'unknown'
+    | 'warning'
+    | 'invalid'
   expandable?: boolean
   expanded?: boolean
 }> = ({ text, tone, expandable, expanded }) => {

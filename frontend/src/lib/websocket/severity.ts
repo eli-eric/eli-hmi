@@ -34,3 +34,27 @@ export function severityTone(
   if (msg.severity === EPICS_SEVERITY.MINOR) return 'warning'
   return 'none'
 }
+
+const SEVERITY_RANK: Record<SeverityTone, number> = {
+  none: 0,
+  unknown: 0,
+  warning: 1,
+  error: 2,
+  invalid: 3,
+}
+
+/**
+ * Reduces a group of children's tones to the single worst one, for an
+ * aggregate/summary indicator (e.g. an overall pill covering a list of PVs).
+ * `'unknown'` only wins when EVERY child is unknown (no data has arrived for
+ * any of them yet) — as soon as even one child has real data, the aggregate
+ * should reflect that data rather than sit on the "cold start" placeholder.
+ */
+export function worstSeverityTone(tones: readonly SeverityTone[]): SeverityTone {
+  if (tones.length === 0 || tones.every((t) => t === 'unknown')) {
+    return 'unknown'
+  }
+  return tones
+    .filter((t) => t !== 'unknown')
+    .reduce((worst, t) => (SEVERITY_RANK[t] > SEVERITY_RANK[worst] ? t : worst))
+}
