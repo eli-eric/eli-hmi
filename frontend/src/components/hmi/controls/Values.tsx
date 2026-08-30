@@ -2,6 +2,7 @@
 
 import { FC } from 'react'
 import { Message } from '@/app/providers/types'
+import { severityTone } from '@/lib/websocket/severity'
 import styles from './Values.module.css'
 
 const EMPTY = '<>'
@@ -14,39 +15,92 @@ const EMPTY = '<>'
  * opens a single `useWebSocketData({ pvs })` for all its readouts and spreads
  * `state[pvName]` into each leaf. See PR #26 / issue #30 for the rationale
  * (~150-200 single-PV subscriptions per /l4-opcpa page load otherwise).
+ *
+ * EPICS severity styling (warning/error/invalid) is on by default — an
+ * alarmed or untrustworthy reading shouldn't render with a confident,
+ * unstyled look. Pass `respectSeverity={false}` to opt a specific readout out.
  */
 
 type NumMsg = Message<number | null> | undefined
 type StrMsg = Message<string | null> | undefined
 
+interface SeverityAwareProps {
+  /** Set false to ignore EPICS severity styling for this readout. Default true. */
+  respectSeverity?: boolean
+}
+
+/** 'none'/'unknown' → no `data-tone` at all, i.e. today's unstyled look. */
+function severityDataTone(
+  data: Pick<Message<unknown>, 'ok' | 'severity'> | undefined,
+  respectSeverity: boolean,
+): 'warning' | 'error' | 'invalid' | undefined {
+  if (!respectSeverity) return undefined
+  const tone = severityTone(data)
+  return tone === 'warning' || tone === 'error' || tone === 'invalid'
+    ? tone
+    : undefined
+}
+
 /** Float value (precision-formatted) + optional units chip. */
-export const FloatValue: FC<{ data: NumMsg; precision?: number }> = ({
-  data,
-  precision = 3,
-}) => {
+export const FloatValue: FC<
+  { data: NumMsg; precision?: number } & SeverityAwareProps
+> = ({ data, precision = 3, respectSeverity = true }) => {
+  const tone = severityDataTone(data, respectSeverity)
   if (!data || !data.ok || !Number.isFinite(data.value)) {
-    return <span className={styles.placeholder}>{EMPTY}</span>
+    return (
+      <span className={styles.placeholder} data-tone={tone}>
+        {EMPTY}
+      </span>
+    )
   }
-  return <span className={styles.number}>{data.value!.toFixed(precision)}</span>
+  return (
+    <span className={styles.number} data-tone={tone}>
+      {data.value!.toFixed(precision)}
+    </span>
+  )
 }
 
 /** Integer value. */
-export const IntegerValue: FC<{ data: NumMsg }> = ({ data }) => {
+export const IntegerValue: FC<{ data: NumMsg } & SeverityAwareProps> = ({
+  data,
+  respectSeverity = true,
+}) => {
+  const tone = severityDataTone(data, respectSeverity)
   if (!data || !data.ok || !Number.isFinite(data.value)) {
-    return <span className={styles.placeholder}>{EMPTY}</span>
+    return (
+      <span className={styles.placeholder} data-tone={tone}>
+        {EMPTY}
+      </span>
+    )
   }
-  return <span className={styles.number}>{Math.round(data.value!)}</span>
+  return (
+    <span className={styles.number} data-tone={tone}>
+      {Math.round(data.value!)}
+    </span>
+  )
 }
 
 /** String value. */
-export const StringValue: FC<{ data: StrMsg }> = ({ data }) => {
+export const StringValue: FC<{ data: StrMsg } & SeverityAwareProps> = ({
+  data,
+  respectSeverity = true,
+}) => {
+  const tone = severityDataTone(data, respectSeverity)
   if (!data || !data.ok || typeof data.value !== 'string') {
-    return <span className={styles.placeholder}>{EMPTY}</span>
+    return (
+      <span className={styles.placeholder} data-tone={tone}>
+        {EMPTY}
+      </span>
+    )
   }
-  return <span className={styles.text}>{data.value}</span>
+  return (
+    <span className={styles.text} data-tone={tone}>
+      {data.value}
+    </span>
+  )
 }
 
-interface BoolPillProps {
+interface BoolPillProps extends SeverityAwareProps {
   data: NumMsg
   /** Text when value === 1, e.g. "is OPEN". */
   onLabel: string
@@ -65,7 +119,19 @@ export const BoolPill: FC<BoolPillProps> = ({
   offLabel,
   onTone = 'positive-important',
   offTone = 'positive-neutral',
+  respectSeverity = true,
 }) => {
+  const tone = severityDataTone(data, respectSeverity)
+  if (tone) {
+    // EPICS severity overrides the on/off state colour — an alarmed or
+    // untrustworthy reading shouldn't show a confident on/off tone.
+    const isOn = data?.value === 1
+    return (
+      <span className={styles.pill} data-tone={tone}>
+        {isOn ? onLabel : offLabel}
+      </span>
+    )
+  }
   if (!data || !data.ok || data.value === null) {
     return (
       <span className={styles.pill} data-tone="unknown">

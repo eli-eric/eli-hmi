@@ -82,6 +82,17 @@
   color: var(--color-gray-800);
 }
 
+.status[data-state='warning'] {
+  border-color: var(--color-warning-dark);
+  color: var(--color-warning-dark);
+}
+
+.status[data-state='invalid'] {
+  border-style: dashed;
+  border-color: var(--color-invalid-dark);
+  color: var(--color-invalid-dark);
+}
+
 /* Explanatory note inside the expanded box (e.g. MSS). Black, regular,
  * not italic, per the spec. */
 .note {

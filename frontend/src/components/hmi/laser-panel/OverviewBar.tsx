@@ -7,13 +7,16 @@ import {
   DetailListItem,
 } from '@/components/hmi/controls/DetailList'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import { severityTone } from '@/lib/websocket/severity'
 import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
+import { severityToDetailState } from './severity-detail-state'
 import styles from './OverviewBar.module.css'
 
 interface OverviewBarProps {
   connectionPv: string
   fullPowerPv: string
-  mssPvs: readonly string[]
+  /** MSS sub-indicators: display label + full PV name. */
+  mss: readonly LabeledPv[]
   /** Module-error indicators: display label + full PV name. */
   moduleErrors: readonly LabeledPv[]
 }
@@ -22,6 +25,9 @@ type Expanded = 'mss' | 'err' | null
 
 const MSS_NOTE =
   'This is a selection of some MSS indicators, it is NOT an exhaustive list of all parameters that lead to the overall MSS indicator.'
+
+const ERR_NOTE = 
+  'Error code 0 means no error.'
 
 /**
  * Four-cell header cluster at the top of the General box per the Confluence
@@ -32,7 +38,7 @@ const MSS_NOTE =
 export const OverviewBar: FC<OverviewBarProps> = ({
   connectionPv,
   fullPowerPv,
-  mssPvs,
+  mss,
   moduleErrors,
 }) => {
   const [expanded, setExpanded] = useState<Expanded>(null)
@@ -43,15 +49,22 @@ export const OverviewBar: FC<OverviewBarProps> = ({
     triggerRef,
   )
 
+  const mssPvs = useMemo(() => mss.map((m) => m.pv), [mss])
   const moduleErrorPvs = useMemo(
     () => moduleErrors.map((m) => m.pv),
     [moduleErrors],
   )
-  const allPvs = useMemo(
-    () => [connectionPv, fullPowerPv, ...mssPvs, ...moduleErrorPvs],
-    [connectionPv, fullPowerPv, mssPvs, moduleErrorPvs],
+  const boolPvs = useMemo(
+    () => [connectionPv, fullPowerPv, ...mssPvs],
+    [connectionPv, fullPowerPv, mssPvs],
   )
-  const { state } = useWebSocketData<number | null>({ pvs: allPvs, raw: true })
+  const { state } = useWebSocketData<number | null>({ pvs: boolPvs, raw: true })
+  // Module-error PVs report a string status code, not a boolean: "0000"
+  // means OK, any other value is an active error.
+  const { state: errState } = useWebSocketData<string | null>({
+    pvs: moduleErrorPvs,
+    raw: true,
+  })
 
   const connMsg = state[connectionPv]
   const fullpMsg = state[fullPowerPv]
@@ -70,30 +83,38 @@ export const OverviewBar: FC<OverviewBarProps> = ({
 
   const errTotal = moduleErrorPvs.length
   const errUnknown = moduleErrorPvs.filter((name) => {
-    const m = state[name]
+    const m = errState[name]
     return !m || !m.ok
   }).length
   const errOk = moduleErrorPvs.filter(
-    (name) => state[name]?.ok && state[name]?.value === 0,
+    (name) => errState[name]?.ok && errState[name]?.value === '0000',
   ).length
   const errCount = errTotal - errOk - errUnknown
 
-  const mssItems: DetailListItem[] = mssPvs.map((name, i) => {
+  // Neither list colours by its own value (e.g. "is the bit 1" / "is the code
+  // 0000") — style comes only from EPICS severity: 'unknown' (no data yet),
+  // 'neutral' (data present, severity none — no style change), or a
+  // warning/error/invalid override. The raw value is still shown as text.
+  const mssItems: DetailListItem[] = mss.map(({ label, pv: name }) => {
     const msg = state[name]
+    const sev = severityTone(msg)
+    if (sev !== 'none') {
+      return { label, state: severityToDetailState(sev) }
+    }
     return {
-      label: `MSS ${i + 1}`,
-      state:
-        !msg || !msg.ok ? 'unknown' : msg.value === 1 ? 'ok' : 'err',
+      label,
+      state: 'neutral',
+      trailing: msg!.value != null ? String(msg!.value) : undefined,
     }
   })
 
   const errItems: DetailListItem[] = moduleErrors.map(({ label, pv: name }) => {
-    const msg = state[name]
-    return {
-      label,
-      state:
-        !msg || !msg.ok ? 'unknown' : msg.value === 0 ? 'ok' : 'err',
+    const msg = errState[name]
+    const sev = severityTone(msg)
+    if (sev !== 'none') {
+      return { label, state: severityToDetailState(sev) }
     }
+    return { label, state: 'neutral', trailing: msg!.value ?? undefined }
   })
 
   const toggle = (cell: Expanded) =>
@@ -171,7 +192,9 @@ export const OverviewBar: FC<OverviewBarProps> = ({
       {expanded === 'mss' && (
         <DetailList items={mssItems} note={MSS_NOTE} />
       )}
-      {expanded === 'err' && <DetailList items={errItems} />}
+      {expanded === 'err' && (
+        <DetailList items={errItems} note={ERR_NOTE} />
+      )}
     </div>
   )
 }

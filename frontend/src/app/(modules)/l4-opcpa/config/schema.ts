@@ -72,8 +72,8 @@ export const rawLaserSchema = z.strictObject({
     .min(1)
     .describe('Trigger-delay readout PVs; all should read equal (mismatch flagged).'),
   mss: z
-    .array(pvName)
-    .describe('MSS sub-indicator PVs (counted in the General overview).'),
+    .array(labeledPv)
+    .describe('MSS sub-indicators (label + PV) counted in the General overview.'),
   moduleErrors: z
     .array(labeledPv)
     .describe('Module-error indicators (label + PV) counted in the Overview.'),
@@ -103,7 +103,7 @@ export const rawLaserSchema = z.strictObject({
   const all = [
     ...Object.values(laser.pvs),
     ...laser.triggerDelay,
-    ...laser.mss,
+    ...laser.mss.map((m) => m.pv),
     ...laser.moduleErrors.map((m) => m.pv),
     ...laser.chillers.flatMap((c) => [c.flow, c.temp, c.level]),
     ...laser.flashlamps.map((f) => f.pv),

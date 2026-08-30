@@ -232,15 +232,16 @@ export function useWebSocket() {
         channelGroupRef.current.set(channel, subscriptionId),
       )
       debug('ws:subscribe', 'batch', subscriptionId, chunk)
-      // `detail: 'control'` matches what the legacy per-PV protocol always
-      // requested — omitting it would default to the gateway's 'value'
-      // level, which drops severity/units/timestamp from `metadata` and
-      // silently starves every consumer that reads those fields.
+      // `detail: 'time'` gets severity/status/timestamp in `metadata` —
+      // omitting it would default to the gateway's 'value' level, which
+      // drops those fields and silently starves every consumer that reads
+      // them. 'control' would add display/control limits too, which nothing
+      // here consumes.
       send({
         type: 'subscribe',
         subscription_id: subscriptionId,
         pvs: chunk,
-        detail: 'control',
+        detail: 'time',
       })
     }
   }, [send, nextSubscriptionId])

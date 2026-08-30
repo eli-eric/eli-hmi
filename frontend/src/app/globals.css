@@ -55,6 +55,10 @@
   --color-success: #10b981;
   --color-success-dark: #059669;
 
+  --color-invalid-light: #a78bfa;
+  --color-invalid: #8b5cf6;
+  --color-invalid-dark: #7c3aed;
+
   /* Interaction colors */
   --color-focus: rgba(2, 132, 199, 0.5); /* Translucent blue for focus rings */
   --color-hover-overlay: rgba(0, 0, 0, 0.05);

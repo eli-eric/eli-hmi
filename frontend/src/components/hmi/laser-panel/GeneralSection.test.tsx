@@ -24,6 +24,12 @@ const MODULE_ERRORS: LabeledPv[] = [
   { label: 'CHILLER_11', pv: 'BI_NL2_ERR_CHILLER_11' },
 ]
 
+const MSS: LabeledPv[] = [
+  { label: 'MSS 1', pv: 'BI_NL2_MSS_1' },
+  { label: 'MSS 2', pv: 'BI_NL2_MSS_2' },
+  { label: 'MSS 3', pv: 'BI_NL2_MSS_3' },
+]
+
 function baseProps(commands: readonly LaserCommand[] = LASER_COMMANDS) {
   return {
     laser: 'NL2',
@@ -31,7 +37,7 @@ function baseProps(commands: readonly LaserCommand[] = LASER_COMMANDS) {
     fullPowerPv: 'BI_NL2_FULLP',
     shutterPv: 'BI_NL2_SHUTTER',
     phdMeanPv: 'AI_NL2_PHD_MEAN',
-    mssPvs: ['BI_NL2_MSS_1', 'BI_NL2_MSS_2', 'BI_NL2_MSS_3'],
+    mss: MSS,
     moduleErrors: MODULE_ERRORS,
     commands,
   }
@@ -64,8 +70,8 @@ describe('GeneralSection', () => {
       ws.push('BI_NL2_MSS_1', 1)
       ws.push('BI_NL2_MSS_2', 1)
       ws.push('BI_NL2_MSS_3', 1)
-      ws.push('BI_NL2_ERR_REGEN', 0)
-      ws.push('BI_NL2_ERR_CHILLER_11', 1)
+      ws.push('BI_NL2_ERR_REGEN', '0000')
+      ws.push('BI_NL2_ERR_CHILLER_11', '1000')
     })
 
     expect(screen.getByText('Overview')).toBeInTheDocument()
@@ -174,8 +180,8 @@ describe('GeneralSection', () => {
   it('expands the Module Errors detail list and labels items by error name', async () => {
     const ws = await setup()
     act(() => {
-      ws.push('BI_NL2_ERR_REGEN', 0)
-      ws.push('BI_NL2_ERR_CHILLER_11', 1)
+      ws.push('BI_NL2_ERR_REGEN', '0000')
+      ws.push('BI_NL2_ERR_CHILLER_11', '1000')
     })
     const user = userEvent.setup()
     await user.click(
@@ -184,6 +190,91 @@ describe('GeneralSection', () => {
 
     expect(screen.getByText('REGEN')).toBeInTheDocument()
     expect(screen.getByText('CHILLER_11')).toBeInTheDocument()
+  })
+
+  it('MSS/module-error rows are neutral (not ok/err coloured) when severity is none, showing the raw value', async () => {
+    const ws = await setup()
+    const user = userEvent.setup()
+    act(() => {
+      ws.push('BI_NL2_MSS_1', 1)
+      ws.push('BI_NL2_MSS_2', 0)
+      ws.push('BI_NL2_MSS_3', 1)
+      ws.push('BI_NL2_ERR_REGEN', '0000')
+      ws.push('BI_NL2_ERR_CHILLER_11', '1000')
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
+    const mss1 = screen.getByText('MSS 1').closest('li')
+    const mss2 = screen.getByText('MSS 2').closest('li')
+    expect(mss1?.querySelector('[data-state]')).toHaveAttribute(
+      'data-state',
+      'neutral',
+    )
+    expect(mss1).toHaveTextContent('1')
+    expect(mss2?.querySelector('[data-state]')).toHaveAttribute(
+      'data-state',
+      'neutral',
+    )
+    expect(mss2).toHaveTextContent('0')
+
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle module errors detail' }),
+    )
+    const regen = screen.getByText('REGEN').closest('li')
+    const chiller = screen.getByText('CHILLER_11').closest('li')
+    expect(regen?.querySelector('[data-state]')).toHaveAttribute(
+      'data-state',
+      'neutral',
+    )
+    expect(regen).toHaveTextContent('0000')
+    expect(chiller?.querySelector('[data-state]')).toHaveAttribute(
+      'data-state',
+      'neutral',
+    )
+    expect(chiller).toHaveTextContent('1000')
+  })
+
+  it('overrides MSS / module-error item colour with EPICS severity, regardless of the raw value', async () => {
+    const ws = await setup()
+    const user = userEvent.setup()
+    act(() => {
+      // MAJOR alarm (severity 2) despite value=1, which would normally read "ok".
+      ws.push('BI_NL2_MSS_1', { value: 1, severity: 2 })
+      ws.push('BI_NL2_MSS_2', 1)
+      ws.push('BI_NL2_MSS_3', 1)
+      // Disconnected (ok:false) despite an "0000" ("no error") code.
+      ws.push('BI_NL2_ERR_REGEN', {
+        value: '0000',
+        ok: false,
+        error: 'CA disconnected',
+      })
+      ws.push('BI_NL2_ERR_CHILLER_11', '0000')
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
+    const mss1 = screen.getByText('MSS 1').closest('li')
+    expect(mss1?.querySelector('[data-state]')).toHaveAttribute(
+      'data-state',
+      'err',
+    )
+    expect(mss1).toHaveTextContent('ERR')
+
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle module errors detail' }),
+    )
+    const regen = screen.getByText('REGEN').closest('li')
+    expect(regen?.querySelector('[data-state]')).toHaveAttribute(
+      'data-state',
+      'invalid',
+    )
+    // The raw "0000" code is suppressed in favour of the INVALID label —
+    // showing "no error" for a disconnected PV would be misleading. The
+    // unaffected CHILLER_11 row still shows its real "0000" code.
+    expect(regen).toHaveTextContent('INVALID')
+    expect(regen).not.toHaveTextContent('0000')
+    expect(screen.getByText('CHILLER_11').closest('li')).toHaveTextContent(
+      '0000',
+    )
   })
 
   it('hides buttons for commands the laser does not expose', async () => {

@@ -25,6 +25,23 @@
   color: var(--color-gray-800);
 }
 
+/* EPICS severity overrides — shared by .number/.text/.placeholder. */
+.number[data-tone='warning'],
+.text[data-tone='warning'],
+.placeholder[data-tone='warning'] {
+  color: var(--color-warning-dark);
+}
+.number[data-tone='error'],
+.text[data-tone='error'],
+.placeholder[data-tone='error'] {
+  color: var(--color-error-dark);
+}
+.number[data-tone='invalid'],
+.text[data-tone='invalid'],
+.placeholder[data-tone='invalid'] {
+  color: var(--color-invalid-dark);
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -62,4 +79,22 @@
   background: transparent;
   border-style: dotted;
   color: var(--color-gray-800);
+}
+
+.pill[data-tone='warning'] {
+  background: var(--color-warning);
+  border-color: var(--color-warning-dark);
+  color: var(--color-text);
+}
+
+.pill[data-tone='error'] {
+  background: var(--color-error);
+  border-color: var(--color-error-dark);
+  color: var(--color-text);
+}
+
+.pill[data-tone='invalid'] {
+  background: var(--color-invalid);
+  border-color: var(--color-invalid-dark);
+  color: var(--color-text);
 }

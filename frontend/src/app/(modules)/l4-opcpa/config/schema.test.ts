@@ -27,7 +27,7 @@ function laser(overrides: Record<string, unknown> = {}) {
       loadedWaveform: 'WF:1',
     },
     triggerDelay: ['AI_NL9_TRIG_DELAY_CH1', 'AI_NL9_TRIG_DELAY_CH2'],
-    mss: ['BI_NL9_MSS_1'],
+    mss: [{ label: 'MSS 1', pv: 'BI_NL9_MSS_1' }],
     moduleErrors: [{ label: 'REGEN', pv: 'BI_NL9_ERR_REGEN' }],
     chillers: [{ label: 'C1', flow: 'f', temp: 't', level: 'l' }],
     flashlamps: [{ label: 'F1', pv: 'SI_NL9_FL_1' }],
@@ -73,6 +73,7 @@ describe('parseLaserSpecs', () => {
       label: 'REGEN',
       pv: 'BI_NL9_ERR_REGEN',
     })
+    expect(spec.mss[0]).toEqual({ label: 'MSS 1', pv: 'BI_NL9_MSS_1' })
   })
 
   it('the real lasers.yaml is structurally valid for every laser', () => {

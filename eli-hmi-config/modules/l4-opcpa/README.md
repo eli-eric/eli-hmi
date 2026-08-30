@@ -41,7 +41,7 @@ field reference below is the format's documentation; the config validator
 | `pvs.loadedWaveform` | PV name | Current waveform preset. |
 | `pvs.latestWaveform` | PV name | Previous waveform moved into Waveform Latest when a new preset is applied. Optional. |
 | `triggerDelay` | PV name[] | Trigger-delay readouts; all should read equal (mismatch is flagged). |
-| `mss` | PV name[] | MSS sub-indicators counted in the Overview. |
+| `mss` | `{label, pv}`[] | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV. |
 | `moduleErrors` | `{label, pv}`[] | Error indicators: `label` shown in UI, `pv` is the indicator PV. |
 | `chillers` | `{label, flow, temp, level}`[] | One row each; `label` shown, three readout PVs. **`[]` hides the Chillers section.** |
 | `flashlamps` | `{label, pv}`[] | One channel each; `label` shown, `pv` is the state PV. **`[]` hides the Flashlamps section.** |

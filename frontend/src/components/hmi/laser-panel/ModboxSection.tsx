@@ -12,10 +12,12 @@ import {
 import { FloatValue, StringValue } from '@/components/hmi/controls/Values'
 import type { Message } from '@/app/providers/types'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
+import { severityTone } from '@/lib/websocket/severity'
 import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import { WaveformSelect } from './WaveformSelect'
 import { makeCommandGate } from './commandGate'
 import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
+import { severityToDetailState } from './severity-detail-state'
 import styles from './sections.module.css'
 
 interface ModboxSectionProps {
@@ -87,25 +89,26 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   // Mixed value types (number for state, string for waveform). Keep the hook
   // typed as `unknown` and narrow at the use site.
   const { state } = useWebSocketData<unknown>({ pvs: allPvs, raw: true })
+  // Modbox state is a plain status readout, not a pass/fail signal — no
+  // ok/error colour coding, here or per-channel below.
   const okCount = modbox.filter(
     (name) => state[name]?.value === 1,
   ).length
   const total = modbox.length
-  const tone =
-    total === 0
-      ? 'unknown'
-      : okCount === total
-        ? 'positive-important'
-        : okCount === 0
-          ? 'negative-important'
-          : 'negative-neutral'
 
   const items: DetailListItem[] = modbox.map((name, i) => {
     const msg = state[name]
+    const sev = severityTone(msg)
+    // EPICS severity (or a disconnected/errored PV) overrides the plain
+    // neutral readout below.
+    if (sev !== 'none') {
+      return { label: `Modbox ${i + 1}`, state: severityToDetailState(sev) }
+    }
     const v = msg?.value
     return {
       label: `Modbox ${i + 1}`,
-      state: !msg ? 'unknown' : v === 1 ? 'ok' : 'err',
+      state: 'neutral',
+      trailing: typeof v === 'number' ? String(v) : undefined,
     }
   })
 
@@ -131,7 +134,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
                 aria-label="Toggle Modbox state detail"
                 onClick={() => setExpanded((v) => !v)}
               >
-                <span className={styles.modboxStatePill} data-tone={tone}>
+                <span className={styles.modboxStatePill}>
                   <span className={styles.modboxStateCount}>
                     {okCount}/{total}
                   </span>

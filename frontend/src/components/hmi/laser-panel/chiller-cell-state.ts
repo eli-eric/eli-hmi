@@ -1,4 +1,5 @@
 import type { Message } from '@/app/providers/types'
+import { severityTone } from '@/lib/websocket/severity'
 
 /**
  * CSI-783 — explicit component states for a Flow / Temp / Water cell.
@@ -20,7 +21,7 @@ export type CellKind =
   | 'unknown'
   | 'no_value'
   | 'stale'
-  | 'pv_error'
+  | 'invalid'
   | 'invalid_type'
   | 'non_finite'
   | 'alarm_minor'
@@ -28,7 +29,7 @@ export type CellKind =
   | 'out_of_range'
   | 'device_off'
 
-export type CellTone = 'ok' | 'warn' | 'error' | 'unknown' | 'muted'
+export type CellTone = 'ok' | 'warn' | 'error' | 'unknown' | 'muted' | 'invalid'
 
 export interface CellView {
   kind: CellKind
@@ -47,11 +48,6 @@ export interface Limits {
   min: number
   max: number
 }
-
-/** EPICS alarm severities. */
-const SEV_MINOR = 1
-const SEV_MAJOR = 2
-const SEV_INVALID = 3
 
 const EMPTY = '<>'
 
@@ -120,12 +116,13 @@ export function deriveCellState({
     }
   }
 
-  // 4. Gateway flagged the PV bad, or EPICS INVALID severity.
-  if (!msg.ok || msg.severity === SEV_INVALID) {
+  // 4. Gateway flagged the PV bad (disconnect/CA error), or EPICS INVALID
+  // severity — the value can't be trusted either way.
+  if (severityTone(msg) === 'invalid') {
     return {
-      kind: 'pv_error',
-      text: 'ERR',
-      tone: 'error',
+      kind: 'invalid',
+      text: 'INVALID',
+      tone: 'invalid',
       title: msg.error
         ? `PV error: ${msg.error}`
         : 'PV reported an error / INVALID severity.',
@@ -200,8 +197,10 @@ export function deriveCellState({
     }
   }
 
-  // 10. EPICS alarm on an otherwise valid number.
-  if (msg.severity === SEV_MAJOR) {
+  // 10. EPICS alarm on an otherwise valid number. `severityTone` already
+  // ruled out 'invalid' in step 4, so only 'error'/'warning'/'none' remain.
+  const tone = severityTone(msg)
+  if (tone === 'error') {
     return {
       kind: 'alarm_major',
       text: shown,
@@ -211,7 +210,7 @@ export function deriveCellState({
       actionBlockedReason: 'major alarm',
     }
   }
-  if (msg.severity === SEV_MINOR) {
+  if (tone === 'warning') {
     return {
       kind: 'alarm_minor',
       text: shown,

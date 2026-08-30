@@ -63,6 +63,11 @@ describe('ModboxSection', () => {
     expect(screen.getByText('2/3')).toBeInTheDocument()
     expect(screen.getByText('Waveform Preset')).toBeInTheDocument()
     expect(screen.getAllByText('std-100ps').length).toBeGreaterThan(0)
+    // Modbox state is a plain readout, not pass/fail — no ok/error tone on
+    // the summary pill even with a mix of 1s and 0s.
+    expect(screen.getByText('2/3').closest('.modboxStatePill')).not.toHaveAttribute(
+      'data-tone',
+    )
   })
 
   it('exposes Modbox ON / Modbox OFF behind a cog toggle', async () => {
@@ -109,6 +114,36 @@ describe('ModboxSection', () => {
     expect(screen.getByText('Modbox 1')).toBeInTheDocument()
     expect(screen.getByText('Modbox 2')).toBeInTheDocument()
     expect(screen.getByText('Modbox 3')).toBeInTheDocument()
+    // Per-channel entries show the raw value with a neutral (not ok/err) tone.
+    expect(
+      screen.getByText('Modbox 1').closest('li')?.querySelector('[data-state]'),
+    ).toHaveAttribute('data-state', 'neutral')
+    expect(
+      screen.getByText('Modbox 2').closest('li')?.querySelector('[data-state]'),
+    ).toHaveAttribute('data-state', 'neutral')
+  })
+
+  it('overrides a channel colour with EPICS severity, regardless of the raw value', async () => {
+    const ws = renderModbox()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
+    )
+    act(() => {
+      // MAJOR alarm despite value=1, which would otherwise be a plain neutral "1".
+      ws.push('BI_NL2_MODBOX_1', { value: 1, severity: 2 })
+    })
+
+    const user = userEvent.setup()
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle Modbox state detail' }),
+    )
+
+    const modbox1 = screen.getByText('Modbox 1').closest('li')
+    expect(modbox1?.querySelector('[data-state]')).toHaveAttribute(
+      'data-state',
+      'err',
+    )
+    expect(modbox1).toHaveTextContent('ERR')
   })
 
   it('exposes the waveform selector behind a cog toggle', async () => {

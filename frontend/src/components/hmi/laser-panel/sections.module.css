@@ -219,27 +219,6 @@
   color: var(--color-text);
 }
 
-.modboxStatePill[data-tone='positive-important'] {
-  background: var(--color-success);
-  border-color: var(--color-success-dark);
-}
-
-.modboxStatePill[data-tone='negative-neutral'] {
-  background: var(--color-surface);
-  border-color: var(--color-gray-800);
-}
-
-.modboxStatePill[data-tone='negative-important'] {
-  background: var(--color-error-light);
-  border-color: var(--color-error-dark);
-}
-
-.modboxStatePill[data-tone='unknown'] {
-  background: transparent;
-  border-style: dotted;
-  color: var(--color-gray-800);
-}
-
 /* Corner triangle marking an expandable element (replaces the old chevron). */
 .cornerTriangle {
   position: absolute;
@@ -437,4 +416,8 @@
 .cellState[data-tone='muted'] {
   color: var(--color-text-secondary);
   font-style: italic;
+}
+.cellState[data-tone='invalid'] {
+  color: var(--color-text);
+  background: var(--color-invalid-light);
 }

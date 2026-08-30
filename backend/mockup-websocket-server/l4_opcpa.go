@@ -156,7 +156,7 @@ var sequences = map[string]sequenceFunc{
 			pvEffect{"AI_${L}_PHD2_MEAN", 4.0},
 			pvEffect{"AI_TEMP_${L}_REGEN", 25.0},
 		)
-		effs = append(effs, allFlashlampChannels(laser, "SB")...)
+		effs = append(effs, allFlashlampChannels(laser, "STANDBY")...)
 		return effs, nil
 	},
 	"system_standby": func(laser string, _ interface{}) ([]pvEffect, error) {
@@ -173,7 +173,7 @@ var sequences = map[string]sequenceFunc{
 		for i := 1; i <= modboxStateCount; i++ {
 			effs = append(effs, pvEffect{fmt.Sprintf("BI_%s_MODBOX_%d", laser, i), 1})
 		}
-		effs = append(effs, allFlashlampChannels(laser, "SB")...)
+		effs = append(effs, allFlashlampChannels(laser, "STANDBY")...)
 		return effs, nil
 	},
 	"flashlamps_run": func(laser string, _ interface{}) ([]pvEffect, error) {
@@ -183,7 +183,7 @@ var sequences = map[string]sequenceFunc{
 		return allFlashlampChannels(laser, "RUN"), nil
 	},
 	"flashlamps_standby": func(laser string, _ interface{}) ([]pvEffect, error) {
-		return allFlashlampChannels(laser, "SB"), nil
+		return allFlashlampChannels(laser, "STANDBY"), nil
 	},
 	"modbox_on": func(laser string, _ interface{}) ([]pvEffect, error) {
 		out := make([]pvEffect, 0, modboxStateCount)
@@ -433,9 +433,9 @@ func seedLaserPVs() {
 		for i := 1; i <= mssCount; i++ {
 			setSeed(fmt.Sprintf("BI_%s_MSS_%d", laser, i), 1)
 		}
-		// Module Errors (0 = no error)
+		// Module Errors ("0000" = no error, any other status code = error)
 		for _, m := range moduleErrors {
-			setSeed(fmt.Sprintf("BI_%s_ERR_%s", laser, m), 0)
+			setSeed(fmt.Sprintf("BI_%s_ERR_%s", laser, m), "0000")
 		}
 		// Regen
 		setSeed(fmt.Sprintf("BI_%s_REGEN_STATE", laser), 0)
@@ -448,7 +448,7 @@ func seedLaserPVs() {
 			setSeed(fmt.Sprintf("AI_%s_CHILLER_%s_LEVEL", laser, id), 0.9)
 		}
 		// Flashlamps: SB by default; trigger delay 50
-		for _, eff := range allFlashlampChannels(laser, "SB") {
+		for _, eff := range allFlashlampChannels(laser, "STANDBY") {
 			setSeed(eff.pv, eff.value)
 		}
 		setSeed(fmt.Sprintf("AI_%s_TRIG_DELAY_CH1", laser), 50)
