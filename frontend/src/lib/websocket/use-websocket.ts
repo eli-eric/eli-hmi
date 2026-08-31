@@ -235,8 +235,9 @@ export function useWebSocket() {
       // `detail: 'time'` gets severity/status/timestamp in `metadata` —
       // omitting it would default to the gateway's 'value' level, which
       // drops those fields and silently starves every consumer that reads
-      // them. 'control' would add display/control limits too, which nothing
-      // here consumes.
+      // them. 'control' would additionally carry `units` and display/control
+      // limits; nothing consumes those (Gate.tsx used to show units and was
+      // trimmed when this moved off 'control'), so 'time' keeps events lean.
       send({
         type: 'subscribe',
         subscription_id: subscriptionId,

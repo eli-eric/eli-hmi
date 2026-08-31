@@ -183,7 +183,8 @@ func renderRootDocsHTML() string {
           <li>One simulator per unique PV, shared across all subscribers.</li>
           <li>Auto-generated values for <code>AI_</code>, <code>BI_</code>, and <code>SI_</code> style PVs.</li>
           <li>Manual overrides over REST or POST writes, broadcast immediately over WebSocket.</li>
-          <li>Simple JSON protocol for <code>subscribe</code> and <code>unsubscribe</code>.</li>
+          <li>Speaks the real gateway's batched JSON protocol (<code>subscribe</code> / <code>unsubscribe</code> by <code>subscription_id</code>, <code>detail</code> levels).</li>
+          <li>Random sticky severity episodes (MINOR/MAJOR/INVALID) to exercise alarm styling.</li>
         </ul>
       </article>
 
@@ -210,17 +211,19 @@ func renderRootDocsHTML() string {
       <article class="panel">
         <h2>WebSocket usage</h2>
         <div class="flow-list">
-          <div class="flow-step">1. Connect to <code>ws://localhost:8080/ws/pvs?auth=jwt_token_please</code>.</div>
+          <div class="flow-step">1. Connect to <code>ws://localhost:8080/ws/pvs?auth=jwt_token_please</code> — the server greets with a <code>connected</code> frame.</div>
           <div class="flow-step">2. Send a subscribe frame such as:</div>
           <pre>{
   "type": "subscribe",
-  "pvs": { "AI_TEMP": true, "BI_DOOR": true }
+  "subscription_id": "fe-1",
+  "pvs": ["AI_TEMP", "BI_DOOR"],
+  "detail": "time"
 }</pre>
-          <div class="flow-step">3. Read <code>pv</code> messages containing <code>name</code>, <code>value</code>, <code>timestamp</code>, <code>ok</code>, and <code>units</code>.</div>
+          <div class="flow-step">3. Read the <code>subscribed</code> ack, one <code>snapshot</code> per PV, then <code>event</code> frames: <code>pv</code>, <code>value</code>, <code>ok</code>, and <code>metadata</code> (severity/status/timestamp at <code>time</code>, plus units at <code>control</code>).</div>
           <div class="flow-step">4. Stop a subscription with:</div>
           <pre>{
   "type": "unsubscribe",
-  "pvs": { "BI_DOOR": true }
+  "subscription_id": "fe-1"
 }</pre>
         </div>
       </article>
@@ -240,6 +243,7 @@ curl http://localhost:8080/mode/ai/2</pre>
         <li>The first client that mentions a PV creates a global <code>pvSim</code> instance.</li>
         <li>That simulator owns the latest value, a ticker loop, and the subscriber list.</li>
         <li>On each tick, the current value is drifted when autosimulation is enabled and then broadcast to all subscribers.</li>
+        <li>Independent of value modes, each PV randomly enters sticky severity episodes (MINOR/MAJOR/INVALID for 5–15&nbsp;s). Disable with <code>/mode/severity/2</code>.</li>
         <li>When the last subscriber disconnects, the simulator is removed from the registry.</li>
       </ul>
       <p class="muted-note">For deeper background, see the mock server README and docs in the repository. This page is intentionally a concise root-path overview.</p>
