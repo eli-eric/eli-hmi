@@ -31,7 +31,7 @@ afterEach(() => {
 describe('WaveformSelect', () => {
   it('fetches /waveforms and renders one option per waveform', async () => {
     mockFetch()
-    render(<WaveformSelect laser="NL2" />)
+    render(<WaveformSelect pvName="CMD_NL2_LOAD_WAVEFORM" />)
     await waitFor(() =>
       expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
     )
@@ -42,7 +42,7 @@ describe('WaveformSelect', () => {
   it('disables waveform setting until the user picks a waveform', async () => {
     mockFetch()
     const user = userEvent.setup()
-    render(<WaveformSelect laser="NL2" />)
+    render(<WaveformSelect pvName="CMD_NL2_LOAD_WAVEFORM" />)
     await waitFor(() =>
       expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
     )
@@ -53,10 +53,10 @@ describe('WaveformSelect', () => {
     expect(screen.getByRole('button', { name: /CONFIRM/i })).not.toBeDisabled()
   })
 
-  it('POSTs CMD_<laser>_LOAD_WAVEFORM with the selected name on Set Waveform click', async () => {
+  it('POSTs the configured pvName with the selected name on Set Waveform click', async () => {
     const spy = mockFetch()
     const user = userEvent.setup()
-    render(<WaveformSelect laser="NL2" />)
+    render(<WaveformSelect pvName="CMD_NL2_LOAD_WAVEFORM" />)
     await waitFor(() =>
       expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
     )

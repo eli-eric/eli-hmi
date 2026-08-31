@@ -17,4 +17,5 @@ lasers:
     flashlamps: []
     modbox: []
     delayPresets: [50]
-    commands: [START_LASER]
+    commands:
+      START_LASER: START_LASER

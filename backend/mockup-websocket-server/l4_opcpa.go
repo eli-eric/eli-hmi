@@ -330,11 +330,79 @@ func writePvHandler(c echo.Context) error {
 		})
 	}
 
+	// Real command PVs (configured per laser in lasers.yaml `commands`).
+	// The mock does not read the YAML — it recognises the record name (the
+	// last ':' segment) and simulates the gateway-side behaviour the
+	// frontend observes.
+	switch recordName(name) {
+	case "SetAlignmentMode":
+		// Apply the alignment sequence when the device prefix names a known
+		// laser (e.g. L4-OPCPA-NL2), then pulse <name>.BUSY for the hold
+		// window — the frontend's sequencerRunning subscribes to it.
+		if laser := laserFromDevicePrefix(name); laser != "" {
+			effects, seqErr := sequences["alignment_mode"](laser, body.Value)
+			if seqErr == nil {
+				for _, e := range effects {
+					getOrCreateSim(e.pv).setManualValueHeld(e.value, "", sequenceHold)
+				}
+			}
+		}
+		getOrCreateSim(name).setManualValueHeld(body.Value, "", sequenceHold)
+		busyPv := name + ".BUSY"
+		getOrCreateSim(busyPv).setManualValue(1, "")
+		time.AfterFunc(sequenceHold, func() {
+			getOrCreateSim(busyPv).setManualValue(0, "")
+		})
+		log.Printf("actor=%s pv write %s = %v (alignment command, BUSY pulse)", actor, name, body.Value)
+		return c.JSON(http.StatusOK, map[string]interface{}{"ok": true})
+	case "SetBothChannelsTrigDelay":
+		if body.Value == nil {
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"ok":    false,
+				"error": "SetBothChannelsTrigDelay requires a numeric value",
+			})
+		}
+		prefix := name[:strings.LastIndex(name, ":")]
+		getOrCreateSim(name).setManualValueHeld(body.Value, "", sequenceHold)
+		for _, ch := range []string{"Ch1TriggeringDelay", "Ch2TriggeringDelay"} {
+			getOrCreateSim(prefix+":"+ch).setManualValueHeld(body.Value, "", sequenceHold)
+		}
+		log.Printf("actor=%s pv write %s = %v (both trigger delays)", actor, name, body.Value)
+		return c.JSON(http.StatusOK, map[string]interface{}{"ok": true})
+	}
+
 	// Plain PV write.
 	ps := getOrCreateSim(name)
 	ps.setManualValueHeld(body.Value, "", sequenceHold)
 	log.Printf("actor=%s pv write %s = %v", actor, name, body.Value)
 	return c.JSON(http.StatusOK, map[string]interface{}{"ok": true})
+}
+
+// recordName returns the last ':'-separated segment of a PV name, or "" for
+// names with no ':' (which can never be a real command record).
+func recordName(pv string) string {
+	i := strings.LastIndex(pv, ":")
+	if i < 0 {
+		return ""
+	}
+	return pv[i+1:]
+}
+
+// laserFromDevicePrefix extracts a known laser id from a real command PV like
+// "L4-OPCPA-NL2:SetAlignmentMode": the token after the last '-' of the first
+// ':' segment. Returns "" when it doesn't name a known laser.
+func laserFromDevicePrefix(pv string) string {
+	first := pv
+	if i := strings.Index(pv, ":"); i >= 0 {
+		first = pv[:i]
+	}
+	if j := strings.LastIndex(first, "-"); j >= 0 {
+		first = first[j+1:]
+	}
+	if isKnownLaser(first) {
+		return first
+	}
+	return ""
 }
 
 // commandPVEffects expands a CMD_<LASER>_<NAME> PV write into its effect chain.

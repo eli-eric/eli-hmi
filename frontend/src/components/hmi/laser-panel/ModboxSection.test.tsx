@@ -3,7 +3,10 @@ import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ModboxSection } from './ModboxSection'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
-import { LASER_COMMANDS } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import {
+  LASER_COMMANDS,
+  makeCommandPv,
+} from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import {
   makeFakeWebSocketContext,
   TestWebSocketProvider,
@@ -36,7 +39,7 @@ function renderModbox() {
   render(
     <TestWebSocketProvider value={ws.context}>
       <ModboxSection
-        laser="NL2"
+        cmdPv={makeCommandPv('NL2', {})}
         modbox={MODBOX_3}
         loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
         commands={LASER_COMMANDS}
@@ -254,7 +257,7 @@ describe('ModboxSection', () => {
     render(
       <TestWebSocketProvider value={ws.context}>
         <ModboxSection
-          laser="NL2"
+          cmdPv={makeCommandPv('NL2', {})}
           modbox={MODBOX_3}
           loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
           latestWaveformPv="SI_NL2_LATEST_WAVEFORM"

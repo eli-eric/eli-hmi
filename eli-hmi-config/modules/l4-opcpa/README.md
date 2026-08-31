@@ -47,7 +47,7 @@ field reference below is the format's documentation; the config validator
 | `flashlamps` | `{label, pv}`[] | One channel each; `label` shown, `pv` is the state PV. **`[]` hides the Flashlamps section.** |
 | `modbox` | `{label, pv}`[] | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV. **`[]` hides the Modbox section.** |
 | `delayPresets` | int[] | Trigger-delay preset buttons (ns). |
-| `commands` | enum[] | Which command buttons appear (see below). |
+| `commands` | map `SYMBOL: PV` | Which command buttons appear and which PV each writes (see below). |
 
 A "PV name" is any non-empty string — put the exact name the gateway exposes.
 
@@ -62,7 +62,16 @@ flashlamps:
 
 ### `commands`
 
-The allowed values are the closed vocabulary (wired to backend sequences and UI buttons):
+A map from a command symbol to **the PV the button's write goes to**:
+
+```yaml
+commands:
+  START_LASER: START_LASER                                # placeholder — no real PV yet
+  ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode           # real PV — written directly
+  SET_DELAY: L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay
+```
+
+The allowed keys are the closed vocabulary (wired to UI buttons):
 
 ```
 START_LASER, STOP_LASER, ALIGNMENT_MODE, SYSTEM_STANDBY,
@@ -70,12 +79,24 @@ FLASHLAMPS_RUN, FLASHLAMPS_STANDBY, MODBOX_ON, MODBOX_OFF,
 SET_DELAY, LOAD_WAVEFORM
 ```
 
-A laser only shows buttons for the commands it lists — omit one and its button
-is hidden for that laser. Commands are **not** plain PVs: each triggers a
-coordinated backend sequence of writes (the wire name `CMD_<id>_<NAME>` is built
-in code, in the app repo's `l4-opcpa/lib/pv-names.ts`). Adding a **brand-new**
-command needs code changes in the app repo (the `LASER_COMMANDS` tuple + the Go
-backend `sequences` map + a button).
+Rules:
+
+- A laser only shows buttons for the keys it lists — omit a key and its button
+  is hidden for that laser. Key order doesn't matter.
+- **Real PV**: the frontend writes to that exact name. The value written is
+  fixed per command (`1` as the trigger for action buttons, the delay in ns for
+  `SET_DELAY`, the waveform name for `LOAD_WAVEFORM`).
+- **Placeholder** (value identical to the key, e.g. `START_LASER: START_LASER`):
+  means "controls haven't delivered this PV yet". The frontend falls back to the
+  mock-backend sequence trigger `CMD_<id>_<SYMBOL>` built in code (app repo's
+  `l4-opcpa/lib/pv-names.ts`). Replace the value with the real PV when it
+  exists — no code change.
+- Anything else (a value that is neither the key nor contains `:`) is rejected
+  by validation as a likely typo.
+
+Adding a **brand-new** command still needs code changes in the app repo (the
+`LASER_COMMANDS` tuple + a button, and a mock `sequences` entry for the
+placeholder path).
 
 ## Empty banks hide sections
 

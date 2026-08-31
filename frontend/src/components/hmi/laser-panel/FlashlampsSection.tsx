@@ -12,7 +12,10 @@ import {
 } from '@/components/hmi/controls/DetailList'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { severityTone } from '@/lib/websocket/severity'
-import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import type {
+  CommandPvResolver,
+  LaserCommand,
+} from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import { makeCommandGate } from './commandGate'
 import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
@@ -20,8 +23,8 @@ import { severityToDetailState } from './severity-detail-state'
 import styles from './sections.module.css'
 
 interface FlashlampsSectionProps {
-  /** Laser id — used only to build command PVs. */
-  laser: string
+  /** Resolves a command to its write PV (YAML override or CMD_<laser>_<NAME>). */
+  cmdPv: CommandPvResolver
   /** Flashlamp channels: display label + state PV. */
   flashlamps: readonly LabeledPv[]
   /** Trigger-delay readout PVs; all should read equal (mismatch is flagged). */
@@ -68,13 +71,14 @@ function toneForState(
 
 /**
  * Flashlamp channel states + lifecycle actions + trigger delay. All PV names
- * arrive as props (resolved from the YAML config); command PVs use `laser`.
+ * arrive as props (resolved from the YAML config); command write PVs come
+ * from `cmdPv`.
  *
  * Trigger delay: the spec says the readouts should always be equal. We
  * subscribe to all `triggerDelay` PVs and flag a mismatch if any differ.
  */
 export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
-  laser,
+  cmdPv,
   flashlamps,
   triggerDelay,
   delayPresets,
@@ -208,13 +212,13 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
             {can('FLASHLAMPS_RUN') && (
               <ActionButton
                 label="Set All to Run"
-                pvName={pv.cmd(laser, 'FLASHLAMPS_RUN')}
+                pvName={cmdPv('FLASHLAMPS_RUN')}
               />
             )}
             {can('FLASHLAMPS_STANDBY') && (
               <ActionButton
                 label="Set All to Standby"
-                pvName={pv.cmd(laser, 'FLASHLAMPS_STANDBY')}
+                pvName={cmdPv('FLASHLAMPS_STANDBY')}
                 variant="secondary"
               />
             )}
@@ -235,7 +239,7 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
               <PresetIntegerInput
                 label="Set Trigger Delay"
                 presets={delayPresets}
-                pvName={pv.cmd(laser, 'SET_DELAY')}
+                pvName={cmdPv('SET_DELAY')}
               />
             </CogToggle>
           ) : undefined
