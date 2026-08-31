@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -19,11 +20,33 @@ import (
 
 /* ----------------------------- payloads ---------------------------------- */
 
-type RequestMessage struct {
-	Type string                 `json:"type"` // "subscribe" | "unsubscribe"
-	PVs  map[string]interface{} `json:"pvs"`
+// wsRequest is a batch-protocol frame from the frontend. The shape mirrors
+// the real gateway's contract (backend/python-websocket-server/
+// api_contract.py) — one subscription_id covers a whole list of PVs, and
+// `detail` picks how much metadata each snapshot/event carries.
+type wsRequest struct {
+	Type           string      `json:"type"` // "subscribe" | "unsubscribe" | "ping"
+	SubscriptionID string      `json:"subscription_id"`
+	PVs            []string    `json:"pvs"`
+	Detail         string      `json:"detail"` // "value" | "time" | "control"; empty = "value"
+	Nonce          interface{} `json:"nonce"`
 }
 
+const (
+	detailValue   = "value"
+	detailTime    = "time"
+	detailControl = "control"
+)
+
+// Gateway parity (app_settings.py defaults); the frontend chunks its
+// subscriptions at 64 PVs to stay under the same limit.
+const (
+	maxPVsPerSubscription         = 64
+	maxSubscriptionsPerConnection = 32
+)
+
+// ResponseMessage is the REST /pv/:name response shape (the WS stream speaks
+// the gateway's snapshot/event format instead — see pvSim.encodeLocked).
 type ResponseMessage struct {
 	Type      string      `json:"type"` // always "pv"
 	Name      string      `json:"name"`
@@ -48,9 +71,10 @@ type SetPvrequestBody struct {
 /* --------------------------- globals ------------------------------------- */
 
 var (
-	aiMode   = 1 // 1 = autosimulate, 2 = manual
-	biMode   = 2 // 1 = autosimulate, 2 = manual
-	siMode   = 2 // 1 = autosimulate, 2 = manual
+	aiMode       = 1 // 1 = autosimulate, 2 = manual
+	biMode       = 2 // 1 = autosimulate, 2 = manual
+	siMode       = 2 // 1 = autosimulate, 2 = manual
+	severityMode = 1 // 1 = autosimulate severity episodes, 2 = off (always NONE)
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 
 	// Update period in milliseconds
@@ -103,13 +127,59 @@ func newServer() *echo.Echo {
 	return e
 }
 
+/* ---------------------- severity episode simulation ----------------------- */
+
+// Sticky severity episodes: a PV normally sits at NONE (0); each tick it has
+// a small chance to enter a MINOR/MAJOR/INVALID episode that holds for a
+// random 5–15 s and then returns to NONE. Decoupled from the value autosim
+// modes so BI_/SI_ PVs (manual values by default) still exercise the
+// frontend's severity styling.
+const (
+	sevChanceMinor   = 0.010 // per tick
+	sevChanceMajor   = 0.003
+	sevChanceInvalid = 0.001
+	sevEpisodeMin    = 5 * time.Second
+	sevEpisodeMax    = 15 * time.Second
+)
+
+type severityState struct {
+	severity int       // EPICS severity: 0 NONE, 1 MINOR, 2 MAJOR, 3 INVALID
+	until    time.Time // episode end; zero when severity == 0
+}
+
+// stepSeverity advances the episode state machine by one tick. `rnd` must
+// return uniform [0,1) values (rand.Float64 in production, seeded in tests).
+func stepSeverity(s severityState, now time.Time, rnd func() float64) severityState {
+	if s.severity != 0 {
+		if now.After(s.until) {
+			return severityState{}
+		}
+		return s
+	}
+	roll := rnd()
+	var sev int
+	switch {
+	case roll < sevChanceInvalid:
+		sev = 3
+	case roll < sevChanceInvalid+sevChanceMajor:
+		sev = 2
+	case roll < sevChanceInvalid+sevChanceMajor+sevChanceMinor:
+		sev = 1
+	default:
+		return severityState{}
+	}
+	dur := sevEpisodeMin + time.Duration(rnd()*float64(sevEpisodeMax-sevEpisodeMin))
+	return severityState{severity: sev, until: now.Add(dur)}
+}
+
 /* ---------------------- per-PV simulator --------------------------------- */
 
 type pvSim struct {
 	name      string
 	value     interface{}
 	errorMsg  string
-	subs      map[*client]struct{}
+	sev       severityState
+	subs      map[*wsSub]struct{}
 	mu        sync.Mutex
 	cancel    context.CancelFunc
 	holdUntil time.Time // when set in the future, the autosim loop pauses until this passes
@@ -120,14 +190,12 @@ func newPVSim(name string) *pvSim {
 	ps := &pvSim{
 		name:   name,
 		value:  synthValue(name),
-		subs:   make(map[*client]struct{}),
+		subs:   make(map[*wsSub]struct{}),
 		cancel: cancel,
 	}
 	go ps.loop(ctx)
 	return ps
 }
-
-const period = 400 * time.Millisecond
 
 func (ps *pvSim) loop(ctx context.Context) {
 	ticker := time.NewTicker(time.Duration(updatePeriodMs) * time.Millisecond)
@@ -136,32 +204,34 @@ func (ps *pvSim) loop(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			if ps.shouldSimulate() {
-				ps.mu.Lock()
-				ps.value = simStepFrom(ps.name, ps.value)
-				b := ps.encodeLocked()
-				for cl := range ps.subs {
-					select {
-					case cl.writeCh <- b:
-					default:
-					}
+			now := time.Now()
+			ps.mu.Lock()
+			// Both severity episodes and value drift pause during a hold
+			// (set after sequencer writes) so transitions stay clean.
+			hold := !ps.holdUntil.IsZero() && now.Before(ps.holdUntil)
+			changed := false
+			if !hold && severityMode == 1 {
+				if next := stepSeverity(ps.sev, now, rand.Float64); next != ps.sev {
+					ps.sev = next
+					changed = true
 				}
-				ps.mu.Unlock()
 			}
+			if !hold && ps.valueAutosim() {
+				ps.value = simStepFrom(ps.name, ps.value)
+				changed = true
+			}
+			if changed {
+				ps.broadcastLocked("event")
+			}
+			ps.mu.Unlock()
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-// shouldSimulate checks the global mode flags and the per-PV hold.
-func (ps *pvSim) shouldSimulate() bool {
-	ps.mu.Lock()
-	hold := ps.holdUntil
-	ps.mu.Unlock()
-	if !hold.IsZero() && time.Now().Before(hold) {
-		return false
-	}
+// valueAutosim checks the global per-type value-drift mode flags.
+func (ps *pvSim) valueAutosim() bool {
 	switch {
 	case strings.HasPrefix(ps.name, "CMD_"):
 		// Command PVs are write-only triggers (subscribers see only the
@@ -181,38 +251,67 @@ func (ps *pvSim) shouldSimulate() bool {
 	}
 }
 
-// encodeLocked assumes ps.mu is held.
-func (ps *pvSim) encodeLocked() []byte {
-	msg := ResponseMessage{
-		Type:      "pv",
-		Name:      ps.name,
-		Value:     ps.value,
-		Error:     ps.errorMsg,
-		Severity:  0,
-		OK:        ps.errorMsg == "",
-		Timestamp: float64(time.Now().UnixNano()) / 1e9,
-		Units:     unitsFor(ps.name),
+// encodeLocked builds one gateway-shaped snapshot/event frame for `sub`
+// (its subscription_id + detail level). Assumes ps.mu is held.
+func (ps *pvSim) encodeLocked(event string, sub *wsSub) []byte {
+	resp := map[string]interface{}{
+		"type":            event,
+		"operation":       "monitor",
+		"subscription_id": sub.subscriptionID,
+		"pv":              ps.name,
+		"detail":          sub.detail,
 	}
-	b, _ := json.Marshal(msg)
+	if ps.errorMsg != "" {
+		resp["ok"] = false
+		resp["error"] = map[string]interface{}{"code": nil, "message": ps.errorMsg}
+	} else {
+		resp["ok"] = true
+		resp["value"] = ps.value
+		metadata := map[string]interface{}{}
+		if sub.detail == detailTime || sub.detail == detailControl {
+			metadata["status"] = 0
+			metadata["severity"] = ps.sev.severity
+			metadata["timestamp"] = float64(time.Now().UnixNano()) / 1e9
+		}
+		if sub.detail == detailControl {
+			if u := unitsFor(ps.name); u != "" {
+				metadata["units"] = u
+			}
+		}
+		resp["metadata"] = metadata
+	}
+	b, _ := json.Marshal(resp)
 	return b
 }
 
-func (ps *pvSim) add(cl *client) {
+// broadcastLocked fans one frame out to every subscription, each encoded at
+// its own detail level. Assumes ps.mu is held.
+func (ps *pvSim) broadcastLocked(event string) {
+	for sub := range ps.subs {
+		b := ps.encodeLocked(event, sub)
+		select {
+		case sub.cl.writeCh <- b:
+		default:
+		}
+	}
+}
+
+func (ps *pvSim) add(sub *wsSub) {
 	ps.mu.Lock()
-	ps.subs[cl] = struct{}{}
-	b := ps.encodeLocked() // send current value immediately
+	ps.subs[sub] = struct{}{}
+	b := ps.encodeLocked("snapshot", sub) // send current value immediately
 	ps.mu.Unlock()
 
 	// non-blocking send
 	select {
-	case cl.writeCh <- b:
+	case sub.cl.writeCh <- b:
 	default:
 	}
 }
 
-func (ps *pvSim) remove(cl *client) {
+func (ps *pvSim) remove(sub *wsSub) {
 	ps.mu.Lock()
-	delete(ps.subs, cl)
+	delete(ps.subs, sub)
 	empty := len(ps.subs) == 0
 	ps.mu.Unlock()
 
@@ -237,23 +336,67 @@ func (ps *pvSim) setManualValueHeld(v interface{}, errorMsg string, hold time.Du
 	if hold > 0 {
 		ps.holdUntil = time.Now().Add(hold)
 	}
-	b := ps.encodeLocked()
-	for cl := range ps.subs {
-		select {
-		case cl.writeCh <- b:
-		default:
-		}
-	}
+	ps.broadcastLocked("event")
 	ps.mu.Unlock()
 }
 
 /* ---------------------- per-connection state ----------------------------- */
 
+// wsSub is one subscription group — one batch subscribe frame. Every
+// snapshot/event for its PVs is tagged with its subscription_id and encoded
+// at its detail level. A PV watched by two groups gets one frame per group,
+// same as the real gateway.
+type wsSub struct {
+	cl             *client
+	subscriptionID string
+	detail         string
+	pvs            map[string]*pvSim
+}
+
 type client struct {
 	writeCh   chan []byte
-	subs      map[string]*pvSim
+	groups    map[string]*wsSub // subscription_id -> group; reader-goroutine only
 	username  string
 	clientKey string
+}
+
+// sendJSON marshals and queues one control frame, dropping it if the write
+// buffer is full (same non-blocking policy as PV broadcasts).
+func (cl *client) sendJSON(v interface{}) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return
+	}
+	select {
+	case cl.writeCh <- b:
+	default:
+	}
+}
+
+// dropGroup detaches subscription `id` from its PV sims. Reports whether the
+// group existed.
+func (cl *client) dropGroup(id string) bool {
+	sub := cl.groups[id]
+	if sub == nil {
+		return false
+	}
+	delete(cl.groups, id)
+	for _, ps := range sub.pvs {
+		ps.remove(sub)
+	}
+	return true
+}
+
+func wsError(subscriptionID, code, message string) map[string]interface{} {
+	e := map[string]interface{}{
+		"type":      "error",
+		"operation": "monitor",
+		"error":     map[string]interface{}{"code": code, "message": message},
+	}
+	if subscriptionID != "" {
+		e["subscription_id"] = subscriptionID
+	}
+	return e
 }
 
 /* ------------------------ WebSocket handler ------------------------------ */
@@ -280,7 +423,7 @@ func wsHandler(c echo.Context) error {
 
 	cl := &client{
 		writeCh:   make(chan []byte, 32),
-		subs:      make(map[string]*pvSim),
+		groups:    make(map[string]*wsSub),
 		username:  actor,
 		clientKey: clientKey,
 	}
@@ -300,50 +443,124 @@ func wsHandler(c echo.Context) error {
 		}
 	}()
 
+	// Gateway parity: greet with connection metadata + limits.
+	cl.sendJSON(map[string]interface{}{
+		"type":          "connected",
+		"operation":     "monitor",
+		"connection_id": clientKey,
+		"limits": map[string]interface{}{
+			"max_pvs_per_subscription":         maxPVsPerSubscription,
+			"max_subscriptions_per_connection": maxSubscriptionsPerConnection,
+		},
+	})
+
 	/* reader */
 	for {
 		_, raw, err := conn.ReadMessage()
 		if err != nil {
 			break
 		}
-		var req RequestMessage
-		if json.Unmarshal(raw, &req) != nil {
+		var req wsRequest
+		if err := json.Unmarshal(raw, &req); err != nil {
+			cl.sendJSON(wsError("", "invalid_message", "malformed message frame"))
 			continue
 		}
 
 		switch req.Type {
 		case "subscribe":
-			for pvName, _ := range req.PVs {
-				pv := strings.TrimSpace(pvName)
-				if pv == "" || cl.subs[pv] != nil {
-					continue
-				}
-				ps := getOrCreateSim(pv)
-				ps.add(cl)
-				cl.subs[pv] = ps
-			}
+			handleSubscribe(cl, req)
 		case "unsubscribe":
-			for pvName, _ := range req.PVs {
-				pv := strings.TrimSpace(pvName)
-				if pv == "" {
-					continue
-				}
-				if ps := cl.subs[pv]; ps != nil {
-					ps.remove(cl)
-					delete(cl.subs, pv)
-				}
-			}
+			removed := cl.dropGroup(strings.TrimSpace(req.SubscriptionID))
+			cl.sendJSON(map[string]interface{}{
+				"type":            "unsubscribed",
+				"operation":       "monitor",
+				"subscription_id": req.SubscriptionID,
+				"ok":              removed,
+			})
+		case "ping":
+			cl.sendJSON(map[string]interface{}{
+				"type":      "pong",
+				"operation": "monitor",
+				"nonce":     req.Nonce,
+			})
+		default:
+			cl.sendJSON(wsError(req.SubscriptionID, "invalid_message",
+				fmt.Sprintf("unknown message type %q", req.Type)))
 		}
 	}
 
 	/* teardown */
-	for pv, ps := range cl.subs {
-		ps.remove(cl)
-		delete(cl.subs, pv)
+	for id := range cl.groups {
+		cl.dropGroup(id)
 	}
 	close(cl.writeCh)
 	wg.Wait()
 	return nil
+}
+
+func handleSubscribe(cl *client, req wsRequest) {
+	id := strings.TrimSpace(req.SubscriptionID)
+	detail := req.Detail
+	if detail == "" {
+		detail = detailValue
+	}
+	pvs := make([]string, 0, len(req.PVs))
+	for _, name := range req.PVs {
+		if n := strings.TrimSpace(name); n != "" {
+			pvs = append(pvs, n)
+		}
+	}
+
+	switch {
+	case id == "":
+		cl.sendJSON(wsError(id, "invalid_message", "subscription_id is required"))
+		return
+	case len(pvs) == 0:
+		cl.sendJSON(wsError(id, "invalid_message", "pvs must be a non-empty list of PV names"))
+		return
+	case len(pvs) > maxPVsPerSubscription:
+		cl.sendJSON(wsError(id, "too_many_pvs",
+			fmt.Sprintf("A subscription can monitor at most %d PVs", maxPVsPerSubscription)))
+		return
+	case detail != detailValue && detail != detailTime && detail != detailControl:
+		cl.sendJSON(wsError(id, "invalid_message", "detail must be one of: value, time, control"))
+		return
+	}
+	if _, exists := cl.groups[id]; !exists && len(cl.groups) >= maxSubscriptionsPerConnection {
+		cl.sendJSON(wsError(id, "too_many_subscriptions",
+			fmt.Sprintf("A connection can hold at most %d subscriptions", maxSubscriptionsPerConnection)))
+		return
+	}
+
+	// Re-subscribing an existing id replaces it (gateway parity: implicit
+	// unsubscribe, no `unsubscribed` ack).
+	cl.dropGroup(id)
+
+	sub := &wsSub{
+		cl:             cl,
+		subscriptionID: id,
+		detail:         detail,
+		pvs:            make(map[string]*pvSim, len(pvs)),
+	}
+	cl.groups[id] = sub
+
+	cl.sendJSON(map[string]interface{}{
+		"type":            "subscribed",
+		"operation":       "monitor",
+		"subscription_id": id,
+		"detail":          detail,
+		"pvs":             pvs,
+		"ok":              true,
+	})
+
+	for _, name := range pvs {
+		if sub.pvs[name] != nil {
+			continue
+		}
+		ps := getOrCreateSim(name)
+		sub.pvs[name] = ps
+		ps.add(sub) // emits the initial snapshot
+	}
 }
 
 /* --------------------- simulate real-like set PV value ------------------- */
@@ -459,16 +676,20 @@ func setPvModeHandler(c echo.Context) error {
 	modeValue := c.Param("value")
 
 	if modeValueInt, err := strconv.Atoi(modeValue); err == nil {
-		if strings.ToLower(modeName) == "ai" {
+		switch strings.ToLower(modeName) {
+		case "ai":
 			aiMode = modeValueInt
-		} else if strings.ToLower(modeName) == "bi" {
+		case "bi":
 			biMode = modeValueInt
+		case "severity":
+			// 1 = autosimulate severity episodes, 2 = off (clean demo screen)
+			severityMode = modeValueInt
 		}
 	} else {
 		return c.JSON(400, "Value param has to be 1 or 2. 1=simulation mode, 2=manual mode. Example: /mode/ai/2")
 	}
-	log.Printf("actor=%s mode set %s=%s (aiMode=%d biMode=%d)", actor, strings.ToLower(modeName), modeValue, aiMode, biMode)
-	return c.JSON(200, map[string]interface{}{"aiMode": aiMode, "biMode": biMode})
+	log.Printf("actor=%s mode set %s=%s (aiMode=%d biMode=%d severityMode=%d)", actor, strings.ToLower(modeName), modeValue, aiMode, biMode, severityMode)
+	return c.JSON(200, map[string]interface{}{"aiMode": aiMode, "biMode": biMode, "severityMode": severityMode})
 }
 
 /* ------------------------- helpers --------------------------------------- */

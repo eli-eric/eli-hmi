@@ -6,9 +6,9 @@ import { DataRow } from '@/components/hmi/controls/DataRow'
 import { CogToggle } from '@/components/hmi/controls/CogToggle'
 import { PresetIntegerInput } from '@/components/hmi/controls/PresetIntegerInput'
 import {
-  BoolPill,
   FloatValue,
   IntegerValue,
+  StringValue,
 } from '@/components/hmi/controls/Values'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 
@@ -29,24 +29,27 @@ export const RegenSection: FC<RegenSectionProps> = ({
   phd2MeanPv,
   attenuatorPv,
 }) => {
-  const pvs = useMemo(
-    () => [regenStatePv, regenTempPv, phd2MeanPv, attenuatorPv],
-    [regenStatePv, regenTempPv, phd2MeanPv, attenuatorPv],
+  const numericPvs = useMemo(
+    () => [regenTempPv, phd2MeanPv, attenuatorPv],
+    [regenTempPv, phd2MeanPv, attenuatorPv],
   )
-  const { state } = useWebSocketData<number | null>({ pvs, raw: true })
+  const { state } = useWebSocketData<number | null>({
+    pvs: numericPvs,
+    raw: true,
+  })
+  // Regen state is a status string, not a boolean — separate string-typed
+  // subscription, same split pattern as OverviewBar's module-error PVs.
+  const { state: regenStatusState } = useWebSocketData<string | null>({
+    pvs: [regenStatePv],
+    raw: true,
+  })
 
   return (
     <SectionCard>
       <DataRow
         label="Regen SY3PL50M:32"
         valueVariant="bare"
-        value={
-          <BoolPill
-            data={state[regenStatePv]}
-            onLabel="is ON"
-            offLabel="is OFF"
-          />
-        }
+        value={<StringValue data={regenStatusState[regenStatePv]} />}
       />
       <DataRow
         label="Regen Temp TK6:44"

@@ -114,7 +114,7 @@ var sequences = map[string]sequenceFunc{
 		effs := tpls(laser,
 			pvEffect{"BI_${L}_CONN", 1},
 			pvEffect{"BI_${L}_FULLP", 1},
-			pvEffect{"BI_${L}_REGEN_STATE", 1},
+			pvEffect{"BI_${L}_REGEN_STATE", "ON"},
 			pvEffect{"AI_${L}_TRIG_DELAY_CH1", 790},
 			pvEffect{"AI_${L}_TRIG_DELAY_CH2", 790},
 			// PHD energy jumps up when running at full power
@@ -132,7 +132,7 @@ var sequences = map[string]sequenceFunc{
 	"stop_laser": func(laser string, _ interface{}) ([]pvEffect, error) {
 		effs := tpls(laser,
 			pvEffect{"BI_${L}_FULLP", 0},
-			pvEffect{"BI_${L}_REGEN_STATE", 0},
+			pvEffect{"BI_${L}_REGEN_STATE", "OFF"},
 			pvEffect{"BI_${L}_SHUTTER", 0},
 			pvEffect{"AI_${L}_PHD_MEAN", 0.0},
 			pvEffect{"AI_${L}_PHD2_MEAN", 0.0},
@@ -146,7 +146,7 @@ var sequences = map[string]sequenceFunc{
 	},
 	"alignment_mode": func(laser string, _ interface{}) ([]pvEffect, error) {
 		effs := tpls(laser,
-			pvEffect{"BI_${L}_REGEN_STATE", 1},
+			pvEffect{"BI_${L}_REGEN_STATE", "ON"},
 			pvEffect{"BI_${L}_SHUTTER", 0},
 			pvEffect{"BI_${L}_FULLP", 0},
 			pvEffect{"AI_${L}_TRIG_DELAY_CH1", 50},
@@ -156,12 +156,12 @@ var sequences = map[string]sequenceFunc{
 			pvEffect{"AI_${L}_PHD2_MEAN", 4.0},
 			pvEffect{"AI_TEMP_${L}_REGEN", 25.0},
 		)
-		effs = append(effs, allFlashlampChannels(laser, "SB")...)
+		effs = append(effs, allFlashlampChannels(laser, "STANDBY")...)
 		return effs, nil
 	},
 	"system_standby": func(laser string, _ interface{}) ([]pvEffect, error) {
 		effs := tpls(laser,
-			pvEffect{"BI_${L}_REGEN_STATE", 0},
+			pvEffect{"BI_${L}_REGEN_STATE", "OFF"},
 			pvEffect{"BI_${L}_SHUTTER", 0},
 			pvEffect{"BI_${L}_FULLP", 0},
 			pvEffect{"AI_${L}_TRIG_DELAY_CH1", 50},
@@ -173,7 +173,7 @@ var sequences = map[string]sequenceFunc{
 		for i := 1; i <= modboxStateCount; i++ {
 			effs = append(effs, pvEffect{fmt.Sprintf("BI_%s_MODBOX_%d", laser, i), 1})
 		}
-		effs = append(effs, allFlashlampChannels(laser, "SB")...)
+		effs = append(effs, allFlashlampChannels(laser, "STANDBY")...)
 		return effs, nil
 	},
 	"flashlamps_run": func(laser string, _ interface{}) ([]pvEffect, error) {
@@ -183,7 +183,7 @@ var sequences = map[string]sequenceFunc{
 		return allFlashlampChannels(laser, "RUN"), nil
 	},
 	"flashlamps_standby": func(laser string, _ interface{}) ([]pvEffect, error) {
-		return allFlashlampChannels(laser, "SB"), nil
+		return allFlashlampChannels(laser, "STANDBY"), nil
 	},
 	"modbox_on": func(laser string, _ interface{}) ([]pvEffect, error) {
 		out := make([]pvEffect, 0, modboxStateCount)
@@ -433,12 +433,12 @@ func seedLaserPVs() {
 		for i := 1; i <= mssCount; i++ {
 			setSeed(fmt.Sprintf("BI_%s_MSS_%d", laser, i), 1)
 		}
-		// Module Errors (0 = no error)
+		// Module Errors ("0000" = no error, any other status code = error)
 		for _, m := range moduleErrors {
-			setSeed(fmt.Sprintf("BI_%s_ERR_%s", laser, m), 0)
+			setSeed(fmt.Sprintf("BI_%s_ERR_%s", laser, m), "0000")
 		}
-		// Regen
-		setSeed(fmt.Sprintf("BI_%s_REGEN_STATE", laser), 0)
+		// Regen ("OFF" / "ON" / "Failure")
+		setSeed(fmt.Sprintf("BI_%s_REGEN_STATE", laser), "OFF")
 		setSeed(fmt.Sprintf("AI_TEMP_%s_REGEN", laser), 22.0)
 		setSeed(fmt.Sprintf("AI_%s_ATT", laser), 1024)
 		// Chillers
@@ -448,7 +448,7 @@ func seedLaserPVs() {
 			setSeed(fmt.Sprintf("AI_%s_CHILLER_%s_LEVEL", laser, id), 0.9)
 		}
 		// Flashlamps: SB by default; trigger delay 50
-		for _, eff := range allFlashlampChannels(laser, "SB") {
+		for _, eff := range allFlashlampChannels(laser, "STANDBY") {
 			setSeed(eff.pv, eff.value)
 		}
 		setSeed(fmt.Sprintf("AI_%s_TRIG_DELAY_CH1", laser), 50)

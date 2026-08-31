@@ -24,8 +24,10 @@ export const Gate: FC<GateProps> = ({
   data,
   label,
 }) => {
+  // No units suffix: subscriptions run at detail 'time', and the gateway only
+  // includes `units` in metadata at the 'control' level — it is always null.
   const value = isConnected
-    ? `${data?.value?.toExponential(2) || 'N/A'} ${data?.units || ''}`
+    ? `${data?.value?.toExponential(2) || 'N/A'}`
     : 'N/A'
 
   return (

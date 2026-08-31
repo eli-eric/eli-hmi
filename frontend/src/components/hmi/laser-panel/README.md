@@ -14,11 +14,11 @@ rather than the vacuum-system layout.
 import { LaserPanel } from '@/components/hmi/laser-panel'
 
 <LaserPanel title="NL2">
-  <LaserPanel.General laser="NL2" connectionPv={...} fullPowerPv={...} shutterPv={...} phdMeanPv={...} mssPvs={[...]} moduleErrors={[{label, pv}]} commands={[...]} />
+  <LaserPanel.General laser="NL2" connectionPv={...} fullPowerPv={...} shutterPv={...} phdMeanPv={...} mss={[{label, pv}]} moduleErrors={[{label, pv}]} commands={[...]} />
   <LaserPanel.Regen regenStatePv={...} regenTempPv={...} phd2MeanPv={...} attenuatorPv={...} />
   <LaserPanel.Chillers chillers={[{label, flow, temp, level}]} />
   <LaserPanel.Flashlamps laser="NL2" flashlamps={[{label, pv}]} triggerDelay={[...]} delayPresets={[...]} commands={[...]} />
-  <LaserPanel.Modbox laser="NL2" modbox={[...]} loadedWaveformPv={...} commands={[...]} />
+  <LaserPanel.Modbox laser="NL2" modbox={[{label, pv}]} loadedWaveformPv={...} commands={[...]} />
 </LaserPanel>
 ```
 

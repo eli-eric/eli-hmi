@@ -48,7 +48,7 @@ export const rawLaserSchema = z.strictObject({
       fullPower: pvName.describe('At-full-power bool (Overview FULLP).'),
       shutter: pvName.describe('Shutter position bool (read + direct write).'),
       phdMean: pvName.describe('PHD mean intensity readout.'),
-      regenState: pvName.describe('Regen on/off bool.'),
+      regenState: pvName.describe('Regen status string.'),
       regenTemp: pvName.describe('Regen temperature readout.'),
       phd2Mean: pvName.describe('Second PHD mean readout.'),
       attenuator: pvName.describe('Attenuator value (read + direct write).'),
@@ -72,8 +72,8 @@ export const rawLaserSchema = z.strictObject({
     .min(1)
     .describe('Trigger-delay readout PVs; all should read equal (mismatch flagged).'),
   mss: z
-    .array(pvName)
-    .describe('MSS sub-indicator PVs (counted in the General overview).'),
+    .array(labeledPv)
+    .describe('MSS sub-indicators (label + PV) counted in the General overview.'),
   moduleErrors: z
     .array(labeledPv)
     .describe('Module-error indicators (label + PV) counted in the Overview.'),
@@ -84,8 +84,8 @@ export const rawLaserSchema = z.strictObject({
     .array(labeledPv)
     .describe('Flashlamp channels (label + PV). Empty array hides the Flashlamps section.'),
   modbox: z
-    .array(pvName)
-    .describe('Modbox state PVs. Empty array hides the Modbox section.'),
+    .array(labeledPv)
+    .describe('Modbox state indicators (label + PV). Empty array hides the Modbox section.'),
   delayPresets: z
     .array(z.number().int())
     .describe('Trigger-delay preset values (ns) offered by the Set Trigger Delay control.'),
@@ -103,11 +103,11 @@ export const rawLaserSchema = z.strictObject({
   const all = [
     ...Object.values(laser.pvs),
     ...laser.triggerDelay,
-    ...laser.mss,
+    ...laser.mss.map((m) => m.pv),
     ...laser.moduleErrors.map((m) => m.pv),
     ...laser.chillers.flatMap((c) => [c.flow, c.temp, c.level]),
     ...laser.flashlamps.map((f) => f.pv),
-    ...laser.modbox,
+    ...laser.modbox.map((m) => m.pv),
   ]
   const seen = new Set<string>()
   const dupes = new Set<string>()

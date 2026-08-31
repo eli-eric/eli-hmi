@@ -34,18 +34,18 @@ field reference below is the format's documentation; the config validator
 | `pvs.fullPower` | PV name | At-full-power bool (Overview FULLP). |
 | `pvs.shutter` | PV name | Shutter position bool (read + direct write). |
 | `pvs.phdMean` | PV name | PHD mean intensity readout. |
-| `pvs.regenState` | PV name | Regen on/off bool. |
+| `pvs.regenState` | PV name | Regen status string. |
 | `pvs.regenTemp` | PV name | Regen temperature readout. |
 | `pvs.phd2Mean` | PV name | Second PHD mean readout. |
 | `pvs.attenuator` | PV name | Attenuator value (read + direct write). |
 | `pvs.loadedWaveform` | PV name | Current waveform preset. |
 | `pvs.latestWaveform` | PV name | Previous waveform moved into Waveform Latest when a new preset is applied. Optional. |
 | `triggerDelay` | PV name[] | Trigger-delay readouts; all should read equal (mismatch is flagged). |
-| `mss` | PV name[] | MSS sub-indicators counted in the Overview. |
+| `mss` | `{label, pv}`[] | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV. |
 | `moduleErrors` | `{label, pv}`[] | Error indicators: `label` shown in UI, `pv` is the indicator PV. |
 | `chillers` | `{label, flow, temp, level}`[] | One row each; `label` shown, three readout PVs. **`[]` hides the Chillers section.** |
 | `flashlamps` | `{label, pv}`[] | One channel each; `label` shown, `pv` is the state PV. **`[]` hides the Flashlamps section.** |
-| `modbox` | PV name[] | Modbox state PVs. **`[]` hides the Modbox section.** |
+| `modbox` | `{label, pv}`[] | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV. **`[]` hides the Modbox section.** |
 | `delayPresets` | int[] | Trigger-delay preset buttons (ns). |
 | `commands` | enum[] | Which command buttons appear (see below). |
 

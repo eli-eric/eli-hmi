@@ -68,4 +68,8 @@
   color: var(--color-error);
 }
 
+.severityInvalid {
+  color: var(--color-invalid);
+}
+
 /* severityNone - Default color, no specific styling */

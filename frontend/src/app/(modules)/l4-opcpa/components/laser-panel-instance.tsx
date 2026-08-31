@@ -34,7 +34,7 @@ export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => (
       fullPowerPv={spec.pvs.fullPower}
       shutterPv={spec.pvs.shutter}
       phdMeanPv={spec.pvs.phdMean}
-      mssPvs={spec.mss}
+      mss={spec.mss}
       moduleErrors={spec.moduleErrors}
       commands={spec.commands}
     />

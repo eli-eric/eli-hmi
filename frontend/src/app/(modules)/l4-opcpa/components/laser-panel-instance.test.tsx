@@ -24,7 +24,10 @@ const NL2: LaserSpec = {
     loadedWaveform: 'SI_NL2_LOADED_WAVEFORM',
   },
   triggerDelay: ['AI_NL2_TRIG_DELAY_CH1', 'AI_NL2_TRIG_DELAY_CH2'],
-  mss: ['BI_NL2_MSS_1', 'BI_NL2_MSS_2'],
+  mss: [
+    { label: 'MSS 1', pv: 'BI_NL2_MSS_1' },
+    { label: 'MSS 2', pv: 'BI_NL2_MSS_2' },
+  ],
   moduleErrors: [{ label: 'REGEN', pv: 'BI_NL2_ERR_REGEN' }],
   chillers: [
     {
@@ -38,7 +41,7 @@ const NL2: LaserSpec = {
     { label: '22 Ch1', pv: 'SI_NL2_FL_22_CH1' },
     { label: '22 Ch2', pv: 'SI_NL2_FL_22_CH2' },
   ],
-  modbox: ['BI_NL2_MODBOX_1'],
+  modbox: [{ label: 'Modbox 1', pv: 'BI_NL2_MODBOX_1' }],
   delayPresets: [50, 500, 700, 790],
   commands: LASER_COMMANDS,
 }

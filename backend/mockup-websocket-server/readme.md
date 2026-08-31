@@ -53,49 +53,77 @@ With a configured secret, the token must be an HS256 JWT containing a
 non-empty `username` claim (or `preferred_username` / `name` / `sub`).
 You can also pass `Authorization: Bearer <jwt>` header during the handshake.
 
+The socket speaks the real gateway's **batched protocol** (see
+`backend/python-websocket-server/api_contract.py`); the old per-PV map-shaped
+protocol was removed. On connect the server greets with a `connected` frame
+carrying the limits (max 64 PVs per subscription, 32 subscriptions per
+connection).
+
 ### Subscribe
 
 ```jsonc
 // request
 {
   "type": "subscribe",
-  "pvs": { "AI_TEMP": true, "BI_DOOR": true },
+  "subscription_id": "fe-1",
+  "pvs": ["AI_TEMP", "BI_DOOR"],
+  "detail": "time", // "value" | "time" | "control"; default "value"
 }
 ```
+
+The server replies with a `subscribed` ack, then one `snapshot` per PV, then
+`event` frames as values or severities change. Re-subscribing an existing
+`subscription_id` replaces it. Invalid frames get an `error` frame
+(`invalid_message`, `too_many_pvs`, `too_many_subscriptions`).
 
 ### Unsubscribe
 
 ```jsonc
 {
   "type": "unsubscribe",
-  "pvs": { "BI_DOOR": true },
+  "subscription_id": "fe-1",
 }
 ```
 
-### Set PV (aka caput)
-
-```jsonc
-{
-  "type": "set",
-  "pvs": { "BI_DOOR": true, "AI_MOTOR_POS_X": 42.5 },
-}
-```
+Answered with an `unsubscribed` ack (`ok: false` for an unknown id).
 
 ### Server → client payload
 
 ```jsonc
 {
-  "type": "pv",
-  "name": "AI_TEMP",
-  "value": 42.5, // float for AI_*, bool for BI_*
-  "severity": 0,
+  "type": "event", // "snapshot" for the initial value
+  "operation": "monitor",
+  "subscription_id": "fe-1",
+  "pv": "AI_TEMP",
+  "detail": "time",
   "ok": true,
-  "timestamp": 1746000001.7116504,
-  "units": "°C",
+  "value": 42.5, // float for AI_*, 0/1 for BI_*, string for SI_*
+  "metadata": {
+    // at detail "time" and "control":
+    "status": 0,
+    "severity": 0, // 0 NONE, 1 MINOR, 2 MAJOR, 3 INVALID
+    "timestamp": 1746000001.7116504,
+    // at detail "control" only:
+    "units": "°C",
+  },
 }
 ```
 
-A fresh message is broadcast roughly every **400 ms** (by default) for every PV that remains in _auto-simulate_ mode.
+An `event` is broadcast on every change: value drift every **300 ms** (by
+default) for PVs in _auto-simulate_ mode, manual writes immediately, and
+severity episode transitions.
+
+### Severity episodes
+
+Independent of the value modes, every PV randomly enters sticky severity
+episodes: MINOR (~1%/tick), MAJOR (~0.3%) or INVALID (~0.1%), held for a
+random 5–15 s, then back to NONE. This exercises the frontend's alarm
+styling without real alarms. Disable/enable globally:
+
+```bash
+curl http://localhost:8080/mode/severity/2   # off (clean demo screen)
+curl http://localhost:8080/mode/severity/1   # on (default)
+```
 
 ---
 

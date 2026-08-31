@@ -13,6 +13,15 @@ export type DetailListItemState =
   | 'stop'
   | 'fail'
   | 'unknown'
+  /** Valid data with no dedicated tone/colour yet — renders with the plain
+   * base style (no `[data-state]` CSS rule), distinct from `unknown` (which
+   * is reserved for missing/invalid data). */
+  | 'neutral'
+  /** EPICS severity MINOR (1). */
+  | 'warning'
+  /** EPICS severity INVALID (3), or the PV is disconnected/errored
+   * (`ok: false`) — distinct from `unknown` (no data has arrived yet). */
+  | 'invalid'
 
 export interface DetailListItem {
   /** Display label (e.g. "MSS 1", "REGEN", "22 Ch1"). */
@@ -41,6 +50,9 @@ const STATE_TEXT: Record<DetailListItemState, string> = {
   stop: 'STOP',
   fail: 'FAIL',
   unknown: '<>',
+  neutral: '',
+  warning: 'WARN',
+  invalid: 'INVALID',
 }
 
 /**

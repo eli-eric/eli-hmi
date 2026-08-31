@@ -23,8 +23,8 @@ interface GeneralSectionProps {
   fullPowerPv: string
   shutterPv: string
   phdMeanPv: string
-  /** MSS sub-indicator PVs (counted in the Overview). */
-  mssPvs: readonly string[]
+  /** MSS sub-indicators: display label + PV (counted in the Overview). */
+  mss: readonly LabeledPv[]
   /** Module-error indicators: label + PV. */
   moduleErrors: readonly LabeledPv[]
   /** Commands this laser exposes. Buttons for commands not listed are hidden. */
@@ -41,7 +41,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
   fullPowerPv,
   shutterPv,
   phdMeanPv,
-  mssPvs,
+  mss,
   moduleErrors,
   commands,
 }) => {
@@ -61,7 +61,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
       <OverviewBar
         connectionPv={connectionPv}
         fullPowerPv={fullPowerPv}
-        mssPvs={mssPvs}
+        mss={mss}
         moduleErrors={moduleErrors}
       />
 

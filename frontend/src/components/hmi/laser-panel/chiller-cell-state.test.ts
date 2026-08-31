@@ -47,14 +47,17 @@ describe('deriveCellState (CSI-783)', () => {
     expect(v.kind).toBe('unknown')
   })
 
-  it('pv_error when ok=false (surfaces error text)', () => {
+  it('invalid when ok=false (surfaces error text)', () => {
     const v = deriveCellState({ ...base, msg: msg({ ok: false, error: 'CA disconnected' }) })
-    expect(v.kind).toBe('pv_error')
+    expect(v.kind).toBe('invalid')
+    expect(v.tone).toBe('invalid')
     expect(v.title).toMatch(/CA disconnected/)
   })
 
-  it('pv_error on INVALID severity (3) even if ok', () => {
-    expect(deriveCellState({ ...base, msg: msg({ severity: 3 }) }).kind).toBe('pv_error')
+  it('invalid on EPICS severity 3 even if ok', () => {
+    const v = deriveCellState({ ...base, msg: msg({ severity: 3 }) })
+    expect(v.kind).toBe('invalid')
+    expect(v.tone).toBe('invalid')
   })
 
   it('no_value when value is null', () => {
