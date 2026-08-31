@@ -10,15 +10,18 @@ import {
   FloatValue,
 } from '@/components/hmi/controls/Values'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import type {
+  CommandPvResolver,
+  LaserCommand,
+} from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import { OverviewBar } from './OverviewBar'
 import { makeCommandGate } from './commandGate'
 import styles from './sections.module.css'
 
 interface GeneralSectionProps {
-  /** Laser id — used only to build command PVs (CMD_<laser>_<NAME>). */
-  laser: string
+  /** Resolves a command to its write PV (YAML override or CMD_<laser>_<NAME>). */
+  cmdPv: CommandPvResolver
   connectionPv: string
   fullPowerPv: string
   shutterPv: string
@@ -33,10 +36,10 @@ interface GeneralSectionProps {
 
 /**
  * General laser status + lifecycle actions. All PV names arrive as props
- * (resolved from the YAML config); command PVs are built from `laser`.
+ * (resolved from the YAML config); command write PVs come from `cmdPv`.
  */
 export const GeneralSection: FC<GeneralSectionProps> = ({
-  laser,
+  cmdPv,
   connectionPv,
   fullPowerPv,
   shutterPv,
@@ -106,27 +109,27 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
             {can('START_LASER') && (
               <ActionButton
                 label="Start Laser"
-                pvName={pv.cmd(laser, 'START_LASER')}
+                pvName={cmdPv('START_LASER')}
               />
             )}
             {can('STOP_LASER') && (
               <ActionButton
                 label="Stop Laser"
-                pvName={pv.cmd(laser, 'STOP_LASER')}
+                pvName={cmdPv('STOP_LASER')}
                 variant="danger"
               />
             )}
             {can('ALIGNMENT_MODE') && (
               <ActionButton
                 label="Set to Alignment Mode"
-                pvName={pv.cmd(laser, 'ALIGNMENT_MODE')}
+                pvName={cmdPv('ALIGNMENT_MODE')}
                 variant="secondary"
               />
             )}
             {can('SYSTEM_STANDBY') && (
               <ActionButton
                 label="Set to System Standby"
-                pvName={pv.cmd(laser, 'SYSTEM_STANDBY')}
+                pvName={cmdPv('SYSTEM_STANDBY')}
                 variant="secondary"
               />
             )}

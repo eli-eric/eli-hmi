@@ -3,11 +3,11 @@
 import { FC, useEffect, useState, useCallback } from 'react'
 import { listWaveforms } from '@/lib/api/pvs'
 import { usePvWrite } from '@/components/hmi/controls/usePvWrite'
-import { pv } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import styles from './WaveformSelect.module.css'
 
 interface WaveformSelectProps {
-  laser: string
+  /** PV the selected waveform name is written to (resolved LOAD_WAVEFORM). */
+  pvName: string
 }
 
 // Module-scope cache: the waveform catalog is static, so we fetch once and
@@ -40,7 +40,7 @@ export function __resetWaveformCatalogForTests(): void {
   catalogPromise = null
 }
 
-export const WaveformSelect: FC<WaveformSelectProps> = ({ laser }) => {
+export const WaveformSelect: FC<WaveformSelectProps> = ({ pvName }) => {
   const [catalog, setCatalog] = useState<string[]>([])
   const [selected, setSelected] = useState('')
   const { state, error, write } = usePvWrite({ flashMs: 0 })
@@ -57,8 +57,8 @@ export const WaveformSelect: FC<WaveformSelectProps> = ({ laser }) => {
 
   const onLoad = useCallback(() => {
     if (!selected) return
-    void write(pv.cmd(laser, 'LOAD_WAVEFORM'), selected)
-  }, [laser, selected, write])
+    void write(pvName, selected)
+  }, [pvName, selected, write])
 
   return (
     <div className={styles.wrapper}>

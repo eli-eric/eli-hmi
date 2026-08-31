@@ -33,7 +33,7 @@ function laser(overrides: Record<string, unknown> = {}) {
     flashlamps: [{ label: 'F1', pv: 'SI_NL9_FL_1' }],
     modbox: [{ label: 'Modbox 1', pv: 'BI_NL9_MODBOX_1' }],
     delayPresets: [50],
-    commands: ['START_LASER'],
+    commands: { START_LASER: 'START_LASER' },
     ...overrides,
   }
 }
@@ -122,8 +122,70 @@ describe('parseLaserSpecs', () => {
 
   it('rejects unknown commands', () => {
     expect(() =>
-      parseLaserSpecs(doc([laser({ commands: ['NOT_A_COMMAND'] })])),
+      parseLaserSpecs(
+        doc([laser({ commands: { NOT_A_COMMAND: 'NOT_A_COMMAND' } })]),
+      ),
     ).toThrow(/lasers\.yaml is invalid/)
+  })
+
+  it('normalises the commands map into commands (keys) + commandPvs (overrides only)', () => {
+    const spec = parseLaserSpecs(
+      doc([
+        laser({
+          commands: {
+            START_LASER: 'START_LASER',
+            ALIGNMENT_MODE: 'L4-OPCPA-NL9:SetAlignmentMode',
+            SET_DELAY: 'L4-OPCPA-NL9:PS5059:22:SetBothChannelsTrigDelay',
+          },
+        }),
+      ]),
+    )[0]
+    expect([...spec.commands].sort()).toEqual([
+      'ALIGNMENT_MODE',
+      'SET_DELAY',
+      'START_LASER',
+    ])
+    expect(spec.commandPvs).toEqual({
+      ALIGNMENT_MODE: 'L4-OPCPA-NL9:SetAlignmentMode',
+      SET_DELAY: 'L4-OPCPA-NL9:PS5059:22:SetBothChannelsTrigDelay',
+    })
+  })
+
+  it('rejects a command value that is neither the placeholder nor a PV (no ":")', () => {
+    expect(() =>
+      parseLaserSpecs(
+        doc([laser({ commands: { ALIGNMENT_MODE: 'SetAlignmentMode' } })]),
+      ),
+    ).toThrow(/neither the placeholder/)
+  })
+
+  it('rejects duplicate command override PVs (copy-paste typo)', () => {
+    expect(() =>
+      parseLaserSpecs(
+        doc([
+          laser({
+            commands: {
+              ALIGNMENT_MODE: 'L4:DUP',
+              SYSTEM_STANDBY: 'L4:DUP',
+            },
+          }),
+        ]),
+      ),
+    ).toThrow(/duplicate PV name/)
+  })
+
+  it('placeholders do not trip the duplicate-PV check across commands', () => {
+    const spec = parseLaserSpecs(
+      doc([
+        laser({
+          commands: {
+            START_LASER: 'START_LASER',
+            STOP_LASER: 'STOP_LASER',
+          },
+        }),
+      ]),
+    )[0]
+    expect(spec.commandPvs).toEqual({})
   })
 
   it('rejects whitespace-only PV names', () => {

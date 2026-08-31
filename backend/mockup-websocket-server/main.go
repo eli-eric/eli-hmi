@@ -238,6 +238,11 @@ func (ps *pvSim) valueAutosim() bool {
 		// last-fired value). Never autosim — drift would produce phantom
 		// firings on the frontend.
 		return false
+	case strings.HasSuffix(ps.name, ".BUSY"):
+		// Busy-record state fields (e.g. L4-OPCPA-NL2:SetAlignmentMode.BUSY)
+		// are driven by command writes in l4_opcpa.go. Never autosim — drift
+		// would show phantom RUNNING states on the Sequencer.
+		return false
 	case strings.HasPrefix(ps.name, "AI_"):
 		return aiMode == 1
 	case strings.HasPrefix(ps.name, "BI_"):
@@ -707,6 +712,9 @@ func getOrCreateSim(name string) *pvSim {
 
 func synthValue(name string) interface{} {
 	switch {
+	case strings.HasSuffix(name, ".BUSY"):
+		// Busy-record state fields start IDLE; command writes pulse them.
+		return 0
 	case strings.HasPrefix(name, "AI_"):
 		// Use a smaller deviation (1-3 units) to make changes less dramatic
 		return 50 + float64(rand.Intn(3)-1) // Changes between -1, 0, +1 added to base value

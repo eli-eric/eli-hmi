@@ -2,7 +2,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FlashlampsSection } from './FlashlampsSection'
-import { LASER_COMMANDS } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import {
+  LASER_COMMANDS,
+  makeCommandPv,
+} from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import {
   makeFakeWebSocketContext,
@@ -31,7 +34,7 @@ function renderFl(boxes: string[]) {
   render(
     <TestWebSocketProvider value={ws.context}>
       <FlashlampsSection
-        laser="NL2"
+        cmdPv={makeCommandPv('NL2', {})}
         flashlamps={flashlamps(boxes)}
         triggerDelay={TRIGGER_DELAY}
         delayPresets={[50, 500, 700, 790]}
@@ -305,7 +308,7 @@ describe('FlashlampsSection', () => {
     render(
       <TestWebSocketProvider value={ws.context}>
         <FlashlampsSection
-          laser="NL2"
+          cmdPv={makeCommandPv('NL2', {})}
           flashlamps={flashlamps(['22'])}
           triggerDelay={TRIGGER_DELAY}
           delayPresets={[50]}

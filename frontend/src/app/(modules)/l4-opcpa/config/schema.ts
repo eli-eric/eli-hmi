@@ -4,8 +4,9 @@
  * The config holds the **full PV name** for every signal — exactly the strings
  * the controls team / EPICS gateway provides (e.g. `SY3PL50M:32`). The frontend
  * does NOT assemble PV names from prefixes + ids any more; it reads them
- * verbatim from here. Only command PVs (`CMD_<laser>_<NAME>`) are still built in
- * code, because a command maps to a backend sequence of writes, not one PV.
+ * verbatim from here. Command write targets are configurable too (`commands`
+ * map): a real PV is written directly, a placeholder (value == key) falls back
+ * to the code-built `CMD_<laser>_<NAME>` backend-sequence trigger.
  *
  * One zod schema is the single source for both the `LaserSpec` type the UI
  * consumes and runtime validation (`.strict()` rejects unknown keys; duplicate
@@ -90,10 +91,24 @@ export const rawLaserSchema = z.strictObject({
     .array(z.number().int())
     .describe('Trigger-delay preset values (ns) offered by the Set Trigger Delay control.'),
   commands: z
-    .array(z.enum(LASER_COMMANDS))
+    .partialRecord(z.enum(LASER_COMMANDS), pvName)
     .describe(
-      'Commands this laser exposes (closed LASER_COMMANDS vocabulary; map to backend sequences). Unlisted → button hidden.',
+      'Commands this laser exposes, as a map SYMBOL: <write PV>. Keys come from the closed LASER_COMMANDS vocabulary; a missing key hides the button. The value is the PV the write goes to; a placeholder value equal to the key means "no real PV yet" and falls back to CMD_<laser>_<SYMBOL>.',
     ),
+}).superRefine((laser, ctx) => {
+  // Command values: either the placeholder (== key) or something that looks
+  // like a real EPICS PV (contains ':'). Anything else is almost certainly a
+  // typo (e.g. `ALIGNMENT_MODE: SetAlignmentMode`) that would otherwise be
+  // written verbatim and fail only at runtime.
+  for (const [command, target] of Object.entries(laser.commands)) {
+    if (target !== command && !target.includes(':')) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `laser ${laser.id}: commands.${command}: "${target}" is neither the placeholder "${command}" nor a full PV name (must contain ':')`,
+        path: ['commands', command],
+      })
+    }
+  }
 }).superRefine((laser, ctx) => {
   // Catch the most common edit mistake: two signals pointing at the same PV
   // (copy a block, forget to change the name). Real PV names are unique per
@@ -102,6 +117,10 @@ export const rawLaserSchema = z.strictObject({
   // unique* name, which only the live system / mock can reveal as `<>`.
   const all = [
     ...Object.values(laser.pvs),
+    // Command PV overrides only — placeholders (value == key) are not PVs.
+    ...Object.entries(laser.commands)
+      .filter(([command, target]) => target !== command)
+      .map(([, target]) => target),
     ...laser.triggerDelay,
     ...laser.mss.map((m) => m.pv),
     ...laser.moduleErrors.map((m) => m.pv),
@@ -145,10 +164,17 @@ export type RawLaserConfig = z.infer<typeof rawLaserSchema>
 export type ChillerSpec = z.infer<typeof chillerSchema>
 export type LabeledPv = z.infer<typeof labeledPv>
 
-/** Resolved per-laser config consumed by the UI (`id` renamed to `laser`). */
+/**
+ * Resolved per-laser config consumed by the UI (`id` renamed to `laser`).
+ * The raw `commands` map is normalised into two views: `commands` (the keys —
+ * feeds the visibility gate unchanged) and `commandPvs` (only the real PV
+ * overrides; placeholder entries are dropped so `makeCommandPv` falls back to
+ * `CMD_<laser>_<NAME>` for them).
+ */
 export type LaserSpec = Omit<RawLaserConfig, 'id' | 'commands'> & {
   readonly laser: string
   readonly commands: readonly LaserCommand[]
+  readonly commandPvs: Readonly<Partial<Record<LaserCommand, string>>>
 }
 
 /**
@@ -168,5 +194,16 @@ export function parseLaserSpecs(text: string): LaserSpec[] {
     throw new Error(`lasers.yaml is invalid:\n${z.prettifyError(result.error)}`)
   }
 
-  return result.data.lasers.map(({ id, ...rest }) => ({ laser: id, ...rest }))
+  return result.data.lasers.map(({ id, commands, ...rest }) => {
+    const entries = Object.entries(commands) as [LaserCommand, string][]
+    const commandPvs = Object.fromEntries(
+      entries.filter(([command, target]) => target !== command),
+    ) as Partial<Record<LaserCommand, string>>
+    return {
+      laser: id,
+      ...rest,
+      commands: entries.map(([command]) => command),
+      commandPvs,
+    }
+  })
 }

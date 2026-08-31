@@ -13,7 +13,10 @@ import { FloatValue, StringValue } from '@/components/hmi/controls/Values'
 import type { Message } from '@/app/providers/types'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { severityTone, worstSeverityTone } from '@/lib/websocket/severity'
-import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import type {
+  CommandPvResolver,
+  LaserCommand,
+} from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import { WaveformSelect } from './WaveformSelect'
 import { makeCommandGate } from './commandGate'
@@ -22,8 +25,8 @@ import { severityToDetailState } from './severity-detail-state'
 import styles from './sections.module.css'
 
 interface ModboxSectionProps {
-  /** Laser id — used only to build command PVs. */
-  laser: string
+  /** Resolves a command to its write PV (YAML override or CMD_<laser>_<NAME>). */
+  cmdPv: CommandPvResolver
   /** Modbox state indicators: display label + PV (1 = OK). */
   modbox: readonly LabeledPv[]
   /** Currently-loaded-waveform PV (Waveform Preset). */
@@ -37,7 +40,7 @@ interface ModboxSectionProps {
   commands: readonly LaserCommand[]
 }
 
-const WaveformActionDisclosure: FC<{ laser: string }> = ({ laser }) => {
+const WaveformActionDisclosure: FC<{ pvName: string }> = ({ pvName }) => {
   const [open, setOpen] = useState(false)
 
   return (
@@ -50,17 +53,18 @@ const WaveformActionDisclosure: FC<{ laser: string }> = ({ laser }) => {
       >
         Set Waveform to…
       </button>
-      {open && <WaveformSelect laser={laser} />}
+      {open && <WaveformSelect pvName={pvName} />}
     </div>
   )
 }
 
 /**
  * Modbox (modulation box) status + actions + waveform control. PV names arrive
- * as props (resolved from the YAML config); command PVs use `laser`.
+ * as props (resolved from the YAML config); command write PVs come from
+ * `cmdPv`.
  */
 export const ModboxSection: FC<ModboxSectionProps> = ({
-  laser,
+  cmdPv,
   modbox,
   loadedWaveformPv,
   latestWaveformPv,
@@ -193,7 +197,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         action={
           can('LOAD_WAVEFORM') ? (
             <CogToggle ariaLabel="Set waveform preset">
-              <WaveformSelect laser={laser} />
+              <WaveformSelect pvName={cmdPv('LOAD_WAVEFORM')} />
             </CogToggle>
           ) : undefined
         }
@@ -217,17 +221,19 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
             {can('MODBOX_ON') && (
               <ActionButton
                 label="Set Modbox ON"
-                pvName={pv.cmd(laser, 'MODBOX_ON')}
+                pvName={cmdPv('MODBOX_ON')}
               />
             )}
             {can('MODBOX_OFF') && (
               <ActionButton
                 label="Set Modbox OFF"
-                pvName={pv.cmd(laser, 'MODBOX_OFF')}
+                pvName={cmdPv('MODBOX_OFF')}
                 variant="secondary"
               />
             )}
-            {hasWaveformAction && <WaveformActionDisclosure laser={laser} />}
+            {hasWaveformAction && (
+              <WaveformActionDisclosure pvName={cmdPv('LOAD_WAVEFORM')} />
+            )}
           </CogToggle>
         </div>
       )}

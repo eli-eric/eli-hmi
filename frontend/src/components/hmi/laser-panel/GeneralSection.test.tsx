@@ -5,6 +5,7 @@ import { GeneralSection } from './GeneralSection'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import {
   LASER_COMMANDS,
+  makeCommandPv,
   type LaserCommand,
 } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import {
@@ -32,7 +33,7 @@ const MSS: LabeledPv[] = [
 
 function baseProps(commands: readonly LaserCommand[] = LASER_COMMANDS) {
   return {
-    laser: 'NL2',
+    cmdPv: makeCommandPv('NL2', {}),
     connectionPv: 'BI_NL2_CONN',
     fullPowerPv: 'BI_NL2_FULLP',
     shutterPv: 'BI_NL2_SHUTTER',
@@ -339,6 +340,36 @@ describe('GeneralSection', () => {
     expect(
       screen.getByRole('button', { name: 'Shutter actions' }),
     ).toBeInTheDocument()
+  })
+
+  it('writes to the configured override PV instead of the CMD_ fallback', async () => {
+    const fetchMock = vi.fn<typeof fetch>(
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    )
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <GeneralSection
+          {...baseProps()}
+          cmdPv={makeCommandPv('NL2', {
+            ALIGNMENT_MODE: 'L4-OPCPA-NL2:SetAlignmentMode',
+          })}
+        />
+      </TestWebSocketProvider>,
+    )
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: 'General Actions' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Set to Alignment Mode' }),
+    )
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    const url = String(fetchMock.mock.calls[0][0])
+    expect(url).toContain(
+      `/pv/${encodeURIComponent('L4-OPCPA-NL2:SetAlignmentMode')}`,
+    )
   })
 
   it('closes the cog panel automatically after a successful action', async () => {
