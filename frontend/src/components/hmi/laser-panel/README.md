@@ -18,7 +18,7 @@ import { LaserPanel } from '@/components/hmi/laser-panel'
   <LaserPanel.Regen regenStatePv={...} regenTempPv={...} phd2MeanPv={...} attenuatorPv={...} />
   <LaserPanel.Chillers chillers={[{label, flow, temp, level}]} />
   <LaserPanel.Flashlamps laser="NL2" flashlamps={[{label, pv}]} triggerDelay={[...]} delayPresets={[...]} commands={[...]} />
-  <LaserPanel.Modbox laser="NL2" modbox={[...]} loadedWaveformPv={...} commands={[...]} />
+  <LaserPanel.Modbox laser="NL2" modbox={[{label, pv}]} loadedWaveformPv={...} commands={[...]} />
 </LaserPanel>
 ```
 

@@ -41,7 +41,7 @@ const NL2: LaserSpec = {
     { label: '22 Ch1', pv: 'SI_NL2_FL_22_CH1' },
     { label: '22 Ch2', pv: 'SI_NL2_FL_22_CH2' },
   ],
-  modbox: ['BI_NL2_MODBOX_1'],
+  modbox: [{ label: 'Modbox 1', pv: 'BI_NL2_MODBOX_1' }],
   delayPresets: [50, 500, 700, 790],
   commands: LASER_COMMANDS,
 }

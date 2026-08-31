@@ -83,13 +83,11 @@ lasers:
       - { label: '28 Ch1', pv: SI_NL2_FL_28_CH1 }
       - { label: '28 Ch2', pv: SI_NL2_FL_28_CH2 }
     modbox:
-      [
-        BI_NL2_MODBOX_1,
-        BI_NL2_MODBOX_2,
-        BI_NL2_MODBOX_3,
-        BI_NL2_MODBOX_4,
-        BI_NL2_MODBOX_5,
-      ]
+      - { label: 'Modbox 1', pv: BI_NL2_MODBOX_1 }
+      - { label: 'Modbox 2', pv: BI_NL2_MODBOX_2 }
+      - { label: 'Modbox 3', pv: BI_NL2_MODBOX_3 }
+      - { label: 'Modbox 4', pv: BI_NL2_MODBOX_4 }
+      - { label: 'Modbox 5', pv: BI_NL2_MODBOX_5 }
     delayPresets: [50, 500, 700, 790]
     commands:
       [

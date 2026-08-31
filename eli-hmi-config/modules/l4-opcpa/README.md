@@ -45,7 +45,7 @@ field reference below is the format's documentation; the config validator
 | `moduleErrors` | `{label, pv}`[] | Error indicators: `label` shown in UI, `pv` is the indicator PV. |
 | `chillers` | `{label, flow, temp, level}`[] | One row each; `label` shown, three readout PVs. **`[]` hides the Chillers section.** |
 | `flashlamps` | `{label, pv}`[] | One channel each; `label` shown, `pv` is the state PV. **`[]` hides the Flashlamps section.** |
-| `modbox` | PV name[] | Modbox state PVs. **`[]` hides the Modbox section.** |
+| `modbox` | `{label, pv}`[] | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV. **`[]` hides the Modbox section.** |
 | `delayPresets` | int[] | Trigger-delay preset buttons (ns). |
 | `commands` | enum[] | Which command buttons appear (see below). |
 

@@ -14,6 +14,7 @@ import type { Message } from '@/app/providers/types'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { severityTone, worstSeverityTone } from '@/lib/websocket/severity'
 import { pv, type LaserCommand } from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import { WaveformSelect } from './WaveformSelect'
 import { makeCommandGate } from './commandGate'
 import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
@@ -23,8 +24,8 @@ import styles from './sections.module.css'
 interface ModboxSectionProps {
   /** Laser id — used only to build command PVs. */
   laser: string
-  /** Modbox state PVs (1 = OK). */
-  modbox: readonly string[]
+  /** Modbox state indicators: display label + PV (1 = OK). */
+  modbox: readonly LabeledPv[]
   /** Currently-loaded-waveform PV (Waveform Preset). */
   loadedWaveformPv: string
   /** Previous-waveform PV shown in Waveform Latest. Optional. */
@@ -75,16 +76,17 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   const hasModboxActions =
     can('MODBOX_ON') || can('MODBOX_OFF') || hasWaveformAction
 
+  const modboxPvs = useMemo(() => modbox.map((m) => m.pv), [modbox])
   const allPvs = useMemo(
     () =>
       [
-        ...modbox,
+        ...modboxPvs,
         loadedWaveformPv,
         latestWaveformPv,
         mbc1Pv,
         mbc2Pv,
       ].filter((p): p is string => Boolean(p)),
-    [modbox, loadedWaveformPv, latestWaveformPv, mbc1Pv, mbc2Pv],
+    [modboxPvs, loadedWaveformPv, latestWaveformPv, mbc1Pv, mbc2Pv],
   )
   // Mixed value types (number for state, string for waveform). Keep the hook
   // typed as `unknown` and narrow at the use site.
@@ -93,29 +95,29 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   // colour coding from the raw 1/0 value, here or per-channel below. The
   // summary pill's only colour comes from the worst EPICS severity among
   // its channels.
-  const okCount = modbox.filter(
+  const okCount = modboxPvs.filter(
     (name) => state[name]?.value === 1,
   ).length
-  const total = modbox.length
+  const total = modboxPvs.length
   const modboxSeverity = worstSeverityTone(
-    modbox.map((name) => severityTone(state[name])),
+    modboxPvs.map((name) => severityTone(state[name])),
   )
   const modboxTone =
     modboxSeverity === 'none' || modboxSeverity === 'unknown'
       ? undefined
       : modboxSeverity
 
-  const items: DetailListItem[] = modbox.map((name, i) => {
+  const items: DetailListItem[] = modbox.map(({ label, pv: name }) => {
     const msg = state[name]
     const sev = severityTone(msg)
     // EPICS severity (or a disconnected/errored PV) overrides the plain
     // neutral readout below.
     if (sev !== 'none') {
-      return { label: `Modbox ${i + 1}`, state: severityToDetailState(sev) }
+      return { label, state: severityToDetailState(sev) }
     }
     const v = msg?.value
     return {
-      label: `Modbox ${i + 1}`,
+      label,
       state: 'neutral',
       trailing: typeof v === 'number' ? String(v) : undefined,
     }

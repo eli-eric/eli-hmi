@@ -31,7 +31,7 @@ function laser(overrides: Record<string, unknown> = {}) {
     moduleErrors: [{ label: 'REGEN', pv: 'BI_NL9_ERR_REGEN' }],
     chillers: [{ label: 'C1', flow: 'f', temp: 't', level: 'l' }],
     flashlamps: [{ label: 'F1', pv: 'SI_NL9_FL_1' }],
-    modbox: ['BI_NL9_MODBOX_1'],
+    modbox: [{ label: 'Modbox 1', pv: 'BI_NL9_MODBOX_1' }],
     delayPresets: [50],
     commands: ['START_LASER'],
     ...overrides,
@@ -74,6 +74,7 @@ describe('parseLaserSpecs', () => {
       pv: 'BI_NL9_ERR_REGEN',
     })
     expect(spec.mss[0]).toEqual({ label: 'MSS 1', pv: 'BI_NL9_MSS_1' })
+    expect(spec.modbox[0]).toEqual({ label: 'Modbox 1', pv: 'BI_NL9_MODBOX_1' })
   })
 
   it('the real lasers.yaml is structurally valid for every laser', () => {
@@ -126,9 +127,9 @@ describe('parseLaserSpecs', () => {
   })
 
   it('rejects whitespace-only PV names', () => {
-    expect(() => parseLaserSpecs(doc([laser({ modbox: ['   '] })]))).toThrow(
-      /lasers\.yaml is invalid/,
-    )
+    expect(() =>
+      parseLaserSpecs(doc([laser({ triggerDelay: ['   '] })])),
+    ).toThrow(/lasers\.yaml is invalid/)
   })
 
   it('rejects malformed YAML with a readable message', () => {

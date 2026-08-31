@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ModboxSection } from './ModboxSection'
+import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import { LASER_COMMANDS } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import {
   makeFakeWebSocketContext,
@@ -24,7 +25,11 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-const MODBOX_3 = ['BI_NL2_MODBOX_1', 'BI_NL2_MODBOX_2', 'BI_NL2_MODBOX_3']
+const MODBOX_3: LabeledPv[] = [
+  { label: 'Modbox 1', pv: 'BI_NL2_MODBOX_1' },
+  { label: 'Modbox 2', pv: 'BI_NL2_MODBOX_2' },
+  { label: 'Modbox 3', pv: 'BI_NL2_MODBOX_3' },
+]
 
 function renderModbox() {
   const ws = makeFakeWebSocketContext()
