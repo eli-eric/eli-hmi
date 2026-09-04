@@ -267,7 +267,9 @@ describe('GeneralSection', () => {
       .getByRole('button', { name: 'Toggle module errors detail' })
       .querySelector('[data-tone]')
     expect(errPill).toHaveAttribute('data-tone', 'invalid')
-    expect(errPill).toHaveTextContent('1/2')
+    // Invalid replaces the count — a confident "1/2" would be misleading when
+    // one of the two readings can't be trusted.
+    expect(errPill).toHaveTextContent('PV DSC')
 
     await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
     const mss1 = screen.getByText('MSS 1').closest('li')
@@ -285,10 +287,10 @@ describe('GeneralSection', () => {
       'data-state',
       'invalid',
     )
-    // The raw "0000" code is suppressed in favour of the INVALID label —
+    // The raw "0000" code is suppressed in favour of the PV DSC label —
     // showing "no error" for a disconnected PV would be misleading. The
     // unaffected CHILLER_11 row still shows its real "0000" code.
-    expect(regen).toHaveTextContent('INVALID')
+    expect(regen).toHaveTextContent('PV DSC')
     expect(regen).not.toHaveTextContent('0000')
     expect(screen.getByText('CHILLER_11').closest('li')).toHaveTextContent(
       '0000',
@@ -308,7 +310,7 @@ describe('GeneralSection', () => {
       .getByRole('button', { name: 'Toggle MSS detail' })
       .querySelector('[data-tone]')
     expect(mssPill).toHaveAttribute('data-tone', 'invalid')
-    expect(mssPill).toHaveTextContent('NO')
+    expect(mssPill).toHaveTextContent('PV DSC')
   })
 
   it('hides buttons for commands the laser does not expose', async () => {

@@ -12,7 +12,10 @@ import {
 import { FloatValue, StringValue } from '@/components/hmi/controls/Values'
 import type { Message } from '@/app/providers/types'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import { severityTone, worstSeverityTone } from '@/lib/websocket/severity'
+import {
+  severityPresentation,
+  aggregateSeverityPresentation,
+} from '@/lib/websocket/severity-presentation'
 import type {
   CommandPvResolver,
   LaserCommand,
@@ -83,13 +86,9 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   const modboxPvs = useMemo(() => modbox.map((m) => m.pv), [modbox])
   const allPvs = useMemo(
     () =>
-      [
-        ...modboxPvs,
-        loadedWaveformPv,
-        latestWaveformPv,
-        mbc1Pv,
-        mbc2Pv,
-      ].filter((p): p is string => Boolean(p)),
+      [...modboxPvs, loadedWaveformPv, latestWaveformPv, mbc1Pv, mbc2Pv].filter(
+        (p): p is string => Boolean(p),
+      ),
     [modboxPvs, loadedWaveformPv, latestWaveformPv, mbc1Pv, mbc2Pv],
   )
   // Mixed value types (number for state, string for waveform). Keep the hook
@@ -99,25 +98,29 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   // colour coding from the raw 1/0 value, here or per-channel below. The
   // summary pill's only colour comes from the worst EPICS severity among
   // its channels.
-  const okCount = modboxPvs.filter(
-    (name) => state[name]?.value === 1,
-  ).length
+  const okCount = modboxPvs.filter((name) => state[name]?.value === 1).length
   const total = modboxPvs.length
-  const modboxSeverity = worstSeverityTone(
-    modboxPvs.map((name) => severityTone(state[name])),
+  const modboxSeverity = aggregateSeverityPresentation(
+    modboxPvs.map((name) => state[name]),
   )
+  // 'unknown' (no channel has reported yet) stays unpainted here — this pill
+  // never colours by the raw bit value either, so "no data" and "all fine"
+  // deliberately look the same.
   const modboxTone =
-    modboxSeverity === 'none' || modboxSeverity === 'unknown'
-      ? undefined
-      : modboxSeverity
+    modboxSeverity.tone === 'unknown' ? undefined : modboxSeverity.tone
 
   const items: DetailListItem[] = modbox.map(({ label, pv: name }) => {
     const msg = state[name]
-    const sev = severityTone(msg)
+    const { tone, text, title } = severityPresentation(msg)
     // EPICS severity (or a disconnected/errored PV) overrides the plain
     // neutral readout below.
-    if (sev !== 'none') {
-      return { label, state: severityToDetailState(sev) }
+    if (tone) {
+      return {
+        label,
+        state: severityToDetailState(tone),
+        trailing: text,
+        title,
+      }
     }
     const v = msg?.value
     return {
@@ -149,9 +152,15 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
                 aria-label="Toggle Modbox state detail"
                 onClick={() => setExpanded((v) => !v)}
               >
-                <span className={styles.modboxStatePill} data-tone={modboxTone}>
+                <span
+                  className={styles.modboxStatePill}
+                  data-tone={modboxTone}
+                  title={modboxSeverity.title}
+                >
                   <span className={styles.modboxStateCount}>
-                    {okCount}/{total}
+                    {modboxSeverity.tone === 'unknown'
+                      ? `${okCount}/${total}`
+                      : (modboxSeverity.text ?? `${okCount}/${total}`)}
                   </span>
                   <span
                     className={styles.cornerTriangle}
@@ -219,10 +228,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         <div className={styles.actionRow}>
           <CogToggle ariaLabel="Modbox actions" inlineLabel="Modbox Actions">
             {can('MODBOX_ON') && (
-              <ActionButton
-                label="Set Modbox ON"
-                pvName={cmdPv('MODBOX_ON')}
-              />
+              <ActionButton label="Set Modbox ON" pvName={cmdPv('MODBOX_ON')} />
             )}
             {can('MODBOX_OFF') && (
               <ActionButton

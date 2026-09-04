@@ -125,9 +125,19 @@
 
 .flashlampGrid {
   display: grid;
+  /* One column per flashlamp state. The count comes from the component
+   * (`--flashlamp-state-count` = STATES.length) so the track list can never
+   * drift out of sync with the states again — hardcoding it once left the row
+   * wrapping when states were added.
+   *
+   * NB there is only room for ~4 state columns beside the label: a 22rem panel
+   * minus the 8.5rem label and 2.25rem action column leaves ~2.4rem each,
+   * about what a bold 4-character header ("STOP") needs. More columns than
+   * that need shorter headers or a narrower label — see the Flashlamps
+   * section's STATES comment. */
   grid-template-columns:
     var(--hmi-label-width, 13rem)
-    repeat(4, minmax(0, 1fr))
+    repeat(var(--flashlamp-state-count, 4), minmax(0, 1fr))
     var(--hmi-action-width, 1.75rem);
   gap: 0.125rem;
   align-items: center;
@@ -428,11 +438,11 @@
 }
 .cellState[data-tone='warn'] {
   color: var(--color-text);
-  background: var(--color-warning, #facc15);
+  background: var(--color-warning);
 }
 .cellState[data-tone='error'] {
   color: var(--color-text);
-  background: var(--color-negative-important, #f87171);
+  background: var(--color-error);
 }
 .cellState[data-tone='unknown'] {
   color: var(--color-text-secondary);
@@ -443,5 +453,5 @@
 }
 .cellState[data-tone='invalid'] {
   color: var(--color-text);
-  background: var(--color-invalid-light);
+  background: var(--color-invalid);
 }

@@ -5,6 +5,7 @@ import { useEffect, useReducer, useRef } from 'react'
 import { Message, WebSocketContextValue } from '@/app/providers/types'
 import { useWebSocketContext } from '@/app/providers/socket-provider'
 import { getPrefixedPV } from '@/lib/utils/pv-helpers'
+import { severityTone } from './severity'
 
 export type State<T> = Record<string, Message<T>>
 
@@ -93,8 +94,7 @@ export function useWebSocketData<T = unknown>(
 }
 
 type Action<T> =
-  | { type: 'UPDATE'; pv: string; msg: Message<T> }
-  | { type: 'RESET' }
+  { type: 'UPDATE'; pv: string; msg: Message<T> } | { type: 'RESET' }
 
 function reducer<T>(state: State<T>, action: Action<T>): State<T> {
   switch (action.type) {
@@ -125,6 +125,13 @@ function useMultiSubscription<T>(
     stateRef.current = state
   }, [state])
 
+  // Per-PV memory of the last trustworthy reading, so an INVALID/disconnected
+  // message (whose own `value` is normally null) can still report what the
+  // value was before it went bad.
+  const lastValidRef = useRef<
+    Map<string, { value: T | null; timestamp: number }>
+  >(new Map())
+
   const onUpdateMultiRef = useRef(onUpdateMulti)
   const onUpdateSingleRef = useRef(onUpdateSingle)
   useEffect(() => {
@@ -144,6 +151,15 @@ function useMultiSubscription<T>(
         // Project the wire-format message into logical space so consumers
         // never see the dev prefix anywhere.
         const logicalMsg: Message<T> = { ...msg, name: logicalPv }
+        if (severityTone(logicalMsg) === 'invalid') {
+          const remembered = lastValidRef.current.get(logicalPv)
+          if (remembered) logicalMsg.lastValid = remembered
+        } else {
+          lastValidRef.current.set(logicalPv, {
+            value: logicalMsg.value,
+            timestamp: logicalMsg.timestamp,
+          })
+        }
         // Update the synchronous mirror BEFORE dispatch so multi-PV updates
         // arriving in the same tick see each other in `onUpdate`'s snapshot.
         stateRef.current = { ...stateRef.current, [logicalPv]: logicalMsg }
@@ -155,6 +171,7 @@ function useMultiSubscription<T>(
     return () => {
       unsubs.forEach((u) => u())
       stateRef.current = {}
+      lastValidRef.current = new Map()
       dispatch({ type: 'RESET' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

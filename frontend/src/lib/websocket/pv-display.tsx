@@ -6,9 +6,10 @@ import React, { useEffect, useMemo } from 'react'
 import { ErrorIcon } from '@/components/ui/icons'
 import { Message } from '@/app/providers/types'
 
+import { severityPresentation } from './severity-presentation'
 import styles from './pv-display.module.css'
 
-export type SeverityLevel = 'info' | 'warning' | 'error' | 'none'
+export type SeverityLevel = 'warning' | 'error' | 'invalid' | 'unknown' | 'none'
 
 interface PVDisplayProps<T> {
   data?: Message<T | null> | null
@@ -20,6 +21,7 @@ interface PVDisplayProps<T> {
   errorComponent?: React.ReactNode
   onError?: (error: string | null) => void
   className?: string
+  /** Set false to ignore EPICS severity styling. Default true. */
   showSeverity?: boolean
 }
 
@@ -38,18 +40,19 @@ function PVDisplayInner<T>({
   errorComponent,
   onError,
   className,
-  showSeverity = false,
+  showSeverity = true,
 }: PVDisplayProps<T>) {
   useEffect(() => {
     if (data && !data.ok && onError) onError(data.error)
   }, [data, onError])
 
-  const severityLevel = useMemo((): SeverityLevel => {
-    if (!data || data.severity === undefined) return 'none'
-    if (data.severity >= 3) return 'error'
-    if (data.severity >= 1) return 'warning'
-    return 'info'
-  }, [data])
+  // Severity comes from the shared table, so this matches the rest of the app:
+  // MINOR(1) → warning, MAJOR(2) → error, INVALID(3) or `ok: false` → invalid.
+  const { tone: severityTone, title: severityTitle } = useMemo(
+    () => severityPresentation(data),
+    [data],
+  )
+  const severityLevel: SeverityLevel = severityTone ?? 'none'
 
   const containerClasses = useMemo(() => {
     return clsx(
@@ -64,16 +67,27 @@ function PVDisplayInner<T>({
     )
   }, [showSeverity, severityLevel, className])
 
+  // Names the PV and its last trustworthy value when the reading is invalid.
+  const title = showSeverity ? severityTitle : undefined
+
   if (isConnected === false) {
-    return <div className={containerClasses}>{disconnectedComponent}</div>
+    return (
+      <div className={containerClasses} title={title}>
+        {disconnectedComponent}
+      </div>
+    )
   }
 
   if (data == null) {
     if (loadingComponent) {
-      return <div className={containerClasses}>{loadingComponent}</div>
+      return (
+        <div className={containerClasses} title={title}>
+          {loadingComponent}
+        </div>
+      )
     }
     return (
-      <div className={clsx(containerClasses, styles.loadingDots)}>
+      <div className={clsx(containerClasses, styles.loadingDots)} title={title}>
         <span>.</span>
         <span>.</span>
         <span>.</span>
@@ -83,10 +97,14 @@ function PVDisplayInner<T>({
 
   if (data && data.ok === false) {
     if (errorComponent) {
-      return <div className={containerClasses}>{errorComponent}</div>
+      return (
+        <div className={containerClasses} title={title}>
+          {errorComponent}
+        </div>
+      )
     }
     return (
-      <div className={containerClasses}>
+      <div className={containerClasses} title={title}>
         <span>N/A</span>
         <ErrorIcon message={data.error} className={styles.errorIcon} />
       </div>
@@ -95,7 +113,7 @@ function PVDisplayInner<T>({
 
   if (!children && data) {
     return (
-      <div className={containerClasses}>
+      <div className={containerClasses} title={title}>
         <span>{`${
           data.value !== null && data.value !== undefined
             ? formatValue?.(data.value) || data.value
@@ -106,7 +124,11 @@ function PVDisplayInner<T>({
     )
   }
 
-  return <div className={containerClasses}>{children}</div>
+  return (
+    <div className={containerClasses} title={title}>
+      {children}
+    </div>
+  )
 }
 
 export const PVDisplay = React.memo(PVDisplayInner) as typeof PVDisplayInner

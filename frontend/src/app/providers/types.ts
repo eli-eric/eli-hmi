@@ -26,4 +26,12 @@ export interface Message<T = unknown> {
   timestamp: number
   ok: boolean
   error: string | null
+  /**
+   * Client-side only (attached by `useWebSocketData`, never sent by the
+   * gateway): the last value seen while this PV was still trustworthy. Set
+   * only on messages whose severity is INVALID / whose `ok` is false, where
+   * `value` itself is typically `null` — it lets the UI say what the reading
+   * was before it went bad. See `severity-presentation.ts`.
+   */
+  lastValid?: { value: T | null; timestamp: number }
 }

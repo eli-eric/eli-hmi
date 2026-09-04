@@ -23,7 +23,7 @@ describe('FloatValue', () => {
     expect(el).not.toHaveAttribute('data-tone')
   })
 
-  it('applies warning/error/invalid tone by default based on severity', () => {
+  it('keeps the real value for MINOR / MAJOR alarms, tinting it', () => {
     const { rerender } = render(
       <FloatValue data={msg({ value: 1.5, severity: 1 })} />,
     )
@@ -31,14 +31,17 @@ describe('FloatValue', () => {
 
     rerender(<FloatValue data={msg({ value: 1.5, severity: 2 })} />)
     expect(screen.getByText('1.500')).toHaveAttribute('data-tone', 'error')
+  })
 
-    rerender(<FloatValue data={msg({ value: 1.5, severity: 3 })} />)
-    expect(screen.getByText('1.500')).toHaveAttribute('data-tone', 'invalid')
+  it('replaces the value with PV INV for severity 3 and PV DSC when disconnected', () => {
+    const { rerender } = render(
+      <FloatValue data={msg({ value: 1.5, severity: 3 })} />,
+    )
+    expect(screen.getByText('PV INV')).toHaveAttribute('data-tone', 'invalid')
+    expect(screen.queryByText('1.500')).not.toBeInTheDocument()
 
-    // ok:false always falls back to the placeholder (never shows a stale
-    // value), but the placeholder itself now carries the invalid tone.
     rerender(<FloatValue data={msg({ value: 1.5, ok: false })} />)
-    expect(screen.getByText('<>')).toHaveAttribute('data-tone', 'invalid')
+    expect(screen.getByText('PV DSC')).toHaveAttribute('data-tone', 'invalid')
   })
 
   it('opts out of severity styling via respectSeverity={false}', () => {
@@ -51,16 +54,9 @@ describe('FloatValue', () => {
     expect(screen.getByText('1.500')).not.toHaveAttribute('data-tone')
   })
 
-  it('shows the placeholder with an invalid tone when disconnected', () => {
-    render(<FloatValue data={msg({ value: null, ok: false })} />)
-    const el = screen.getByText('<>')
-    expect(el).toHaveAttribute('data-tone', 'invalid')
-  })
-
-  it('shows the plain placeholder (no tone) when there is no message yet', () => {
+  it('shows <> with the unknown tone when no message has arrived yet', () => {
     render(<FloatValue data={undefined} />)
-    const el = screen.getByText('<>')
-    expect(el).not.toHaveAttribute('data-tone')
+    expect(screen.getByText('<>')).toHaveAttribute('data-tone', 'unknown')
   })
 })
 
@@ -104,7 +100,7 @@ describe('BoolPill', () => {
     expect(el).toHaveAttribute('data-tone', 'error')
   })
 
-  it('overrides to invalid when disconnected, regardless of the last value', () => {
+  it('replaces the on/off label with PV DSC when disconnected', () => {
     render(
       <BoolPill
         data={msg({ value: 1, ok: false })}
@@ -112,7 +108,8 @@ describe('BoolPill', () => {
         offLabel="is CLOSED"
       />,
     )
-    expect(screen.getByText('is OPEN')).toHaveAttribute('data-tone', 'invalid')
+    expect(screen.getByText('PV DSC')).toHaveAttribute('data-tone', 'invalid')
+    expect(screen.queryByText('is OPEN')).not.toBeInTheDocument()
   })
 
   it('opts out of severity styling via respectSeverity={false}', () => {

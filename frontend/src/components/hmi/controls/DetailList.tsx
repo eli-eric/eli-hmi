@@ -1,4 +1,8 @@
 import { FC } from 'react'
+import {
+  INVALID_TEXT,
+  UNKNOWN_TEXT,
+} from '@/lib/websocket/severity-presentation'
 import styles from './DetailList.module.css'
 
 /**
@@ -31,6 +35,8 @@ export interface DetailListItem {
   /** Optional explicit status text. When omitted, a default is derived from
    * `state` so every row always shows a text label. */
   trailing?: string
+  /** Hover text for the status indicator (e.g. the invalid-severity detail). */
+  title?: string
 }
 
 interface DetailListProps {
@@ -49,10 +55,12 @@ const STATE_TEXT: Record<DetailListItemState, string> = {
   sb: 'SB',
   stop: 'STOP',
   fail: 'FAIL',
-  unknown: '<>',
+  unknown: UNKNOWN_TEXT,
   neutral: '',
   warning: 'WARN',
-  invalid: 'INVALID',
+  // Fallback only — severity call sites pass the shared table's text, which
+  // distinguishes 'PV INV' from 'PV DSC'.
+  invalid: INVALID_TEXT,
 }
 
 /**
@@ -68,14 +76,16 @@ export const DetailList: FC<DetailListProps> = ({ items, note }) => {
       {items.map((item) => (
         <li key={item.label} className={styles.item}>
           <span className={styles.label}>{item.label}</span>
-          <span className={styles.status} data-state={item.state}>
+          <span
+            className={styles.status}
+            data-state={item.state}
+            title={item.title}
+          >
             {item.trailing ?? STATE_TEXT[item.state]}
           </span>
         </li>
       ))}
-      {note ? (
-        <li className={styles.note}>{note}</li>
-      ) : null}
+      {note ? <li className={styles.note}>{note}</li> : null}
     </ul>
   )
 }

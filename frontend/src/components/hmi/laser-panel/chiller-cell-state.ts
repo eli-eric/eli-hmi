@@ -1,5 +1,9 @@
 import type { Message } from '@/app/providers/types'
 import { severityTone } from '@/lib/websocket/severity'
+import {
+  INVALID_TEXT,
+  severityPresentation,
+} from '@/lib/websocket/severity-presentation'
 
 /**
  * CSI-783 — explicit component states for a Flow / Temp / Water cell.
@@ -118,14 +122,14 @@ export function deriveCellState({
 
   // 4. Gateway flagged the PV bad (disconnect/CA error), or EPICS INVALID
   // severity — the value can't be trusted either way.
-  if (severityTone(msg) === 'invalid') {
+  const invalid = severityPresentation(msg)
+  if (invalid.tone === 'invalid') {
     return {
       kind: 'invalid',
-      text: 'INVALID',
+      text: invalid.text ?? INVALID_TEXT,
       tone: 'invalid',
-      title: msg.error
-        ? `PV error: ${msg.error}`
-        : 'PV reported an error / INVALID severity.',
+      // Shared tooltip: PV name + last trustworthy value + the CA error.
+      title: invalid.title ?? 'PV reported an error / INVALID severity.',
       actionEnabled: false,
       actionBlockedReason: 'PV in error',
     }

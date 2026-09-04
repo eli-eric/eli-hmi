@@ -161,7 +161,23 @@ describe('FlashlampsSection', () => {
     expect(screen.getByText('FAILURE')).toBeInTheDocument()
   })
 
-  it('shows the raw enum value for a channel state with no dedicated column yet', async () => {
+  it('declares one grid column per state, so the header/count row never wraps', async () => {
+    const ws = renderFl(['22'])
+    await waitFor(() =>
+      expect(ws.subscriptions.get('SI_NL2_FL_22_CH1')?.size).toBe(1),
+    )
+
+    // Every state renders a header AND a count cell, and the grid must be
+    // told how many there are — otherwise the row wraps and the cells land
+    // under the wrong headers.
+    const headers = screen.getAllByTestId(/^count-/)
+    const grid = headers[0].parentElement
+    expect(grid?.style.getPropertyValue('--flashlamp-state-count')).toBe(
+      String(headers.length),
+    )
+  })
+
+  it('shows uncounted states (IGNITION / BUSY) as raw text in the detail list only', async () => {
     const ws = renderFl(['22'])
     await waitFor(() =>
       expect(ws.subscriptions.get('SI_NL2_FL_22_CH1')?.size).toBe(1),
@@ -172,11 +188,13 @@ describe('FlashlampsSection', () => {
       ws.push('SI_NL2_FL_22_CH2', 'BUSY')
     })
 
-    // Not counted in any of the 4 existing columns.
+    // Only four states have a column; these are counted in none of them.
     expect(screen.getByTestId('count-SB')).toHaveTextContent('0')
     expect(screen.getByTestId('count-RUN')).toHaveTextContent('0')
     expect(screen.getByTestId('count-STOP')).toHaveTextContent('0')
     expect(screen.getByTestId('count-FAIL')).toHaveTextContent('0')
+    expect(screen.queryByTestId('count-IGN')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('count-BUSY')).not.toBeInTheDocument()
 
     const user = userEvent.setup()
     await user.click(
@@ -185,16 +203,18 @@ describe('FlashlampsSection', () => {
       }),
     )
 
-    // The raw value is still shown per-channel even without a bucket, and it
-    // does NOT get the "unknown"/invalid-data styling — only actually
-    // missing/invalid data should look like that.
-    expect(screen.getByText('IGNITION')).toBeInTheDocument()
-    expect(screen.getByText('IGNITION').closest('[data-state]')).toHaveAttribute(
+    // Their raw value is still visible per-channel, rendered `neutral` — NOT
+    // the "unknown"/invalid styling, which is reserved for missing or
+    // untrustworthy data.
+    const ch1 = screen.getByText('22 Ch1').closest('li')
+    const ch2 = screen.getByText('22 Ch2').closest('li')
+    expect(ch1).toHaveTextContent('IGNITION')
+    expect(ch1?.querySelector('[data-state]')).toHaveAttribute(
       'data-state',
       'neutral',
     )
-    expect(screen.getByText('BUSY')).toBeInTheDocument()
-    expect(screen.getByText('BUSY').closest('[data-state]')).toHaveAttribute(
+    expect(ch2).toHaveTextContent('BUSY')
+    expect(ch2?.querySelector('[data-state]')).toHaveAttribute(
       'data-state',
       'neutral',
     )
@@ -253,7 +273,7 @@ describe('FlashlampsSection', () => {
       'data-state',
       'invalid',
     )
-    expect(ch2).toHaveTextContent('INVALID')
+    expect(ch2).toHaveTextContent('PV DSC')
     expect(ch2).not.toHaveTextContent('STOP')
   })
 
@@ -271,7 +291,7 @@ describe('FlashlampsSection', () => {
     expect(screen.getByText(/MISMATCH 790\/50/)).toBeInTheDocument()
   })
 
-  it('shows INVALID for Trigger Delay when any readout has invalid severity, ahead of a mismatch', async () => {
+  it('shows PV DSC for Trigger Delay when a readout is disconnected, ahead of a mismatch', async () => {
     const ws = renderFl(['22'])
     await waitFor(() =>
       expect(ws.subscriptions.get('AI_NL2_TRIG_DELAY_CH2')?.size).toBe(1),
@@ -280,15 +300,15 @@ describe('FlashlampsSection', () => {
     act(() => {
       ws.push('AI_NL2_TRIG_DELAY_CH1', 790)
       // Disconnected — even though the value that arrived also disagrees
-      // with CH1, INVALID takes priority over the mismatch display.
+      // with CH1, the disconnect takes priority over the mismatch display.
       ws.push('AI_NL2_TRIG_DELAY_CH2', { value: 50, ok: false })
     })
 
-    expect(screen.getByText('INVALID')).toBeInTheDocument()
+    expect(screen.getByText('PV DSC')).toBeInTheDocument()
     expect(screen.queryByText(/MISMATCH/)).not.toBeInTheDocument()
   })
 
-  it('shows INVALID for Trigger Delay on EPICS severity 3, even when the readouts agree', async () => {
+  it('shows PV INV for Trigger Delay on EPICS severity 3, even when the readouts agree', async () => {
     const ws = renderFl(['22'])
     await waitFor(() =>
       expect(ws.subscriptions.get('AI_NL2_TRIG_DELAY_CH2')?.size).toBe(1),
@@ -299,7 +319,7 @@ describe('FlashlampsSection', () => {
       ws.push('AI_NL2_TRIG_DELAY_CH2', 790)
     })
 
-    expect(screen.getByText('INVALID')).toBeInTheDocument()
+    expect(screen.getByText('PV INV')).toBeInTheDocument()
     expect(screen.queryByText('790')).not.toBeInTheDocument()
   })
 
