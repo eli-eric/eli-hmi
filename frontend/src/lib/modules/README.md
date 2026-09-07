@@ -39,6 +39,7 @@ which composes `<ModuleControlPage>` with the module's bespoke `bottomRow`.
 
    Use the generated schema/editor completion and an existing module file for
    the complete shape.
+
 3. Add bespoke parts under
    `src/app/(modules)/<module>-controls/parts/`. Their PV-to-component wiring
    stays React code because it is structural.
@@ -51,11 +52,11 @@ which composes `<ModuleControlPage>` with the module's bespoke `bottomRow`.
 
 ## What goes in YAML vs. `parts/`?
 
-| Lives in `ModuleConfig` YAML | Lives in `parts/` TSX |
-| --- | --- |
-| Interlocks (PV name + title pairs) | Volumes with mixed `VolumePanel.*` children |
-| Safety permissions | Connectors, gates, and cross-module hyperlinks |
-| Backing, roughing, and clean-dry-air sensor/pump data | Any non-uniform structural composition |
+| Lives in `ModuleConfig` YAML                          | Lives in `parts/` TSX                          |
+| ----------------------------------------------------- | ---------------------------------------------- |
+| Interlocks (PV name + title pairs)                    | Volumes with mixed `VolumePanel.*` children    |
+| Safety permissions                                    | Connectors, gates, and cross-module hyperlinks |
+| Backing, roughing, and clean-dry-air sensor/pump data | Any non-uniform structural composition         |
 
 The split is deliberate: the shared panels have data-only variance, while the
 bottom rows differ as component trees. Do not turn JSX into a YAML component

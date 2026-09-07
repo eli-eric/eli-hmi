@@ -48,6 +48,7 @@ field reference below is the format's documentation; the config validator
 | `modbox` | `{label, pv}`[] | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV. **`[]` hides the Modbox section.** |
 | `delayPresets` | int[] | Trigger-delay preset buttons (ns). |
 | `commands` | map `SYMBOL: PV` | Which command buttons appear and which PV each writes (see below). |
+| `units` | map `role: unit` | Optional. Engineering units for the numeric readouts (see below). |
 
 A "PV name" is any non-empty string — put the exact name the gateway exposes.
 
@@ -59,6 +60,31 @@ chillers:
 flashlamps:
   - { label: '22 Ch1', pv: SI_NL2_FL_22_CH1 }
 ```
+
+### `units`
+
+Optional. Units shown beside the numeric readouts, keyed by the signal they
+annotate — **not** by PV name, so the same block works for every laser:
+
+```yaml
+units:               # top level: applies to every laser in the file
+  regenTemp: '°C'
+  triggerDelay: ns
+lasers:
+  - id: NL2
+    units:           # optional per-laser override, merged over the above
+      regenTemp: K
+```
+
+Keys (all optional): `phdMean`, `phd2Mean`, `regenTemp`, `attenuator`,
+`modboxMbc1`, `modboxMbc2`, `triggerDelay`, `chillerFlow`, `chillerTemp`,
+`chillerLevel`. Anything else is rejected as a typo. Booleans, status strings
+and bit indicators take no unit, so they have no key.
+
+A unit set here **wins** over the PV's own EGU metadata and over the default
+built into the component, so this is the place to correct a wrong or missing
+unit without a code change. Chiller units appear once in the column header
+(`Temp (°C)`) rather than on every cell, which is far too narrow for them.
 
 ### `commands`
 

@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { WaveformSelect, __resetWaveformCatalogForTests } from './WaveformSelect'
+import {
+  WaveformSelect,
+  __resetWaveformCatalogForTests,
+} from './WaveformSelect'
 
 const ORIGINAL_FETCH = globalThis.fetch
 const CATALOG = ['std-100ps', 'narrow-50ps', 'broad-200ps']
@@ -33,10 +36,16 @@ describe('WaveformSelect', () => {
     mockFetch()
     render(<WaveformSelect pvName="CMD_NL2_LOAD_WAVEFORM" />)
     await waitFor(() =>
-      expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
+      expect(
+        screen.getByRole('option', { name: 'std-100ps' }),
+      ).toBeInTheDocument(),
     )
-    expect(screen.getByRole('option', { name: 'narrow-50ps' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'broad-200ps' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('option', { name: 'narrow-50ps' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('option', { name: 'broad-200ps' }),
+    ).toBeInTheDocument()
   })
 
   it('disables waveform setting until the user picks a waveform', async () => {
@@ -44,7 +53,9 @@ describe('WaveformSelect', () => {
     const user = userEvent.setup()
     render(<WaveformSelect pvName="CMD_NL2_LOAD_WAVEFORM" />)
     await waitFor(() =>
-      expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
+      expect(
+        screen.getByRole('option', { name: 'std-100ps' }),
+      ).toBeInTheDocument(),
     )
 
     expect(screen.getByRole('button', { name: /CONFIRM/i })).toBeDisabled()
@@ -58,7 +69,9 @@ describe('WaveformSelect', () => {
     const user = userEvent.setup()
     render(<WaveformSelect pvName="CMD_NL2_LOAD_WAVEFORM" />)
     await waitFor(() =>
-      expect(screen.getByRole('option', { name: 'std-100ps' })).toBeInTheDocument(),
+      expect(
+        screen.getByRole('option', { name: 'std-100ps' }),
+      ).toBeInTheDocument(),
     )
 
     await user.selectOptions(screen.getByRole('combobox'), 'broad-200ps')

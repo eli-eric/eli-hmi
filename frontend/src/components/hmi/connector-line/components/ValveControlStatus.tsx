@@ -70,27 +70,27 @@ export const ValveControlStatus: FC<ValveControlStatusProps> = ({
               },
             ]
           : status === VALVE_STATE.OPEN
-          ? [
-              {
-                label: 'Close Valve',
-                onClick: () => {
-                  // send({ type: 'set', pvs: { [controlClosePV]: true } })
-                  setFetching(true)
-                  fetch(`${apiUrl}/${controlClosePV}`, {
-                    method: 'PUT',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ value: true }),
-                  })
-                    .then()
-                    .finally(() => {
-                      setFetching(false)
+            ? [
+                {
+                  label: 'Close Valve',
+                  onClick: () => {
+                    // send({ type: 'set', pvs: { [controlClosePV]: true } })
+                    setFetching(true)
+                    fetch(`${apiUrl}/${controlClosePV}`, {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ value: true }),
                     })
+                      .then()
+                      .finally(() => {
+                        setFetching(false)
+                      })
+                  },
                 },
-              },
-            ]
-          : []
+              ]
+            : []
       }
       disabled={isDisabled}
     />

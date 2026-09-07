@@ -33,8 +33,7 @@
 }
 
 .trigger[data-state='open'] {
-  background-color: #B8B8B8;
-
+  background-color: #b8b8b8;
 }
 
 .content[data-state='open'] {

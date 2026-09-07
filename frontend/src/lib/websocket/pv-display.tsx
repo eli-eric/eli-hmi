@@ -6,6 +6,7 @@ import React, { useEffect, useMemo } from 'react'
 import { ErrorIcon } from '@/components/ui/icons'
 import { Message } from '@/app/providers/types'
 
+import { severityTone } from './severity'
 import { severityPresentation } from './severity-presentation'
 import styles from './pv-display.module.css'
 
@@ -48,11 +49,15 @@ function PVDisplayInner<T>({
 
   // Severity comes from the shared table, so this matches the rest of the app:
   // MINOR(1) → warning, MAJOR(2) → error, INVALID(3) or `ok: false` → invalid.
-  const { tone: severityTone, title: severityTitle } = useMemo(
+  // The level is read straight from `severityTone` (it is the same union as
+  // `SeverityLevel`); the presentation table is used only for the tooltip,
+  // since this component predates the panel's tone layer and keeps its own
+  // `severity*` classes.
+  const severityLevel: SeverityLevel = useMemo(() => severityTone(data), [data])
+  const { title: severityTitle } = useMemo(
     () => severityPresentation(data),
     [data],
   )
-  const severityLevel: SeverityLevel = severityTone ?? 'none'
 
   const containerClasses = useMemo(() => {
     return clsx(

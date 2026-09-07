@@ -24,17 +24,16 @@
   white-space: nowrap;
 }
 
+/* Geometry only. Colour — including severity, which fills the whole cell
+ * rather than a chip around the text — comes from the global tone layer, which
+ * this cell opts into with `data-tone-surface="cell"`. */
 .value {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   min-width: 0;
-  background: var(--color-surface-lighter);
-  border: 1px solid var(--color-border);
   padding: 0.0625rem 0.25rem;
   min-height: var(--hmi-row-min-h);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -42,10 +41,9 @@
 
 /* Value cell variant: just plain text, no chrome (used when the inner element
    already provides its own chrome — e.g. a BoolPill). Opt in via the
-   `valueVariant="bare"` prop on <DataRow />. */
+   `valueVariant="bare"` prop on <DataRow />; it declares no tone surface, so
+   the tone layer never paints it. */
 .valueBare {
-  background: transparent;
-  border: none;
   padding: 0;
   min-height: auto;
   overflow: visible;

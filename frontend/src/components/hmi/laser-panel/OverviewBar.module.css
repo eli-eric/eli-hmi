@@ -64,6 +64,8 @@
   color: var(--color-text);
 }
 
+/* Geometry only — colour comes from the global tone layer, which this pill
+ * opts into with `data-tone-surface="chip"`. */
 .pill {
   position: relative;
   display: inline-flex;
@@ -74,13 +76,8 @@
   width: 100%;
   padding: 0.125rem 0.1875rem;
   font-size: var(--hmi-font-size);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  border: 1px solid var(--color-text);
-  background: var(--color-surface-lighter);
-  color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -102,48 +99,6 @@
 
 .pillButton:hover .chevron {
   opacity: 1;
-}
-
-.pill[data-tone='positive-important'] {
-  background: var(--color-success);
-  border-color: var(--color-success-dark);
-  color: var(--color-text);
-}
-
-.pill[data-tone='positive-neutral'] {
-  background: var(--color-surface-lighter);
-  border-color: var(--color-text);
-  color: var(--color-text);
-}
-
-.pill[data-tone='negative-neutral'] {
-  background: var(--color-surface);
-  border-color: var(--color-gray-800);
-  color: var(--color-text);
-}
-
-.pill[data-tone='negative-important'] {
-  background: var(--color-error-light);
-  border-color: var(--color-error-dark);
-  color: var(--color-text);
-}
-
-.pill[data-tone='unknown'] {
-  background: transparent;
-  border-style: dotted;
-  color: var(--color-gray-800);
-}
-
-.pill[data-tone='warning'] {
-  background: var(--color-warning);
-  border-color: var(--color-warning-dark);
-  color: var(--color-text);
-}
-
-.pill[data-tone='invalid'] {
-  background: var(--color-invalid);
-  border-color: var(--color-invalid-dark);
-  color: var(--color-text);
 }
 
 /* Corner triangle marking an expandable element (replaces the old chevron). */

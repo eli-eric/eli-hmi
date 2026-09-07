@@ -19,7 +19,10 @@ export interface MockWebSocketServer {
   close: () => Promise<void>
 }
 
-type LegacySubscribeMessage = { type: 'subscribe'; pvs: Record<string, boolean> }
+type LegacySubscribeMessage = {
+  type: 'subscribe'
+  pvs: Record<string, boolean>
+}
 type BatchedSubscribeMessage = { type: 'subscribe'; pvs: string[] }
 
 function isSubscribeFor(msg: unknown, name: string): boolean {
@@ -30,7 +33,9 @@ function isSubscribeFor(msg: unknown, name: string): boolean {
   return name in m.pvs
 }
 
-export function mockWebSocketServer(url: string = DEFAULT_URL): MockWebSocketServer {
+export function mockWebSocketServer(
+  url: string = DEFAULT_URL,
+): MockWebSocketServer {
   const server = new WS(url, { jsonProtocol: true })
 
   return {

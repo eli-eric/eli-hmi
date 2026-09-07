@@ -9,9 +9,7 @@ describe('LaserPanel', () => {
         <p>section content</p>
       </LaserPanel>,
     )
-    expect(
-      screen.getByRole('heading', { name: 'NL2' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'NL2' })).toBeInTheDocument()
     expect(screen.getByText('section content')).toBeInTheDocument()
   })
 

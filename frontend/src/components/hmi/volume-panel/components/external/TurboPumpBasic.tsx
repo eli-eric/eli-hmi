@@ -2,10 +2,7 @@ import { FC } from 'react'
 
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { PVDisplay } from '@/lib/websocket/pv-display'
-import {
-  getFormattedValue,
-  ValueFormatOptions,
-} from '@/lib/utils/pv-helpers'
+import { getFormattedValue, ValueFormatOptions } from '@/lib/utils/pv-helpers'
 
 import { Container } from '../Container'
 import { VolumeCard } from '../internal/VolumeCard'

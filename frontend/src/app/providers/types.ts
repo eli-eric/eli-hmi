@@ -6,10 +6,21 @@ export interface ConnectionState {
   countdown: number | null
 }
 
+/** Per-subscription read options (see the gateway's `subscribe` message). */
+export interface SubscribeOptions {
+  /**
+   * Gateway datatype alias. Unset = the PV's native type. Enum (mbbi) records
+   * arrive as their numeric index natively; 'enum_string' asks Channel Access
+   * for the state name instead.
+   */
+  datatype?: 'enum_string' | 'string' | 'integer' | 'float' | 'native'
+}
+
 export interface WebSocketContextValue {
   subscribe: <T>(
     channel: string,
     callback: (data: Message<T>) => void,
+    opts?: SubscribeOptions,
   ) => () => void
   send: (message: unknown) => boolean
   reconnect: () => void

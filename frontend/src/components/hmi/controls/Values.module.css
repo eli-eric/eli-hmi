@@ -1,9 +1,17 @@
+/* Ink is inherited from the surface that paints (the DataRow cell, a grid
+ * cell, a chip): that surface knows whether it is filled, so the value never
+ * has to guess which ink is readable on it. */
 .number {
   display: block;
   margin-left: auto;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text);
+  color: inherit;
+}
+
+.valueWithUnits {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .units {
@@ -14,87 +22,26 @@
 }
 
 .text {
-  font-weight: 700;
-  color: var(--color-text);
+  color: inherit;
 }
 
+/* Renders `<>` / `PV INV` / `PV DSC`. Same weight and ink as a real reading —
+ * a value must not change weight just because its PV went bad, and the
+ * greying of a missing reading is the `unknown` tone's job, not this rule's. */
 .placeholder {
   font-family: 'Roboto Condensed', monospace;
   font-size: var(--hmi-font-size);
-  font-weight: 400;
-  color: var(--color-gray-800);
+  color: inherit;
 }
 
-/* EPICS severity overrides — shared by .number/.text/.placeholder. */
-.number[data-tone='warning'],
-.text[data-tone='warning'],
-.placeholder[data-tone='warning'] {
-  color: var(--color-warning-dark);
-}
-.number[data-tone='error'],
-.text[data-tone='error'],
-.placeholder[data-tone='error'] {
-  color: var(--color-error-dark);
-}
-.number[data-tone='invalid'],
-.text[data-tone='invalid'],
-.placeholder[data-tone='invalid'] {
-  color: var(--color-invalid-dark);
-}
-
+/* Geometry only — colour comes from the global tone layer, which this pill
+ * opts into with `data-tone-surface="chip"`. */
 .pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0.125rem 0.5rem;
   font-size: var(--hmi-font-size);
-  font-weight: 700;
-  border: 1px solid var(--color-text);
-  background: var(--color-surface-lighter);
-  color: var(--color-text);
   width: 100%;
   min-height: var(--hmi-row-min-h);
-  font-variant-numeric: tabular-nums;
-}
-
-.pill[data-tone='positive-important'] {
-  background: var(--color-success);
-  border-color: var(--color-success-dark);
-  color: var(--color-text);
-}
-
-.pill[data-tone='positive-neutral'] {
-  background: var(--color-surface-lighter);
-  border-color: var(--color-text);
-  color: var(--color-text);
-}
-
-.pill[data-tone='negative-neutral'] {
-  background: var(--color-surface);
-  border-color: var(--color-gray-800);
-  color: var(--color-text);
-}
-
-.pill[data-tone='unknown'] {
-  background: transparent;
-  border-style: dotted;
-  color: var(--color-gray-800);
-}
-
-.pill[data-tone='warning'] {
-  background: var(--color-warning);
-  border-color: var(--color-warning-dark);
-  color: var(--color-text);
-}
-
-.pill[data-tone='error'] {
-  background: var(--color-error);
-  border-color: var(--color-error-dark);
-  color: var(--color-text);
-}
-
-.pill[data-tone='invalid'] {
-  background: var(--color-invalid);
-  border-color: var(--color-invalid-dark);
-  color: var(--color-text);
 }

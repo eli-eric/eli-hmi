@@ -14,10 +14,12 @@ export default function NoAccessPage() {
         <div className={styles.header}>
           <h1>Access Restricted</h1>
           <p className={styles.message}>
-            You do not have access to any pages in the current zone configuration.
+            You do not have access to any pages in the current zone
+            configuration.
           </p>
           <p className={styles.subtitle}>
-            Please contact your system administrator if you believe this is an error.
+            Please contact your system administrator if you believe this is an
+            error.
           </p>
         </div>
         <button onClick={handleSignOut} className={styles.signOutButton}>

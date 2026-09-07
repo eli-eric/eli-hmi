@@ -73,9 +73,9 @@ describe('ModboxSection', () => {
     expect(screen.getAllByText('std-100ps').length).toBeGreaterThan(0)
     // Modbox state is a plain readout, not pass/fail — no ok/error tone on
     // the summary pill even with a mix of 1s and 0s.
-    expect(screen.getByText('2/3').closest('.modboxStatePill')).not.toHaveAttribute(
-      'data-tone',
-    )
+    expect(
+      screen.getByText('2/3').closest('.modboxStatePill'),
+    ).not.toHaveAttribute('data-tone')
   })
 
   it('exposes Modbox ON / Modbox OFF behind a cog toggle', async () => {
@@ -89,9 +89,7 @@ describe('ModboxSection', () => {
       screen.queryByRole('button', { name: 'Set Modbox ON' }),
     ).not.toBeInTheDocument()
 
-    await user.click(
-      screen.getByRole('button', { name: 'Modbox actions' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Modbox actions' }))
 
     expect(
       screen.getByRole('button', { name: 'Set Modbox ON' }),
@@ -122,13 +120,19 @@ describe('ModboxSection', () => {
     expect(screen.getByText('Modbox 1')).toBeInTheDocument()
     expect(screen.getByText('Modbox 2')).toBeInTheDocument()
     expect(screen.getByText('Modbox 3')).toBeInTheDocument()
-    // Per-channel entries show the raw value with a neutral (not ok/err) tone.
+    // Per-channel entries show the raw value with no tone at all.
     expect(
-      screen.getByText('Modbox 1').closest('li')?.querySelector('[data-state]'),
-    ).toHaveAttribute('data-state', 'neutral')
+      screen
+        .getByText('Modbox 1')
+        .closest('li')
+        ?.querySelector('[data-tone-surface]'),
+    ).not.toHaveAttribute('data-tone')
     expect(
-      screen.getByText('Modbox 2').closest('li')?.querySelector('[data-state]'),
-    ).toHaveAttribute('data-state', 'neutral')
+      screen
+        .getByText('Modbox 2')
+        .closest('li')
+        ?.querySelector('[data-tone-surface]'),
+    ).not.toHaveAttribute('data-tone')
   })
 
   it('overrides a channel colour with EPICS severity, regardless of the raw value', async () => {
@@ -146,12 +150,14 @@ describe('ModboxSection', () => {
       screen.getByRole('button', { name: 'Toggle Modbox state detail' }),
     )
 
+    // The alarm tones the row; the reading itself is still shown, because a
+    // MAJOR alarm means "this value is bad", not "this value is unknown".
     const modbox1 = screen.getByText('Modbox 1').closest('li')
-    expect(modbox1?.querySelector('[data-state]')).toHaveAttribute(
-      'data-state',
-      'err',
+    expect(modbox1?.querySelector('[data-tone]')).toHaveAttribute(
+      'data-tone',
+      'error',
     )
-    expect(modbox1).toHaveTextContent('ERR')
+    expect(modbox1).toHaveTextContent('1')
   })
 
   it('colours the summary pill by the worst channel severity, not the raw bits', async () => {
@@ -220,9 +226,7 @@ describe('ModboxSection', () => {
     await user.click(waveformAction)
 
     expect(screen.getByRole('combobox')).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'CONFIRM' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'CONFIRM' })).toBeInTheDocument()
   })
 
   it('collapses "Set Waveform to…" when Modbox Actions is closed and reopened', async () => {
@@ -237,9 +241,7 @@ describe('ModboxSection', () => {
     })
 
     await user.click(actionsToggle)
-    await user.click(
-      screen.getByRole('button', { name: 'Set Waveform to…' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Set Waveform to…' }))
     expect(screen.getByRole('combobox')).toBeInTheDocument()
 
     await user.click(actionsToggle)
@@ -281,10 +283,20 @@ describe('ModboxSection', () => {
       ws.push('SI_NL2_LATEST_WAVEFORM', 'narrow-50ps')
     })
 
-    expect(screen.getByText('MBC1')).toBeInTheDocument()
-    expect(screen.getByText('MBC2')).toBeInTheDocument()
-    expect(screen.getByText('12.34')).toBeInTheDocument()
-    expect(screen.getByText('56.78')).toBeInTheDocument()
+    // The bias readouts live on their own row, labelled beside each value.
+    const biasRow = screen.getByText('Bias Value').parentElement
+    expect(biasRow).toHaveTextContent('MBC1')
+    expect(biasRow).toHaveTextContent('12.34')
+    expect(biasRow).toHaveTextContent('MBC2')
+    expect(biasRow).toHaveTextContent('56.78')
+
+    // The Modbox State row carries the aggregate and nothing else — no BOOL
+    // label, no bias values crowded in beside it.
+    const stateRow = screen.getByText('Modbox State').parentElement
+    expect(stateRow).not.toHaveTextContent('BOOL')
+    expect(stateRow).not.toHaveTextContent('12.34')
+    // No modbox channel reported in this test, hence 0/3.
+    expect(stateRow).toHaveTextContent('0/3')
     expect(screen.getByText('Waveform Latest')).toBeInTheDocument()
     expect(screen.getAllByText('narrow-50ps').length).toBeGreaterThan(0)
   })

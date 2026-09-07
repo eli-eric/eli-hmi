@@ -5,10 +5,7 @@ import { SectionCard } from '@/components/hmi/controls/SectionCard'
 import { DataRow } from '@/components/hmi/controls/DataRow'
 import { CogToggle } from '@/components/hmi/controls/CogToggle'
 import { ActionButton } from '@/components/hmi/controls/ActionButton'
-import {
-  BoolPill,
-  FloatValue,
-} from '@/components/hmi/controls/Values'
+import { BoolPill, FloatValue } from '@/components/hmi/controls/Values'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import type {
   CommandPvResolver,
@@ -26,6 +23,8 @@ interface GeneralSectionProps {
   fullPowerPv: string
   shutterPv: string
   phdMeanPv: string
+  /** Configured unit for the PHD readout (wins over PV metadata). */
+  phdMeanUnits?: string
   /** MSS sub-indicators: display label + PV (counted in the Overview). */
   mss: readonly LabeledPv[]
   /** Module-error indicators: label + PV. */
@@ -44,6 +43,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
   fullPowerPv,
   shutterPv,
   phdMeanPv,
+  phdMeanUnits,
   mss,
   moduleErrors,
   commands,
@@ -53,10 +53,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
     ['START_LASER', 'STOP_LASER', 'ALIGNMENT_MODE', 'SYSTEM_STANDBY'] as const
   ).some(can)
 
-  const readPvs = useMemo(
-    () => [shutterPv, phdMeanPv],
-    [shutterPv, phdMeanPv],
-  )
+  const readPvs = useMemo(() => [shutterPv, phdMeanPv], [shutterPv, phdMeanPv])
   const { state } = useWebSocketData<number | null>({ pvs: readPvs, raw: true })
 
   return (
@@ -76,8 +73,6 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
             data={state[shutterPv]}
             onLabel="is OPEN"
             offLabel="is CLOSED"
-            onTone="negative-neutral"
-            offTone="positive-neutral"
           />
         }
         action={
@@ -100,17 +95,20 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
 
       <DataRow
         label="PHD1K000:49/Mean"
-        value={<FloatValue data={state[phdMeanPv]} precision={3} />}
+        value={
+          <FloatValue
+            data={state[phdMeanPv]}
+            precision={3}
+            units={phdMeanUnits}
+          />
+        }
       />
 
       {hasGeneralActions && (
         <div className={styles.actionRow}>
           <CogToggle ariaLabel="General Actions" inlineLabel="General Actions">
             {can('START_LASER') && (
-              <ActionButton
-                label="Start Laser"
-                pvName={cmdPv('START_LASER')}
-              />
+              <ActionButton label="Start Laser" pvName={cmdPv('START_LASER')} />
             )}
             {can('STOP_LASER') && (
               <ActionButton

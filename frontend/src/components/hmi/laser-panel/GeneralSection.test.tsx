@@ -56,9 +56,7 @@ function renderGeneral(commands?: readonly LaserCommand[]) {
 
 async function setup() {
   const ws = renderGeneral()
-  await waitFor(() =>
-    expect(ws.subscriptions.get('BI_NL2_CONN')?.size).toBe(1),
-  )
+  await waitFor(() => expect(ws.subscriptions.get('BI_NL2_CONN')?.size).toBe(1))
   return ws
 }
 
@@ -122,9 +120,7 @@ describe('GeneralSection', () => {
       screen.queryByRole('button', { name: 'Start Laser' }),
     ).not.toBeInTheDocument()
 
-    await user.click(
-      screen.getByRole('button', { name: 'General Actions' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'General Actions' }))
 
     expect(
       screen.getByRole('button', { name: 'Start Laser' }),
@@ -147,9 +143,7 @@ describe('GeneralSection', () => {
       screen.queryByRole('button', { name: 'Open Shutter' }),
     ).not.toBeInTheDocument()
 
-    await user.click(
-      screen.getByRole('button', { name: 'Shutter actions' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Shutter actions' }))
 
     expect(
       screen.getByRole('button', { name: 'Open Shutter' }),
@@ -169,9 +163,7 @@ describe('GeneralSection', () => {
     const user = userEvent.setup()
     expect(screen.queryByText('MSS 1')).not.toBeInTheDocument()
 
-    await user.click(
-      screen.getByRole('button', { name: 'Toggle MSS detail' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
 
     expect(screen.getByText('MSS 1')).toBeInTheDocument()
     expect(screen.getByText('MSS 2')).toBeInTheDocument()
@@ -207,14 +199,12 @@ describe('GeneralSection', () => {
     await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
     const mss1 = screen.getByText('MSS 1').closest('li')
     const mss2 = screen.getByText('MSS 2').closest('li')
-    expect(mss1?.querySelector('[data-state]')).toHaveAttribute(
-      'data-state',
-      'neutral',
+    expect(mss1?.querySelector('[data-tone-surface]')).not.toHaveAttribute(
+      'data-tone',
     )
     expect(mss1).toHaveTextContent('1')
-    expect(mss2?.querySelector('[data-state]')).toHaveAttribute(
-      'data-state',
-      'neutral',
+    expect(mss2?.querySelector('[data-tone-surface]')).not.toHaveAttribute(
+      'data-tone',
     )
     expect(mss2).toHaveTextContent('0')
 
@@ -223,14 +213,12 @@ describe('GeneralSection', () => {
     )
     const regen = screen.getByText('REGEN').closest('li')
     const chiller = screen.getByText('CHILLER_11').closest('li')
-    expect(regen?.querySelector('[data-state]')).toHaveAttribute(
-      'data-state',
-      'neutral',
+    expect(regen?.querySelector('[data-tone-surface]')).not.toHaveAttribute(
+      'data-tone',
     )
     expect(regen).toHaveTextContent('0000')
-    expect(chiller?.querySelector('[data-state]')).toHaveAttribute(
-      'data-state',
-      'neutral',
+    expect(chiller?.querySelector('[data-tone-surface]')).not.toHaveAttribute(
+      'data-tone',
     )
     expect(chiller).toHaveTextContent('1000')
   })
@@ -260,7 +248,7 @@ describe('GeneralSection', () => {
     const mssPill = screen
       .getByRole('button', { name: 'Toggle MSS detail' })
       .querySelector('[data-tone]')
-    expect(mssPill).toHaveAttribute('data-tone', 'negative-important')
+    expect(mssPill).toHaveAttribute('data-tone', 'error')
     expect(mssPill).toHaveTextContent('NO')
 
     const errPill = screen
@@ -273,18 +261,19 @@ describe('GeneralSection', () => {
 
     await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
     const mss1 = screen.getByText('MSS 1').closest('li')
-    expect(mss1?.querySelector('[data-state]')).toHaveAttribute(
-      'data-state',
-      'err',
+    expect(mss1?.querySelector('[data-tone]')).toHaveAttribute(
+      'data-tone',
+      'error',
     )
-    expect(mss1).toHaveTextContent('ERR')
+    // The alarm colours the row; the reading it alarms about is still shown.
+    expect(mss1).toHaveTextContent('1')
 
     await user.click(
       screen.getByRole('button', { name: 'Toggle module errors detail' }),
     )
     const regen = screen.getByText('REGEN').closest('li')
-    expect(regen?.querySelector('[data-state]')).toHaveAttribute(
-      'data-state',
+    expect(regen?.querySelector('[data-tone]')).toHaveAttribute(
+      'data-tone',
       'invalid',
     )
     // The raw "0000" code is suppressed in favour of the PV DSC label —
@@ -376,18 +365,13 @@ describe('GeneralSection', () => {
 
   it('closes the cog panel automatically after a successful action', async () => {
     globalThis.fetch = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
     ) as unknown as typeof fetch
     await setup()
     const user = userEvent.setup()
 
-    await user.click(
-      screen.getByRole('button', { name: 'General Actions' }),
-    )
-    await user.click(
-      screen.getByRole('button', { name: 'Start Laser' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'General Actions' }))
+    await user.click(screen.getByRole('button', { name: 'Start Laser' }))
 
     await waitFor(() =>
       expect(

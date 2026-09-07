@@ -9,14 +9,47 @@ export const INVALID_TEXT = 'PV INV'
 export const DISCONNECTED_TEXT = 'PV DSC'
 
 /**
- * Paint hook a widget puts on its `data-tone` / `data-state` attribute.
+ * Paint hook a widget puts on its `data-tone` attribute.
  * `undefined` means "no style change" (EPICS severity 0).
  */
 export type SeverityPaint = Exclude<SeverityTone, 'none'>
 
+/**
+ * Emphasis a widget may ask for when the control system reports nothing
+ * unusual — "this particular value is worth noticing". Only
+ * `positive-important` is in use today (CONN / FULLP / MSS / ERR when good);
+ * the other three are defined in the tone layer and reserved.
+ *
+ * Emphasis NEVER survives a non-zero severity: an alarmed PV is painted by its
+ * alarm, so a green "all good" fill can't sit on top of a MAJOR reading.
+ */
+export type ValueEmphasis =
+  | 'positive-important'
+  | 'negative-important'
+  | 'positive-neutral'
+  | 'negative-neutral'
+
+/** Every tone the layer in `globals.css` knows how to paint. */
+export type Tone = SeverityPaint | ValueEmphasis
+
+export interface PresentationOptions {
+  /** Widget-chosen emphasis, applied only at severity 0. */
+  emphasis?: ValueEmphasis
+  /**
+   * Transport state (`isConnected` from `useWebSocketData`). When the backend
+   * link is down, no PV is updating any more: whatever is on screen is a stale
+   * snapshot, so every readout greys out instead of continuing to look live.
+   */
+  isConnected?: boolean
+}
+
+/** Tooltip shown while the backend link is down. */
+export const TRANSPORT_DOWN_TITLE =
+  'Backend disconnected — this is the last value received, not a live reading.'
+
 export interface SeverityPresentation {
   /** Tone to paint with, or `undefined` to leave the widget unstyled. */
-  tone?: SeverityPaint
+  tone?: Tone
   /**
    * Text that REPLACES whatever the widget would otherwise show. `undefined`
    * means "keep the widget's own value text" — used for severities where the
@@ -101,11 +134,54 @@ function invalidTitle(msg: Message<unknown>): string {
   return parts.join(' ')
 }
 
-/** Presentation for a single PV's latest message. */
-export function severityPresentation(msg: AnyMsg): SeverityPresentation {
-  const base = PRESENTATION[severityTone(msg)]
+/**
+ * The backend link is down, so nothing on screen is live. Grey everything out,
+ * but keep showing the last value (`text` stays undefined = "use the widget's
+ * own text") rather than blanking it — during a gateway restart the operator
+ * still wants to see what the machine was doing a moment ago. Only a readout
+ * that never received anything falls back to `<>`.
+ */
+function transportDown(msg: AnyMsg): SeverityPresentation {
+  return {
+    tone: 'unknown',
+    text: msg ? undefined : UNKNOWN_TEXT,
+    title: TRANSPORT_DOWN_TITLE,
+  }
+}
+
+/**
+ * Presentation for a single PV's latest message.
+ *
+ * Precedence, highest first: transport loss > EPICS severity > widget
+ * emphasis. That ordering is the whole point of routing every readout through
+ * here — a widget cannot paint over an alarm, and an alarm cannot look live
+ * once the link that delivered it is gone.
+ */
+export function severityPresentation(
+  msg: AnyMsg,
+  opts?: PresentationOptions,
+): SeverityPresentation {
+  if (opts?.isConnected === false) return transportDown(msg)
+  const tone = severityTone(msg)
+  if (tone === 'none') return opts?.emphasis ? { tone: opts.emphasis } : {}
+  const base = PRESENTATION[tone]
   if (base.tone !== 'invalid' || !msg) return base
   return { ...base, text: invalidText(msg), title: invalidTitle(msg) }
+}
+
+/**
+ * A message that arrived intact but whose payload cannot be displayed as the
+ * value it claims to be — a string where a number was expected, or a
+ * non-finite number (NaN / ±Infinity).
+ *
+ * This is the same class of problem as INVALID severity ("the reading cannot
+ * be trusted"), so it wears the same tone rather than inventing a private
+ * "broken" look, and the reason goes in the tooltip.
+ */
+export function unreadableValuePresentation(
+  reason: string,
+): SeverityPresentation {
+  return { tone: 'invalid', text: INVALID_TEXT, title: reason }
 }
 
 /**
@@ -115,8 +191,14 @@ export function severityPresentation(msg: AnyMsg): SeverityPresentation {
  */
 export function aggregateSeverityPresentation(
   msgs: readonly AnyMsg[],
+  opts?: PresentationOptions,
 ): SeverityPresentation {
-  const base = PRESENTATION[worstSeverityTone(msgs.map(severityTone))]
+  if (opts?.isConnected === false) {
+    return transportDown(msgs.find((m) => !!m))
+  }
+  const worst = worstSeverityTone(msgs.map(severityTone))
+  if (worst === 'none') return opts?.emphasis ? { tone: opts.emphasis } : {}
+  const base = PRESENTATION[worst]
   if (base.tone !== 'invalid') return base
   const offenders = msgs.filter(
     (m): m is Message<unknown> => !!m && severityTone(m) === 'invalid',

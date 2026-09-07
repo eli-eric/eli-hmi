@@ -1,10 +1,7 @@
 import { FC, useEffect, useMemo } from 'react'
 
 import { PolygonIcon } from '@/components/ui/icons'
-import {
-  State,
-  useWebSocketData,
-} from '@/lib/websocket/use-websocket-data'
+import { State, useWebSocketData } from '@/lib/websocket/use-websocket-data'
 
 import styles from '../styles/valve.module.css'
 

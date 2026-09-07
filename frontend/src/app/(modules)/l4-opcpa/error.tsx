@@ -15,9 +15,8 @@ export default function L4OpcpaError({ error }: { error: Error }) {
     <div className={styles.container}>
       <h2>L4 OPCPA configuration error</h2>
       <p>
-        The page could not load its configuration. Check the server logs for
-        the exact reason (zone file, laser config reference, or validation
-        error).
+        The page could not load its configuration. Check the server logs for the
+        exact reason (zone file, laser config reference, or validation error).
       </p>
       {process.env.NODE_ENV !== 'production' && (
         <pre className={styles.detail}>{error.message}</pre>

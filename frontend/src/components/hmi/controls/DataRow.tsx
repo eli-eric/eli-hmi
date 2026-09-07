@@ -26,12 +26,20 @@ export const DataRow: FC<DataRowProps> = ({
   action,
   valueVariant = 'boxed',
 }) => {
-  const valueClass =
-    valueVariant === 'bare' ? `${styles.value} ${styles.valueBare}` : styles.value
+  const bare = valueVariant === 'bare'
+  const valueClass = bare ? `${styles.value} ${styles.valueBare}` : styles.value
   return (
     <div className={styles.row} data-has-action={action ? 'true' : 'false'}>
       <span className={styles.label}>{label}</span>
-      <span className={valueClass}>{value}</span>
+      {/* The boxed cell is the tone surface: a toned value inside it paints
+          the whole cell. The bare variant declares none, because there the
+          child (a BoolPill, say) is its own chip and paints itself. */}
+      <span
+        className={valueClass}
+        data-tone-surface={bare ? undefined : 'cell'}
+      >
+        {value}
+      </span>
       {action ? <span className={styles.action}>{action}</span> : null}
     </div>
   )

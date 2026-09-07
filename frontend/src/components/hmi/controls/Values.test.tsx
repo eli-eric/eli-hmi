@@ -60,6 +60,77 @@ describe('FloatValue', () => {
   })
 })
 
+describe('units', () => {
+  it('shows nothing when no source supplies a unit', () => {
+    render(<FloatValue data={msg({ value: 1.5 })} />)
+    expect(screen.getByText('1.500')).toBeInTheDocument()
+    expect(screen.queryByText('°C')).not.toBeInTheDocument()
+  })
+
+  it('shows the component fallback when config and metadata are silent', () => {
+    render(<FloatValue data={msg({ value: 1.5 })} unitsFallback="°C" />)
+    expect(screen.getByText('°C')).toBeInTheDocument()
+  })
+
+  it('prefers PV metadata over the component fallback', () => {
+    render(
+      <FloatValue data={msg({ value: 1.5, units: 'K' })} unitsFallback="°C" />,
+    )
+    expect(screen.getByText('K')).toBeInTheDocument()
+    expect(screen.queryByText('°C')).not.toBeInTheDocument()
+  })
+
+  it('lets the config unit win over both', () => {
+    render(
+      <FloatValue
+        data={msg({ value: 1.5, units: 'K' })}
+        units="mbar"
+        unitsFallback="°C"
+      />,
+    )
+    expect(screen.getByText('mbar')).toBeInTheDocument()
+    expect(screen.queryByText('K')).not.toBeInTheDocument()
+  })
+
+  it('hides the unit when severity replaced the value', () => {
+    render(<FloatValue data={msg({ value: 1.5, ok: false })} units="°C" />)
+    expect(screen.getByText('PV DSC')).toBeInTheDocument()
+    expect(screen.queryByText('°C')).not.toBeInTheDocument()
+  })
+
+  it('hides the unit when no message has arrived yet', () => {
+    render(<FloatValue data={undefined} units="°C" />)
+    expect(screen.getByText('<>')).toBeInTheDocument()
+    expect(screen.queryByText('°C')).not.toBeInTheDocument()
+  })
+
+  it('shows units on IntegerValue too', () => {
+    render(<IntegerValue data={msg({ value: 1024 })} units="counts" />)
+    expect(screen.getByText('1024')).toBeInTheDocument()
+    expect(screen.getByText('counts')).toBeInTheDocument()
+  })
+})
+
+it('reads a broken payload as invalid, not as missing data', () => {
+  // These used to be the chiller cells' private TYPE / FAULT states. A
+  // number that is not a number is an untrustworthy reading, which is what
+  // 'invalid' already means — and `<>` would wrongly claim the PV had simply
+  // not reported yet.
+  const { rerender } = render(
+    <FloatValue data={msg({ value: 'hot' as unknown as number })} />,
+  )
+  expect(screen.getByText('PV INV')).toHaveAttribute('data-tone', 'invalid')
+  expect(screen.getByText('PV INV').title).toContain('expected a number')
+
+  rerender(<FloatValue data={msg({ value: Number.NaN })} />)
+  expect(screen.getByText('PV INV')).toHaveAttribute('data-tone', 'invalid')
+  expect(screen.getByText('PV INV').title).toContain('non-finite')
+})
+
+it('lets a reported severity outrank our own read of the payload', () => {
+  render(<FloatValue data={msg({ value: Number.NaN, ok: false })} />)
+  expect(screen.getByText('PV DSC')).toHaveAttribute('data-tone', 'invalid')
+})
 describe('IntegerValue', () => {
   it('applies severity tone to the rounded value', () => {
     render(<IntegerValue data={msg({ value: 4.7, severity: 2 })} />)
@@ -78,9 +149,33 @@ describe('StringValue', () => {
 })
 
 describe('BoolPill', () => {
-  it('renders the normal on/off tone with no severity', () => {
-    render(
-      <BoolPill data={msg({ value: 1 })} onLabel="is OPEN" offLabel="is CLOSED" />,
+  it('is neutral in both states unless the caller asks for emphasis', () => {
+    const { rerender } = render(
+      <BoolPill
+        data={msg({ value: 1 })}
+        onLabel="is OPEN"
+        offLabel="is CLOSED"
+      />,
+    )
+    expect(screen.getByText('is OPEN')).not.toHaveAttribute('data-tone')
+
+    rerender(
+      <BoolPill
+        data={msg({ value: 0 })}
+        onLabel="is OPEN"
+        offLabel="is CLOSED"
+        onEmphasis="positive-important"
+      />,
+    )
+    expect(screen.getByText('is CLOSED')).not.toHaveAttribute('data-tone')
+
+    rerender(
+      <BoolPill
+        data={msg({ value: 1 })}
+        onLabel="is OPEN"
+        offLabel="is CLOSED"
+        onEmphasis="positive-important"
+      />,
     )
     expect(screen.getByText('is OPEN')).toHaveAttribute(
       'data-tone',
@@ -88,7 +183,7 @@ describe('BoolPill', () => {
     )
   })
 
-  it('overrides the on/off tone with EPICS severity, keeping the on/off label', () => {
+  it('overrides emphasis with EPICS severity, keeping the on/off label', () => {
     render(
       <BoolPill
         data={msg({ value: 1, severity: 2 })}
@@ -118,12 +213,12 @@ describe('BoolPill', () => {
         data={msg({ value: 1, severity: 2 })}
         onLabel="is OPEN"
         offLabel="is CLOSED"
+        onEmphasis="positive-important"
         respectSeverity={false}
       />,
     )
-    expect(screen.getByText('is OPEN')).toHaveAttribute(
-      'data-tone',
-      'positive-important',
-    )
+    // No tone at all: opting out of severity opts out of the whole shared
+    // decision, emphasis included.
+    expect(screen.getByText('is OPEN')).not.toHaveAttribute('data-tone')
   })
 })

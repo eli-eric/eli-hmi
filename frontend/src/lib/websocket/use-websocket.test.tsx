@@ -93,6 +93,42 @@ describe('useWebSocket', () => {
     )
   })
 
+  it('sends the requested datatype and splits the batch by it', async () => {
+    const { result } = renderHook(() => useWebSocket())
+    await waitFor(() => expect(result.current.isConnected).toBe(true))
+
+    act(() => {
+      // Enum records need their state name; the analog PV must stay native.
+      result.current.subscribe('SI_STATE_A', () => undefined, {
+        datatype: 'enum_string',
+      })
+      result.current.subscribe('SI_STATE_B', () => undefined, {
+        datatype: 'enum_string',
+      })
+      result.current.subscribe('AI_DELAY', () => undefined)
+    })
+
+    await server.waitForSubscribe('AI_DELAY')
+    const subs = server
+      .getSent()
+      .filter(
+        (m): m is { type: string; pvs: string[]; datatype?: string } =>
+          typeof m === 'object' &&
+          m !== null &&
+          (m as { type?: unknown }).type === 'subscribe',
+      )
+
+    // One `subscribe` carries one datatype, so this must be two messages.
+    expect(subs).toHaveLength(2)
+    const enumSub = subs.find((m) => m.datatype === 'enum_string')
+    const nativeSub = subs.find((m) => m.datatype === undefined)
+    expect(enumSub?.pvs).toEqual(
+      expect.arrayContaining(['SI_STATE_A', 'SI_STATE_B']),
+    )
+    expect(enumSub?.pvs).not.toContain('AI_DELAY')
+    expect(nativeSub?.pvs).toEqual(['AI_DELAY'])
+  })
+
   it('delivers server-pushed Messages to subscribers', async () => {
     const { result } = renderHook(() => useWebSocket())
     await waitFor(() => expect(result.current.isConnected).toBe(true))

@@ -39,111 +39,162 @@ const chillerSchema = z.strictObject({
   level: pvName.describe('Water-level readout PV.'),
 })
 
-export const rawLaserSchema = z.strictObject({
-  id: label.describe(
-    'Laser id, e.g. NL2. Panel title; also the <LASER> in command PVs (CMD_<id>_<NAME>).',
-  ),
-  pvs: z
-    .strictObject({
-      connection: pvName.describe('Connection bool (Overview CONN).'),
-      fullPower: pvName.describe('At-full-power bool (Overview FULLP).'),
-      shutter: pvName.describe('Shutter position bool (read + direct write).'),
-      phdMean: pvName.describe('PHD mean intensity readout.'),
-      regenState: pvName.describe('Regen status string.'),
-      regenTemp: pvName.describe('Regen temperature readout.'),
-      phd2Mean: pvName.describe('Second PHD mean readout.'),
-      attenuator: pvName.describe('Attenuator value (read + direct write).'),
-      loadedWaveform: pvName.describe('Current waveform preset.'),
-      latestWaveform: pvName
-        .optional()
-        .describe('Previous waveform name shown in Waveform Latest after a new preset is applied.'),
-      modboxMbc1: pvName
-        .optional()
-        .describe('Modbox MBC1 readout (Modbox State row).'),
-      modboxMbc2: pvName
-        .optional()
-        .describe('Modbox MBC2 readout (Modbox State row).'),
-      sequencerRunning: pvName
-        .optional()
-        .describe('Sequencer running bool (Sequencer row: 1=RUNNING, 0=IDLE).'),
-    })
-    .describe('Single-signal read/write PVs.'),
-  triggerDelay: z
-    .array(pvName)
-    .min(1)
-    .describe('Trigger-delay readout PVs; all should read equal (mismatch flagged).'),
-  mss: z
-    .array(labeledPv)
-    .describe('MSS sub-indicators (label + PV) counted in the General overview.'),
-  moduleErrors: z
-    .array(labeledPv)
-    .describe('Module-error indicators (label + PV) counted in the Overview.'),
-  chillers: z
-    .array(chillerSchema)
-    .describe('Chillers. Empty array hides the Chillers section.'),
-  flashlamps: z
-    .array(labeledPv)
-    .describe('Flashlamp channels (label + PV). Empty array hides the Flashlamps section.'),
-  modbox: z
-    .array(labeledPv)
-    .describe('Modbox state indicators (label + PV). Empty array hides the Modbox section.'),
-  delayPresets: z
-    .array(z.number().int())
-    .describe('Trigger-delay preset values (ns) offered by the Set Trigger Delay control.'),
-  commands: z
-    .partialRecord(z.enum(LASER_COMMANDS), pvName)
-    .describe(
-      'Commands this laser exposes, as a map SYMBOL: <write PV>. Keys come from the closed LASER_COMMANDS vocabulary; a missing key hides the button. The value is the PV the write goes to; a placeholder value equal to the key means "no real PV yet" and falls back to CMD_<laser>_<SYMBOL>.',
+/**
+ * Engineering units for the numeric readouts, keyed by the signal each one
+ * annotates (the `pvs.*` key, the top-level field, or the chiller quantity).
+ * Every key is optional: a missing one falls back to the PV's own metadata and
+ * then to the component's default (see `lib/websocket/units.ts`). Booleans,
+ * status strings and bit indicators take no unit, so they have no key here.
+ */
+const unitsSchema = z
+  .strictObject({
+    phdMean: label.optional(),
+    phd2Mean: label.optional(),
+    regenTemp: label.optional(),
+    attenuator: label.optional(),
+    modboxMbc1: label.optional(),
+    modboxMbc2: label.optional(),
+    triggerDelay: label.optional(),
+    chillerFlow: label.optional(),
+    chillerTemp: label.optional(),
+    chillerLevel: label.optional(),
+  })
+  .describe(
+    'Engineering units per numeric signal. Set once at the top level and/or override per laser; the config value wins over the PV metadata and the component default.',
+  )
+
+export const rawLaserSchema = z
+  .strictObject({
+    id: label.describe(
+      'Laser id, e.g. NL2. Panel title; also the <LASER> in command PVs (CMD_<id>_<NAME>).',
     ),
-}).superRefine((laser, ctx) => {
-  // Command values: either the placeholder (== key) or something that looks
-  // like a real EPICS PV (contains ':'). Anything else is almost certainly a
-  // typo (e.g. `ALIGNMENT_MODE: SetAlignmentMode`) that would otherwise be
-  // written verbatim and fail only at runtime.
-  for (const [command, target] of Object.entries(laser.commands)) {
-    if (target !== command && !target.includes(':')) {
+    pvs: z
+      .strictObject({
+        connection: pvName.describe('Connection bool (Overview CONN).'),
+        fullPower: pvName.describe('At-full-power bool (Overview FULLP).'),
+        shutter: pvName.describe(
+          'Shutter position bool (read + direct write).',
+        ),
+        phdMean: pvName.describe('PHD mean intensity readout.'),
+        regenState: pvName.describe('Regen status string.'),
+        regenTemp: pvName.describe('Regen temperature readout.'),
+        phd2Mean: pvName.describe('Second PHD mean readout.'),
+        attenuator: pvName.describe('Attenuator value (read + direct write).'),
+        loadedWaveform: pvName.describe('Current waveform preset.'),
+        latestWaveform: pvName
+          .optional()
+          .describe(
+            'Previous waveform name shown in Waveform Latest after a new preset is applied.',
+          ),
+        modboxMbc1: pvName
+          .optional()
+          .describe('Modbox MBC1 bias readout (Bias Value row).'),
+        modboxMbc2: pvName
+          .optional()
+          .describe('Modbox MBC2 bias readout (Bias Value row).'),
+        sequencerRunning: pvName
+          .optional()
+          .describe(
+            'Sequencer running bool (Sequencer row: 1=RUNNING, 0=IDLE).',
+          ),
+      })
+      .describe('Single-signal read/write PVs.'),
+    triggerDelay: z
+      .array(pvName)
+      .min(1)
+      .describe(
+        'Trigger-delay readout PVs; all should read equal (mismatch flagged).',
+      ),
+    mss: z
+      .array(labeledPv)
+      .describe(
+        'MSS sub-indicators (label + PV) counted in the General overview.',
+      ),
+    moduleErrors: z
+      .array(labeledPv)
+      .describe(
+        'Module-error indicators (label + PV) counted in the Overview.',
+      ),
+    chillers: z
+      .array(chillerSchema)
+      .describe('Chillers. Empty array hides the Chillers section.'),
+    flashlamps: z
+      .array(labeledPv)
+      .describe(
+        'Flashlamp channels (label + PV). Empty array hides the Flashlamps section.',
+      ),
+    modbox: z
+      .array(labeledPv)
+      .describe(
+        'Modbox state indicators (label + PV). Empty array hides the Modbox section.',
+      ),
+    delayPresets: z
+      .array(z.number().int())
+      .describe(
+        'Trigger-delay preset values (ns) offered by the Set Trigger Delay control.',
+      ),
+    units: unitsSchema
+      .optional()
+      .describe('Per-laser unit overrides, merged over the top-level `units`.'),
+    commands: z
+      .partialRecord(z.enum(LASER_COMMANDS), pvName)
+      .describe(
+        'Commands this laser exposes, as a map SYMBOL: <write PV>. Keys come from the closed LASER_COMMANDS vocabulary; a missing key hides the button. The value is the PV the write goes to; a placeholder value equal to the key means "no real PV yet" and falls back to CMD_<laser>_<SYMBOL>.',
+      ),
+  })
+  .superRefine((laser, ctx) => {
+    // Command values: either the placeholder (== key) or something that looks
+    // like a real EPICS PV (contains ':'). Anything else is almost certainly a
+    // typo (e.g. `ALIGNMENT_MODE: SetAlignmentMode`) that would otherwise be
+    // written verbatim and fail only at runtime.
+    for (const [command, target] of Object.entries(laser.commands)) {
+      if (target !== command && !target.includes(':')) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `laser ${laser.id}: commands.${command}: "${target}" is neither the placeholder "${command}" nor a full PV name (must contain ':')`,
+          path: ['commands', command],
+        })
+      }
+    }
+  })
+  .superRefine((laser, ctx) => {
+    // Catch the most common edit mistake: two signals pointing at the same PV
+    // (copy a block, forget to change the name). Real PV names are unique per
+    // signal, so a duplicate is almost certainly a typo. This is design-aligned
+    // (does not assume any naming convention) — it cannot catch a *wrong but
+    // unique* name, which only the live system / mock can reveal as `<>`.
+    const all = [
+      ...Object.values(laser.pvs),
+      // Command PV overrides only — placeholders (value == key) are not PVs.
+      ...Object.entries(laser.commands)
+        .filter(([command, target]) => target !== command)
+        .map(([, target]) => target),
+      ...laser.triggerDelay,
+      ...laser.mss.map((m) => m.pv),
+      ...laser.moduleErrors.map((m) => m.pv),
+      ...laser.chillers.flatMap((c) => [c.flow, c.temp, c.level]),
+      ...laser.flashlamps.map((f) => f.pv),
+      ...laser.modbox.map((m) => m.pv),
+    ]
+    const seen = new Set<string>()
+    const dupes = new Set<string>()
+    for (const name of all) {
+      if (seen.has(name)) dupes.add(name)
+      seen.add(name)
+    }
+    if (dupes.size > 0) {
       ctx.addIssue({
         code: 'custom',
-        message: `laser ${laser.id}: commands.${command}: "${target}" is neither the placeholder "${command}" nor a full PV name (must contain ':')`,
-        path: ['commands', command],
+        message: `laser ${laser.id}: duplicate PV name(s) — likely a copy-paste typo: ${[...dupes].join(', ')}`,
       })
     }
-  }
-}).superRefine((laser, ctx) => {
-  // Catch the most common edit mistake: two signals pointing at the same PV
-  // (copy a block, forget to change the name). Real PV names are unique per
-  // signal, so a duplicate is almost certainly a typo. This is design-aligned
-  // (does not assume any naming convention) — it cannot catch a *wrong but
-  // unique* name, which only the live system / mock can reveal as `<>`.
-  const all = [
-    ...Object.values(laser.pvs),
-    // Command PV overrides only — placeholders (value == key) are not PVs.
-    ...Object.entries(laser.commands)
-      .filter(([command, target]) => target !== command)
-      .map(([, target]) => target),
-    ...laser.triggerDelay,
-    ...laser.mss.map((m) => m.pv),
-    ...laser.moduleErrors.map((m) => m.pv),
-    ...laser.chillers.flatMap((c) => [c.flow, c.temp, c.level]),
-    ...laser.flashlamps.map((f) => f.pv),
-    ...laser.modbox.map((m) => m.pv),
-  ]
-  const seen = new Set<string>()
-  const dupes = new Set<string>()
-  for (const name of all) {
-    if (seen.has(name)) dupes.add(name)
-    seen.add(name)
-  }
-  if (dupes.size > 0) {
-    ctx.addIssue({
-      code: 'custom',
-      message: `laser ${laser.id}: duplicate PV name(s) — likely a copy-paste typo: ${[...dupes].join(', ')}`,
-    })
-  }
-})
+  })
 
 export const configSchema = z
   .strictObject({
+    units: unitsSchema
+      .optional()
+      .describe('Module-wide unit defaults for every laser in this file.'),
     lasers: z.array(rawLaserSchema).min(1),
   })
   .superRefine((cfg, ctx) => {
@@ -163,6 +214,9 @@ export const configSchema = z
 export type RawLaserConfig = z.infer<typeof rawLaserSchema>
 export type ChillerSpec = z.infer<typeof chillerSchema>
 export type LabeledPv = z.infer<typeof labeledPv>
+/** Units by signal role; every role optional. */
+export type UnitsConfig = z.infer<typeof unitsSchema>
+export type UnitRole = keyof UnitsConfig
 
 /**
  * Resolved per-laser config consumed by the UI (`id` renamed to `laser`).
@@ -171,10 +225,12 @@ export type LabeledPv = z.infer<typeof labeledPv>
  * overrides; placeholder entries are dropped so `makeCommandPv` falls back to
  * `CMD_<laser>_<NAME>` for them).
  */
-export type LaserSpec = Omit<RawLaserConfig, 'id' | 'commands'> & {
+export type LaserSpec = Omit<RawLaserConfig, 'id' | 'commands' | 'units'> & {
   readonly laser: string
   readonly commands: readonly LaserCommand[]
   readonly commandPvs: Readonly<Partial<Record<LaserCommand, string>>>
+  /** Module-wide units with this laser's overrides merged over them. */
+  readonly units: Readonly<UnitsConfig>
 }
 
 /**
@@ -194,7 +250,8 @@ export function parseLaserSpecs(text: string): LaserSpec[] {
     throw new Error(`lasers.yaml is invalid:\n${z.prettifyError(result.error)}`)
   }
 
-  return result.data.lasers.map(({ id, commands, ...rest }) => {
+  const moduleUnits = result.data.units ?? {}
+  return result.data.lasers.map(({ id, commands, units, ...rest }) => {
     const entries = Object.entries(commands) as [LaserCommand, string][]
     const commandPvs = Object.fromEntries(
       entries.filter(([command, target]) => target !== command),
@@ -204,6 +261,8 @@ export function parseLaserSpecs(text: string): LaserSpec[] {
       ...rest,
       commands: entries.map(([command]) => command),
       commandPvs,
+      // Per-laser overrides win over the module-wide defaults.
+      units: { ...moduleUnits, ...units },
     }
   })
 }

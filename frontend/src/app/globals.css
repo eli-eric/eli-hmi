@@ -126,8 +126,13 @@ a {
 }
 
 html {
-  font-size: clamp(12.5px, 0.5vw + 4.5px, 18px); /* fluid base unit so the fully rem-based UI adapts across phones -> monitors -> TVs. 12.5px floor (readable, and 5 panels fit in one row at 1600px), scaling to 18px on large/4K displays for across-room readability. Panels, gaps, sidebar and text all scale together, so nothing truncates. Browser zoom (Ctrl +/-) still works on top of this. */
-  font-family: 'Roboto Condensed', 'Arial Narrow', 'Roboto', system-ui, sans-serif; /* narrow fallbacks: if Roboto Condensed fails to load, degrade to a condensed-ish font instead of wide sans-serif (which overflows and truncates the fixed-width labels) */
+  font-size: clamp(
+    12.5px,
+    0.5vw + 4.5px,
+    18px
+  ); /* fluid base unit so the fully rem-based UI adapts across phones -> monitors -> TVs. 12.5px floor (readable, and 5 panels fit in one row at 1600px), scaling to 18px on large/4K displays for across-room readability. Panels, gaps, sidebar and text all scale together, so nothing truncates. Browser zoom (Ctrl +/-) still works on top of this. */
+  font-family:
+    'Roboto Condensed', 'Arial Narrow', 'Roboto', system-ui, sans-serif; /* narrow fallbacks: if Roboto Condensed fails to load, degrade to a condensed-ish font instead of wide sans-serif (which overflows and truncates the fixed-width labels) */
   background: var(--color-background);
 }
 
@@ -284,4 +289,120 @@ html {
 }
 .text-info {
   color: var(--color-info);
+}
+
+/* ============================================================================
+ * Tone layer — the single definition of how status colour works.
+ *
+ * Two attributes, nothing else:
+ *   data-tone-surface="chip|cell"  I am the element that paints.
+ *   data-tone="<tone>"             This is the tone to paint with. It may sit
+ *                                  on the surface itself (chips) or on a
+ *                                  descendant (a value inside a cell) — the
+ *                                  surface picks it up either way.
+ *
+ * A tone only sets variables; painting happens once, on the surface. That is
+ * why a toned <span> inside a cell can never paint a chip around its own text
+ * (the bug this layer exists to make impossible).
+ *
+ * Module stylesheets must not define tone rules. They own geometry only —
+ * size, spacing, alignment — and opt into colour by declaring a surface.
+ * `tone-layer.test.ts` fails the build if a module stylesheet defines one.
+ *
+ * Severity always overrides a widget's chosen emphasis; see
+ * `lib/websocket/severity-presentation.ts`, which decides which tone applies.
+ * ========================================================================= */
+
+/* Widget-chosen emphasis. Value tones use the -light shades so they stay
+ * distinguishable from the saturated severity tones below. */
+[data-tone='positive-important'],
+[data-tone-surface]:has([data-tone='positive-important']) {
+  --tone-bg: var(--color-success-light);
+  --tone-border: var(--color-success-dark);
+}
+
+/* Reserved: defined so a widget (or a future palette) can use them without
+ * touching this layer. No widget sets these today. */
+[data-tone='negative-important'],
+[data-tone-surface]:has([data-tone='negative-important']) {
+  --tone-bg: var(--color-error-light);
+  --tone-border: var(--color-error-dark);
+}
+[data-tone='positive-neutral'],
+[data-tone-surface]:has([data-tone='positive-neutral']) {
+  --tone-bg: var(--color-surface-lighter);
+  --tone-border: var(--color-text);
+}
+[data-tone='negative-neutral'],
+[data-tone-surface]:has([data-tone='negative-neutral']) {
+  --tone-bg: var(--color-surface);
+  --tone-border: var(--color-gray-800);
+}
+
+/* EPICS severity. Saturated shades, always filled — a fill means the control
+ * system is reporting something, not that a value is merely notable. */
+[data-tone='warning'],
+[data-tone-surface]:has([data-tone='warning']) {
+  --tone-bg: var(--color-warning);
+  --tone-border: var(--color-warning-dark);
+}
+[data-tone='error'],
+[data-tone-surface]:has([data-tone='error']) {
+  --tone-bg: var(--color-error);
+  --tone-border: var(--color-error-dark);
+}
+[data-tone='invalid'],
+[data-tone-surface]:has([data-tone='invalid']) {
+  --tone-bg: var(--color-invalid);
+  --tone-border: var(--color-invalid-dark);
+}
+
+/* No live data: nothing received yet, or the backend link is down. Dotted so
+ * it reads as "not current" rather than as a status. */
+[data-tone='unknown'],
+[data-tone-surface]:has([data-tone='unknown']) {
+  --tone-bg: transparent;
+  --tone-border: var(--color-gray-800);
+  --tone-border-style: dotted;
+  --tone-ink: var(--color-gray-800);
+}
+
+/* The two neutral defaults, declared once. Every status element is one of
+ * these; a tone above simply overrides the variables they consume. */
+[data-tone-surface] {
+  background: var(--tone-bg, var(--color-surface-lighter));
+  border: 1px solid var(--tone-border, var(--tone-surface-border));
+  border-style: var(--tone-border-style, solid);
+  color: var(--tone-ink, var(--color-text));
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chip — asserts itself. Status rows, pills, count cells, sequencer. */
+[data-tone-surface='chip'] {
+  --tone-surface-border: var(--color-text);
+  font-weight: 700;
+}
+
+/* Cell — recedes into a dense column of rows. Value cells and readouts. */
+[data-tone-surface='cell'] {
+  --tone-surface-border: var(--color-border);
+  font-weight: 700;
+}
+
+/* A surface containing another surface steps aside. This is what stops a
+ * pill inside a value cell from producing a box inside a box: the innermost
+ * surface — the one closest to the text — is the one that paints. */
+[data-tone-surface]:has([data-tone-surface]) {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* Shared chip metrics, so two labels of different length cannot render as
+ * two differently sized boxes (e.g. "PV INV" vs "PV DSC"). */
+[data-tone-surface='chip'][data-tone-chip='status'] {
+  min-width: 4.75rem;
+  padding: 0 0.375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }

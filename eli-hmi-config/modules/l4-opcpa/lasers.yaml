@@ -1,3 +1,13 @@
+# Engineering units for the numeric readouts, applied to every laser below.
+# A laser may override any of these with its own `units:` block. The config
+# value wins over the PV's own EGU metadata and over the component default.
+units:
+  regenTemp: '°C'
+  triggerDelay: ns
+  chillerFlow: l/min
+  chillerTemp: '°C'
+  chillerLevel: '%'
+
 lasers:
   - id: NL2
     pvs:

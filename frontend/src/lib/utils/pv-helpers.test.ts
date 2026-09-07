@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getFormattedValue, getPrefixedPV, PV_PREFIX_CONFIG } from './pv-helpers'
+import {
+  getFormattedValue,
+  getPrefixedPV,
+  PV_PREFIX_CONFIG,
+} from './pv-helpers'
 
 describe('PV_PREFIX_CONFIG declaration order', () => {
   it('CLOSED must precede CLOSE so substring matching does not pick CLOSE for *CLOSED PVs', () => {
@@ -64,8 +68,8 @@ describe('getFormattedValue', () => {
   })
 
   it('formats raw', () => {
-    expect(
-      getFormattedValue({ value: 42, options: { format: 'raw' } }),
-    ).toBe('42')
+    expect(getFormattedValue({ value: 42, options: { format: 'raw' } })).toBe(
+      '42',
+    )
   })
 })

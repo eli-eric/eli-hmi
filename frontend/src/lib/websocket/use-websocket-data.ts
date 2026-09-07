@@ -2,7 +2,11 @@
 
 import { useEffect, useReducer, useRef } from 'react'
 
-import { Message, WebSocketContextValue } from '@/app/providers/types'
+import {
+  Message,
+  SubscribeOptions,
+  WebSocketContextValue,
+} from '@/app/providers/types'
 import { useWebSocketContext } from '@/app/providers/socket-provider'
 import { getPrefixedPV } from '@/lib/utils/pv-helpers'
 import { severityTone } from './severity'
@@ -20,12 +24,20 @@ interface MultiOptions<T> {
    * `PV_PREFIX_CONFIG` key (e.g. "TEMP" → `AI_K_AI_TEMP_<L>_REGEN`).
    */
   raw?: boolean
+  /**
+   * Gateway datatype for these PVs. Enum records need 'enum_string' to arrive
+   * as their state name instead of the numeric index. One hook = one datatype;
+   * mixed groups need separate hooks (see FlashlampsSection).
+   */
+  datatype?: SubscribeOptions['datatype']
 }
 
 interface SingleOptions<T> {
   onUpdate?: (msg: Message<T>) => void
   /** See `MultiOptions.raw`. */
   raw?: boolean
+  /** See `MultiOptions.datatype`. */
+  datatype?: SubscribeOptions['datatype']
 }
 
 interface MultiResult<T> {
@@ -71,6 +83,7 @@ export function useWebSocketData<T = unknown>(
   const onUpdateMulti = isSingle ? undefined : input.onUpdate
   const onUpdateSingle = isSingle ? singleOpts?.onUpdate : undefined
   const raw = isSingle ? !!singleOpts?.raw : !!input.raw
+  const datatype = isSingle ? singleOpts?.datatype : input.datatype
 
   const state = useMultiSubscription<T>(
     ctx,
@@ -78,6 +91,7 @@ export function useWebSocketData<T = unknown>(
     onUpdateMulti,
     onUpdateSingle,
     raw,
+    datatype,
   )
 
   if (isSingle) {
@@ -113,6 +127,7 @@ function useMultiSubscription<T>(
   onUpdateMulti: ((msgs: Message<T>[]) => void) | undefined,
   onUpdateSingle: ((msg: Message<T>) => void) | undefined,
   raw: boolean,
+  datatype: SubscribeOptions['datatype'],
 ): State<T> {
   const { subscribe, isConnected } = ctx
   const [state, dispatch] = useReducer(
@@ -147,26 +162,30 @@ function useMultiSubscription<T>(
     if (!isConnected || pvs.length === 0) return
     const unsubs = pvs.map((logicalPv) => {
       const wireName = raw ? logicalPv : getPrefixedPV(logicalPv)
-      return subscribe<T>(wireName, (msg) => {
-        // Project the wire-format message into logical space so consumers
-        // never see the dev prefix anywhere.
-        const logicalMsg: Message<T> = { ...msg, name: logicalPv }
-        if (severityTone(logicalMsg) === 'invalid') {
-          const remembered = lastValidRef.current.get(logicalPv)
-          if (remembered) logicalMsg.lastValid = remembered
-        } else {
-          lastValidRef.current.set(logicalPv, {
-            value: logicalMsg.value,
-            timestamp: logicalMsg.timestamp,
-          })
-        }
-        // Update the synchronous mirror BEFORE dispatch so multi-PV updates
-        // arriving in the same tick see each other in `onUpdate`'s snapshot.
-        stateRef.current = { ...stateRef.current, [logicalPv]: logicalMsg }
-        dispatch({ type: 'UPDATE', pv: logicalPv, msg: logicalMsg })
-        onUpdateSingleRef.current?.(logicalMsg)
-        onUpdateMultiRef.current?.(Object.values(stateRef.current))
-      })
+      return subscribe<T>(
+        wireName,
+        (msg) => {
+          // Project the wire-format message into logical space so consumers
+          // never see the dev prefix anywhere.
+          const logicalMsg: Message<T> = { ...msg, name: logicalPv }
+          if (severityTone(logicalMsg) === 'invalid') {
+            const remembered = lastValidRef.current.get(logicalPv)
+            if (remembered) logicalMsg.lastValid = remembered
+          } else {
+            lastValidRef.current.set(logicalPv, {
+              value: logicalMsg.value,
+              timestamp: logicalMsg.timestamp,
+            })
+          }
+          // Update the synchronous mirror BEFORE dispatch so multi-PV updates
+          // arriving in the same tick see each other in `onUpdate`'s snapshot.
+          stateRef.current = { ...stateRef.current, [logicalPv]: logicalMsg }
+          dispatch({ type: 'UPDATE', pv: logicalPv, msg: logicalMsg })
+          onUpdateSingleRef.current?.(logicalMsg)
+          onUpdateMultiRef.current?.(Object.values(stateRef.current))
+        },
+        datatype ? { datatype } : undefined,
+      )
     })
     return () => {
       unsubs.forEach((u) => u())
@@ -175,7 +194,7 @@ function useMultiSubscription<T>(
       dispatch({ type: 'RESET' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pvKey, subscribe, isConnected, raw])
+  }, [pvKey, subscribe, isConnected, raw, datatype])
 
   return state
 }

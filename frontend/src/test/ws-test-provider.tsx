@@ -74,7 +74,10 @@ export function makeFakeWebSocketContext(
       }),
   }
 
-  function push<T>(pv: string, arg: T | (Partial<Message<T>> & { value: T | null })): void {
+  function push<T>(
+    pv: string,
+    arg: T | (Partial<Message<T>> & { value: T | null }),
+  ): void {
     const callbacks = subs.get(pv)
     if (!callbacks) return
     const partial =

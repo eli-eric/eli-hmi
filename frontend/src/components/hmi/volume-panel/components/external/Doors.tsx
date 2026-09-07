@@ -76,17 +76,13 @@ export const Doors: FC<DoorsProps> = ({
   doorsPVs,
 }) => {
   const labeled =
-    doorsPVs && doorsPVs.length > 0 && isLabeledList(doorsPVs)
-      ? doorsPVs
-      : null
+    doorsPVs && doorsPVs.length > 0 && isLabeledList(doorsPVs) ? doorsPVs : null
   const flat =
     doorsPVs && doorsPVs.length > 0 && !isLabeledList(doorsPVs)
       ? (doorsPVs as string[])
       : null
 
-  const pvsToWatch = labeled
-    ? labeled.map((d) => d.pvName)
-    : (flat ?? [])
+  const pvsToWatch = labeled ? labeled.map((d) => d.pvName) : (flat ?? [])
 
   const { byPv } = useWebSocketData<1 | 0 | null>({ pvs: pvsToWatch })
 
@@ -112,32 +108,30 @@ export const Doors: FC<DoorsProps> = ({
           />
         </VolumeCard>
       ) : null}
-      {labeled
-        ? labeled.map((door) => {
-            const doorState = byPv(door.pvName)?.value
-            return (
-              <VolumeCard key={door.pvName}>
-                <div className={styles.doorRow}>
-                  {door.label}
-                  {' is '}
-                  {doorState === 0
-                    ? 'CLOSED'
-                    : doorState === 1
-                      ? 'OPENED'
-                      : 'UNKNOWN'}
-                </div>
-              </VolumeCard>
-            )
-          })
-        : flat
-          ? (
-              <VolumeCard>
-                <div className={styles.doorRow}>
-                  {allClosed ? 'All Doors are CLOSED' : 'Some Doors are OPENED'}
-                </div>
-              </VolumeCard>
-            )
-          : null}
+      {labeled ? (
+        labeled.map((door) => {
+          const doorState = byPv(door.pvName)?.value
+          return (
+            <VolumeCard key={door.pvName}>
+              <div className={styles.doorRow}>
+                {door.label}
+                {' is '}
+                {doorState === 0
+                  ? 'CLOSED'
+                  : doorState === 1
+                    ? 'OPENED'
+                    : 'UNKNOWN'}
+              </div>
+            </VolumeCard>
+          )
+        })
+      ) : flat ? (
+        <VolumeCard>
+          <div className={styles.doorRow}>
+            {allClosed ? 'All Doors are CLOSED' : 'Some Doors are OPENED'}
+          </div>
+        </VolumeCard>
+      ) : null}
     </Container>
   )
 }

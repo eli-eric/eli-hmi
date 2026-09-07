@@ -4,6 +4,7 @@ import { FC, useMemo, useRef, useState } from 'react'
 import { SectionCard } from '@/components/hmi/controls/SectionCard'
 import { DataRow } from '@/components/hmi/controls/DataRow'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
+import { severityPresentation } from '@/lib/websocket/severity-presentation'
 import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
 import styles from './sections.module.css'
 
@@ -57,18 +58,20 @@ export const SequencerSection: FC<SequencerSectionProps> = ({
     () => [sequencerRunningPv, ...sequences.map((s) => s.statePv)],
     [sequencerRunningPv, sequences],
   )
-  const { state } = useWebSocketData<number | null>({ pvs, raw: true })
+  const { state, isConnected } = useWebSocketData<number | null>({
+    pvs,
+    raw: true,
+  })
 
   const msg = state[sequencerRunningPv]
   const running = !msg || !msg.ok || msg.value === null ? null : msg.value === 1
 
-  const label = running === null ? '<>' : running ? 'RUNNING' : 'IDLE'
-  const tone =
-    running === null
-      ? 'unknown'
-      : running
-        ? 'positive-important'
-        : 'negative-neutral'
+  // RUNNING and IDLE are both normal operating states — neither is good news
+  // or bad news on its own, so neither is coloured. Only the control system's
+  // severity (or a dead link) tones this pill.
+  const severity = severityPresentation(msg, { isConnected })
+  const label =
+    severity.text ?? (running === null ? '<>' : running ? 'RUNNING' : 'IDLE')
 
   return (
     <SectionCard>
@@ -84,7 +87,12 @@ export const SequencerSection: FC<SequencerSectionProps> = ({
             aria-label="Toggle Sequencer detail"
             onClick={() => setExpanded((v) => !v)}
           >
-            <span className={styles.modboxStatePill} data-tone={tone}>
+            <span
+              className={styles.modboxStatePill}
+              data-tone-surface="chip"
+              data-tone={severity.tone}
+              title={severity.title}
+            >
               <span className={styles.modboxStateCount}>{label}</span>
               <span
                 className={styles.cornerTriangle}
@@ -101,18 +109,19 @@ export const SequencerSection: FC<SequencerSectionProps> = ({
             const m = state[statePv]
             const seqRunning =
               !m || !m.ok || m.value === null ? null : m.value === 1
+            const seq = severityPresentation(m, { isConnected })
             const seqText =
-              seqRunning === null ? '<>' : seqRunning ? 'RUNNING' : 'IDLE'
-            const seqTone =
-              seqRunning === null
-                ? 'unknown'
-                : seqRunning
-                  ? 'positive-important'
-                  : 'negative-neutral'
+              seq.text ??
+              (seqRunning === null ? '<>' : seqRunning ? 'RUNNING' : 'IDLE')
             return (
               <li key={statePv} className={styles.sequenceItem}>
                 <span>{name}</span>
-                <span className={styles.sequenceState} data-tone={seqTone}>
+                <span
+                  className={styles.sequenceState}
+                  data-tone-surface="chip"
+                  data-tone={seq.tone}
+                  title={seq.title}
+                >
                   {seqText}
                 </span>
               </li>

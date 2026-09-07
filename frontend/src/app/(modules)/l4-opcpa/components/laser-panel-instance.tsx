@@ -37,6 +37,7 @@ export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => {
         fullPowerPv={spec.pvs.fullPower}
         shutterPv={spec.pvs.shutter}
         phdMeanPv={spec.pvs.phdMean}
+        phdMeanUnits={spec.units.phdMean}
         mss={spec.mss}
         moduleErrors={spec.moduleErrors}
         commands={spec.commands}
@@ -46,15 +47,17 @@ export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => {
         regenTempPv={spec.pvs.regenTemp}
         phd2MeanPv={spec.pvs.phd2Mean}
         attenuatorPv={spec.pvs.attenuator}
+        units={spec.units}
       />
       {spec.chillers.length > 0 && (
-        <LaserPanel.Chillers chillers={spec.chillers} />
+        <LaserPanel.Chillers chillers={spec.chillers} units={spec.units} />
       )}
       {spec.flashlamps.length > 0 && (
         <LaserPanel.Flashlamps
           cmdPv={cmdPv}
           flashlamps={spec.flashlamps}
           triggerDelay={spec.triggerDelay}
+          triggerDelayUnits={spec.units.triggerDelay}
           delayPresets={spec.delayPresets}
           commands={spec.commands}
         />

@@ -9,11 +9,11 @@ export const EPICS_SEVERITY = {
 } as const
 
 /**
- * Abstract severity tone, independent of any single component's tone/state
- * vocabulary (DetailList's `'ok'|'err'|...`, ChillerCell's `CellTone`, a
- * pill's `'positive-important'|...`). Every "should this PV value be styled
- * as alarmed/invalid" decision should go through this, so the EPICS mapping
- * lives in exactly one place:
+ * Abstract severity tone. Every "should this PV value be styled as
+ * alarmed/invalid" decision goes through this, so the EPICS mapping lives in
+ * exactly one place; `severity-presentation.ts` turns the result into the
+ * tone/text/tooltip a widget renders, and `globals.css` decides what each tone
+ * looks like:
  *
  * - 'unknown': no message has arrived yet (cold start) — not a real severity.
  * - 'invalid': the gateway/backend flagged the PV bad (disconnect, CA error,
@@ -50,7 +50,9 @@ const SEVERITY_RANK: Record<SeverityTone, number> = {
  * any of them yet) — as soon as even one child has real data, the aggregate
  * should reflect that data rather than sit on the "cold start" placeholder.
  */
-export function worstSeverityTone(tones: readonly SeverityTone[]): SeverityTone {
+export function worstSeverityTone(
+  tones: readonly SeverityTone[],
+): SeverityTone {
   if (tones.length === 0 || tones.every((t) => t === 'unknown')) {
     return 'unknown'
   }

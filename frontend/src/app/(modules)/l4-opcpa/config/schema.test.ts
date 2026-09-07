@@ -39,6 +39,8 @@ function laser(overrides: Record<string, unknown> = {}) {
 }
 
 const doc = (lasers: unknown[]) => stringify({ lasers })
+const docWithUnits = (units: unknown, lasers: unknown[]) =>
+  stringify({ units, lasers })
 
 describe('parseLaserSpecs', () => {
   it('parses the real lasers.yaml into a non-empty set of unique laser ids', () => {
@@ -191,6 +193,35 @@ describe('parseLaserSpecs', () => {
   it('rejects whitespace-only PV names', () => {
     expect(() =>
       parseLaserSpecs(doc([laser({ triggerDelay: ['   '] })])),
+    ).toThrow(/lasers\.yaml is invalid/)
+  })
+
+  it('defaults units to an empty map when the file specifies none', () => {
+    expect(parseLaserSpecs(doc([laser()]))[0].units).toEqual({})
+  })
+
+  it('merges per-laser unit overrides over the module-wide defaults', () => {
+    const [spec] = parseLaserSpecs(
+      docWithUnits({ regenTemp: '°C', triggerDelay: 'ns' }, [
+        laser({ units: { regenTemp: 'K' } }),
+      ]),
+    )
+    expect(spec.units).toEqual({ regenTemp: 'K', triggerDelay: 'ns' })
+  })
+
+  it('applies module-wide units to every laser', () => {
+    const specs = parseLaserSpecs(
+      docWithUnits({ attenuator: 'counts' }, [
+        laser({ id: 'NLA' }),
+        laser({ id: 'NLB' }),
+      ]),
+    )
+    expect(specs.map((s) => s.units.attenuator)).toEqual(['counts', 'counts'])
+  })
+
+  it('rejects an unknown unit key', () => {
+    expect(() =>
+      parseLaserSpecs(docWithUnits({ regenTemperature: '°C' }, [laser()])),
     ).toThrow(/lasers\.yaml is invalid/)
   })
 
