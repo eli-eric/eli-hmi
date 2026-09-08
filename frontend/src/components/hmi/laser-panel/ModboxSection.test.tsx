@@ -99,6 +99,38 @@ describe('ModboxSection', () => {
     ).toBeInTheDocument()
   })
 
+  it('writes the value configured for the command, not just the trigger 1', async () => {
+    const fetchMock = vi.fn<typeof fetch>(
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    )
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <ModboxSection
+          cmdPv={makeCommandPv('NL2', {
+            // One mode record, two words — the case this config form exists for.
+            MODBOX_OFF: { pvName: 'L4-OPCPA-NL2:ModboxMode', value: 'Sleep' },
+          })}
+          modbox={MODBOX_3}
+          loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+          commands={LASER_COMMANDS}
+        />
+      </TestWebSocketProvider>,
+    )
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Modbox actions' }))
+    await user.click(screen.getByRole('button', { name: 'Set Modbox OFF' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toContain(
+      `/pv/${encodeURIComponent('L4-OPCPA-NL2:ModboxMode')}`,
+    )
+    expect(JSON.parse(String(init?.body))).toMatchObject({ value: 'Sleep' })
+  })
+
   it('expands the Modbox state detail list when the state pill is clicked', async () => {
     const ws = renderModbox()
     await waitFor(() =>

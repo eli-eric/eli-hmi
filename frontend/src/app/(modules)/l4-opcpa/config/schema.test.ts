@@ -130,7 +130,7 @@ describe('parseLaserSpecs', () => {
     ).toThrow(/lasers\.yaml is invalid/)
   })
 
-  it('normalises the commands map into commands (keys) + commandPvs (overrides only)', () => {
+  it('normalises the commands map into commands (keys) + commandTargets (overrides only)', () => {
     const spec = parseLaserSpecs(
       doc([
         laser({
@@ -147,10 +147,88 @@ describe('parseLaserSpecs', () => {
       'SET_DELAY',
       'START_LASER',
     ])
-    expect(spec.commandPvs).toEqual({
-      ALIGNMENT_MODE: 'L4-OPCPA-NL9:SetAlignmentMode',
-      SET_DELAY: 'L4-OPCPA-NL9:PS5059:22:SetBothChannelsTrigDelay',
+    // The shorthand form means "write 1", the command-PV trigger convention.
+    expect(spec.commandTargets).toEqual({
+      ALIGNMENT_MODE: { pvName: 'L4-OPCPA-NL9:SetAlignmentMode', value: 1 },
+      SET_DELAY: {
+        pvName: 'L4-OPCPA-NL9:PS5059:22:SetBothChannelsTrigDelay',
+        value: 1,
+      },
     })
+  })
+
+  it('accepts an explicit {pv, value} target, e.g. MODBOX_OFF writing "Sleep"', () => {
+    const spec = parseLaserSpecs(
+      doc([
+        laser({
+          commands: {
+            MODBOX_ON: { pv: 'L4-OPCPA-NL9:ModboxMode', value: 'Run' },
+            MODBOX_OFF: { pv: 'L4-OPCPA-NL9:ModboxMode', value: 'Sleep' },
+            SYSTEM_STANDBY: { pv: 'L4-OPCPA-NL9:Standby' },
+          },
+        }),
+      ]),
+    )[0]
+    expect(spec.commandTargets).toEqual({
+      MODBOX_ON: { pvName: 'L4-OPCPA-NL9:ModboxMode', value: 'Run' },
+      MODBOX_OFF: { pvName: 'L4-OPCPA-NL9:ModboxMode', value: 'Sleep' },
+      // Object form without a value still means the default trigger.
+      SYSTEM_STANDBY: { pvName: 'L4-OPCPA-NL9:Standby', value: 1 },
+    })
+  })
+
+  it('lets two commands share one PV when the values differ, but not when they repeat', () => {
+    // One mode record driven to two different states is normal wiring, not a
+    // copy-paste slip — the duplicate check keys on PV *and* value.
+    expect(() =>
+      parseLaserSpecs(
+        doc([
+          laser({
+            commands: {
+              MODBOX_ON: { pv: 'L4:MODE', value: 'Run' },
+              MODBOX_OFF: { pv: 'L4:MODE', value: 'Sleep' },
+            },
+          }),
+        ]),
+      ),
+    ).not.toThrow()
+
+    expect(() =>
+      parseLaserSpecs(
+        doc([
+          laser({
+            commands: {
+              MODBOX_ON: { pv: 'L4:MODE', value: 'Run' },
+              MODBOX_OFF: { pv: 'L4:MODE', value: 'Run' },
+            },
+          }),
+        ]),
+      ),
+    ).toThrow(/duplicate PV name\(s\)[\s\S]*L4:MODE/)
+  })
+
+  it('rejects a value on a command whose value comes from the operator', () => {
+    expect(() =>
+      parseLaserSpecs(
+        doc([
+          laser({
+            commands: { SET_DELAY: { pv: 'L4:DELAY', value: 500 } },
+          }),
+        ]),
+      ),
+    ).toThrow(/takes its value from the operator/)
+  })
+
+  it('rejects an unknown key inside a command target', () => {
+    expect(() =>
+      parseLaserSpecs(
+        doc([
+          laser({
+            commands: { MODBOX_OFF: { pv: 'L4:MODE', val: 'Sleep' } },
+          }),
+        ]),
+      ),
+    ).toThrow(/lasers\.yaml is invalid/)
   })
 
   it('rejects a command value that is neither the placeholder nor a PV (no ":")', () => {
@@ -187,7 +265,7 @@ describe('parseLaserSpecs', () => {
         }),
       ]),
     )[0]
-    expect(spec.commandPvs).toEqual({})
+    expect(spec.commandTargets).toEqual({})
   })
 
   it('rejects whitespace-only PV names', () => {

@@ -9,7 +9,15 @@ interface ActionButtonProps {
   /** PV to write. Either a command trigger like `CMD_NL2_START_LASER` or
    * a direct PV like `BI_NL2_SHUTTER`. */
   pvName: string
-  /** Value to write. Defaults to `1` (typical trigger for command PVs). */
+  /**
+   * Value to write. Defaults to `1` (typical trigger for command PVs); a
+   * device record may want something else, e.g. the string 'Sleep'.
+   *
+   * For a configured command both come from the YAML together, so spread the
+   * resolved target rather than picking the PV out of it —
+   * `<ActionButton label="Set Modbox OFF" {...cmdPv('MODBOX_OFF')} />` (see
+   * `CommandTarget` in `l4-opcpa/lib/pv-names.ts`).
+   */
   value?: number | string
   variant?: 'primary' | 'secondary' | 'danger'
 }

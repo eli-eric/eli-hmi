@@ -344,7 +344,10 @@ describe('GeneralSection', () => {
         <GeneralSection
           {...baseProps()}
           cmdPv={makeCommandPv('NL2', {
-            ALIGNMENT_MODE: 'L4-OPCPA-NL2:SetAlignmentMode',
+            ALIGNMENT_MODE: {
+              pvName: 'L4-OPCPA-NL2:SetAlignmentMode',
+              value: 1,
+            },
           })}
         />
       </TestWebSocketProvider>,

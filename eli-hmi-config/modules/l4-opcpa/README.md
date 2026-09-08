@@ -47,7 +47,7 @@ field reference below is the format's documentation; the config validator
 | `flashlamps` | `{label, pv}`[] | One channel each; `label` shown, `pv` is the state PV. **`[]` hides the Flashlamps section.** |
 | `modbox` | `{label, pv}`[] | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV. **`[]` hides the Modbox section.** |
 | `delayPresets` | int[] | Trigger-delay preset buttons (ns). |
-| `commands` | map `SYMBOL: PV` | Which command buttons appear and which PV each writes (see below). |
+| `commands` | map `SYMBOL: PV` or `SYMBOL: {pv, value}` | Which command buttons appear, which PV each writes and what it writes (see below). |
 | `units` | map `role: unit` | Optional. Engineering units for the numeric readouts (see below). |
 
 A "PV name" is any non-empty string — put the exact name the gateway exposes.
@@ -88,13 +88,16 @@ unit without a code change. Chiller units appear once in the column header
 
 ### `commands`
 
-A map from a command symbol to **the PV the button's write goes to**:
+A map from a command symbol to **the PV the button's write goes to** and, when
+the device wants something other than the usual trigger, **the value written**:
 
 ```yaml
 commands:
   START_LASER: START_LASER                                # placeholder — no real PV yet
-  ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode           # real PV — written directly
+  ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode           # real PV — writes 1
   SET_DELAY: L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay
+  MODBOX_ON:  { pv: L4-OPCPA-NL2:ModboxMode, value: Run }    # writes a word…
+  MODBOX_OFF: { pv: L4-OPCPA-NL2:ModboxMode, value: Sleep }  # …to the same record
 ```
 
 The allowed keys are the closed vocabulary (wired to UI buttons):
@@ -109,9 +112,18 @@ Rules:
 
 - A laser only shows buttons for the keys it lists — omit a key and its button
   is hidden for that laser. Key order doesn't matter.
-- **Real PV**: the frontend writes to that exact name. The value written is
-  fixed per command (`1` as the trigger for action buttons, the delay in ns for
-  `SET_DELAY`, the waveform name for `LOAD_WAVEFORM`).
+- **Real PV** (`SYMBOL: PV`): the frontend writes `1` to that exact name — the
+  trigger convention for command PVs.
+- **Real PV with a value** (`SYMBOL: {pv: …, value: …}`): writes `value`
+  instead. Use it when the target is a device record rather than a trigger,
+  e.g. a mode record that takes `Run` / `Sleep`. Numbers and strings are both
+  allowed; omitting `value` means `1`, exactly like the shorthand.
+- Two commands **may** point at the same PV as long as their values differ —
+  that is the normal way to drive one mode record from two buttons. Repeating
+  the same PV *and* value is rejected as a copy-paste typo.
+- `SET_DELAY` and `LOAD_WAVEFORM` take their value from the operator (the delay
+  in ns, the waveform name), so setting `value` on them is rejected rather than
+  silently ignored.
 - **Placeholder** (value identical to the key, e.g. `START_LASER: START_LASER`):
   means "controls haven't delivered this PV yet". The frontend falls back to the
   mock-backend sequence trigger `CMD_<id>_<SYMBOL>` built in code (app repo's

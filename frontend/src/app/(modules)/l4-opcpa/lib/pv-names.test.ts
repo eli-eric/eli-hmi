@@ -24,13 +24,22 @@ describe('L4 OPCPA command vocabulary', () => {
 
   it('makeCommandPv resolves the YAML override, else falls back to CMD_<laser>_<NAME>', () => {
     const cmdPv = makeCommandPv('NL2', {
-      ALIGNMENT_MODE: 'L4-OPCPA-NL2:SetAlignmentMode',
-      SET_DELAY: 'L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay',
+      ALIGNMENT_MODE: { pvName: 'L4-OPCPA-NL2:SetAlignmentMode', value: 1 },
+      MODBOX_OFF: { pvName: 'L4-OPCPA-NL2:ModboxMode', value: 'Sleep' },
     })
-    expect(cmdPv('ALIGNMENT_MODE')).toBe('L4-OPCPA-NL2:SetAlignmentMode')
-    expect(cmdPv('SET_DELAY')).toBe(
-      'L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay',
-    )
-    expect(cmdPv('START_LASER')).toBe('CMD_NL2_START_LASER')
+    expect(cmdPv('ALIGNMENT_MODE')).toEqual({
+      pvName: 'L4-OPCPA-NL2:SetAlignmentMode',
+      value: 1,
+    })
+    // A device PV that wants a word rather than a trigger.
+    expect(cmdPv('MODBOX_OFF')).toEqual({
+      pvName: 'L4-OPCPA-NL2:ModboxMode',
+      value: 'Sleep',
+    })
+    // Unconfigured: the backend-sequence trigger, fired with 1.
+    expect(cmdPv('START_LASER')).toEqual({
+      pvName: 'CMD_NL2_START_LASER',
+      value: 1,
+    })
   })
 })

@@ -108,26 +108,26 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
         <div className={styles.actionRow}>
           <CogToggle ariaLabel="General Actions" inlineLabel="General Actions">
             {can('START_LASER') && (
-              <ActionButton label="Start Laser" pvName={cmdPv('START_LASER')} />
+              <ActionButton label="Start Laser" {...cmdPv('START_LASER')} />
             )}
             {can('STOP_LASER') && (
               <ActionButton
                 label="Stop Laser"
-                pvName={cmdPv('STOP_LASER')}
+                {...cmdPv('STOP_LASER')}
                 variant="danger"
               />
             )}
             {can('ALIGNMENT_MODE') && (
               <ActionButton
                 label="Set to Alignment Mode"
-                pvName={cmdPv('ALIGNMENT_MODE')}
+                {...cmdPv('ALIGNMENT_MODE')}
                 variant="secondary"
               />
             )}
             {can('SYSTEM_STANDBY') && (
               <ActionButton
                 label="Set to System Standby"
-                pvName={cmdPv('SYSTEM_STANDBY')}
+                {...cmdPv('SYSTEM_STANDBY')}
                 variant="secondary"
               />
             )}

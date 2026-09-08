@@ -283,13 +283,13 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
             {can('FLASHLAMPS_RUN') && (
               <ActionButton
                 label="Set All to Run"
-                pvName={cmdPv('FLASHLAMPS_RUN')}
+                {...cmdPv('FLASHLAMPS_RUN')}
               />
             )}
             {can('FLASHLAMPS_STANDBY') && (
               <ActionButton
                 label="Set All to Standby"
-                pvName={cmdPv('FLASHLAMPS_STANDBY')}
+                {...cmdPv('FLASHLAMPS_STANDBY')}
                 variant="secondary"
               />
             )}
@@ -310,7 +310,7 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
               <PresetIntegerInput
                 label="Set Trigger Delay"
                 presets={delayPresets}
-                pvName={cmdPv('SET_DELAY')}
+                pvName={cmdPv('SET_DELAY').pvName}
               />
             </CogToggle>
           ) : undefined

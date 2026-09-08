@@ -201,7 +201,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         action={
           can('LOAD_WAVEFORM') ? (
             <CogToggle ariaLabel="Set waveform preset">
-              <WaveformSelect pvName={cmdPv('LOAD_WAVEFORM')} />
+              <WaveformSelect pvName={cmdPv('LOAD_WAVEFORM').pvName} />
             </CogToggle>
           ) : undefined
         }
@@ -223,17 +223,19 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         <div className={styles.actionRow}>
           <CogToggle ariaLabel="Modbox actions" inlineLabel="Modbox Actions">
             {can('MODBOX_ON') && (
-              <ActionButton label="Set Modbox ON" pvName={cmdPv('MODBOX_ON')} />
+              <ActionButton label="Set Modbox ON" {...cmdPv('MODBOX_ON')} />
             )}
             {can('MODBOX_OFF') && (
               <ActionButton
                 label="Set Modbox OFF"
-                pvName={cmdPv('MODBOX_OFF')}
+                {...cmdPv('MODBOX_OFF')}
                 variant="secondary"
               />
             )}
             {hasWaveformAction && (
-              <WaveformActionDisclosure pvName={cmdPv('LOAD_WAVEFORM')} />
+              <WaveformActionDisclosure
+                pvName={cmdPv('LOAD_WAVEFORM').pvName}
+              />
             )}
           </CogToggle>
         </div>

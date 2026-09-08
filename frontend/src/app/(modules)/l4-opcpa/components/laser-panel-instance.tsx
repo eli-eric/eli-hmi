@@ -19,7 +19,7 @@ interface LaserPanelInstanceProps {
  * Regen always render. `commands` gates which action buttons appear.
  */
 export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => {
-  const cmdPv = makeCommandPv(spec.laser, spec.commandPvs)
+  const cmdPv = makeCommandPv(spec.laser, spec.commandTargets)
   return (
     <LaserPanel title={spec.laser}>
       {spec.pvs.sequencerRunning && (
