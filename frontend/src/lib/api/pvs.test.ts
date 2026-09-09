@@ -23,6 +23,7 @@ beforeEach(() => {
     apiScheme: null,
     zoneCode: null,
     navigationItems: [],
+    title: 'Test Zone',
     homeRoute: '/no-access',
   })
 })

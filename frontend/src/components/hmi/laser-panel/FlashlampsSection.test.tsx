@@ -109,6 +109,18 @@ describe('FlashlampsSection', () => {
     expect(screen.getByTestId('count-RUN')).not.toHaveAttribute('title')
   })
 
+  it('asks for the state name, not the enum index', async () => {
+    const ws = renderFl(['22'])
+    await waitFor(() =>
+      expect(ws.subscriptions.get('SI_NL2_FL_22_CH1')?.size).toBe(1),
+    )
+    expect(ws.subscribeOptions.get('SI_NL2_FL_22_CH1')).toEqual({
+      datatype: 'enum_string',
+    })
+    // Trigger delay is analog and must stay native.
+    expect(ws.subscribeOptions.get('AI_NL2_TRIG_DELAY_CH1')).toBeUndefined()
+  })
+
   it('exposes Set All Run / Set All Standby behind a cog toggle', async () => {
     const ws = renderFl(['22'])
     await waitFor(() =>

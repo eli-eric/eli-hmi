@@ -2,7 +2,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { GeneralSection } from './GeneralSection'
-import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import type {
+  LabeledPv,
+  MappedPv,
+} from '@/app/(modules)/l4-opcpa/config/schema'
 import {
   LASER_COMMANDS,
   makeCommandPv,
@@ -25,7 +28,7 @@ const MODULE_ERRORS: LabeledPv[] = [
   { label: 'CHILLER_11', pv: 'BI_NL2_ERR_CHILLER_11' },
 ]
 
-const MSS: LabeledPv[] = [
+const MSS: MappedPv[] = [
   { label: 'MSS 1', pv: 'BI_NL2_MSS_1' },
   { label: 'MSS 2', pv: 'BI_NL2_MSS_2' },
   { label: 'MSS 3', pv: 'BI_NL2_MSS_3' },
@@ -44,18 +47,21 @@ function baseProps(commands: readonly LaserCommand[] = LASER_COMMANDS) {
   }
 }
 
-function renderGeneral(commands?: readonly LaserCommand[]) {
+function renderGeneral(
+  commands?: readonly LaserCommand[],
+  overrides: Partial<ReturnType<typeof baseProps>> = {},
+) {
   const ws = makeFakeWebSocketContext()
   render(
     <TestWebSocketProvider value={ws.context}>
-      <GeneralSection {...baseProps(commands)} />
+      <GeneralSection {...baseProps(commands)} {...overrides} />
     </TestWebSocketProvider>,
   )
   return ws
 }
 
-async function setup() {
-  const ws = renderGeneral()
+async function setup(overrides?: Partial<ReturnType<typeof baseProps>>) {
+  const ws = renderGeneral(undefined, overrides)
   await waitFor(() => expect(ws.subscriptions.get('BI_NL2_CONN')?.size).toBe(1))
   return ws
 }
@@ -185,7 +191,7 @@ describe('GeneralSection', () => {
     expect(screen.getByText('CHILLER_11')).toBeInTheDocument()
   })
 
-  it('MSS/module-error rows are neutral (not ok/err coloured) when severity is none, showing the raw value', async () => {
+  it('MSS/module-error rows are neutral (not ok/err coloured) when severity is none, showing the value', async () => {
     const ws = await setup()
     const user = userEvent.setup()
     act(() => {
@@ -199,14 +205,17 @@ describe('GeneralSection', () => {
     await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
     const mss1 = screen.getByText('MSS 1').closest('li')
     const mss2 = screen.getByText('MSS 2').closest('li')
+    // An MSS bit is a permission: YES / NO, the words its summary pill uses.
+    // Asserted on the chip, not the row — the row text includes the label
+    // ("MSS 1"), which would match a raw "1" by accident.
     expect(mss1?.querySelector('[data-tone-surface]')).not.toHaveAttribute(
       'data-tone',
     )
-    expect(mss1).toHaveTextContent('1')
+    expect(mss1?.querySelector('[data-tone-surface]')).toHaveTextContent('YES')
     expect(mss2?.querySelector('[data-tone-surface]')).not.toHaveAttribute(
       'data-tone',
     )
-    expect(mss2).toHaveTextContent('0')
+    expect(mss2?.querySelector('[data-tone-surface]')).toHaveTextContent('NO')
 
     await user.click(
       screen.getByRole('button', { name: 'Toggle module errors detail' }),
@@ -221,6 +230,28 @@ describe('GeneralSection', () => {
       'data-tone',
     )
     expect(chiller).toHaveTextContent('1000')
+  })
+
+  it('lets the config choose the MSS wording per indicator', async () => {
+    const ws = await setup({
+      mss: [
+        {
+          label: 'PSS permission',
+          pv: 'BI_NL2_MSS_1',
+          values: { 0: 'DENIED', 1: 'GRANTED' },
+        },
+      ],
+    })
+    act(() => ws.push('BI_NL2_MSS_1', 1))
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
+    expect(
+      screen
+        .getByText('PSS permission')
+        .closest('li')
+        ?.querySelector('[data-tone-surface]'),
+    ).toHaveTextContent('GRANTED')
   })
 
   it('overrides MSS / module-error item colour with EPICS severity, regardless of the raw value', async () => {
@@ -266,7 +297,7 @@ describe('GeneralSection', () => {
       'error',
     )
     // The alarm colours the row; the reading it alarms about is still shown.
-    expect(mss1).toHaveTextContent('1')
+    expect(mss1?.querySelector('[data-tone]')).toHaveTextContent('YES')
 
     await user.click(
       screen.getByRole('button', { name: 'Toggle module errors detail' }),

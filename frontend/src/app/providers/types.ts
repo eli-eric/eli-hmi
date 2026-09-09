@@ -33,6 +33,16 @@ export interface Message<T = unknown> {
   name: string
   value: T | null
   severity: number
+  /**
+   * EPICS alarm status — *why* the record is alarmed, where `severity` says
+   * how badly (`epicsAlarm.h`: 3 = HIHI, 5 = LOLO, 10 = TIMEOUT, 17 = UDF …).
+   * Sent by the gateway in `metadata` at `detail: 'time'`.
+   *
+   * Typed to accept a string as well as the numeric code so the backend can
+   * later send an operator-facing phrase instead, with no frontend change —
+   * see `describeStatus` in `pv-tooltip.ts`.
+   */
+  status: number | string | null
   units: string | null
   timestamp: number
   ok: boolean

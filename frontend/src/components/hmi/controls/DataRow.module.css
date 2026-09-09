@@ -34,8 +34,8 @@
   min-width: 0;
   padding: 0.0625rem 0.25rem;
   min-height: var(--hmi-row-min-h);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* No `overflow: hidden` here — it would clip the alarm badge back inside
+   * the border. The value inside truncates itself. */
   white-space: nowrap;
 }
 

@@ -17,6 +17,7 @@ const baseMessage = (
   name: 'AI_X',
   value: 1.23,
   severity: 0,
+  status: null,
   units: 'mbar',
   timestamp: 0,
   ok: true,

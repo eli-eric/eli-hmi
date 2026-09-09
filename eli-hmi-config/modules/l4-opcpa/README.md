@@ -41,11 +41,11 @@ field reference below is the format's documentation; the config validator
 | `pvs.loadedWaveform` | PV name | Current waveform preset. |
 | `pvs.latestWaveform` | PV name | Previous waveform moved into Waveform Latest when a new preset is applied. Optional. |
 | `triggerDelay` | PV name[] | Trigger-delay readouts; all should read equal (mismatch is flagged). |
-| `mss` | `{label, pv}`[] | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV. |
+| `mss` | `{label, pv, values?}`[] | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below). |
 | `moduleErrors` | `{label, pv}`[] | Error indicators: `label` shown in UI, `pv` is the indicator PV. |
 | `chillers` | `{label, flow, temp, level}`[] | One row each; `label` shown, three readout PVs. **`[]` hides the Chillers section.** |
 | `flashlamps` | `{label, pv}`[] | One channel each; `label` shown, `pv` is the state PV. **`[]` hides the Flashlamps section.** |
-| `modbox` | `{label, pv}`[] | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV. **`[]` hides the Modbox section.** |
+| `modbox` | `{label, pv, values?}`[] | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below). **`[]` hides the Modbox section.** |
 | `delayPresets` | int[] | Trigger-delay preset buttons (ns). |
 | `commands` | map `SYMBOL: PV` or `SYMBOL: {pv, value}` | Which command buttons appear, which PV each writes and what it writes (see below). |
 | `units` | map `role: unit` | Optional. Engineering units for the numeric readouts (see below). |
@@ -60,6 +60,40 @@ chillers:
 flashlamps:
   - { label: '22 Ch1', pv: SI_NL2_FL_22_CH1 }
 ```
+
+### Display text for boolean indicators (`mss`, `modbox`)
+
+Both banks are booleans, and the panel shows words rather than a column of bare
+1s and 0s. The defaults differ because the signals do:
+
+| bank | 1 | 0 | why |
+| --- | --- | --- | --- |
+| `mss` | `YES` | `NO` | a permission — the same words as the MSS summary pill |
+| `modbox` | `ON` | `OFF` | a subsystem that is running or not |
+
+Where those words are wrong for a particular indicator, give your own with
+`values`:
+
+```yaml
+mss:
+  - { label: "PSS permission", pv: L4-PSS:NP2_PERMISSION_TO_OPERATE_CH1 }
+  - label: "OPCPA MSS interlock"
+    pv: L4-MSS:OPA_interlock
+    values: { 0: OPEN, 1: CLOSED }
+modbox:
+  - { label: "AWG state", pv: L4-OPCPA-NL2:ModBox:AWG:State }
+  - label: "AWG software key"
+    pv: L4-OPCPA-NL2:ModBox:YDFA:SoftwareKey
+    values: { 0: DISABLED, 1: ENABLED }
+```
+
+Keys are matched against the raw value as text, so this also covers a record
+that reports something other than 0/1 (`{0: STANDBY, 1: RUN, 2: FAULT}`). A
+value with no entry is shown as-is rather than blank — an unexpected reading
+must stay visible.
+
+`moduleErrors` takes no `values`: those are status codes (`"0000"` = no error),
+not booleans, so there is nothing to translate them into.
 
 ### `units`
 

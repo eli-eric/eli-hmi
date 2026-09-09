@@ -3,6 +3,10 @@
 
 schemaVersion: 1
 
+# Name shown in the header, next to "sign out". Optional: without it the header
+# reads "ELI HMI" rather than naming a station this deployment may not be.
+title: L4 OPCPA
+
 # Items shown in the top navigation, in order. Every href must also be listed
 # in allowedRoutes below.
 navigationItems:

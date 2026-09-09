@@ -147,6 +147,24 @@ type severityState struct {
 	until    time.Time // episode end; zero when severity == 0
 }
 
+// statusForSeverity picks a plausible EPICS alarm status (epicsAlarm.h) to go
+// with a simulated severity episode, so the frontend's tooltip has something
+// real to show: severity says how bad, status says why. Fixed per severity —
+// the mock is not simulating a specific failure, just producing a consistent
+// pair.
+func statusForSeverity(severity int) int {
+	switch severity {
+	case 1:
+		return 4 // HIGH
+	case 2:
+		return 3 // HIHI
+	case 3:
+		return 17 // UDF
+	default:
+		return 0 // NO_ALARM
+	}
+}
+
 // stepSeverity advances the episode state machine by one tick. `rnd` must
 // return uniform [0,1) values (rand.Float64 in production, seeded in tests).
 func stepSeverity(s severityState, now time.Time, rnd func() float64) severityState {
@@ -274,7 +292,7 @@ func (ps *pvSim) encodeLocked(event string, sub *wsSub) []byte {
 		resp["value"] = ps.value
 		metadata := map[string]interface{}{}
 		if sub.detail == detailTime || sub.detail == detailControl {
-			metadata["status"] = 0
+			metadata["status"] = statusForSeverity(ps.sev.severity)
 			metadata["severity"] = ps.sev.severity
 			metadata["timestamp"] = float64(time.Now().UnixNano()) / 1e9
 		}

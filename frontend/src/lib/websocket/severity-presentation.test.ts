@@ -16,6 +16,7 @@ function msg(over: Partial<Message<number>> = {}): Message<number> {
     name: 'AI_X',
     value: 1,
     severity: 0,
+    status: null,
     units: null,
     timestamp: 0,
     ok: true,
@@ -25,8 +26,8 @@ function msg(over: Partial<Message<number>> = {}): Message<number> {
 }
 
 describe('severityPresentation', () => {
-  it('leaves severity 0 completely unstyled', () => {
-    expect(severityPresentation(msg())).toEqual({})
+  it('leaves severity 0 unstyled, but still names the PV on hover', () => {
+    expect(severityPresentation(msg())).toEqual({ title: 'AI_X' })
   })
 
   it('replaces the text and paints for no data yet', () => {
@@ -34,13 +35,19 @@ describe('severityPresentation', () => {
       tone: 'unknown',
       text: UNKNOWN_TEXT,
     })
+    // With the name supplied, a silent readout can say which PV is silent.
+    expect(severityPresentation(undefined, { pvName: 'AI_X' })).toEqual({
+      tone: 'unknown',
+      text: UNKNOWN_TEXT,
+      title: 'AI_X',
+    })
   })
 
   it('keeps the real value for MINOR / MAJOR alarms, tinting only', () => {
-    expect(severityPresentation(msg({ severity: 1 }))).toEqual({
+    expect(severityPresentation(msg({ severity: 1 }))).toMatchObject({
       tone: 'warning',
     })
-    expect(severityPresentation(msg({ severity: 2 }))).toEqual({
+    expect(severityPresentation(msg({ severity: 2 }))).toMatchObject({
       tone: 'error',
     })
   })
@@ -86,6 +93,7 @@ describe('severityPresentation', () => {
 describe('aggregateSeverityPresentation', () => {
   it('is unstyled when every child is severity 0', () => {
     expect(aggregateSeverityPresentation([msg(), msg()])).toEqual({})
+    // (Aggregates cover several PVs, so they get no single-PV tooltip.)
   })
 
   it('takes the worst child severity', () => {
@@ -134,7 +142,7 @@ describe('widget emphasis', () => {
   it('applies only when the control system reports nothing', () => {
     expect(
       severityPresentation(msg(), { emphasis: 'positive-important' }),
-    ).toEqual({ tone: 'positive-important' })
+    ).toEqual({ tone: 'positive-important', title: 'AI_X' })
   })
 
   it('never survives an alarm — the alarm is the more important news', () => {
@@ -174,7 +182,8 @@ describe('transport loss', () => {
     for (const m of [msg(), msg({ severity: 1 }), msg({ severity: 3 })]) {
       const p = severityPresentation(m, { isConnected: false })
       expect(p.tone).toBe('unknown')
-      expect(p.title).toBe(TRANSPORT_DOWN_TITLE)
+      expect(p.title).toContain(TRANSPORT_DOWN_TITLE)
+      expect(p.title).toContain('AI_X')
       // No replacement text: the last value stays on screen, greyed, rather
       // than blanking the panel during a gateway restart.
       expect(p.text).toBeUndefined()
@@ -182,10 +191,12 @@ describe('transport loss', () => {
   })
 
   it('falls back to the placeholder for a readout that never reported', () => {
-    expect(severityPresentation(undefined, { isConnected: false })).toEqual({
+    expect(
+      severityPresentation(undefined, { isConnected: false, pvName: 'AI_X' }),
+    ).toEqual({
       tone: 'unknown',
       text: UNKNOWN_TEXT,
-      title: TRANSPORT_DOWN_TITLE,
+      title: `AI_X\n${TRANSPORT_DOWN_TITLE}`,
     })
   })
 
@@ -194,7 +205,7 @@ describe('transport loss', () => {
       isConnected: false,
     })
     expect(p.tone).toBe('unknown')
-    expect(p.title).toBe(TRANSPORT_DOWN_TITLE)
+    expect(p.title).toContain(TRANSPORT_DOWN_TITLE)
   })
 })
 

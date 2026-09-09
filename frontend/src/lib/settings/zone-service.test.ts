@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { clearZoneCache } from './zone-config-loader'
 import {
+  DEFAULT_ZONE_TITLE,
   getDefaultRoute,
   getHomeRoute,
   getNavigationItems,
+  getZoneTitle,
   hasAccessibleRoutes,
   isRouteAllowed,
 } from './zone-service'
@@ -52,6 +54,10 @@ describe('zone-service', () => {
       expect(hasAccessibleRoutes()).toBe(true)
     })
 
+    it('getZoneTitle returns the name this zone gives itself', () => {
+      expect(getZoneTitle()).toBe('L4 OPCPA')
+    })
+
     it('getNavigationItems returns the configured item', () => {
       const items = getNavigationItems()
       expect(items).toHaveLength(1)
@@ -85,6 +91,12 @@ describe('zone-service', () => {
 
     it('getNavigationItems is empty', () => {
       expect(getNavigationItems()).toEqual([])
+    })
+
+    it('getZoneTitle falls back to the generic name, not a station name', () => {
+      // A zone that does not name itself must not be given someone else's
+      // name: the header used to be hardcoded to one station's.
+      expect(getZoneTitle()).toBe(DEFAULT_ZONE_TITLE)
     })
   })
 

@@ -99,6 +99,68 @@ describe('ModboxSection', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows boolean states as words, not bare 1 / 0', async () => {
+    const ws = renderModbox()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
+    )
+    act(() => {
+      ws.push('BI_NL2_MODBOX_1', 1)
+      ws.push('BI_NL2_MODBOX_2', 0)
+      // A value that is neither: shown raw rather than hidden or mistranslated.
+      ws.push('BI_NL2_MODBOX_3', 7)
+    })
+
+    const user = userEvent.setup()
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle Modbox state detail' }),
+    )
+
+    const chip = (label: string) =>
+      screen
+        .getByText(label)
+        .closest('li')
+        ?.querySelector('[data-tone-surface]')
+    expect(chip('Modbox 1')).toHaveTextContent('ON')
+    expect(chip('Modbox 2')).toHaveTextContent('OFF')
+    expect(chip('Modbox 3')).toHaveTextContent('7')
+  })
+
+  it('lets the config choose the wording per indicator', async () => {
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <ModboxSection
+          cmdPv={makeCommandPv('NL2', {})}
+          modbox={[
+            {
+              label: 'AWG software key',
+              pv: 'BI_NL2_MODBOX_1',
+              values: { 0: 'DISABLED', 1: 'ENABLED' },
+            },
+          ]}
+          loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+          commands={LASER_COMMANDS}
+        />
+      </TestWebSocketProvider>,
+    )
+    await waitFor(() =>
+      expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
+    )
+    act(() => ws.push('BI_NL2_MODBOX_1', 1))
+
+    const user = userEvent.setup()
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle Modbox state detail' }),
+    )
+    expect(
+      screen
+        .getByText('AWG software key')
+        .closest('li')
+        ?.querySelector('[data-tone-surface]'),
+    ).toHaveTextContent('ENABLED')
+  })
+
   it('writes the value configured for the command, not just the trigger 1', async () => {
     const fetchMock = vi.fn<typeof fetch>(
       async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
@@ -189,7 +251,9 @@ describe('ModboxSection', () => {
       'data-tone',
       'error',
     )
-    expect(modbox1).toHaveTextContent('1')
+    // Asserted on the status chip, not the row: the row text also contains
+    // the label "Modbox 1", which would match a raw "1" by accident.
+    expect(modbox1?.querySelector('[data-tone]')).toHaveTextContent('ON')
   })
 
   it('colours the summary pill by the worst channel severity, not the raw bits', async () => {

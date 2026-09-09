@@ -7,21 +7,35 @@ vi.mock('@/lib/runtime-config/context', () => ({ useRuntimeConfig }))
 vi.mock('next-auth/react', () => ({ signOut: vi.fn() }))
 vi.mock('next/navigation', () => ({ usePathname: () => '/l4-opcpa' }))
 
+import { PaletteProvider } from '@/lib/palette/context'
+
 import NavigationBar from './navigation-bar'
 
+const renderNav = () =>
+  render(
+    <PaletteProvider>
+      <NavigationBar />
+    </PaletteProvider>,
+  )
+
 describe('NavigationBar', () => {
-  it('renders zone nav items and links the logo to the home route', () => {
+  it('names the station from the zone and links it to the home route', () => {
     useRuntimeConfig.mockReturnValue({
       status: 'ready',
       navigationItems: [{ text: 'L4 OPCPA Controls', href: '/l4-opcpa' }],
       homeRoute: '/l4-opcpa',
+      title: 'L4 OPCPA',
     })
 
-    render(<NavigationBar />)
+    renderNav()
 
     const item = screen.getByText('L4 OPCPA Controls')
     expect(item.closest('a')).toHaveAttribute('href', '/l4-opcpa')
-    expect(screen.getByText('E3 VACUUM SYSTEM').closest('a')).toHaveAttribute(
+    // The header used to say "E3 VACUUM SYSTEM" whatever the zone was, while
+    // linking to that zone's home route — a name and a destination that
+    // disagreed.
+    expect(screen.queryByText('E3 VACUUM SYSTEM')).toBeNull()
+    expect(screen.getByText('L4 OPCPA').closest('a')).toHaveAttribute(
       'href',
       '/l4-opcpa',
     )
@@ -32,11 +46,16 @@ describe('NavigationBar', () => {
       status: 'loading',
       navigationItems: [],
       homeRoute: null,
+      title: null,
     })
 
-    render(<NavigationBar />)
+    renderNav()
 
     expect(screen.queryByText('L4 OPCPA Controls')).toBeNull()
-    expect(screen.getByText('E3 VACUUM SYSTEM').closest('a')).toBeNull()
+    // No station name at all rather than a guess that might be the wrong one.
+    expect(screen.queryByRole('link')).toBeNull()
+    // The palette control does not depend on zone config, so it is usable
+    // even while that config is still loading — or failing to.
+    expect(screen.getByRole('combobox')).toBeInTheDocument()
   })
 })

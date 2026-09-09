@@ -43,21 +43,32 @@ export const RegenSection: FC<RegenSectionProps> = ({
   })
   // Regen state is a status string, not a boolean — separate string-typed
   // subscription, same split pattern as OverviewBar's module-error PVs.
+  //
+  // `:State` is an enum (mbbi) record: read at its native type Channel Access
+  // delivers the numeric index, not OFF/ON/Failure, so ask the gateway for the
+  // state name. Same reason the flashlamp channels do it.
   const { state: regenStatusState } = useWebSocketData<string | null>({
     pvs: [regenStatePv],
     raw: true,
+    datatype: 'enum_string',
   })
 
   return (
     <SectionCard>
       <DataRow
         label="Regen SY3PL50M:32"
-        value={<StringValue data={regenStatusState[regenStatePv]} />}
+        value={
+          <StringValue
+            pvName={regenStatePv}
+            data={regenStatusState[regenStatePv]}
+          />
+        }
       />
       <DataRow
         label="Regen Temp TK6:44"
         value={
           <FloatValue
+            pvName={regenTempPv}
             data={state[regenTempPv]}
             precision={3}
             units={units.regenTemp}
@@ -69,6 +80,7 @@ export const RegenSection: FC<RegenSectionProps> = ({
         label="PHD1K000:48/Mean"
         value={
           <FloatValue
+            pvName={phd2MeanPv}
             data={state[phd2MeanPv]}
             precision={3}
             units={units.phd2Mean}
@@ -78,7 +90,11 @@ export const RegenSection: FC<RegenSectionProps> = ({
       <DataRow
         label="Atten. SM5:ATT1:51"
         value={
-          <IntegerValue data={state[attenuatorPv]} units={units.attenuator} />
+          <IntegerValue
+            pvName={attenuatorPv}
+            data={state[attenuatorPv]}
+            units={units.attenuator}
+          />
         }
         action={
           <CogToggle ariaLabel="Set attenuator">

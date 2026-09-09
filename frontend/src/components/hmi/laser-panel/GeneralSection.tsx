@@ -11,7 +11,10 @@ import type {
   CommandPvResolver,
   LaserCommand,
 } from '@/app/(modules)/l4-opcpa/lib/pv-names'
-import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import type {
+  LabeledPv,
+  MappedPv,
+} from '@/app/(modules)/l4-opcpa/config/schema'
 import { OverviewBar } from './OverviewBar'
 import { makeCommandGate } from './commandGate'
 import styles from './sections.module.css'
@@ -26,7 +29,7 @@ interface GeneralSectionProps {
   /** Configured unit for the PHD readout (wins over PV metadata). */
   phdMeanUnits?: string
   /** MSS sub-indicators: display label + PV (counted in the Overview). */
-  mss: readonly LabeledPv[]
+  mss: readonly MappedPv[]
   /** Module-error indicators: label + PV. */
   moduleErrors: readonly LabeledPv[]
   /** Commands this laser exposes. Buttons for commands not listed are hidden. */
@@ -70,6 +73,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
         valueVariant="bare"
         value={
           <BoolPill
+            pvName={shutterPv}
             data={state[shutterPv]}
             onLabel="is OPEN"
             offLabel="is CLOSED"
@@ -97,6 +101,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
         label="PHD1K000:49/Mean"
         value={
           <FloatValue
+            pvName={phdMeanPv}
             data={state[phdMeanPv]}
             precision={3}
             units={phdMeanUnits}

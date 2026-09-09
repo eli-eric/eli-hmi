@@ -69,7 +69,10 @@ export const SequencerSection: FC<SequencerSectionProps> = ({
   // RUNNING and IDLE are both normal operating states — neither is good news
   // or bad news on its own, so neither is coloured. Only the control system's
   // severity (or a dead link) tones this pill.
-  const severity = severityPresentation(msg, { isConnected })
+  const severity = severityPresentation(msg, {
+    isConnected,
+    pvName: sequencerRunningPv,
+  })
   const label =
     severity.text ?? (running === null ? '<>' : running ? 'RUNNING' : 'IDLE')
 
@@ -109,7 +112,10 @@ export const SequencerSection: FC<SequencerSectionProps> = ({
             const m = state[statePv]
             const seqRunning =
               !m || !m.ok || m.value === null ? null : m.value === 1
-            const seq = severityPresentation(m, { isConnected })
+            const seq = severityPresentation(m, {
+              isConnected,
+              pvName: statePv,
+            })
             const seqText =
               seq.text ??
               (seqRunning === null ? '<>' : seqRunning ? 'RUNNING' : 'IDLE')

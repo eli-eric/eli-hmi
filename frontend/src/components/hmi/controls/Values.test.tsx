@@ -8,6 +8,7 @@ function msg<T>(over: Partial<Message<T>> & { value: T }): Message<T> {
     type: 'pv',
     name: 'AI_X',
     severity: 0,
+    status: null,
     units: null,
     timestamp: 0,
     ok: true,
@@ -145,6 +146,22 @@ describe('StringValue', () => {
       'data-tone',
       'warning',
     )
+  })
+
+  it('reads a non-string payload as invalid, not as missing data', () => {
+    // The Regen state row sat on `<>` for exactly this reason: an enum record
+    // subscribed at its native type sends the state's index, and `<>` claimed
+    // the PV had never reported.
+    render(<StringValue data={msg({ value: 2 as unknown as string })} />)
+    const el = screen.getByText('PV INV')
+    expect(el).toHaveAttribute('data-tone', 'invalid')
+    expect(el.title).toContain('expected a string, got number')
+    expect(el.title).toContain('enum record')
+  })
+
+  it('still shows `<>` when the PV genuinely has not reported', () => {
+    render(<StringValue pvName="AI_X" data={undefined} />)
+    expect(screen.getByText('<>')).toHaveAttribute('data-tone', 'unknown')
   })
 })
 

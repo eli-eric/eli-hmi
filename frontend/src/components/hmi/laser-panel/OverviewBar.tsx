@@ -6,7 +6,10 @@ import {
   DetailList,
   DetailListItem,
 } from '@/components/hmi/controls/DetailList'
-import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import type {
+  LabeledPv,
+  MappedPv,
+} from '@/app/(modules)/l4-opcpa/config/schema'
 import type { Message } from '@/app/providers/types'
 import { severityTone } from '@/lib/websocket/severity'
 import {
@@ -15,13 +18,14 @@ import {
   type Tone,
 } from '@/lib/websocket/severity-presentation'
 import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
+import { displayValue, YES_NO_TEXT } from './value-text'
 import styles from './OverviewBar.module.css'
 
 interface OverviewBarProps {
   connectionPv: string
   fullPowerPv: string
-  /** MSS sub-indicators: display label + full PV name. */
-  mss: readonly LabeledPv[]
+  /** MSS sub-indicators: display label + full PV name, optional value map. */
+  mss: readonly MappedPv[]
   /** Module-error indicators: display label + full PV name. */
   moduleErrors: readonly LabeledPv[]
 }
@@ -107,28 +111,38 @@ export const OverviewBar: FC<OverviewBarProps> = ({
 
   // Neither list colours by its own value (e.g. "is the bit 1" / "is the code
   // 0000") — tone and any replacement text come from the shared
-  // `severityPresentation` table. Severity 0 shows the raw value, unstyled.
+  // `severityPresentation` table. Severity 0 shows the value, unstyled.
   const detailItem = (
     label: string,
+    pvName: string,
     msg: Message<unknown> | undefined,
+    values?: MappedPv['values'],
+    defaults?: Record<string, string>,
   ): DetailListItem => {
-    const { tone, text, title } = severityPresentation(msg, { isConnected })
+    const { tone, text, title } = severityPresentation(msg, {
+      isConnected,
+      pvName,
+    })
     return {
       label,
       tone,
-      // The shared table replaces the text only when the reading is unusable;
-      // otherwise show the raw value, whatever it is.
-      text: text ?? (msg?.value != null ? String(msg.value) : undefined),
+      // The shared table replaces the text only when the reading is unusable.
+      text: text ?? displayValue(msg?.value, values, defaults),
       title,
     }
   }
 
-  const mssItems: DetailListItem[] = mss.map(({ label, pv: name }) =>
-    detailItem(label, state[name]),
+  // An MSS bit is a permission, so each row reads YES / NO — the same words as
+  // the summary pill above it, which is the only way a row and its aggregate
+  // can be read together at a glance. The config can override per indicator.
+  const mssItems: DetailListItem[] = mss.map(({ label, pv: name, values }) =>
+    detailItem(label, name, state[name], values, YES_NO_TEXT),
   )
 
+  // Module errors are status codes ("0000" = no error), not booleans: there is
+  // no vocabulary to translate them into, so they are shown as they arrive.
   const errItems: DetailListItem[] = moduleErrors.map(({ label, pv: name }) =>
-    detailItem(label, errState[name]),
+    detailItem(label, name, errState[name]),
   )
 
   // Green when good, plain when bad. A red "NO" here would be the panel's own
@@ -154,6 +168,7 @@ export const OverviewBar: FC<OverviewBarProps> = ({
         <div className={styles.grid} ref={triggerRef}>
           <Cell label="CONN">
             <OverviewBoolCell
+              pvName={connectionPv}
               data={connMsg}
               onText="YES"
               offText="NO"
@@ -162,6 +177,7 @@ export const OverviewBar: FC<OverviewBarProps> = ({
           </Cell>
           <Cell label="FULLP">
             <OverviewBoolCell
+              pvName={fullPowerPv}
               data={fullpMsg}
               onText="YES"
               offText="NO"
@@ -223,6 +239,7 @@ const Cell: FC<{ label: string; children: ReactNode }> = ({
 )
 
 interface OverviewBoolCellProps {
+  pvName: string
   data: Message<number | null> | undefined
   onText: string
   offText: string
@@ -233,6 +250,7 @@ interface OverviewBoolCellProps {
 // everything else, only the geometry is this bar's. Green when the bit is set,
 // plain when it is not — see the note on `mssTone`.
 const OverviewBoolCell: FC<OverviewBoolCellProps> = ({
+  pvName,
   data,
   onText,
   offText,
@@ -242,6 +260,7 @@ const OverviewBoolCell: FC<OverviewBoolCellProps> = ({
   const { tone, text, title } = severityPresentation(data, {
     emphasis: isOn ? 'positive-important' : undefined,
     isConnected,
+    pvName,
   })
   const label =
     text ?? (data?.value === 1 ? onText : data?.value === 0 ? offText : '<>')

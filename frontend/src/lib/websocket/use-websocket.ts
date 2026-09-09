@@ -39,6 +39,8 @@ interface WireError {
 
 interface WireMetadata {
   severity?: number
+  /** EPICS alarm status; numeric today, a phrase if the gateway ever sends one. */
+  status?: number | string | null
   units?: string | null
   timestamp?: number
 }
@@ -49,6 +51,7 @@ interface WireMessage {
   pv?: string
   value?: unknown
   severity?: number
+  status?: number | string | null
   units?: string | null
   timestamp?: number
   metadata?: WireMetadata
@@ -82,6 +85,7 @@ function normalizeIncomingMessage(raw: unknown): Message | null {
       name: msg.pv,
       value: (msg.value ?? null) as Message['value'],
       severity: meta.severity ?? 0,
+      status: meta.status ?? null,
       units: meta.units ?? null,
       timestamp: meta.timestamp ?? Date.now() / 1000,
       ok: msg.ok ?? false,
@@ -96,6 +100,7 @@ function normalizeIncomingMessage(raw: unknown): Message | null {
       name: msg.name,
       value: (msg.value ?? null) as Message['value'],
       severity: msg.severity ?? 0,
+      status: msg.status ?? null,
       units: msg.units ?? null,
       timestamp: msg.timestamp ?? Date.now() / 1000,
       ok: msg.ok ?? false,

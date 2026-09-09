@@ -8,6 +8,7 @@ import {
   type SeverityPresentation,
   type ValueEmphasis,
 } from '@/lib/websocket/severity-presentation'
+import { describePv } from '@/lib/websocket/pv-tooltip'
 import { useTransportConnected } from '@/app/providers/socket-provider'
 import { resolveUnits } from '@/lib/websocket/units'
 import styles from './Values.module.css'
@@ -37,6 +38,13 @@ type NumMsg = Message<number | null> | undefined
 type StrMsg = Message<string | null> | undefined
 
 interface SeverityAwareProps {
+  /**
+   * PV this readout shows. Only used for the hover text, and only needed
+   * before the first message arrives — a message names itself. Worth passing
+   * anyway: a readout stuck on `<>` is exactly when the operator wants to
+   * know which record is silent.
+   */
+  pvName?: string
   /** Set false to ignore EPICS severity styling for this readout. Default true. */
   respectSeverity?: boolean
   /**
@@ -75,22 +83,32 @@ function usePresentation(
   data: Message<unknown> | undefined,
   respectSeverity: boolean,
   emphasis?: ValueEmphasis,
+  pvName?: string,
 ): SeverityPresentation {
   const isConnected = useTransportConnected()
-  if (!respectSeverity) return {}
-  return severityPresentation(data, { emphasis, isConnected })
+  // Opting out of severity styling opts out of the tone, not of knowing which
+  // PV this is, so the tooltip survives.
+  if (!respectSeverity) return { title: describePv(data, { pvName }) }
+  return severityPresentation(data, { emphasis, isConnected, pvName })
 }
 
 /**
- * Numeric readouts: what to show when the message itself is fine but its
- * payload is not a usable number. A wrong type or a NaN is a broken reading,
- * not a missing one, so it reads as invalid rather than quietly showing `<>`
- * as though the PV simply had not reported yet.
+ * What to show when the message itself is fine but its payload is not the kind
+ * of value this readout renders. A wrong type is a broken reading, not a
+ * missing one, so it reads as invalid rather than quietly showing `<>` as
+ * though the PV had never reported — a lie that hides the actual fault. It
+ * cost a debugging session on the Regen state row, which sat on `<>` while the
+ * PV was happily sending enum indices.
  */
+function hasPayload(
+  data: Message<unknown> | undefined,
+): data is Message<unknown> {
+  return !!data && data.ok && data.value !== null && data.value !== undefined
+}
+
+/** Numeric readouts: a non-number, a NaN or an Infinity is unreadable. */
 function numericFault(data: Message<unknown> | undefined) {
-  if (!data || !data.ok || data.value === null || data.value === undefined) {
-    return undefined
-  }
+  if (!hasPayload(data)) return undefined
   if (typeof data.value !== 'number') {
     return unreadableValuePresentation(
       `${data.name}: expected a number, got ${typeof data.value}.`,
@@ -104,18 +122,37 @@ function numericFault(data: Message<unknown> | undefined) {
   return undefined
 }
 
+/**
+ * String readouts: anything else is unreadable. The usual cause is an enum
+ * (mbbi) record subscribed at its native type, where Channel Access sends the
+ * state's index instead of its name — the fix for that is `datatype:
+ * 'enum_string'` on the subscription, and this message is what points at it.
+ */
+function stringFault(data: Message<unknown> | undefined) {
+  if (!hasPayload(data)) return undefined
+  if (typeof data.value !== 'string') {
+    return unreadableValuePresentation(
+      `${data.name}: expected a string, got ${typeof data.value} (${String(
+        data.value,
+      )}). An enum record read at its native type sends its index, not its name.`,
+    )
+  }
+  return undefined
+}
+
 /** Float value (precision-formatted) + optional units chip. */
 export const FloatValue: FC<
   { data: NumMsg; precision?: number } & SeverityAwareProps & UnitsAwareProps
 > = ({
   data,
+  pvName,
   precision = 3,
   respectSeverity = true,
   emphasis,
   units,
   unitsFallback,
 }) => {
-  const severity = usePresentation(data, respectSeverity, emphasis)
+  const severity = usePresentation(data, respectSeverity, emphasis, pvName)
   // A severity the control system reported outranks our own read of the
   // payload: if the IOC says INVALID, that is the more authoritative story.
   const { tone, text, title } =
@@ -136,7 +173,11 @@ export const FloatValue: FC<
   }
   if (!data || !data.ok || !Number.isFinite(data.value)) {
     return (
-      <span className={styles.placeholder} data-tone={tone ?? 'unknown'}>
+      <span
+        className={styles.placeholder}
+        data-tone={tone ?? 'unknown'}
+        title={title}
+      >
         {UNKNOWN_FALLBACK}
       </span>
     )
@@ -152,8 +193,15 @@ export const FloatValue: FC<
 /** Integer value. */
 export const IntegerValue: FC<
   { data: NumMsg } & SeverityAwareProps & UnitsAwareProps
-> = ({ data, respectSeverity = true, emphasis, units, unitsFallback }) => {
-  const severity = usePresentation(data, respectSeverity, emphasis)
+> = ({
+  data,
+  pvName,
+  respectSeverity = true,
+  emphasis,
+  units,
+  unitsFallback,
+}) => {
+  const severity = usePresentation(data, respectSeverity, emphasis, pvName)
   // A severity the control system reported outranks our own read of the
   // payload: if the IOC says INVALID, that is the more authoritative story.
   const { tone, text, title } =
@@ -174,7 +222,11 @@ export const IntegerValue: FC<
   }
   if (!data || !data.ok || !Number.isFinite(data.value)) {
     return (
-      <span className={styles.placeholder} data-tone={tone ?? 'unknown'}>
+      <span
+        className={styles.placeholder}
+        data-tone={tone ?? 'unknown'}
+        title={title}
+      >
         {UNKNOWN_FALLBACK}
       </span>
     )
@@ -190,10 +242,17 @@ export const IntegerValue: FC<
 /** String value. */
 export const StringValue: FC<{ data: StrMsg } & SeverityAwareProps> = ({
   data,
+  pvName,
   respectSeverity = true,
   emphasis,
 }) => {
-  const { tone, text, title } = usePresentation(data, respectSeverity, emphasis)
+  const severity = usePresentation(data, respectSeverity, emphasis, pvName)
+  // A severity the control system reported outranks our own read of the
+  // payload, exactly as in the numeric readouts above.
+  const { tone, text, title } =
+    severity.tone === undefined && respectSeverity
+      ? (stringFault(data) ?? severity)
+      : severity
   if (text !== undefined) {
     return (
       <span className={styles.placeholder} data-tone={tone} title={title}>
@@ -203,7 +262,11 @@ export const StringValue: FC<{ data: StrMsg } & SeverityAwareProps> = ({
   }
   if (!data || !data.ok || typeof data.value !== 'string') {
     return (
-      <span className={styles.placeholder} data-tone={tone ?? 'unknown'}>
+      <span
+        className={styles.placeholder}
+        data-tone={tone ?? 'unknown'}
+        title={title}
+      >
         {UNKNOWN_FALLBACK}
       </span>
     )
@@ -232,6 +295,7 @@ interface BoolPillProps extends SeverityAwareProps {
 /** Inline status pill for a single boolean PV. */
 export const BoolPill: FC<BoolPillProps> = ({
   data,
+  pvName,
   onLabel,
   offLabel,
   onEmphasis,
@@ -242,6 +306,7 @@ export const BoolPill: FC<BoolPillProps> = ({
     data,
     respectSeverity,
     isOnValue ? onEmphasis : undefined,
+    pvName,
   )
   // Severity replaces both the on/off tone and (where the shared table says
   // so) the on/off label — an untrustworthy reading shouldn't claim a state.

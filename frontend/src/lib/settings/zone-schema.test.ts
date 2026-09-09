@@ -244,4 +244,14 @@ modules:
       ;(zone.allowedRoutes as string[]).push('/hacked')
     }).toThrow()
   })
+
+  it('accepts an optional title and rejects a blank one', () => {
+    // Omitted: the header falls back to a generic name rather than a station's.
+    expect(parseZoneFile(VALID, 'test').title).toBeUndefined()
+    expect(parseZoneFile(`${VALID}\ntitle: L4 OPCPA\n`, 'test').title).toBe(
+      'L4 OPCPA',
+    )
+    // A whitespace-only title would render an empty header rather than a name.
+    expect(() => parseZoneFile(`${VALID}\ntitle: "   "\n`, 'test')).toThrow()
+  })
 })

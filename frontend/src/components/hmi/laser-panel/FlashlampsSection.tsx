@@ -157,7 +157,10 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
   // which is exactly what this panel used to have.
   const channelItems: DetailListItem[] = channelPvs.map((name, i) => {
     const msg = channelState[name]
-    const { tone, text, title } = severityPresentation(msg, { isConnected })
+    const { tone, text, title } = severityPresentation(msg, {
+      isConnected,
+      pvName: name,
+    })
     // A non-string value arrives when the state PV is an enum record read at
     // its native type: Channel Access then delivers the index (0/1/2…), not
     // the state name, and only a subscription asking for `enum_string` gets

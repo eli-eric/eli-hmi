@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 
 import './globals.css'
+import { PALETTE_BOOTSTRAP_SCRIPT } from '@/lib/palette/palette'
 import { Providers } from './providers/providers'
 
 export const metadata: Metadata = {
@@ -16,6 +17,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Applies the stored colour palette before the first paint. It has to
+            run here, blocking: an operator whose goggles hide red must not
+            watch every page load repaint from red to magenta. See
+            lib/palette/palette.ts. */}
+        <script
+          dangerouslySetInnerHTML={{ __html: PALETTE_BOOTSTRAP_SCRIPT }}
+        />
         {/* Preload font files */}
         <link
           rel="preload"

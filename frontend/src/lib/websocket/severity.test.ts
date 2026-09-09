@@ -8,6 +8,7 @@ function msg(over: Partial<Message<number>> = {}): Message<number> {
     name: 'AI_X',
     value: 1,
     severity: 0,
+    status: null,
     units: null,
     timestamp: 0,
     ok: true,

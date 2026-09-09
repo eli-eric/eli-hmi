@@ -20,17 +20,18 @@ import type {
   CommandPvResolver,
   LaserCommand,
 } from '@/app/(modules)/l4-opcpa/lib/pv-names'
-import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import type { MappedPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import { WaveformSelect } from './WaveformSelect'
 import { makeCommandGate } from './commandGate'
 import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
+import { displayValue, ON_OFF_TEXT } from './value-text'
 import styles from './sections.module.css'
 
 interface ModboxSectionProps {
   /** Resolves a command to its write PV (YAML override or CMD_<laser>_<NAME>). */
   cmdPv: CommandPvResolver
-  /** Modbox state indicators: display label + PV (1 = OK). */
-  modbox: readonly LabeledPv[]
+  /** Modbox state indicators: display label + PV (1 = on), optional value map. */
+  modbox: readonly MappedPv[]
   /** Currently-loaded-waveform PV (Waveform Preset). */
   loadedWaveformPv: string
   /** Previous-waveform PV shown in Waveform Latest. Optional. */
@@ -112,14 +113,19 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   const modboxTone =
     modboxSeverity.tone === 'unknown' ? undefined : modboxSeverity.tone
 
-  const items: DetailListItem[] = modbox.map(({ label, pv: name }) => {
+  const items: DetailListItem[] = modbox.map(({ label, pv: name, values }) => {
     const msg = state[name]
-    const { tone, text, title } = severityPresentation(msg, { isConnected })
-    const v = msg?.value
+    const { tone, text, title } = severityPresentation(msg, {
+      isConnected,
+      pvName: name,
+    })
     return {
       label,
       tone,
-      text: text ?? (v === null || v === undefined ? undefined : String(v)),
+      // The shared table replaces the text only when the reading is unusable;
+      // otherwise the value is translated for display: a Modbox subsystem is
+      // ON or OFF.
+      text: text ?? displayValue(msg?.value, values, ON_OFF_TEXT),
       title,
     }
   })
@@ -170,6 +176,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
                   <span className={styles.mbcLabel}>MBC1</span>
                   <span className={styles.mbcCell} data-tone-surface="cell">
                     <FloatValue
+                      pvName={mbc1Pv}
                       data={state[mbc1Pv] as Message<number | null> | undefined}
                       precision={2}
                     />
@@ -181,6 +188,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
                   <span className={styles.mbcLabel}>MBC2</span>
                   <span className={styles.mbcCell} data-tone-surface="cell">
                     <FloatValue
+                      pvName={mbc2Pv}
                       data={state[mbc2Pv] as Message<number | null> | undefined}
                       precision={2}
                     />
@@ -195,6 +203,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         label="Waveform Preset"
         value={
           <StringValue
+            pvName={loadedWaveformPv}
             data={state[loadedWaveformPv] as Message<string | null> | undefined}
           />
         }
@@ -211,6 +220,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
           label="Waveform Latest"
           value={
             <StringValue
+              pvName={latestWaveformPv}
               data={
                 state[latestWaveformPv] as Message<string | null> | undefined
               }

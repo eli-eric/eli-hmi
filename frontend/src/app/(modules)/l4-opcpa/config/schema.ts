@@ -38,6 +38,29 @@ const labeledPv = z.strictObject({
 })
 
 /**
+ * A labelled PV whose raw value is translated for display: `{0: OFF, 1: ON}`.
+ *
+ * Modbox states and MSS indicators are booleans, and a column of bare 1s and
+ * 0s asks the operator to remember which is which. The wording is config, not
+ * code, because what a bit means is domain knowledge that belongs beside the
+ * PV it describes — and no single pair fits all of them (a Modbox subsystem is
+ * ON/OFF, a software key ENABLED/DISABLED, an MSS interlock YES/NO).
+ *
+ * Keys are matched against the value converted to a string, so this works for
+ * an enum's index (`{0: STANDBY}`) as well as a bit. A value with no entry
+ * falls through to its raw form rather than disappearing — an unexpected
+ * reading must stay visible.
+ */
+const mappedPv = labeledPv.extend({
+  values: z
+    .record(z.string(), label)
+    .optional()
+    .describe(
+      'Display text per raw value, e.g. {0: OFF, 1: ON}. Unmapped values are shown as-is.',
+    ),
+})
+
+/**
  * A command's write target: either just the PV (shorthand — the write is the
  * conventional `1`), or an explicit `{pv, value}` when the device expects
  * something else, e.g. `MODBOX_OFF: {pv: MOD:BOX:MODE, value: Sleep}`.
@@ -143,9 +166,9 @@ export const rawLaserSchema = z
         'Trigger-delay readout PVs; all should read equal (mismatch flagged).',
       ),
     mss: z
-      .array(labeledPv)
+      .array(mappedPv)
       .describe(
-        'MSS sub-indicators (label + PV) counted in the General overview.',
+        'MSS sub-indicators (label + PV, optional per-value display text) counted in the General overview.',
       ),
     moduleErrors: z
       .array(labeledPv)
@@ -161,9 +184,9 @@ export const rawLaserSchema = z
         'Flashlamp channels (label + PV). Empty array hides the Flashlamps section.',
       ),
     modbox: z
-      .array(labeledPv)
+      .array(mappedPv)
       .describe(
-        'Modbox state indicators (label + PV). Empty array hides the Modbox section.',
+        'Modbox state indicators (label + PV, optional per-value display text). Empty array hides the Modbox section.',
       ),
     delayPresets: z
       .array(z.number().int())
@@ -273,6 +296,8 @@ export const configSchema = z
 export type RawLaserConfig = z.infer<typeof rawLaserSchema>
 export type ChillerSpec = z.infer<typeof chillerSchema>
 export type LabeledPv = z.infer<typeof labeledPv>
+/** A labelled PV with optional per-value display text; see `mappedPv`. */
+export type MappedPv = z.infer<typeof mappedPv>
 /** Units by signal role; every role optional. */
 export type UnitsConfig = z.infer<typeof unitsSchema>
 export type UnitRole = keyof UnitsConfig

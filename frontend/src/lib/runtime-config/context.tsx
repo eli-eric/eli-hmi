@@ -17,6 +17,8 @@ interface RuntimeConfigContextValue {
   navigationItems: NavigationItem[]
   /** Zone home route; null until status === 'ready'. */
   homeRoute: string | null
+  /** Header name; null until status === 'ready', so nothing wrong is shown. */
+  title: string | null
 }
 
 const RuntimeConfigContext = createContext<RuntimeConfigContextValue | null>(
@@ -34,6 +36,7 @@ export function RuntimeConfigProvider({
     wsUrl: buildWsUrl(null, null),
     navigationItems: [],
     homeRoute: null,
+    title: null,
   })
 
   useEffect(() => {
@@ -48,6 +51,7 @@ export function RuntimeConfigProvider({
           zoneCode: config.zoneCode ?? undefined,
           navigationItems: config.navigationItems ?? [],
           homeRoute: config.homeRoute ?? null,
+          title: config.title ?? null,
         })
       })
       .catch(() => {

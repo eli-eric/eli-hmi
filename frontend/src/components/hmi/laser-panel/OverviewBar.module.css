@@ -78,8 +78,8 @@
   font-size: var(--hmi-font-size);
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* `.pillCount` inside does the truncating — a tone surface must not clip,
+   * or it clips the alarm badge off its own border. */
   white-space: nowrap;
 }
 

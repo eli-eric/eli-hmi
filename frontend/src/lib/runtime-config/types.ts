@@ -8,4 +8,6 @@ export interface RuntimeConfig {
   navigationItems: NavigationItem[]
   /** Zone home route (first allowed route, `/no-access` fallback). */
   homeRoute: string
+  /** Name shown in the header (zone `title`, or the generic default). */
+  title: string
 }

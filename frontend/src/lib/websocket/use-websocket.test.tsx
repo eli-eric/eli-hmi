@@ -196,4 +196,22 @@ describe('useWebSocket', () => {
   // and the url useMemo deps cover the rotation logic, but the integration
   // assertion is a known gap. Worth revisiting with a different mock library
   // or a dedicated jsdom WebSocket polyfill.
+
+  it("carries the gateway's alarm status through both wire shapes", async () => {
+    const { result } = renderHook(() => useWebSocket())
+    await waitFor(() => expect(result.current.isConnected).toBe(true))
+
+    const seen: (number | string | null)[] = []
+    act(() => {
+      result.current.subscribe<number>('AI_X', (m) => seen.push(m.status))
+    })
+    await server.waitForSubscribe('AI_X')
+
+    // Batched shape: alarm fields nested under `metadata`.
+    act(() => server.pushEvent('AI_X', 1, { severity: 2, status: 3 }))
+    // Legacy shape: the same fields flat.
+    act(() => server.pushPV('AI_X', 1, { severity: 2, status: 5 }))
+
+    await waitFor(() => expect(seen).toEqual([3, 5]))
+  })
 })

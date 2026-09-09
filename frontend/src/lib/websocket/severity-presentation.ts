@@ -1,5 +1,6 @@
 import type { Message } from '@/app/providers/types'
 import { severityTone, worstSeverityTone, type SeverityTone } from './severity'
+import { describePv, TRANSPORT_DOWN_REASON } from './pv-tooltip'
 
 /** Text shown when no message has arrived for a PV yet. */
 export const UNKNOWN_TEXT = '<>'
@@ -36,6 +37,12 @@ export interface PresentationOptions {
   /** Widget-chosen emphasis, applied only at severity 0. */
   emphasis?: ValueEmphasis
   /**
+   * PV name for the tooltip, used when no message has arrived yet (a message
+   * carries its own name). Without it a readout showing `<>` cannot say which
+   * PV is silent.
+   */
+  pvName?: string
+  /**
    * Transport state (`isConnected` from `useWebSocketData`). When the backend
    * link is down, no PV is updating any more: whatever is on screen is a stale
    * snapshot, so every readout greys out instead of continuing to look live.
@@ -43,9 +50,11 @@ export interface PresentationOptions {
   isConnected?: boolean
 }
 
-/** Tooltip shown while the backend link is down. */
-export const TRANSPORT_DOWN_TITLE =
-  'Backend disconnected — this is the last value received, not a live reading.'
+/**
+ * Reason line shown while the backend link is down. Re-exported from
+ * `pv-tooltip`, which owns the wording.
+ */
+export const TRANSPORT_DOWN_TITLE = TRANSPORT_DOWN_REASON
 
 export interface SeverityPresentation {
   /** Tone to paint with, or `undefined` to leave the widget unstyled. */
@@ -57,9 +66,9 @@ export interface SeverityPresentation {
    */
   text?: string
   /**
-   * Hover text (rendered as `title`). Supplied for invalid readings, where the
-   * replaced value would otherwise be unrecoverable: it names the PV and what
-   * it last read while still trustworthy.
+   * Hover text (rendered as `title`). Always present for a single PV — at a
+   * minimum the PV name, which the panel itself never shows. See
+   * `describePv`, which decides the wording.
    */
   title?: string
 }
@@ -107,33 +116,6 @@ function invalidText(msg: AnyMsg): string {
   return isDisconnected(msg) ? DISCONNECTED_TEXT : INVALID_TEXT
 }
 
-/** `"24.81"`, or `"unknown"` when there is nothing to show. */
-function formatValue(value: unknown): string {
-  return value === null || value === undefined ? 'unknown' : String(value)
-}
-
-/** `"BI_NL2_MSS_1 — PV disconnected. Last known value: 1 (12:03:44) CA disconnect"` */
-function invalidTitle(msg: Message<unknown>): string {
-  const cause = isDisconnected(msg)
-    ? 'PV disconnected.'
-    : 'reading invalid (EPICS INVALID severity).'
-  const parts = [`${msg.name} — ${cause}`]
-  if (msg.lastValid) {
-    const at = Number.isFinite(msg.lastValid.timestamp)
-      ? new Date(msg.lastValid.timestamp * 1000).toLocaleTimeString()
-      : null
-    parts.push(
-      `Last known value: ${formatValue(msg.lastValid.value)}${
-        at ? ` (at ${at})` : ''
-      }`,
-    )
-  } else {
-    parts.push(`Last known value: ${formatValue(msg.value)}`)
-  }
-  if (msg.error) parts.push(msg.error)
-  return parts.join(' ')
-}
-
 /**
  * The backend link is down, so nothing on screen is live. Grey everything out,
  * but keep showing the last value (`text` stays undefined = "use the widget's
@@ -141,11 +123,14 @@ function invalidTitle(msg: Message<unknown>): string {
  * still wants to see what the machine was doing a moment ago. Only a readout
  * that never received anything falls back to `<>`.
  */
-function transportDown(msg: AnyMsg): SeverityPresentation {
+function transportDown(
+  msg: AnyMsg,
+  opts?: PresentationOptions,
+): SeverityPresentation {
   return {
     tone: 'unknown',
     text: msg ? undefined : UNKNOWN_TEXT,
-    title: TRANSPORT_DOWN_TITLE,
+    title: describePv(msg, { pvName: opts?.pvName, isConnected: false }),
   }
 }
 
@@ -161,12 +146,17 @@ export function severityPresentation(
   msg: AnyMsg,
   opts?: PresentationOptions,
 ): SeverityPresentation {
-  if (opts?.isConnected === false) return transportDown(msg)
+  if (opts?.isConnected === false) return transportDown(msg, opts)
+  // The tooltip is never conditional: naming the PV is useful at every
+  // severity, including none, and it is the only place the name appears.
+  const title = describePv(msg, { pvName: opts?.pvName })
   const tone = severityTone(msg)
-  if (tone === 'none') return opts?.emphasis ? { tone: opts.emphasis } : {}
+  if (tone === 'none') {
+    return opts?.emphasis ? { tone: opts.emphasis, title } : { title }
+  }
   const base = PRESENTATION[tone]
-  if (base.tone !== 'invalid' || !msg) return base
-  return { ...base, text: invalidText(msg), title: invalidTitle(msg) }
+  if (base.tone !== 'invalid' || !msg) return { ...base, title }
+  return { ...base, text: invalidText(msg), title }
 }
 
 /**
@@ -194,7 +184,10 @@ export function aggregateSeverityPresentation(
   opts?: PresentationOptions,
 ): SeverityPresentation {
   if (opts?.isConnected === false) {
-    return transportDown(msgs.find((m) => !!m))
+    return transportDown(
+      msgs.find((m) => !!m),
+      opts,
+    )
   }
   const worst = worstSeverityTone(msgs.map(severityTone))
   if (worst === 'none') return opts?.emphasis ? { tone: opts.emphasis } : {}
@@ -210,9 +203,11 @@ export function aggregateSeverityPresentation(
   return {
     ...base,
     text: allDisconnected ? DISCONNECTED_TEXT : INVALID_TEXT,
+    // Each offender described exactly as it would be on its own — same
+    // wording, one place (`describePv`), just flattened under a count.
     title: [
       `${offenders.length} of ${msgs.length} readings unusable:`,
-      ...offenders.map(invalidTitle),
+      ...offenders.map((m) => describePv(m)?.replace(/\n/g, ' · ') ?? m.name),
     ].join('\n'),
   }
 }

@@ -1,9 +1,15 @@
 /* Ink is inherited from the surface that paints (the DataRow cell, a grid
  * cell, a chip): that surface knows whether it is filled, so the value never
  * has to guess which ink is readable on it. */
+/* The value truncates itself rather than letting the cell around it clip:
+ * the cell is a tone surface, and clipping there would cut the alarm badge
+ * off its own border. */
 .number {
   display: block;
   margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: inherit;
 }
 
@@ -22,6 +28,9 @@
 }
 
 .text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: inherit;
 }
 
@@ -31,6 +40,9 @@
 .placeholder {
   font-family: 'Roboto Condensed', monospace;
   font-size: var(--hmi-font-size);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: inherit;
 }
 

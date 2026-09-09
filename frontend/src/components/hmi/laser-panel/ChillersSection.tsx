@@ -75,13 +75,13 @@ export const ChillersSection: FC<ChillersSectionProps> = ({
           <div key={c.flow} className={styles.contents}>
             <span className={styles.rowLabel}>Chiller {c.label}</span>
             <span className={styles.numCell} data-tone-surface="cell">
-              <FloatValue data={state[c.flow]} />
+              <FloatValue pvName={c.flow} data={state[c.flow]} />
             </span>
             <span className={styles.numCell} data-tone-surface="cell">
-              <FloatValue data={state[c.temp]} />
+              <FloatValue pvName={c.temp} data={state[c.temp]} />
             </span>
             <span className={styles.numCell} data-tone-surface="cell">
-              <FloatValue data={state[c.level]} />
+              <FloatValue pvName={c.level} data={state[c.level]} />
             </span>
           </div>
         ))}
