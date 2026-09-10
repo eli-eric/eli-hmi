@@ -47,17 +47,17 @@
   white-space: nowrap;
 }
 
+/* Geometry only — the cell is a tone surface, so it paints itself edge to
+ * edge and its value child just supplies the text. */
 .numCell {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  background: var(--color-surface-lighter);
-  border: 1px solid var(--color-border);
   padding: 0.0625rem 0.25rem;
   min-height: var(--hmi-row-min-h);
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* See DataRow's `.value`: a tone surface must not clip, or it clips the
+   * alarm badge off its own border. */
   white-space: nowrap;
   font-size: var(--hmi-font-size);
 }
@@ -109,25 +109,45 @@
   opacity: 1;
 }
 
-.delayMismatch {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-error-dark);
-  text-decoration: underline double;
+.delayUnits {
+  margin-left: 0.375rem;
+  font-size: var(--hmi-font-size);
+  font-weight: 400;
+  color: var(--color-gray-800);
 }
 
-.delayInvalid {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-invalid-dark);
-  text-decoration: underline dashed;
+/* Both delay readouts carry a `data-tone` that the enclosing `.value` cell
+ * paints; ink is inherited from that cell. */
+.delayInvalid,
+.delayValue {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+}
+
+.delayMismatch {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .flashlampGrid {
   display: grid;
+  /* One column per flashlamp state. The count comes from the component
+   * (`--flashlamp-state-count` = STATES.length) so the track list can never
+   * drift out of sync with the states again — hardcoding it once left the row
+   * wrapping when states were added.
+   *
+   * NB there is only room for ~4 state columns beside the label: a 22rem panel
+   * minus the 8.5rem label and 2.25rem action column leaves ~2.4rem each,
+   * about what a bold 4-character header ("STOP") needs. More columns than
+   * that need shorter headers or a narrower label — see the Flashlamps
+   * section's STATES comment. */
   grid-template-columns:
     var(--hmi-label-width, 13rem)
-    repeat(4, minmax(0, 1fr))
+    repeat(var(--flashlamp-state-count, 4), minmax(0, 1fr))
     var(--hmi-action-width, 1.75rem);
   gap: 0.125rem;
   align-items: center;
@@ -141,33 +161,17 @@
   width: 100%;
 }
 
+/* A per-state tally. Counting is not judging: "3 in STOP" is a fact, and
+ * whether that is good depends on what the operator is doing. Geometry only —
+ * the cell paints neutral unless a tone says otherwise. */
 .flashlampCell {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-surface-lighter);
-  border: 1px solid var(--color-text);
   padding: 0.0625rem 0.1875rem;
   min-height: var(--hmi-row-min-h);
   min-width: 0;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
   font-size: var(--hmi-font-size);
-}
-
-.flashlampCell[data-tone='positive-important'] {
-  background: var(--color-success);
-  border-color: var(--color-success-dark);
-}
-
-.flashlampCell[data-tone='negative-neutral'] {
-  background: var(--color-surface);
-  border-color: var(--color-gray-800);
-}
-
-.flashlampCell[data-tone='error'] {
-  background: var(--color-error);
-  border-color: var(--color-error-dark);
 }
 
 .modboxStateButton {
@@ -210,6 +214,9 @@
   opacity: 1;
 }
 
+/* Geometry only — colour comes from the global tone layer. No bit-value
+ * colouring here (1/0 is not pass/fail); only EPICS severity, taken from the
+ * worst reading among the modbox channels, ever tones this pill. */
 .modboxStatePill {
   position: relative;
   display: inline-flex;
@@ -219,28 +226,6 @@
   min-height: var(--hmi-row-min-h);
   padding: 0.0625rem 0.25rem;
   font-size: var(--hmi-font-size);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  background: var(--color-surface-lighter);
-  border: 1px solid var(--color-text);
-  color: var(--color-text);
-}
-
-/* No bit-value colouring (1/0 isn't pass/fail) — only EPICS severity, on the
- * worst reading among the modbox channels, gets a tone here. */
-.modboxStatePill[data-tone='warning'] {
-  background: var(--color-warning);
-  border-color: var(--color-warning-dark);
-}
-
-.modboxStatePill[data-tone='error'] {
-  background: var(--color-error);
-  border-color: var(--color-error-dark);
-}
-
-.modboxStatePill[data-tone='invalid'] {
-  background: var(--color-invalid);
-  border-color: var(--color-invalid-dark);
 }
 
 /* Corner triangle marking an expandable element (replaces the old chevron). */
@@ -299,58 +284,27 @@
      it tracks the CSI-782 font-size token. */
   min-width: 11ch;
   min-height: 1.125rem;
-  font-weight: 700;
   font-size: var(--hmi-font-size);
   letter-spacing: 0.04em;
   padding: 0 0.375rem;
   text-align: center;
-  border: 1px solid var(--color-text);
-}
-
-.sequenceState[data-tone='positive-important'] {
-  background: var(--color-success);
-  border-color: var(--color-success-dark);
-}
-
-.sequenceState[data-tone='negative-neutral'] {
-  background: var(--color-surface);
-  border-color: var(--color-gray-800);
-}
-
-.sequenceState[data-tone='unknown'] {
-  background: transparent;
-  border-style: dotted;
-  color: var(--color-gray-800);
 }
 
 /* Modbox MBC sub-readouts on the Modbox State row */
-.modboxRow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: end;
-  gap: 0.125rem;
-  width: 100%;
-  min-width: 0;
-}
-
-.modboxRow[data-layout='bool-only'] {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.modboxRow .modboxStateButton {
-  width: 100%;
-}
-
-.modboxRow .modboxStatePill {
+/* The Modbox State row is the aggregate pill and nothing else; the MBC bias
+ * readouts live on their own row below (see `.mbcRow`). */
+.modboxStateButton .modboxStatePill {
   width: 100%;
   min-width: 0;
   padding-right: 0.9rem; /* room for the corner triangle */
 }
 
-.modboxRow .modboxStateCount {
+.modboxStateButton .modboxStateCount {
   overflow: hidden;
 }
 
+/* Geometry only — like DataRow's .value, this is a tone surface and paints
+ * itself edge to edge. */
 .mbcCell {
   display: inline-flex;
   align-items: center;
@@ -360,28 +314,36 @@
   min-height: var(--hmi-row-min-h);
   padding: 0.0625rem 0.25rem;
   font-size: var(--hmi-font-size);
-  font-variant-numeric: tabular-nums;
-  background: var(--color-surface-lighter);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
   box-sizing: border-box;
 }
 
+/* Bias Value row: one pair per MBC, sharing the row's width. The label sits
+ * beside its readout rather than above it — the row already has a label
+ * column, so a second stacked label would push the readouts out of line with
+ * every other value in the panel. */
+.mbcRow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.mbcPair {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
 .mbcLabel {
+  flex: none;
   font-size: var(--hmi-font-size);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--color-text);
-  text-align: center;
-}
-
-.mbcCol {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.0625rem;
-  width: 100%;
-  min-width: 0;
 }
 
 /* "Set Waveform to…" disclosure inside the Modbox Actions cog panel.
@@ -412,36 +374,4 @@
 
 .waveformActionToggle:hover {
   background: var(--color-surface);
-}
-
-/* CSI-783: chiller cell state rendering. One tone per derived CellKind. */
-.cellState {
-  display: inline-block;
-  width: 100%;
-  text-align: center;
-  font-size: var(--hmi-font-size);
-  font-weight: 700;
-  white-space: nowrap;
-}
-.cellState[data-tone='ok'] {
-  color: var(--color-text);
-}
-.cellState[data-tone='warn'] {
-  color: var(--color-text);
-  background: var(--color-warning, #facc15);
-}
-.cellState[data-tone='error'] {
-  color: var(--color-text);
-  background: var(--color-negative-important, #f87171);
-}
-.cellState[data-tone='unknown'] {
-  color: var(--color-text-secondary);
-}
-.cellState[data-tone='muted'] {
-  color: var(--color-text-secondary);
-  font-style: italic;
-}
-.cellState[data-tone='invalid'] {
-  color: var(--color-text);
-  background: var(--color-invalid-light);
 }

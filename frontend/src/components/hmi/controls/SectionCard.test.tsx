@@ -9,9 +9,7 @@ describe('SectionCard', () => {
         <p>inner content</p>
       </SectionCard>,
     )
-    expect(
-      screen.getByRole('heading', { name: 'General' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'General' })).toBeInTheDocument()
     expect(screen.getByText('inner content')).toBeInTheDocument()
   })
 })

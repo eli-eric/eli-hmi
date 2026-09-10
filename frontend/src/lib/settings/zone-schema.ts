@@ -79,6 +79,14 @@ export const zoneFileSchema = z
       .describe(
         `Zone-file schema version understood by the app (currently ${ZONE_SCHEMA_VERSION}).`,
       ),
+    title: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .describe(
+        'Name shown in the header, e.g. "L4 OPCPA". Defaults to DEFAULT_ZONE_TITLE.',
+      ),
     navigationItems: z
       .array(navigationItemSchema)
       .describe('Items shown in the top navigation, in order.'),

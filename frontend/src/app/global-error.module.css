@@ -6,7 +6,7 @@
   height: 100vh;
   width: 100vw;
   background-color: #535353;
-  color: #FFFFFF;
+  color: #ffffff;
   padding: 1rem;
 }
 
@@ -14,14 +14,14 @@
   font-size: 1.25rem;
   font-weight: bold;
   margin-bottom: 0.25rem;
-  color: #FFFFFF;
+  color: #ffffff;
   text-align: left;
 }
 
 .errorMessage {
   font-size: 0.875rem;
   margin-bottom: 0.5rem;
-  color: #E0E0E0;
+  color: #e0e0e0;
   text-align: left;
   max-width: 100%;
 }
@@ -30,7 +30,7 @@
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
   background-color: #404040;
-  color: #FFFFFF;
+  color: #ffffff;
   border: 1px solid #606060;
   border-radius: 0.125rem;
   cursor: pointer;
@@ -50,7 +50,7 @@
   border-left: 1px solid #707070;
   font-family: monospace;
   font-size: 0.7rem;
-  color: #D0D0D0;
+  color: #d0d0d0;
   max-width: 100%;
   overflow: auto;
 }

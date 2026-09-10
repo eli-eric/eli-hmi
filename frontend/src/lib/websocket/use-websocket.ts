@@ -10,7 +10,7 @@ import {
   useState,
 } from 'react'
 
-import { Message } from '@/app/providers/types'
+import { Message, SubscribeOptions } from '@/app/providers/types'
 import { useRuntimeConfig } from '@/lib/runtime-config/context'
 
 import { debug } from './debug'
@@ -39,6 +39,8 @@ interface WireError {
 
 interface WireMetadata {
   severity?: number
+  /** EPICS alarm status; numeric today, a phrase if the gateway ever sends one. */
+  status?: number | string | null
   units?: string | null
   timestamp?: number
 }
@@ -49,6 +51,7 @@ interface WireMessage {
   pv?: string
   value?: unknown
   severity?: number
+  status?: number | string | null
   units?: string | null
   timestamp?: number
   metadata?: WireMetadata
@@ -82,6 +85,7 @@ function normalizeIncomingMessage(raw: unknown): Message | null {
       name: msg.pv,
       value: (msg.value ?? null) as Message['value'],
       severity: meta.severity ?? 0,
+      status: meta.status ?? null,
       units: meta.units ?? null,
       timestamp: meta.timestamp ?? Date.now() / 1000,
       ok: msg.ok ?? false,
@@ -96,6 +100,7 @@ function normalizeIncomingMessage(raw: unknown): Message | null {
       name: msg.name,
       value: (msg.value ?? null) as Message['value'],
       severity: msg.severity ?? 0,
+      status: msg.status ?? null,
       units: msg.units ?? null,
       timestamp: msg.timestamp ?? Date.now() / 1000,
       ok: msg.ok ?? false,
@@ -124,6 +129,11 @@ export function useWebSocket() {
   // otherwise processes messages on a connection strictly sequentially, so a
   // single slow/nonexistent PV would stall every other pending subscribe.
   const channelGroupRef = useRef<Map<string, string>>(new Map())
+  // Per-channel datatype alias (unset = the gateway's native type). Batches are
+  // grouped by it: one `subscribe` message can only carry a single datatype,
+  // and an enum PV needs 'enum_string' to arrive as its state name rather than
+  // the raw index.
+  const channelDatatypeRef = useRef<Map<string, string>>(new Map())
   const groupsRef = useRef<Map<string, Set<string>>>(new Map())
   const pendingAddsRef = useRef<Set<string>>(new Set())
   const pendingRemovesRef = useRef<Set<string>>(new Set())
@@ -223,28 +233,45 @@ export function useWebSocket() {
       })
     })
 
-    const channels = [...adds]
-    for (let i = 0; i < channels.length; i += MAX_PVS_PER_SUBSCRIPTION) {
-      const chunk = channels.slice(i, i + MAX_PVS_PER_SUBSCRIPTION)
-      const subscriptionId = nextSubscriptionId()
-      groupsRef.current.set(subscriptionId, new Set(chunk))
-      chunk.forEach((channel) =>
-        channelGroupRef.current.set(channel, subscriptionId),
-      )
-      debug('ws:subscribe', 'batch', subscriptionId, chunk)
-      // `detail: 'time'` gets severity/status/timestamp in `metadata` —
-      // omitting it would default to the gateway's 'value' level, which
-      // drops those fields and silently starves every consumer that reads
-      // them. 'control' would additionally carry `units` and display/control
-      // limits; nothing consumes those (Gate.tsx used to show units and was
-      // trimmed when this moved off 'control'), so 'time' keeps events lean.
-      send({
-        type: 'subscribe',
-        subscription_id: subscriptionId,
-        pvs: chunk,
-        detail: 'time',
-      })
-    }
+    // One `subscribe` carries one datatype, so split the batch by it first.
+    const byDatatype = new Map<string | undefined, string[]>()
+    adds.forEach((channel) => {
+      const datatype = channelDatatypeRef.current.get(channel)
+      const bucket = byDatatype.get(datatype)
+      if (bucket) bucket.push(channel)
+      else byDatatype.set(datatype, [channel])
+    })
+
+    byDatatype.forEach((channels, datatype) => {
+      for (let i = 0; i < channels.length; i += MAX_PVS_PER_SUBSCRIPTION) {
+        const chunk = channels.slice(i, i + MAX_PVS_PER_SUBSCRIPTION)
+        const subscriptionId = nextSubscriptionId()
+        groupsRef.current.set(subscriptionId, new Set(chunk))
+        chunk.forEach((channel) =>
+          channelGroupRef.current.set(channel, subscriptionId),
+        )
+        debug(
+          'ws:subscribe',
+          'batch',
+          subscriptionId,
+          datatype ?? 'native',
+          chunk,
+        )
+        // `detail: 'time'` gets severity/status/timestamp in `metadata` —
+        // omitting it would default to the gateway's 'value' level, which
+        // drops those fields and silently starves every consumer that reads
+        // them. 'control' would additionally carry `units` and display/control
+        // limits; nothing consumes those (Gate.tsx used to show units and was
+        // trimmed when this moved off 'control'), so 'time' keeps events lean.
+        send({
+          type: 'subscribe',
+          subscription_id: subscriptionId,
+          pvs: chunk,
+          detail: 'time',
+          ...(datatype ? { datatype } : {}),
+        })
+      }
+    })
   }, [send, nextSubscriptionId])
 
   const scheduleFlush = useCallback(() => {
@@ -449,10 +476,30 @@ export function useWebSocket() {
   })
 
   const subscribe = useCallback(
-    <T,>(channel: string, callback: SubscriptionCallback<T>) => {
+    <T>(
+      channel: string,
+      callback: SubscriptionCallback<T>,
+      opts?: SubscribeOptions,
+    ) => {
       const isFirst = !subscriptionsRef.current.has(channel)
       if (isFirst) {
         subscriptionsRef.current.set(channel, new Set())
+        if (opts?.datatype) {
+          channelDatatypeRef.current.set(channel, opts.datatype)
+        }
+      } else if (
+        opts?.datatype &&
+        opts.datatype !== channelDatatypeRef.current.get(channel)
+      ) {
+        // The channel is already subscribed under a different datatype; the
+        // wire has one subscription per PV, so the first one wins.
+        debug(
+          'ws:subscribe',
+          'datatype conflict, keeping',
+          channelDatatypeRef.current.get(channel) ?? 'native',
+          'for',
+          channel,
+        )
       }
       subscriptionsRef.current
         .get(channel)
@@ -473,6 +520,7 @@ export function useWebSocket() {
         set.delete(callback as SubscriptionCallback)
         if (set.size === 0) {
           subscriptionsRef.current.delete(channel)
+          channelDatatypeRef.current.delete(channel)
           debug('ws:unsubscribe', 'queue', channel)
           queueRemove(channel)
         }

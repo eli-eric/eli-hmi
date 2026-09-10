@@ -1,0 +1,33 @@
+/* Sits on the dark header bar, so it borrows the nav items' light-on-dark
+ * treatment rather than the panel's light-surface one. Deliberately painted
+ * from the grayscale tokens only: a control for choosing a palette must look
+ * the same in every palette. */
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.label {
+  color: var(--color-surface-lighter);
+  font-size: 0.875rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.select {
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid var(--color-surface-lighter);
+  border-radius: 0;
+  background: var(--color-nav-background);
+  color: var(--color-surface-lighter);
+  cursor: pointer;
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}

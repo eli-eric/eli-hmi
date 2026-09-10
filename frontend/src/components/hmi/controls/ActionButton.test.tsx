@@ -23,17 +23,11 @@ afterEach(() => {
 describe('ActionButton', () => {
   it('POSTs to /pv/:name with the trigger value when clicked', async () => {
     const spy = vi.fn<typeof fetch>(
-      async () =>
-        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
     )
     globalThis.fetch = spy as unknown as typeof fetch
     const user = userEvent.setup()
-    render(
-      <ActionButton
-        label="Start Laser"
-        pvName="CMD_NL2_START_LASER"
-      />,
-    )
+    render(<ActionButton label="Start Laser" pvName="CMD_NL2_START_LASER" />)
     await user.click(screen.getByRole('button', { name: 'Start Laser' }))
     await waitFor(() => expect(spy).toHaveBeenCalled())
     expect(spy.mock.calls[0][0]).toBe(
@@ -52,15 +46,11 @@ describe('ActionButton', () => {
     const btn = screen.getByRole('button', { name: 'Start Laser' })
     await user.click(btn)
 
-    await waitFor(() =>
-      expect(btn).toHaveAttribute('data-state', 'pending'),
-    )
+    await waitFor(() => expect(btn).toHaveAttribute('data-state', 'pending'))
     expect(btn).toBeDisabled()
 
     d.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
-    await waitFor(() =>
-      expect(btn).toHaveAttribute('data-state', 'success'),
-    )
+    await waitFor(() => expect(btn).toHaveAttribute('data-state', 'success'))
   })
 
   it('shows an error state when the PV write returns {ok:false}', async () => {
@@ -74,9 +64,7 @@ describe('ActionButton', () => {
     render(<ActionButton label="Start Laser" pvName="CMD_NL2_START_LASER" />)
     const btn = screen.getByRole('button', { name: /Start Laser/ })
     await user.click(btn)
-    await waitFor(() =>
-      expect(btn).toHaveAttribute('data-state', 'error'),
-    )
+    await waitFor(() => expect(btn).toHaveAttribute('data-state', 'error'))
     // Error appears in a separate alert row, not in the button label.
     expect(screen.getByRole('alert')).toHaveTextContent(/boom|Failed/)
     expect(btn).toHaveTextContent('Start Laser')
@@ -84,31 +72,23 @@ describe('ActionButton', () => {
 
   it('shows a success state after a successful PV write', async () => {
     globalThis.fetch = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
     ) as unknown as typeof fetch
     const user = userEvent.setup()
     render(<ActionButton label="Stop Laser" pvName="CMD_NL2_STOP_LASER" />)
     const btn = screen.getByRole('button', { name: 'Stop Laser' })
     await user.click(btn)
-    await waitFor(() =>
-      expect(btn).toHaveAttribute('data-state', 'success'),
-    )
+    await waitFor(() => expect(btn).toHaveAttribute('data-state', 'success'))
   })
 
   it('writes a custom value when value prop is provided (e.g. shutter close)', async () => {
     const spy = vi.fn<typeof fetch>(
-      async () =>
-        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
     )
     globalThis.fetch = spy as unknown as typeof fetch
     const user = userEvent.setup()
     render(
-      <ActionButton
-        label="Close Shutter"
-        pvName="BI_NL2_SHUTTER"
-        value={0}
-      />,
+      <ActionButton label="Close Shutter" pvName="BI_NL2_SHUTTER" value={0} />,
     )
     await user.click(screen.getByRole('button', { name: 'Close Shutter' }))
     await waitFor(() => expect(spy).toHaveBeenCalled())

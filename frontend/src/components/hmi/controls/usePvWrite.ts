@@ -15,6 +15,13 @@ interface UsePvWriteResult {
   state: PvWriteState
   error: string | null
   write: (pvName: string, value: number | string) => Promise<void>
+  /**
+   * Drop a failed write's error/state. Controls call this when the operator
+   * starts a fresh attempt (typing a new value, picking a preset), so a stale
+   * "CA disconnected" doesn't sit under the control long after the PV came
+   * back — the error is only meaningful for the attempt that produced it.
+   */
+  reset: () => void
 }
 
 /**
@@ -25,9 +32,7 @@ interface UsePvWriteResult {
  * success-flash auto-reset, CogToggle close-on-success, and unmount-safe
  * cleanup. Callers render whatever UI they want around `{ state, error, write }`.
  */
-export function usePvWrite(
-  options?: UsePvWriteOptions,
-): UsePvWriteResult {
+export function usePvWrite(options?: UsePvWriteOptions): UsePvWriteResult {
   const flashMs = options?.flashMs ?? 1000
   const [state, setState] = useState<PvWriteState>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -76,5 +81,12 @@ export function usePvWrite(
     [flashMs, closePanel],
   )
 
-  return { state, error, write }
+  const reset = useCallback(() => {
+    if (!mountedRef.current) return
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    setError(null)
+    setState('idle')
+  }, [])
+
+  return { state, error, write, reset }
 }

@@ -60,6 +60,8 @@ file here.
 ```yaml
 schemaVersion: 1            # must match what the app supports — see below
 
+title: L4 OPCPA             # optional: name shown in the header
+
 navigationItems:            # top-nav entries, in order
   - text: L4 OPCPA Controls # label shown in the UI
     href: /l4-opcpa         # must also be in allowedRoutes
@@ -78,6 +80,12 @@ modules:                    # referenced runtime data files;
   l4fbt:
     config: modules/l4fbt/config.yaml
 ```
+
+`title` is what the header calls this station, beside the "sign out" button;
+the name links to the home route. Leave it out and the header reads `ELI HMI`
+— deliberately generic, because the header used to be hardcoded to one
+station's name and showed it on every deployment regardless of what the page
+actually controlled.
 
 Validation rules (enforced by the app and by `validate:config`):
 

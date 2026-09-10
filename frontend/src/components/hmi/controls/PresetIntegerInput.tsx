@@ -36,7 +36,7 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
   const [staged, setStaged] = useState<number | null>(null)
   const [customText, setCustomText] = useState('')
   const [parseError, setParseError] = useState<string | null>(null)
-  const { state, error, write } = usePvWrite({ flashMs: 0 })
+  const { state, error, write, reset } = usePvWrite({ flashMs: 0 })
   const pending = state === 'pending'
 
   const inRange = (n: number) =>
@@ -60,35 +60,40 @@ export const PresetIntegerInput: FC<PresetIntegerInputProps> = ({
     }
   }
 
-  const onCustomChange = useCallback((v: string) => {
-    setCustomText(v)
-    const trimmed = v.trim()
-    if (trimmed === '') {
-      setStaged(null)
+  const onCustomChange = useCallback(
+    (v: string) => {
+      // Typing is a fresh attempt: clear any error left by the previous one.
+      reset()
+      setCustomText(v)
+      const trimmed = v.trim()
+      if (trimmed === '') {
+        setStaged(null)
+        setParseError(null)
+        return
+      }
+      // Partial input mid-typing (e.g. just "-") — clear staged but do not
+      // surface an error yet; the user is still editing.
+      if (trimmed === '-' || trimmed === '+') {
+        setStaged(null)
+        setParseError(null)
+        return
+      }
+      const n = Number(trimmed)
+      if (!Number.isFinite(n)) {
+        setStaged(null)
+        setParseError(`Invalid number: "${v}"`)
+        return
+      }
+      if (!Number.isInteger(n)) {
+        setStaged(null)
+        setParseError('Integer required')
+        return
+      }
       setParseError(null)
-      return
-    }
-    // Partial input mid-typing (e.g. just "-") — clear staged but do not
-    // surface an error yet; the user is still editing.
-    if (trimmed === '-' || trimmed === '+') {
-      setStaged(null)
-      setParseError(null)
-      return
-    }
-    const n = Number(trimmed)
-    if (!Number.isFinite(n)) {
-      setStaged(null)
-      setParseError(`Invalid number: "${v}"`)
-      return
-    }
-    if (!Number.isInteger(n)) {
-      setStaged(null)
-      setParseError('Integer required')
-      return
-    }
-    setParseError(null)
-    setStaged(n)
-  }, [])
+      setStaged(n)
+    },
+    [reset],
+  )
 
   // Preset chips apply immediately — one click writes the value.
   const onChipClick = useCallback(

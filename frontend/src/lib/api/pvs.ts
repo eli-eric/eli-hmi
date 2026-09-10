@@ -80,16 +80,38 @@ async function authHeaders(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${token}` }
 }
 
+/**
+ * Client-side write deadline. The gateway caps a `caput` at its own
+ * `max_timeout` (10s by default) and answers with a 502, so this only fires
+ * when no answer arrives at all — a dropped connection, a stalled gateway.
+ * Without it a write to a disconnected PV leaves the control stuck in
+ * `pending` (disabled, "Setting…") with no way back, even after the PV
+ * recovers. Set above the gateway's cap so its own error message wins in the
+ * normal case.
+ */
+const WRITE_TIMEOUT_MS = 15000
+
 export async function pvWrite(
   pvName: string,
   value: number | string,
 ): Promise<void> {
   const auth = await authHeaders()
-  const res = await fetch(`${apiBase()}/pv/${encodeURIComponent(pvName)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...auth },
-    body: JSON.stringify({ value }),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${apiBase()}/pv/${encodeURIComponent(pvName)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth },
+      body: JSON.stringify({ value }),
+      signal: AbortSignal.timeout(WRITE_TIMEOUT_MS),
+    })
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'TimeoutError') {
+      throw new Error(
+        `PV write ${pvName} timed out after ${WRITE_TIMEOUT_MS / 1000}s — no response from the gateway`,
+      )
+    }
+    throw e
+  }
   if (!res.ok) {
     // Try to surface the server's diagnostic body — operators debugging a
     // failed sequence shouldn't have to look at the Network tab for the

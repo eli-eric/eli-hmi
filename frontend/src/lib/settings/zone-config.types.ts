@@ -10,6 +10,12 @@ export interface ZoneConfig {
   navigationItems: NavigationItem[]
   /** Routes that are accessible for this zone */
   allowedRoutes: string[]
+  /**
+   * Name shown in the header. Undefined when the zone does not set one (or
+   * has no config at all), which `getZoneTitle` turns into a generic default
+   * rather than a specific station's name.
+   */
+  title?: string
 }
 
 /**

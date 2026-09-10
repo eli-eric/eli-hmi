@@ -3,13 +3,21 @@
 import { ReactNode } from 'react'
 
 import { WebSocketContext } from '@/app/providers/socket-provider'
-import { Message, WebSocketContextValue } from '@/app/providers/types'
+import {
+  Message,
+  SubscribeOptions,
+  WebSocketContextValue,
+} from '@/app/providers/types'
 
 type SubscriptionCallback<T = unknown> = (msg: Message<T>) => void
 
 export interface FakeWebSocketContextOptions {
   isConnected?: boolean
-  subscribe?: <T>(channel: string, cb: SubscriptionCallback<T>) => () => void
+  subscribe?: <T>(
+    channel: string,
+    cb: SubscriptionCallback<T>,
+    opts?: SubscribeOptions,
+  ) => () => void
   send?: (msg: unknown) => boolean
   reconnect?: () => void
 }
@@ -36,12 +44,21 @@ export interface FakeWebSocketController {
    * avoid first-paint race conditions.
    */
   subscriptions: ReadonlyMap<string, ReadonlySet<SubscriptionCallback>>
+  /**
+   * Options the component passed when subscribing to each PV, so a test can
+   * assert e.g. `datatype: 'enum_string'` on an enum record. Reading an enum
+   * at its native type yields the state's index instead of its name, which is
+   * invisible against a mock that sends strings and has twice reached the real
+   * panel as a value that would not display.
+   */
+  subscribeOptions: ReadonlyMap<string, SubscribeOptions | undefined>
 }
 
 export function makeFakeWebSocketContext(
   opts: FakeWebSocketContextOptions = {},
 ): FakeWebSocketController {
   const subs = new Map<string, Set<SubscriptionCallback>>()
+  const subscribeOptions = new Map<string, SubscribeOptions | undefined>()
   const sent: unknown[] = []
 
   const context: WebSocketContextValue = {
@@ -62,7 +79,12 @@ export function makeFakeWebSocketContext(
     reconnect: opts.reconnect ?? (() => undefined),
     subscribe:
       opts.subscribe ??
-      (<T,>(channel: string, cb: SubscriptionCallback<T>) => {
+      (<T,>(
+        channel: string,
+        cb: SubscriptionCallback<T>,
+        subOpts?: SubscribeOptions,
+      ) => {
+        subscribeOptions.set(channel, subOpts)
         if (!subs.has(channel)) subs.set(channel, new Set())
         subs.get(channel)!.add(cb as SubscriptionCallback)
         return () => {
@@ -74,7 +96,10 @@ export function makeFakeWebSocketContext(
       }),
   }
 
-  function push<T>(pv: string, arg: T | (Partial<Message<T>> & { value: T | null })): void {
+  function push<T>(
+    pv: string,
+    arg: T | (Partial<Message<T>> & { value: T | null }),
+  ): void {
     const callbacks = subs.get(pv)
     if (!callbacks) return
     const partial =
@@ -87,6 +112,7 @@ export function makeFakeWebSocketContext(
       type: 'pv',
       name: pv,
       severity: 0,
+      status: null,
       units: null,
       timestamp: Date.now(),
       ok: true,
@@ -101,6 +127,7 @@ export function makeFakeWebSocketContext(
     push: push as FakeWebSocketController['push'],
     getSent: () => sent.slice(),
     subscriptions: subs,
+    subscribeOptions,
   }
 }
 

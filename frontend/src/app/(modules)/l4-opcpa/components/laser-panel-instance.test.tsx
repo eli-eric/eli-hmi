@@ -44,7 +44,8 @@ const NL2: LaserSpec = {
   modbox: [{ label: 'Modbox 1', pv: 'BI_NL2_MODBOX_1' }],
   delayPresets: [50, 500, 700, 790],
   commands: LASER_COMMANDS,
-  commandPvs: {},
+  commandTargets: {},
+  units: { regenTemp: '°C', chillerFlow: 'L/min' },
 }
 
 function renderSpec(spec: LaserSpec) {

@@ -32,8 +32,7 @@ describe('PresetIntegerInput', () => {
 
   it('applies a preset immediately on chip click (no Confirm needed)', async () => {
     const spy = vi.fn<typeof fetch>(
-      async () =>
-        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
     )
     globalThis.fetch = spy as unknown as typeof fetch
     const user = userEvent.setup()
@@ -57,8 +56,7 @@ describe('PresetIntegerInput', () => {
 
   it('POSTs to /pv/<pvName> with the custom value when Confirm is clicked', async () => {
     const spy = vi.fn<typeof fetch>(
-      async () =>
-        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
     )
     globalThis.fetch = spy as unknown as typeof fetch
     const user = userEvent.setup()
@@ -99,5 +97,57 @@ describe('PresetIntegerInput', () => {
     await user.type(screen.getByLabelText(/custom/i), '-5')
     expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled()
     expect(screen.getByText(/out of range/i)).toBeInTheDocument()
+  })
+
+  it('re-enables the presets and reports the failure when a write is rejected', async () => {
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ ok: false, error: 'CA disconnected' }), {
+          status: 502,
+        }),
+    ) as unknown as typeof fetch
+
+    render(
+      <PresetIntegerInput
+        label="Set Trigger Delay"
+        presets={[790]}
+        pvName="AI_D"
+      />,
+    )
+    await userEvent.setup().click(screen.getByRole('button', { name: '790' }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/CA disconnected/i)).toBeInTheDocument(),
+    )
+    // The control must be usable again — a failed write is not a dead end.
+    expect(screen.getByRole('button', { name: '790' })).toBeEnabled()
+  })
+
+  it('clears a previous failure once the operator types a new value', async () => {
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ ok: false, error: 'CA disconnected' }), {
+          status: 502,
+        }),
+    ) as unknown as typeof fetch
+
+    const user = userEvent.setup()
+    render(
+      <PresetIntegerInput
+        label="Set Trigger Delay"
+        presets={[790]}
+        pvName="AI_D"
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: '790' }))
+    await waitFor(() =>
+      expect(screen.getByText(/CA disconnected/i)).toBeInTheDocument(),
+    )
+
+    await user.type(screen.getByRole('spinbutton'), '50')
+
+    // A stale error must not outlive the attempt that produced it.
+    expect(screen.queryByText(/CA disconnected/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /confirm/i })).toBeEnabled()
   })
 })

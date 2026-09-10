@@ -55,11 +55,7 @@
   }
 }
 
-/* Severity levels */
-.severityInfo {
-  color: var(--color-info);
-}
-
+/* Severity levels (see lib/websocket/severity-presentation.ts) */
 .severityWarning {
   color: var(--color-warning);
 }

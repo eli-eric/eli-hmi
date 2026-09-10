@@ -49,6 +49,7 @@ export function getZoneConfig(zoneCode?: string): ZoneConfig {
     return {
       navigationItems: file.navigationItems,
       allowedRoutes: file.allowedRoutes,
+      title: file.title,
     }
   } catch (e) {
     if (!loggedZones.has(zone)) {
@@ -67,6 +68,23 @@ export function getZoneConfig(zoneCode?: string): ZoneConfig {
  */
 export function getNavigationItems(zoneCode?: string): NavigationItem[] {
   return getZoneConfig(zoneCode).navigationItems
+}
+
+/**
+ * Shown in the header. Deliberately generic when a zone does not name itself:
+ * the header used to hardcode "E3 VACUUM SYSTEM", so every deployment claimed
+ * to be the vacuum station regardless of what it actually showed. A vague name
+ * is a small annoyance; a confidently wrong one is a hazard in a control room.
+ */
+export const DEFAULT_ZONE_TITLE = 'ELI HMI'
+
+/**
+ * Get the name shown in the header for the current zone.
+ * @param zoneCode - Optional zone code, defaults to current (server) zone
+ * @returns The zone's `title`, or {@link DEFAULT_ZONE_TITLE} when it sets none
+ */
+export function getZoneTitle(zoneCode?: string): string {
+  return getZoneConfig(zoneCode).title ?? DEFAULT_ZONE_TITLE
 }
 
 /**

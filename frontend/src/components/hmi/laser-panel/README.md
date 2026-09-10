@@ -35,16 +35,16 @@ action buttons render.
 
 ## Files
 
-| File | Role |
-|---|---|
-| `LaserPanel.tsx` | Compound shell — header + body, attaches `.General` etc. as static props. |
-| `GeneralSection.tsx` | Overview row (CONN/FULLP/MSS/ERR), shutter, PHD, Start/Stop/Alignment/Standby. |
-| `RegenSection.tsx` | Regen state, temp, PHD2, attenuator (with `PresetIntegerInput`). |
-| `ChillersSection.tsx` | 4×3 grid of chiller flow/temp/water readouts. |
-| `FlashlampsSection.tsx` | 14-channel SB/RUN/STOP/FAIL counts + trigger delay (with mismatch detection). |
-| `ModboxSection.tsx` | Merged modbox state + waveform select. |
-| `OverviewBar.tsx` | Header cluster (CONN, FULLP, MSS, ERR) shown at the top of `GeneralSection`. |
-| `WaveformSelect.tsx` | Dropdown + Load button for `CMD_<L>_LOAD_WAVEFORM` (catalog cached). |
+| File                    | Role                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `LaserPanel.tsx`        | Compound shell — header + body, attaches `.General` etc. as static props.      |
+| `GeneralSection.tsx`    | Overview row (CONN/FULLP/MSS/ERR), shutter, PHD, Start/Stop/Alignment/Standby. |
+| `RegenSection.tsx`      | Regen state, temp, PHD2, attenuator (with `PresetIntegerInput`).               |
+| `ChillersSection.tsx`   | 4×3 grid of chiller flow/temp/water readouts.                                  |
+| `FlashlampsSection.tsx` | 14-channel SB/RUN/STOP/FAIL counts + trigger delay (with mismatch detection).  |
+| `ModboxSection.tsx`     | Merged modbox state + waveform select.                                         |
+| `OverviewBar.tsx`       | Header cluster (CONN, FULLP, MSS, ERR) shown at the top of `GeneralSection`.   |
+| `WaveformSelect.tsx`    | Dropdown + Load button for `CMD_<L>_LOAD_WAVEFORM` (catalog cached).           |
 
 ## Patterns
 

@@ -149,7 +149,10 @@ describe('useWebSocketData (dev prefix burial)', () => {
     let lastSubscribed: string | null = null
     const wrappedCtx = {
       ...fake.context,
-      subscribe: (<T,>(channel: string, cb: (msg: import('@/app/providers/types').Message<T>) => void) => {
+      subscribe: (<T,>(
+        channel: string,
+        cb: (msg: import('@/app/providers/types').Message<T>) => void,
+      ) => {
         lastSubscribed = channel
         return fake.context.subscribe(channel, cb)
       }) as typeof fake.context.subscribe,

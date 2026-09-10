@@ -93,6 +93,42 @@ describe('useWebSocket', () => {
     )
   })
 
+  it('sends the requested datatype and splits the batch by it', async () => {
+    const { result } = renderHook(() => useWebSocket())
+    await waitFor(() => expect(result.current.isConnected).toBe(true))
+
+    act(() => {
+      // Enum records need their state name; the analog PV must stay native.
+      result.current.subscribe('SI_STATE_A', () => undefined, {
+        datatype: 'enum_string',
+      })
+      result.current.subscribe('SI_STATE_B', () => undefined, {
+        datatype: 'enum_string',
+      })
+      result.current.subscribe('AI_DELAY', () => undefined)
+    })
+
+    await server.waitForSubscribe('AI_DELAY')
+    const subs = server
+      .getSent()
+      .filter(
+        (m): m is { type: string; pvs: string[]; datatype?: string } =>
+          typeof m === 'object' &&
+          m !== null &&
+          (m as { type?: unknown }).type === 'subscribe',
+      )
+
+    // One `subscribe` carries one datatype, so this must be two messages.
+    expect(subs).toHaveLength(2)
+    const enumSub = subs.find((m) => m.datatype === 'enum_string')
+    const nativeSub = subs.find((m) => m.datatype === undefined)
+    expect(enumSub?.pvs).toEqual(
+      expect.arrayContaining(['SI_STATE_A', 'SI_STATE_B']),
+    )
+    expect(enumSub?.pvs).not.toContain('AI_DELAY')
+    expect(nativeSub?.pvs).toEqual(['AI_DELAY'])
+  })
+
   it('delivers server-pushed Messages to subscribers', async () => {
     const { result } = renderHook(() => useWebSocket())
     await waitFor(() => expect(result.current.isConnected).toBe(true))
@@ -160,4 +196,22 @@ describe('useWebSocket', () => {
   // and the url useMemo deps cover the rotation logic, but the integration
   // assertion is a known gap. Worth revisiting with a different mock library
   // or a dedicated jsdom WebSocket polyfill.
+
+  it("carries the gateway's alarm status through both wire shapes", async () => {
+    const { result } = renderHook(() => useWebSocket())
+    await waitFor(() => expect(result.current.isConnected).toBe(true))
+
+    const seen: (number | string | null)[] = []
+    act(() => {
+      result.current.subscribe<number>('AI_X', (m) => seen.push(m.status))
+    })
+    await server.waitForSubscribe('AI_X')
+
+    // Batched shape: alarm fields nested under `metadata`.
+    act(() => server.pushEvent('AI_X', 1, { severity: 2, status: 3 }))
+    // Legacy shape: the same fields flat.
+    act(() => server.pushPV('AI_X', 1, { severity: 2, status: 5 }))
+
+    await waitFor(() => expect(seen).toEqual([3, 5]))
+  })
 })

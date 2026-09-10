@@ -41,13 +41,14 @@ field reference below is the format's documentation; the config validator
 | `pvs.loadedWaveform` | PV name | Current waveform preset. |
 | `pvs.latestWaveform` | PV name | Previous waveform moved into Waveform Latest when a new preset is applied. Optional. |
 | `triggerDelay` | PV name[] | Trigger-delay readouts; all should read equal (mismatch is flagged). |
-| `mss` | `{label, pv}`[] | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV. |
+| `mss` | `{label, pv, values?}`[] | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below). |
 | `moduleErrors` | `{label, pv}`[] | Error indicators: `label` shown in UI, `pv` is the indicator PV. |
 | `chillers` | `{label, flow, temp, level}`[] | One row each; `label` shown, three readout PVs. **`[]` hides the Chillers section.** |
 | `flashlamps` | `{label, pv}`[] | One channel each; `label` shown, `pv` is the state PV. **`[]` hides the Flashlamps section.** |
-| `modbox` | `{label, pv}`[] | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV. **`[]` hides the Modbox section.** |
+| `modbox` | `{label, pv, values?}`[] | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below). **`[]` hides the Modbox section.** |
 | `delayPresets` | int[] | Trigger-delay preset buttons (ns). |
-| `commands` | map `SYMBOL: PV` | Which command buttons appear and which PV each writes (see below). |
+| `commands` | map `SYMBOL: PV` or `SYMBOL: {pv, value}` | Which command buttons appear, which PV each writes and what it writes (see below). |
+| `units` | map `role: unit` | Optional. Engineering units for the numeric readouts (see below). |
 
 A "PV name" is any non-empty string — put the exact name the gateway exposes.
 
@@ -60,15 +61,77 @@ flashlamps:
   - { label: '22 Ch1', pv: SI_NL2_FL_22_CH1 }
 ```
 
+### Display text for boolean indicators (`mss`, `modbox`)
+
+Both banks are booleans, and the panel shows words rather than a column of bare
+1s and 0s. The defaults differ because the signals do:
+
+| bank | 1 | 0 | why |
+| --- | --- | --- | --- |
+| `mss` | `YES` | `NO` | a permission — the same words as the MSS summary pill |
+| `modbox` | `ON` | `OFF` | a subsystem that is running or not |
+
+Where those words are wrong for a particular indicator, give your own with
+`values`:
+
+```yaml
+mss:
+  - { label: "PSS permission", pv: L4-PSS:NP2_PERMISSION_TO_OPERATE_CH1 }
+  - label: "OPCPA MSS interlock"
+    pv: L4-MSS:OPA_interlock
+    values: { 0: OPEN, 1: CLOSED }
+modbox:
+  - { label: "AWG state", pv: L4-OPCPA-NL2:ModBox:AWG:State }
+  - label: "AWG software key"
+    pv: L4-OPCPA-NL2:ModBox:YDFA:SoftwareKey
+    values: { 0: DISABLED, 1: ENABLED }
+```
+
+Keys are matched against the raw value as text, so this also covers a record
+that reports something other than 0/1 (`{0: STANDBY, 1: RUN, 2: FAULT}`). A
+value with no entry is shown as-is rather than blank — an unexpected reading
+must stay visible.
+
+`moduleErrors` takes no `values`: those are status codes (`"0000"` = no error),
+not booleans, so there is nothing to translate them into.
+
+### `units`
+
+Optional. Units shown beside the numeric readouts, keyed by the signal they
+annotate — **not** by PV name, so the same block works for every laser:
+
+```yaml
+units:               # top level: applies to every laser in the file
+  regenTemp: '°C'
+  triggerDelay: ns
+lasers:
+  - id: NL2
+    units:           # optional per-laser override, merged over the above
+      regenTemp: K
+```
+
+Keys (all optional): `phdMean`, `phd2Mean`, `regenTemp`, `attenuator`,
+`modboxMbc1`, `modboxMbc2`, `triggerDelay`, `chillerFlow`, `chillerTemp`,
+`chillerLevel`. Anything else is rejected as a typo. Booleans, status strings
+and bit indicators take no unit, so they have no key.
+
+A unit set here **wins** over the PV's own EGU metadata and over the default
+built into the component, so this is the place to correct a wrong or missing
+unit without a code change. Chiller units appear once in the column header
+(`Temp (°C)`) rather than on every cell, which is far too narrow for them.
+
 ### `commands`
 
-A map from a command symbol to **the PV the button's write goes to**:
+A map from a command symbol to **the PV the button's write goes to** and, when
+the device wants something other than the usual trigger, **the value written**:
 
 ```yaml
 commands:
   START_LASER: START_LASER                                # placeholder — no real PV yet
-  ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode           # real PV — written directly
+  ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode           # real PV — writes 1
   SET_DELAY: L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay
+  MODBOX_ON:  { pv: L4-OPCPA-NL2:ModboxMode, value: Run }    # writes a word…
+  MODBOX_OFF: { pv: L4-OPCPA-NL2:ModboxMode, value: Sleep }  # …to the same record
 ```
 
 The allowed keys are the closed vocabulary (wired to UI buttons):
@@ -83,9 +146,18 @@ Rules:
 
 - A laser only shows buttons for the keys it lists — omit a key and its button
   is hidden for that laser. Key order doesn't matter.
-- **Real PV**: the frontend writes to that exact name. The value written is
-  fixed per command (`1` as the trigger for action buttons, the delay in ns for
-  `SET_DELAY`, the waveform name for `LOAD_WAVEFORM`).
+- **Real PV** (`SYMBOL: PV`): the frontend writes `1` to that exact name — the
+  trigger convention for command PVs.
+- **Real PV with a value** (`SYMBOL: {pv: …, value: …}`): writes `value`
+  instead. Use it when the target is a device record rather than a trigger,
+  e.g. a mode record that takes `Run` / `Sleep`. Numbers and strings are both
+  allowed; omitting `value` means `1`, exactly like the shorthand.
+- Two commands **may** point at the same PV as long as their values differ —
+  that is the normal way to drive one mode record from two buttons. Repeating
+  the same PV *and* value is rejected as a copy-paste typo.
+- `SET_DELAY` and `LOAD_WAVEFORM` take their value from the operator (the delay
+  in ns, the waveform name), so setting `value` on them is rejected rather than
+  silently ignored.
 - **Placeholder** (value identical to the key, e.g. `START_LASER: START_LASER`):
   means "controls haven't delivered this PV yet". The frontend falls back to the
   mock-backend sequence trigger `CMD_<id>_<SYMBOL>` built in code (app repo's

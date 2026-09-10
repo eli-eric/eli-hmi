@@ -4,10 +4,11 @@
  * Read/write *signal* PV names are NOT built here any more — they are full
  * strings in the zone-referenced runtime YAML (provided by controls). Command
  * write targets are configurable per laser in the same YAML (`commands` map):
- * a real PV there is written directly; a placeholder (value == key) falls back
- * to the assembled **command PV** (`CMD_<laser>_<NAME>`), which triggers a
- * coordinated sequence of writes dispatched by the backend (see
- * backend/mockup-websocket-server/l4_opcpa.go, `sequences`).
+ * a real PV there is written directly, optionally with the value to write; a
+ * placeholder (value == key) falls back to the assembled **command PV**
+ * (`CMD_<laser>_<NAME>`), which triggers a coordinated sequence of writes
+ * dispatched by the backend (see backend/mockup-websocket-server/l4_opcpa.go,
+ * `sequences`).
  *
  * `LASER_COMMANDS` is the closed vocabulary: the YAML config validates each
  * laser's `commands` keys against it (a zod enum derived from it),
@@ -31,22 +32,40 @@ export const LASER_COMMANDS = [
 
 export type LaserCommand = (typeof LASER_COMMANDS)[number]
 
-/** Resolves a command to the PV name its write goes to. */
-export type CommandPvResolver = (name: LaserCommand) => string
+/**
+ * Where a command's write goes and what it writes.
+ *
+ * Field names match `ActionButton`'s props on purpose, so a button is wired
+ * with `<ActionButton label="…" {...cmdPv('MODBOX_OFF')} />` and cannot get
+ * the PV right while dropping the value.
+ */
+export interface CommandTarget {
+  /** PV the write goes to. */
+  pvName: string
+  /**
+   * Value written. `1` is the trigger convention for the backend's command
+   * PVs; a real device PV often wants something else — e.g. MODBOX_OFF writes
+   * the string 'Sleep' — which the YAML supplies per command.
+   */
+  value: number | string
+}
+
+/** Resolves a command to its write target. */
+export type CommandPvResolver = (name: LaserCommand) => CommandTarget
 
 /**
- * Builds the command→write-PV resolver for one laser. `overrides` holds the
- * real PVs configured in the YAML `commands` map (placeholders already
+ * Builds the command→write-target resolver for one laser. `overrides` holds
+ * the targets configured in the YAML `commands` map (placeholders already
  * stripped by the schema); anything not overridden falls back to the
- * mock-backend convention `CMD_<laser>_<NAME>`.
+ * mock-backend convention `CMD_<laser>_<NAME>` triggered with `1`.
  */
 export const makeCommandPv =
   (
     laser: string,
-    overrides: Partial<Record<LaserCommand, string>>,
+    overrides: Partial<Record<LaserCommand, CommandTarget>>,
   ): CommandPvResolver =>
   (name) =>
-    overrides[name] ?? pv.cmd(laser, name)
+    overrides[name] ?? { pvName: pv.cmd(laser, name), value: 1 }
 
 export const pv = {
   /**

@@ -80,8 +80,16 @@ describe('SequencerSection', () => {
     const stopRow = screen.getByText('Stop Laser').closest('li')!
     expect(within(stopRow).getByText('IDLE')).toBeInTheDocument()
 
-    // Click outside collapses it.
+    // Clicking elsewhere leaves it open: an expanded list is dismissed only
+    // by the operator clicking its own trigger again. Nothing in the app —
+    // the palette selector in the header above all — may close it as a side
+    // effect of being used while the list is being read.
     await user.click(document.body)
+    expect(screen.getByText('Start Laser')).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle Sequencer detail' }),
+    )
     expect(screen.queryByText('Start Laser')).not.toBeInTheDocument()
   })
 })

@@ -9,7 +9,9 @@ vi.mock('@/lib/runtime-config/client', () => ({
 
 const ORIGINAL_FETCH = globalThis.fetch
 
-function mockFetch(impl: (...args: Parameters<typeof fetch>) => Response | Promise<Response>) {
+function mockFetch(
+  impl: (...args: Parameters<typeof fetch>) => Response | Promise<Response>,
+) {
   const spy = vi.fn(impl)
   globalThis.fetch = spy as unknown as typeof fetch
   return spy
@@ -21,6 +23,7 @@ beforeEach(() => {
     apiScheme: null,
     zoneCode: null,
     navigationItems: [],
+    title: 'Test Zone',
     homeRoute: '/no-access',
   })
 })
@@ -123,10 +126,7 @@ describe('listWaveforms', () => {
           status: 200,
         }),
     )
-    await expect(listWaveforms()).resolves.toEqual([
-      'std-100ps',
-      'narrow-50ps',
-    ])
+    await expect(listWaveforms()).resolves.toEqual(['std-100ps', 'narrow-50ps'])
   })
 })
 

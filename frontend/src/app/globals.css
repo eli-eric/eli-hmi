@@ -84,6 +84,17 @@
   --transition-slow: 500ms;
   --timing-function-default: cubic-bezier(0.4, 0, 0.2, 1);
 
+  /* Alarm badge that marks MINOR/MAJOR readings (see the tone layer). In em so
+   * it tracks the text it accompanies. Kept narrow deliberately: it steals
+   * width from the value, and the tightest cell in the panel — a chiller
+   * reading like "24.810" in a ~3.9rem column — has little to spare. */
+  --tone-alert-width: 1em;
+  --tone-alert-gap: 0.125rem;
+
+  /* Border every tone surface draws. Named because the alarm badge has to
+   * cancel it out to sit flush with the outer edge of the box. */
+  --tone-border-width: 1px;
+
   /* Spacing unit (1 = 0.25rem = 4px) */
   --spacing-unit: 0.25rem;
 }
@@ -126,8 +137,13 @@ a {
 }
 
 html {
-  font-size: clamp(12.5px, 0.5vw + 4.5px, 18px); /* fluid base unit so the fully rem-based UI adapts across phones -> monitors -> TVs. 12.5px floor (readable, and 5 panels fit in one row at 1600px), scaling to 18px on large/4K displays for across-room readability. Panels, gaps, sidebar and text all scale together, so nothing truncates. Browser zoom (Ctrl +/-) still works on top of this. */
-  font-family: 'Roboto Condensed', 'Arial Narrow', 'Roboto', system-ui, sans-serif; /* narrow fallbacks: if Roboto Condensed fails to load, degrade to a condensed-ish font instead of wide sans-serif (which overflows and truncates the fixed-width labels) */
+  font-size: clamp(
+    12.5px,
+    0.5vw + 4.5px,
+    18px
+  ); /* fluid base unit so the fully rem-based UI adapts across phones -> monitors -> TVs. 12.5px floor (readable, and 5 panels fit in one row at 1600px), scaling to 18px on large/4K displays for across-room readability. Panels, gaps, sidebar and text all scale together, so nothing truncates. Browser zoom (Ctrl +/-) still works on top of this. */
+  font-family:
+    'Roboto Condensed', 'Arial Narrow', 'Roboto', system-ui, sans-serif; /* narrow fallbacks: if Roboto Condensed fails to load, degrade to a condensed-ish font instead of wide sans-serif (which overflows and truncates the fixed-width labels) */
   background: var(--color-background);
 }
 
@@ -284,4 +300,228 @@ html {
 }
 .text-info {
   color: var(--color-info);
+}
+
+/* ============================================================================
+ * Tone layer — the single definition of how status colour works.
+ *
+ * Two attributes, nothing else:
+ *   data-tone-surface="chip|cell"  I am the element that paints.
+ *   data-tone="<tone>"             This is the tone to paint with. It may sit
+ *                                  on the surface itself (chips) or on a
+ *                                  descendant (a value inside a cell) — the
+ *                                  surface picks it up either way.
+ *
+ * A tone only sets variables; painting happens once, on the surface. That is
+ * why a toned <span> inside a cell can never paint a chip around its own text
+ * (the bug this layer exists to make impossible).
+ *
+ * Module stylesheets must not define tone rules. They own geometry only —
+ * size, spacing, alignment — and opt into colour by declaring a surface.
+ * `tone-layer.test.ts` fails the build if a module stylesheet defines one.
+ *
+ * Severity always overrides a widget's chosen emphasis; see
+ * `lib/websocket/severity-presentation.ts`, which decides which tone applies.
+ * ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+ * Palettes.
+ *
+ * A palette changes what the tones LOOK LIKE, never which tone applies. It
+ * does that by redefining the semantic colour tokens the tone rules below
+ * already resolve through — so no rule in the tone layer mentions a palette,
+ * and adding one cannot change the panel's behaviour, only its colours.
+ *
+ * `data-palette` is set on <html> before first paint (see lib/palette). The
+ * default palette is the absence of the attribute: the tokens in `:root` are
+ * the single definition of "no palette applied".
+ *
+ * L4 goggles: the safety goggles worn in the L4 hall filter the wavelengths
+ * this panel signals trouble with, so every negative indication — MINOR,
+ * MAJOR, INVALID, a disconnected PV, and the reserved negative-important —
+ * is repainted in a colour that survives the filter, with a black border.
+ *
+ * Two consequences, both deliberate:
+ *
+ *  - MINOR and MAJOR become the same colour. They stay distinguishable by
+ *    their tooltip (`Severity: MINOR` / `MAJOR`), and INVALID still replaces
+ *    the reading with PV INV / PV DSC, so no state is left with colour as its
+ *    only channel.
+ *  - The five places that colour error TEXT with `--color-error-dark` (the
+ *    sign-in error, the write-failure rows, the error icon's hover) render
+ *    black here. Accepted: the fills carry the alarm, and those messages sit
+ *    beside a control that has already turned magenta.
+ *
+ * `--color-success*` is deliberately NOT redefined: whether green survives
+ * these goggles is unverified. If it does not, "good" has no visible channel
+ * at all — and this block is where it gets its own colour. Nothing else
+ * changes. `tone-layer.test.ts` proves every negative tone is covered here.
+ * ------------------------------------------------------------------------ */
+:root[data-palette='l4-goggles'] {
+  --color-warning: #ff00c8;
+  --color-warning-dark: #000;
+  --color-error: #ff00c8;
+  --color-error-light: #ff00c8;
+  --color-error-dark: #000;
+  --color-invalid: #ff00c8;
+  --color-invalid-dark: #000;
+}
+
+/* Widget-chosen emphasis. Value tones use the -light shades so they stay
+ * distinguishable from the saturated severity tones below. */
+[data-tone='positive-important'],
+[data-tone-surface]:has([data-tone='positive-important']) {
+  --tone-bg: var(--color-success-light);
+  --tone-border: var(--color-success-dark);
+}
+
+/* Reserved: defined so a widget (or a future palette) can use them without
+ * touching this layer. No widget sets these today. */
+[data-tone='negative-important'],
+[data-tone-surface]:has([data-tone='negative-important']) {
+  --tone-bg: var(--color-error-light);
+  --tone-border: var(--color-error-dark);
+}
+[data-tone='positive-neutral'],
+[data-tone-surface]:has([data-tone='positive-neutral']) {
+  --tone-bg: var(--color-surface-lighter);
+  --tone-border: var(--color-text);
+}
+[data-tone='negative-neutral'],
+[data-tone-surface]:has([data-tone='negative-neutral']) {
+  --tone-bg: var(--color-surface);
+  --tone-border: var(--color-gray-800);
+}
+
+/* EPICS severity. Saturated shades, always filled — a fill means the control
+ * system is reporting something, not that a value is merely notable. */
+[data-tone='warning'],
+[data-tone-surface]:has([data-tone='warning']) {
+  --tone-bg: var(--color-warning);
+  --tone-border: var(--color-warning-dark);
+  --tone-alert: '!';
+}
+[data-tone='error'],
+[data-tone-surface]:has([data-tone='error']) {
+  --tone-bg: var(--color-error);
+  --tone-border: var(--color-error-dark);
+  --tone-alert: '!';
+}
+[data-tone='invalid'],
+[data-tone-surface]:has([data-tone='invalid']) {
+  --tone-bg: var(--color-invalid);
+  --tone-border: var(--color-invalid-dark);
+}
+
+/* No live data: nothing received yet, or the backend link is down. Dotted so
+ * it reads as "not current" rather than as a status. */
+[data-tone='unknown'],
+[data-tone-surface]:has([data-tone='unknown']) {
+  --tone-bg: transparent;
+  --tone-border: var(--color-gray-800);
+  --tone-border-style: dotted;
+  --tone-ink: var(--color-gray-800);
+}
+
+/* The two neutral defaults, declared once. Every status element is one of
+ * these; a tone above simply overrides the variables they consume. */
+[data-tone-surface] {
+  background: var(--tone-bg, var(--color-surface-lighter));
+  border: var(--tone-border-width) solid
+    var(--tone-border, var(--tone-surface-border));
+  border-style: var(--tone-border-style, solid);
+  color: var(--tone-ink, var(--color-text));
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chip — asserts itself. Status rows, pills, count cells, sequencer. */
+[data-tone-surface='chip'] {
+  --tone-surface-border: var(--color-text);
+  font-weight: 700;
+}
+
+/* Cell — recedes into a dense column of rows. Value cells and readouts. */
+[data-tone-surface='cell'] {
+  --tone-surface-border: var(--color-border);
+  font-weight: 700;
+}
+
+/* Alarm badge.
+ *
+ * Colour must never be the only carrier of a status: an operator with a colour
+ * vision deficiency, a sun-washed screen or laser-safety goggles that filter
+ * the very wavelength in use all lose amber-vs-red. MINOR and MAJOR keep
+ * showing the real reading — nothing in the text says "alarm" — so they get a
+ * second, non-colour channel: a white exclamation mark in a black block down
+ * the left edge of the box.
+ *
+ * INVALID and "no data" need no badge: they already replace the value with
+ * PV INV / PV DSC / <>, which is text, not colour.
+ *
+ * The badge is absolutely positioned so it spans the full inner height of the
+ * box whatever padding the widget uses, and `--tone-alert` (unset elsewhere)
+ * is what switches it on — so a tone gains a badge by declaring it above, not
+ * by adding another selector here.
+ */
+[data-tone-surface] {
+  position: relative;
+}
+
+[data-tone-surface]::before {
+  content: var(--tone-alert, none);
+  position: absolute;
+  /* Absolute offsets are measured from the padding box, so pulling each one
+   * out by the border width takes the black block right to the outer edge —
+   * it replaces the border along that side rather than sitting inside it.
+   * This is why no tone surface may set `overflow: hidden`: that would clip
+   * the badge back to the padding box (the ellipsis belongs on the value
+   * inside, which is the thing that actually needs truncating). */
+  top: calc(-1 * var(--tone-border-width));
+  bottom: calc(-1 * var(--tone-border-width));
+  left: calc(-1 * var(--tone-border-width));
+  width: calc(var(--tone-alert-width) + var(--tone-border-width));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-black);
+  color: var(--color-gray-50);
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* A surface containing another surface steps aside. This is what stops a
+ * pill inside a value cell from producing a box inside a box: the innermost
+ * surface — the one closest to the text — is the one that paints. */
+[data-tone-surface]:has([data-tone-surface]) {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* …and stands down from the badge with it, so an alarm is marked once. The
+ * inner surface still shows it: `--tone-alert` inherits, and this suppresses
+ * only the outer element's own pseudo-element. */
+[data-tone-surface]:has([data-tone-surface])::before {
+  content: none;
+}
+
+/* Shared chip metrics, so two labels of different length cannot render as
+ * two differently sized boxes (e.g. "PV INV" vs "PV DSC"). */
+[data-tone-surface='chip'][data-tone-chip='status'] {
+  min-width: 4.75rem;
+  padding: 0 0.375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* Room for the badge, so it never sits on top of the value. Deliberately the
+ * LAST rule in the layer: it has the same specificity (0,2,0) as the chip
+ * metrics above, whose `padding` shorthand would otherwise reset this side. A
+ * module stylesheet cannot win either — its padding is a single class. */
+[data-tone-surface][data-tone='warning'],
+[data-tone-surface][data-tone='error'],
+[data-tone-surface]:has([data-tone='warning']),
+[data-tone-surface]:has([data-tone='error']) {
+  padding-left: calc(var(--tone-alert-width) + var(--tone-alert-gap));
 }

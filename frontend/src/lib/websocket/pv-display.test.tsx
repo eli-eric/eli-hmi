@@ -10,11 +10,14 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <TooltipProvider>{children}</TooltipProvider>
 )
 
-const baseMessage = (overrides: Partial<Message<number>> = {}): Message<number> => ({
+const baseMessage = (
+  overrides: Partial<Message<number>> = {},
+): Message<number> => ({
   type: 'pv',
   name: 'AI_X',
   value: 1.23,
   severity: 0,
+  status: null,
   units: 'mbar',
   timestamp: 0,
   ok: true,
@@ -40,7 +43,9 @@ describe('PVDisplay', () => {
   })
 
   it('renders loading dots when connected but data is undefined', () => {
-    const { container } = render(<PVDisplay isConnected={true} data={undefined} />)
+    const { container } = render(
+      <PVDisplay isConnected={true} data={undefined} />,
+    )
     expect(container.querySelectorAll('span').length).toBe(3)
   })
 

@@ -1,37 +1,38 @@
 'use client'
 
-import { FC, ReactNode, useMemo, useRef, useState } from 'react'
+import { FC, ReactNode, useMemo, useState } from 'react'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import {
   DetailList,
   DetailListItem,
 } from '@/components/hmi/controls/DetailList'
-import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import type {
+  LabeledPv,
+  MappedPv,
+} from '@/app/(modules)/l4-opcpa/config/schema'
+import type { Message } from '@/app/providers/types'
+import { severityTone } from '@/lib/websocket/severity'
 import {
-  severityTone,
-  worstSeverityTone,
-  type SeverityTone,
-} from '@/lib/websocket/severity'
-import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
-import { severityToDetailState } from './severity-detail-state'
+  severityPresentation,
+  aggregateSeverityPresentation,
+  type Tone,
+} from '@/lib/websocket/severity-presentation'
+import { displayValue, YES_NO_TEXT } from './value-text'
 import styles from './OverviewBar.module.css'
 
 interface OverviewBarProps {
   connectionPv: string
   fullPowerPv: string
-  /** MSS sub-indicators: display label + full PV name. */
-  mss: readonly LabeledPv[]
+  /** MSS sub-indicators: display label + full PV name, optional value map. */
+  mss: readonly MappedPv[]
   /** Module-error indicators: display label + full PV name. */
   moduleErrors: readonly LabeledPv[]
 }
 
-type Expanded = 'mss' | 'err' | null
-
 const MSS_NOTE =
   'This is a selection of some MSS indicators, it is NOT an exhaustive list of all parameters that lead to the overall MSS indicator.'
 
-const ERR_NOTE = 
-  'Error code 0 means no error.'
+const ERR_NOTE = 'Error code 0 means no error.'
 
 /**
  * Four-cell header cluster at the top of the General box per the Confluence
@@ -45,13 +46,12 @@ export const OverviewBar: FC<OverviewBarProps> = ({
   mss,
   moduleErrors,
 }) => {
-  const [expanded, setExpanded] = useState<Expanded>(null)
-  const triggerRef = useRef<HTMLDivElement | null>(null)
-  useCollapseOnAnyClick(
-    expanded !== null,
-    () => setExpanded(null),
-    triggerRef,
-  )
+  // One flag per list rather than one "which is open" selector: diagnosing a
+  // failed MSS permission means reading it against the module-error codes, so
+  // opening one must not close the other. Neither closes on its own — only the
+  // operator's second click on the same pill does.
+  const [mssExpanded, setMssExpanded] = useState(false)
+  const [errExpanded, setErrExpanded] = useState(false)
 
   const mssPvs = useMemo(() => mss.map((m) => m.pv), [mss])
   const moduleErrorPvs = useMemo(
@@ -62,7 +62,10 @@ export const OverviewBar: FC<OverviewBarProps> = ({
     () => [connectionPv, fullPowerPv, ...mssPvs],
     [connectionPv, fullPowerPv, mssPvs],
   )
-  const { state } = useWebSocketData<number | null>({ pvs: boolPvs, raw: true })
+  const { state, isConnected } = useWebSocketData<number | null>({
+    pvs: boolPvs,
+    raw: true,
+  })
   // Module-error PVs report a string status code, not a boolean: "0000"
   // means OK, any other value is an active error.
   const { state: errState } = useWebSocketData<string | null>({
@@ -80,113 +83,118 @@ export const OverviewBar: FC<OverviewBarProps> = ({
   // one disconnected/errored (now 'invalid', not 'unknown') child is enough
   // to surface as a real problem instead of the cold-start placeholder.
   const mssTotal = mss.length
-  const mssSeverity = worstSeverityTone(
-    mss.map(({ pv: name }) => severityTone(state[name])),
+  const mssSeverity = aggregateSeverityPresentation(
+    mss.map(({ pv: name }) => state[name]),
+    { isConnected },
   )
+  // "ok" means healthy AND unalarmed — otherwise the pill could read YES
+  // while painted red for an alarmed child.
   const mssOk = mss.filter(
-    ({ pv: name }) => state[name]?.ok && state[name]?.value === 1,
+    ({ pv: name }) =>
+      severityTone(state[name]) === 'none' && state[name]?.value === 1,
   ).length
 
   const errTotal = moduleErrors.length
-  const errSeverity = worstSeverityTone(
-    moduleErrors.map(({ pv: name }) => severityTone(errState[name])),
+  const errSeverity = aggregateSeverityPresentation(
+    moduleErrors.map(({ pv: name }) => errState[name]),
+    { isConnected },
   )
   const errUnknown = moduleErrors.filter(
     ({ pv: name }) => severityTone(errState[name]) === 'unknown',
   ).length
   const errOk = moduleErrors.filter(
-    ({ pv: name }) => errState[name]?.ok && errState[name]?.value === '0000',
+    ({ pv: name }) =>
+      severityTone(errState[name]) === 'none' &&
+      errState[name]?.value === '0000',
   ).length
   const errCount = errTotal - errOk - errUnknown
 
   // Neither list colours by its own value (e.g. "is the bit 1" / "is the code
-  // 0000") — style comes only from EPICS severity: 'unknown' (no data yet),
-  // 'neutral' (data present, severity none — no style change), or a
-  // warning/error/invalid override. The raw value is still shown as text.
-  const mssItems: DetailListItem[] = mss.map(({ label, pv: name }) => {
-    const msg = state[name]
-    const sev = severityTone(msg)
-    if (sev !== 'none') {
-      return { label, state: severityToDetailState(sev) }
-    }
+  // 0000") — tone and any replacement text come from the shared
+  // `severityPresentation` table. Severity 0 shows the value, unstyled.
+  const detailItem = (
+    label: string,
+    pvName: string,
+    msg: Message<unknown> | undefined,
+    values?: MappedPv['values'],
+    defaults?: Record<string, string>,
+  ): DetailListItem => {
+    const { tone, text, title } = severityPresentation(msg, {
+      isConnected,
+      pvName,
+    })
     return {
       label,
-      state: 'neutral',
-      trailing: msg!.value != null ? String(msg!.value) : undefined,
+      tone,
+      // The shared table replaces the text only when the reading is unusable.
+      text: text ?? displayValue(msg?.value, values, defaults),
+      title,
     }
-  })
+  }
 
-  const errItems: DetailListItem[] = moduleErrors.map(({ label, pv: name }) => {
-    const msg = errState[name]
-    const sev = severityTone(msg)
-    if (sev !== 'none') {
-      return { label, state: severityToDetailState(sev) }
-    }
-    return { label, state: 'neutral', trailing: msg!.value ?? undefined }
-  })
+  // An MSS bit is a permission, so each row reads YES / NO — the same words as
+  // the summary pill above it, which is the only way a row and its aggregate
+  // can be read together at a glance. The config can override per indicator.
+  const mssItems: DetailListItem[] = mss.map(({ label, pv: name, values }) =>
+    detailItem(label, name, state[name], values, YES_NO_TEXT),
+  )
 
-  // Maps an aggregate severity onto this file's pill tone vocabulary. 'error'
-  // reuses 'negative-important' (already the severe-red tone here) rather
-  // than adding a redundant fourth red variant.
-  const severityPillTone = (
-    sev: Exclude<SeverityTone, 'none'>,
-  ): 'negative-important' | 'warning' | 'invalid' | 'unknown' =>
-    sev === 'error' ? 'negative-important' : sev
+  // Module errors are status codes ("0000" = no error), not booleans: there is
+  // no vocabulary to translate them into, so they are shown as they arrive.
+  const errItems: DetailListItem[] = moduleErrors.map(({ label, pv: name }) =>
+    detailItem(label, name, errState[name]),
+  )
 
-  const mssTone =
-    mssSeverity === 'none'
-      ? mssOk === mssTotal
-        ? 'positive-important'
-        : 'negative-important'
-      : severityPillTone(mssSeverity)
-  const mssText =
-    mssSeverity === 'unknown'
-      ? '<>'
-      : mssSeverity !== 'none'
-        ? 'NO'
-        : mssOk === mssTotal
-          ? 'YES'
-          : 'NO'
+  // Green when good, plain when bad. A red "NO" here would be the panel's own
+  // opinion about a value the control system did not flag; if a failed MSS bit
+  // or a non-zero error code is genuinely an alarm, the IOC says so through
+  // severity and the tone above paints it. Absence of green is the signal.
+  const mssTone: Tone | undefined =
+    mssSeverity.tone ?? (mssOk === mssTotal ? 'positive-important' : undefined)
+  // Severity supplies its own text where the shared table says so; otherwise
+  // the spec's YES/NO overall word.
+  const mssText = mssSeverity.text ?? (mssOk === mssTotal ? 'YES' : 'NO')
 
-  const errTone =
-    errSeverity === 'none'
-      ? errCount === 0
-        ? 'positive-neutral'
-        : 'negative-important'
-      : severityPillTone(errSeverity)
-
-  const toggle = (cell: Expanded) =>
-    setExpanded((prev) => (prev === cell ? null : cell))
+  const errTone: Tone | undefined =
+    errSeverity.tone ?? (errCount === 0 ? 'positive-important' : undefined)
 
   return (
     <div className={styles.wrapper}>
       <div className={styles.row}>
         <span className={styles.rowLabel}>Overview</span>
-        <div className={styles.grid} ref={triggerRef}>
+        <div className={styles.grid}>
           <Cell label="CONN">
-            <OverviewBoolCell value={connMsg?.value} onText="YES" offText="NO" />
+            <OverviewBoolCell
+              pvName={connectionPv}
+              data={connMsg}
+              onText="YES"
+              offText="NO"
+              isConnected={isConnected}
+            />
           </Cell>
           <Cell label="FULLP">
             <OverviewBoolCell
-              value={fullpMsg?.value}
+              pvName={fullPowerPv}
+              data={fullpMsg}
               onText="YES"
               offText="NO"
-              offTone="negative-neutral"
+              isConnected={isConnected}
             />
           </Cell>
           <Cell label="MSS">
             <button
               type="button"
               className={styles.pillButton}
-              aria-expanded={expanded === 'mss'}
+              aria-expanded={mssExpanded}
               aria-label="Toggle MSS detail"
-              onClick={() => toggle('mss')}
+              onClick={() => setMssExpanded((v) => !v)}
             >
               <OverallPill
                 text={mssText}
                 tone={mssTone}
+                title={mssSeverity.title}
                 expandable
-                expanded={expanded === 'mss'}
+                expanded={mssExpanded}
               />
             </button>
           </Cell>
@@ -194,27 +202,25 @@ export const OverviewBar: FC<OverviewBarProps> = ({
             <button
               type="button"
               className={styles.pillButton}
-              aria-expanded={expanded === 'err'}
+              aria-expanded={errExpanded}
               aria-label="Toggle module errors detail"
-              onClick={() => toggle('err')}
+              onClick={() => setErrExpanded((v) => !v)}
             >
               <CountPill
                 count={errCount}
                 total={errTotal}
+                text={errSeverity.text}
                 tone={errTone}
+                title={errSeverity.title}
                 expandable
-                expanded={expanded === 'err'}
+                expanded={errExpanded}
               />
             </button>
           </Cell>
         </div>
       </div>
-      {expanded === 'mss' && (
-        <DetailList items={mssItems} note={MSS_NOTE} />
-      )}
-      {expanded === 'err' && (
-        <DetailList items={errItems} note={ERR_NOTE} />
-      )}
+      {mssExpanded && <DetailList items={mssItems} note={MSS_NOTE} />}
+      {errExpanded && <DetailList items={errItems} note={ERR_NOTE} />}
     </div>
   )
 }
@@ -230,40 +236,39 @@ const Cell: FC<{ label: string; children: ReactNode }> = ({
 )
 
 interface OverviewBoolCellProps {
-  value: unknown
+  pvName: string
+  data: Message<number | null> | undefined
   onText: string
   offText: string
-  /** Tone applied when value=0. Defaults to 'negative-important' (red).
-   * Use 'negative-neutral' for OFF states that aren't actually errors
-   * (e.g. FULLP=0 just means "not at full power"). */
-  offTone?: 'negative-important' | 'negative-neutral'
+  isConnected: boolean
 }
 
-// Local pill renderer for the overview row (CONN, FULLP). Distinct from
-// `BoolPill` in controls/Values.tsx, which is PV-subscribing.
+// Local pill renderer for the overview row (CONN, FULLP): same tone rules as
+// everything else, only the geometry is this bar's. Green when the bit is set,
+// plain when it is not — see the note on `mssTone`.
 const OverviewBoolCell: FC<OverviewBoolCellProps> = ({
-  value,
+  pvName,
+  data,
   onText,
   offText,
-  offTone = 'negative-important',
+  isConnected,
 }) => {
-  if (value === 1) {
-    return (
-      <span className={styles.pill} data-tone="positive-important">
-        {onText}
-      </span>
-    )
-  }
-  if (value === 0) {
-    return (
-      <span className={styles.pill} data-tone={offTone}>
-        {offText}
-      </span>
-    )
-  }
+  const isOn = data?.value === 1
+  const { tone, text, title } = severityPresentation(data, {
+    emphasis: isOn ? 'positive-important' : undefined,
+    isConnected,
+    pvName,
+  })
+  const label =
+    text ?? (data?.value === 1 ? onText : data?.value === 0 ? offText : '<>')
   return (
-    <span className={styles.pill} data-tone="unknown">
-      &lt;&gt;
+    <span
+      className={styles.pill}
+      data-tone-surface="chip"
+      data-tone={tone ?? (data ? undefined : 'unknown')}
+      title={title}
+    >
+      {label}
     </span>
   )
 }
@@ -271,21 +276,23 @@ const OverviewBoolCell: FC<OverviewBoolCellProps> = ({
 const CountPill: FC<{
   count: number
   total: number
-  tone:
-    | 'positive-important'
-    | 'positive-neutral'
-    | 'negative-important'
-    | 'unknown'
-    | 'warning'
-    | 'invalid'
+  /** Replaces the count entirely (e.g. the shared severity text). */
+  text?: string
+  /** Hover text (e.g. the invalid-severity detail). */
+  title?: string
+  /** Undefined = the neutral default. */
+  tone?: Tone
   expandable?: boolean
   expanded?: boolean
-}> = ({ count, total, tone, expandable, expanded }) => {
+}> = ({ count, total, text, tone, title, expandable, expanded }) => {
   return (
-    <span className={styles.pill} data-tone={tone}>
-      <span className={styles.pillCount}>
-        {count}/{total}
-      </span>
+    <span
+      className={styles.pill}
+      data-tone-surface="chip"
+      data-tone={tone}
+      title={title}
+    >
+      <span className={styles.pillCount}>{text ?? `${count}/${total}`}</span>
       {expandable && (
         <span
           className={styles.cornerTriangle}
@@ -302,18 +309,20 @@ const CountPill: FC<{
 // Keeps the expand affordance so the per-indicator DetailList still opens.
 const OverallPill: FC<{
   text: string
-  tone:
-    | 'positive-important'
-    | 'positive-neutral'
-    | 'negative-important'
-    | 'unknown'
-    | 'warning'
-    | 'invalid'
+  /** Hover text (e.g. the invalid-severity detail). */
+  title?: string
+  /** Undefined = the neutral default. */
+  tone?: Tone
   expandable?: boolean
   expanded?: boolean
-}> = ({ text, tone, expandable, expanded }) => {
+}> = ({ text, tone, title, expandable, expanded }) => {
   return (
-    <span className={styles.pill} data-tone={tone}>
+    <span
+      className={styles.pill}
+      data-tone-surface="chip"
+      data-tone={tone}
+      title={title}
+    >
       <span className={styles.pillCount}>{text}</span>
       {expandable && (
         <span
