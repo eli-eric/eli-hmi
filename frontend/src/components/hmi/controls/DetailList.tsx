@@ -35,8 +35,8 @@ interface DetailListProps {
 export const DetailList: FC<DetailListProps> = ({ items, note }) => {
   return (
     <ul className={styles.list}>
-      {items.map((item) => (
-        <li key={item.label} className={styles.item}>
+      {items.map((item, i) => (
+        <li key={item.label + i} className={styles.item}>
           <span className={styles.label}>{item.label}</span>
           <span
             className={styles.status}
