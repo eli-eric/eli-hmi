@@ -1,6 +1,6 @@
 'use client'
 
-import { FC, useMemo, useRef, useState } from 'react'
+import { FC, useMemo, useState } from 'react'
 import { SectionCard } from '@/components/hmi/controls/SectionCard'
 import { DataRow } from '@/components/hmi/controls/DataRow'
 import { CogToggle } from '@/components/hmi/controls/CogToggle'
@@ -23,7 +23,6 @@ import type {
 import type { MappedPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import { WaveformSelect } from './WaveformSelect'
 import { makeCommandGate } from './commandGate'
-import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
 import { displayValue, ON_OFF_TEXT } from './value-text'
 import styles from './sections.module.css'
 
@@ -76,8 +75,6 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   commands,
 }) => {
   const [expanded, setExpanded] = useState(false)
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
-  useCollapseOnAnyClick(expanded, () => setExpanded(false), triggerRef)
   const can = makeCommandGate(commands)
   const hasWaveformAction = can('LOAD_WAVEFORM')
   const hasModboxActions =
@@ -137,7 +134,6 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         valueVariant="bare"
         value={
           <button
-            ref={triggerRef}
             type="button"
             className={styles.modboxStateButton}
             aria-expanded={expanded}

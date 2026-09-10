@@ -47,10 +47,7 @@ export default function NavigationBar() {
   const handleSignOut = () => signOut({ callbackUrl: '/auth/signin' })
 
   return (
-    // Clicks in the header leave the panel's expanded drop-downs alone: this
-    // is chrome, not panel content, and the palette selector in particular is
-    // reached for while inspecting those very indicators.
-    <nav className={styles.container} data-collapse-exempt>
+    <nav className={styles.container}>
       <div className={styles.logoGroup}>
         <NavigationLogo href={homeRoute} title={title} />
         <TextButton text="sign out" onClick={handleSignOut} />

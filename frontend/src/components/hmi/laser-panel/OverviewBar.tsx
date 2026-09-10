@@ -1,6 +1,6 @@
 'use client'
 
-import { FC, ReactNode, useMemo, useRef, useState } from 'react'
+import { FC, ReactNode, useMemo, useState } from 'react'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import {
   DetailList,
@@ -17,7 +17,6 @@ import {
   aggregateSeverityPresentation,
   type Tone,
 } from '@/lib/websocket/severity-presentation'
-import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
 import { displayValue, YES_NO_TEXT } from './value-text'
 import styles from './OverviewBar.module.css'
 
@@ -29,8 +28,6 @@ interface OverviewBarProps {
   /** Module-error indicators: display label + full PV name. */
   moduleErrors: readonly LabeledPv[]
 }
-
-type Expanded = 'mss' | 'err' | null
 
 const MSS_NOTE =
   'This is a selection of some MSS indicators, it is NOT an exhaustive list of all parameters that lead to the overall MSS indicator.'
@@ -49,9 +46,12 @@ export const OverviewBar: FC<OverviewBarProps> = ({
   mss,
   moduleErrors,
 }) => {
-  const [expanded, setExpanded] = useState<Expanded>(null)
-  const triggerRef = useRef<HTMLDivElement | null>(null)
-  useCollapseOnAnyClick(expanded !== null, () => setExpanded(null), triggerRef)
+  // One flag per list rather than one "which is open" selector: diagnosing a
+  // failed MSS permission means reading it against the module-error codes, so
+  // opening one must not close the other. Neither closes on its own — only the
+  // operator's second click on the same pill does.
+  const [mssExpanded, setMssExpanded] = useState(false)
+  const [errExpanded, setErrExpanded] = useState(false)
 
   const mssPvs = useMemo(() => mss.map((m) => m.pv), [mss])
   const moduleErrorPvs = useMemo(
@@ -158,14 +158,11 @@ export const OverviewBar: FC<OverviewBarProps> = ({
   const errTone: Tone | undefined =
     errSeverity.tone ?? (errCount === 0 ? 'positive-important' : undefined)
 
-  const toggle = (cell: Expanded) =>
-    setExpanded((prev) => (prev === cell ? null : cell))
-
   return (
     <div className={styles.wrapper}>
       <div className={styles.row}>
         <span className={styles.rowLabel}>Overview</span>
-        <div className={styles.grid} ref={triggerRef}>
+        <div className={styles.grid}>
           <Cell label="CONN">
             <OverviewBoolCell
               pvName={connectionPv}
@@ -188,16 +185,16 @@ export const OverviewBar: FC<OverviewBarProps> = ({
             <button
               type="button"
               className={styles.pillButton}
-              aria-expanded={expanded === 'mss'}
+              aria-expanded={mssExpanded}
               aria-label="Toggle MSS detail"
-              onClick={() => toggle('mss')}
+              onClick={() => setMssExpanded((v) => !v)}
             >
               <OverallPill
                 text={mssText}
                 tone={mssTone}
                 title={mssSeverity.title}
                 expandable
-                expanded={expanded === 'mss'}
+                expanded={mssExpanded}
               />
             </button>
           </Cell>
@@ -205,9 +202,9 @@ export const OverviewBar: FC<OverviewBarProps> = ({
             <button
               type="button"
               className={styles.pillButton}
-              aria-expanded={expanded === 'err'}
+              aria-expanded={errExpanded}
               aria-label="Toggle module errors detail"
-              onClick={() => toggle('err')}
+              onClick={() => setErrExpanded((v) => !v)}
             >
               <CountPill
                 count={errCount}
@@ -216,14 +213,14 @@ export const OverviewBar: FC<OverviewBarProps> = ({
                 tone={errTone}
                 title={errSeverity.title}
                 expandable
-                expanded={expanded === 'err'}
+                expanded={errExpanded}
               />
             </button>
           </Cell>
         </div>
       </div>
-      {expanded === 'mss' && <DetailList items={mssItems} note={MSS_NOTE} />}
-      {expanded === 'err' && <DetailList items={errItems} note={ERR_NOTE} />}
+      {mssExpanded && <DetailList items={mssItems} note={MSS_NOTE} />}
+      {errExpanded && <DetailList items={errItems} note={ERR_NOTE} />}
     </div>
   )
 }

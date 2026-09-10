@@ -1,11 +1,10 @@
 'use client'
 
-import { FC, useMemo, useRef, useState } from 'react'
+import { FC, useMemo, useState } from 'react'
 import { SectionCard } from '@/components/hmi/controls/SectionCard'
 import { DataRow } from '@/components/hmi/controls/DataRow'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { severityPresentation } from '@/lib/websocket/severity-presentation'
-import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
 import styles from './sections.module.css'
 
 /** One sequence shown in the expanded Sequencer list. */
@@ -51,8 +50,6 @@ export const SequencerSection: FC<SequencerSectionProps> = ({
   sequences,
 }) => {
   const [expanded, setExpanded] = useState(false)
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
-  useCollapseOnAnyClick(expanded, () => setExpanded(false), triggerRef)
 
   const pvs = useMemo(
     () => [sequencerRunningPv, ...sequences.map((s) => s.statePv)],
@@ -83,7 +80,6 @@ export const SequencerSection: FC<SequencerSectionProps> = ({
         valueVariant="bare"
         value={
           <button
-            ref={triggerRef}
             type="button"
             className={styles.modboxStateButton}
             aria-expanded={expanded}

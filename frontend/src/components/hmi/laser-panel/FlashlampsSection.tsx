@@ -1,6 +1,6 @@
 'use client'
 
-import { CSSProperties, FC, useMemo, useRef, useState } from 'react'
+import { CSSProperties, FC, useMemo, useState } from 'react'
 import { SectionCard } from '@/components/hmi/controls/SectionCard'
 import { DataRow } from '@/components/hmi/controls/DataRow'
 import { CogToggle } from '@/components/hmi/controls/CogToggle'
@@ -24,7 +24,6 @@ import type {
 } from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
 import { makeCommandGate } from './commandGate'
-import { useCollapseOnAnyClick } from './use-collapse-on-any-click'
 import styles from './sections.module.css'
 
 interface FlashlampsSectionProps {
@@ -86,8 +85,6 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
   commands,
 }) => {
   const [expanded, setExpanded] = useState(false)
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
-  useCollapseOnAnyClick(expanded, () => setExpanded(false), triggerRef)
   const can = makeCommandGate(commands)
   const hasFlashlampActions = can('FLASHLAMPS_RUN') || can('FLASHLAMPS_STANDBY')
 
@@ -254,7 +251,6 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
         <span />
 
         <button
-          ref={triggerRef}
           type="button"
           className={styles.flashlampStateButton}
           aria-expanded={expanded}

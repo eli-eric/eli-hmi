@@ -191,6 +191,31 @@ describe('GeneralSection', () => {
     expect(screen.getByText('CHILLER_11')).toBeInTheDocument()
   })
 
+  // Diagnosing a failed permission means reading the MSS bits against the
+  // module-error codes, so the two lists are independent rather than one
+  // being a selector that closes the other.
+  it('keeps MSS and Module Errors expanded at the same time', async () => {
+    const ws = await setup()
+    act(() => {
+      ws.push('BI_NL2_MSS_1', 1)
+      ws.push('BI_NL2_ERR_REGEN', '0000')
+    })
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle module errors detail' }),
+    )
+
+    expect(screen.getByText('MSS 1')).toBeInTheDocument()
+    expect(screen.getByText('REGEN')).toBeInTheDocument()
+
+    // Collapsing one leaves the other alone.
+    await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
+    expect(screen.queryByText('MSS 1')).not.toBeInTheDocument()
+    expect(screen.getByText('REGEN')).toBeInTheDocument()
+  })
+
   it('MSS/module-error rows are neutral (not ok/err coloured) when severity is none, showing the value', async () => {
     const ws = await setup()
     const user = userEvent.setup()
