@@ -43,6 +43,9 @@ const doc = (lasers: unknown[]) => stringify({ lasers })
 const docWithUnits = (units: unknown, lasers: unknown[]) =>
   stringify({ units, lasers })
 
+const docWithFormat = (format: unknown, lasers: unknown[]) =>
+  stringify({ format, lasers })
+
 describe('parseLaserSpecs', () => {
   it('parses the real lasers.yaml into a non-empty set of unique laser ids', () => {
     const specs = parseLaserSpecs(realYaml)
@@ -301,6 +304,71 @@ describe('parseLaserSpecs', () => {
   it('rejects an unknown unit key', () => {
     expect(() =>
       parseLaserSpecs(docWithUnits({ regenTemperature: '°C' }, [laser()])),
+    ).toThrow(/laser config is invalid/)
+  })
+
+  it('defaults format to an empty map when the file specifies none', () => {
+    expect(parseLaserSpecs(doc([laser()]))[0].format).toEqual({})
+  })
+
+  it('expands the bare-number shorthand into decimal places', () => {
+    const [spec] = parseLaserSpecs(
+      docWithFormat({ regenTemp: 1, chillerFlow: 2 }, [laser()]),
+    )
+    expect(spec.format).toEqual({
+      regenTemp: { format: 'fixed', toFixed: 1 },
+      chillerFlow: { format: 'fixed', toFixed: 2 },
+    })
+  })
+
+  it('accepts the full object form alongside the shorthand', () => {
+    const [spec] = parseLaserSpecs(
+      docWithFormat(
+        { regenTemp: 1, phdMean: { format: 'exponential', toExponential: 2 } },
+        [laser()],
+      ),
+    )
+    expect(spec.format.phdMean).toEqual({
+      format: 'exponential',
+      toExponential: 2,
+    })
+  })
+
+  it('merges per-laser format overrides over the module-wide defaults', () => {
+    // Same precedence as `units:`, deliberately — one rule for both blocks.
+    const [spec] = parseLaserSpecs(
+      docWithFormat({ regenTemp: 1, chillerFlow: 2 }, [
+        laser({ format: { regenTemp: 3 } }),
+      ]),
+    )
+    expect(spec.format).toEqual({
+      regenTemp: { format: 'fixed', toFixed: 3 },
+      chillerFlow: { format: 'fixed', toFixed: 2 },
+    })
+  })
+
+  it('applies module-wide format to every laser', () => {
+    const specs = parseLaserSpecs(
+      docWithFormat({ attenuator: 0 }, [
+        laser({ id: 'NLA' }),
+        laser({ id: 'NLB' }),
+      ]),
+    )
+    expect(specs.map((s) => s.format.attenuator)).toEqual([
+      { format: 'fixed', toFixed: 0 },
+      { format: 'fixed', toFixed: 0 },
+    ])
+  })
+
+  it('rejects an unknown format key', () => {
+    expect(() =>
+      parseLaserSpecs(docWithFormat({ regenTemperature: 1 }, [laser()])),
+    ).toThrow(/laser config is invalid/)
+  })
+
+  it('rejects an invalid format value', () => {
+    expect(() =>
+      parseLaserSpecs(docWithFormat({ regenTemp: 'one' }, [laser()])),
     ).toThrow(/laser config is invalid/)
   })
 

@@ -19,6 +19,8 @@
 
 import { z } from 'zod'
 import { parse as parseYaml } from 'yaml'
+
+import { valueFormatSchema } from '@/lib/utils/value-format-schema'
 import {
   LASER_COMMANDS,
   type CommandTarget,
@@ -122,6 +124,36 @@ const unitsSchema = z
     'Engineering units per numeric signal. Set once at the top level and/or override per laser; the config value wins over the PV metadata and the component default.',
   )
 
+/**
+ * How each numeric readout is rounded, keyed by the same signal roles as
+ * `units` above — the two are deliberately parallel, and every numeric readout
+ * on the panel has a role here.
+ *
+ * Roles rather than PV names: a per-PV map would have to be rewritten in every
+ * zone's file, since the PV names are exactly what differs between stations,
+ * whereas a role means the same thing everywhere. Per-laser overrides still
+ * target one specific PV.
+ *
+ * Values are decimal places (`regenTemp: 1`) or a full
+ * `{format, toFixed|toPrecision|toExponential}` object.
+ */
+const formatSchema = z
+  .strictObject({
+    phdMean: valueFormatSchema.optional(),
+    phd2Mean: valueFormatSchema.optional(),
+    regenTemp: valueFormatSchema.optional(),
+    attenuator: valueFormatSchema.optional(),
+    modboxMbc1: valueFormatSchema.optional(),
+    modboxMbc2: valueFormatSchema.optional(),
+    triggerDelay: valueFormatSchema.optional(),
+    chillerFlow: valueFormatSchema.optional(),
+    chillerTemp: valueFormatSchema.optional(),
+    chillerLevel: valueFormatSchema.optional(),
+  })
+  .describe(
+    'Numeric display format per signal. Set once at the top level and/or override per laser; a role left unset falls back to DEFAULT_VALUE_FORMAT.',
+  )
+
 export const rawLaserSchema = z
   .strictObject({
     id: label.describe(
@@ -195,6 +227,9 @@ export const rawLaserSchema = z
     units: unitsSchema
       .optional()
       .describe('Per-laser unit overrides, merged over the top-level `units`.'),
+    format: formatSchema
+      .optional()
+      .describe('Per-laser format overrides, merged over the top-level `format`.'),
     commands: z
       .partialRecord(z.enum(LASER_COMMANDS), commandTarget)
       .describe(
@@ -276,6 +311,9 @@ export const configSchema = z
     units: unitsSchema
       .optional()
       .describe('Module-wide unit defaults for every laser in this file.'),
+    format: formatSchema
+      .optional()
+      .describe('Module-wide format defaults for every laser in this file.'),
     lasers: z.array(rawLaserSchema).min(1),
   })
   .superRefine((cfg, ctx) => {
@@ -300,6 +338,9 @@ export type MappedPv = z.infer<typeof mappedPv>
 /** Units by signal role; every role optional. */
 export type UnitsConfig = z.infer<typeof unitsSchema>
 export type UnitRole = keyof UnitsConfig
+/** Numeric display format by signal role; every role optional. */
+export type FormatConfig = z.infer<typeof formatSchema>
+export type FormatRole = keyof FormatConfig
 
 /**
  * Resolved per-laser config consumed by the UI (`id` renamed to `laser`).
@@ -308,7 +349,10 @@ export type UnitRole = keyof UnitsConfig
  * overrides as `{pvName, value}`; placeholder entries are dropped so
  * `makeCommandPv` falls back to `CMD_<laser>_<NAME>` for them).
  */
-export type LaserSpec = Omit<RawLaserConfig, 'id' | 'commands' | 'units'> & {
+export type LaserSpec = Omit<
+  RawLaserConfig,
+  'id' | 'commands' | 'units' | 'format'
+> & {
   readonly laser: string
   readonly commands: readonly LaserCommand[]
   readonly commandTargets: Readonly<
@@ -316,6 +360,8 @@ export type LaserSpec = Omit<RawLaserConfig, 'id' | 'commands' | 'units'> & {
   >
   /** Module-wide units with this laser's overrides merged over them. */
   readonly units: Readonly<UnitsConfig>
+  /** Module-wide formats with this laser's overrides merged over them. */
+  readonly format: Readonly<FormatConfig>
 }
 
 /**
@@ -339,7 +385,8 @@ export function parseLaserSpecs(
   }
 
   const moduleUnits = result.data.units ?? {}
-  return result.data.lasers.map(({ id, commands, units, ...rest }) => {
+  const moduleFormat = result.data.format ?? {}
+  return result.data.lasers.map(({ id, commands, units, format, ...rest }) => {
     const entries = Object.entries(commands) as [
       LaserCommand,
       RawCommandTarget,
@@ -361,6 +408,7 @@ export function parseLaserSpecs(
       commandTargets,
       // Per-laser overrides win over the module-wide defaults.
       units: { ...moduleUnits, ...units },
+      format: { ...moduleFormat, ...format },
     }
   })
 }

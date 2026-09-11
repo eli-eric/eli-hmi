@@ -15,6 +15,7 @@ import { z } from 'zod'
 import { parse as parseYaml } from 'yaml'
 
 import { deepFreeze } from '@/lib/utils/deep-freeze'
+import { valueFormatSchema } from '@/lib/utils/value-format-schema'
 
 const nonBlank = z.string().trim().min(1)
 const displayText = nonBlank.describe('Non-empty text displayed in the UI.')
@@ -23,19 +24,7 @@ const pvName = nonBlank.describe(
 )
 const cssSize = nonBlank.describe('CSS size used by the module-page layout.')
 
-const valueFormatOptionsSchema = z.strictObject({
-  format: z
-    .enum(['exponential', 'precision', 'raw'])
-    .describe('Numeric display format.'),
-  toExponential: z
-    .number()
-    .optional()
-    .describe('Digits passed to Number.toExponential.'),
-  toPrecision: z
-    .number()
-    .optional()
-    .describe('Precision passed to Number.toPrecision.'),
-})
+
 
 export const interlockItemSchema = z.strictObject({
   pvname: pvName,
@@ -54,7 +43,7 @@ export const interlockGroupConfigSchema = z.strictObject({
 export const sensorEntrySchema = z.strictObject({
   pvName,
   label: displayText,
-  options: valueFormatOptionsSchema.optional(),
+  options: valueFormatSchema.optional(),
 })
 
 export const pumpConfigSchema = z.strictObject({

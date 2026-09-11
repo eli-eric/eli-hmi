@@ -11,6 +11,11 @@ import {
 import { describePv } from '@/lib/websocket/pv-tooltip'
 import { useTransportConnected } from '@/app/providers/socket-provider'
 import { resolveUnits } from '@/lib/websocket/units'
+import { resolveFormat } from '@/lib/websocket/format'
+import {
+  getFormattedValue,
+  type ValueFormatOptions,
+} from '@/lib/utils/pv-helpers'
 import styles from './Values.module.css'
 
 /**
@@ -53,6 +58,16 @@ interface SeverityAwareProps {
    * the neutral default, which is what most readouts want.
    */
   emphasis?: ValueEmphasis
+}
+
+interface FormatAwareProps {
+  /**
+   * How to render the number, from config (see `resolveFormat`). Leave unset
+   * for the shared default of three decimal places.
+   */
+  format?: ValueFormatOptions
+  /** Format to use when the config is silent, for a readout that needs its own. */
+  formatFallback?: ValueFormatOptions
 }
 
 interface UnitsAwareProps {
@@ -140,17 +155,20 @@ function stringFault(data: Message<unknown> | undefined) {
   return undefined
 }
 
-/** Float value (precision-formatted) + optional units chip. */
+/** Float value (config-formatted) + optional units chip. */
 export const FloatValue: FC<
-  { data: NumMsg; precision?: number } & SeverityAwareProps & UnitsAwareProps
+  { data: NumMsg } & SeverityAwareProps &
+    UnitsAwareProps &
+    FormatAwareProps
 > = ({
   data,
   pvName,
-  precision = 3,
   respectSeverity = true,
   emphasis,
   units,
   unitsFallback,
+  format,
+  formatFallback,
 }) => {
   const severity = usePresentation(data, respectSeverity, emphasis, pvName)
   // A severity the control system reported outranks our own read of the
@@ -182,17 +200,25 @@ export const FloatValue: FC<
       </span>
     )
   }
+  // Formatting happens only on this branch, where the value is a finite
+  // number — every other outcome replaced it with a placeholder above, so
+  // `getFormattedValue`'s own 'N/A' is unreachable here.
   return withUnits(
     <span className={styles.number} data-tone={tone} title={title}>
-      {data.value!.toFixed(precision)}
+      {getFormattedValue({
+        value: data.value,
+        options: resolveFormat({ config: format, fallback: formatFallback }),
+      })}
     </span>,
     unit,
   )
 }
 
-/** Integer value. */
+/** Integer value; a config `format` overrides the default rounding. */
 export const IntegerValue: FC<
-  { data: NumMsg } & SeverityAwareProps & UnitsAwareProps
+  { data: NumMsg } & SeverityAwareProps &
+    UnitsAwareProps &
+    FormatAwareProps
 > = ({
   data,
   pvName,
@@ -200,6 +226,8 @@ export const IntegerValue: FC<
   emphasis,
   units,
   unitsFallback,
+  format,
+  formatFallback,
 }) => {
   const severity = usePresentation(data, respectSeverity, emphasis, pvName)
   // A severity the control system reported outranks our own read of the
@@ -233,7 +261,15 @@ export const IntegerValue: FC<
   }
   return withUnits(
     <span className={styles.number} data-tone={tone} title={title}>
-      {Math.round(data.value!)}
+      {format ?? formatFallback
+        ? getFormattedValue({
+            value: data.value,
+            options: resolveFormat({
+              config: format,
+              fallback: formatFallback,
+            }),
+          })
+        : Math.round(data.value!)}
     </span>,
     unit,
   )

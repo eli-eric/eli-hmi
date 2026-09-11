@@ -45,6 +45,7 @@ const NL2: LaserSpec = {
   delayPresets: [50, 500, 700, 790],
   commands: LASER_COMMANDS,
   commandTargets: {},
+  format: {},
   units: { regenTemp: '°C', chillerFlow: 'L/min' },
 }
 

@@ -6,6 +6,7 @@ import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { resolveUnits } from '@/lib/websocket/units'
 import type {
   ChillerSpec,
+  FormatConfig,
   UnitsConfig,
 } from '@/app/(modules)/l4-opcpa/config/schema'
 import { FloatValue } from '@/components/hmi/controls/Values'
@@ -16,6 +17,8 @@ interface ChillersSectionProps {
   chillers: readonly ChillerSpec[]
   /** Configured units per signal role; each wins over PV metadata. */
   units?: UnitsConfig
+  /** Configured number format per signal role; each wins over the default. */
+  format?: FormatConfig
 }
 
 /**
@@ -33,6 +36,7 @@ interface ChillersSectionProps {
 export const ChillersSection: FC<ChillersSectionProps> = ({
   chillers,
   units = {},
+  format = {},
 }) => {
   const pvs = useMemo(
     () => chillers.flatMap((c) => [c.flow, c.temp, c.level]),
@@ -75,13 +79,25 @@ export const ChillersSection: FC<ChillersSectionProps> = ({
           <div key={c.flow} className={styles.contents}>
             <span className={styles.rowLabel}>Chiller {c.label}</span>
             <span className={styles.numCell} data-tone-surface="cell">
-              <FloatValue pvName={c.flow} data={state[c.flow]} />
+              <FloatValue
+                pvName={c.flow}
+                data={state[c.flow]}
+                format={format.chillerFlow}
+              />
             </span>
             <span className={styles.numCell} data-tone-surface="cell">
-              <FloatValue pvName={c.temp} data={state[c.temp]} />
+              <FloatValue
+                pvName={c.temp}
+                data={state[c.temp]}
+                format={format.chillerTemp}
+              />
             </span>
             <span className={styles.numCell} data-tone-surface="cell">
-              <FloatValue pvName={c.level} data={state[c.level]} />
+              <FloatValue
+                pvName={c.level}
+                data={state[c.level]}
+                format={format.chillerLevel}
+              />
             </span>
           </div>
         ))}

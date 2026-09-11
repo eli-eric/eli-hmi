@@ -76,9 +76,22 @@ export type ValueFormatOptions = {
   format: ValueFormat
   toExponential?: number
   toPrecision?: number
+  toFixed?: number
 }
 
-export type ValueFormat = 'exponential' | 'precision' | 'raw'
+/**
+ * `precision` is significant digits (`Number.toPrecision`); `fixed` is decimal
+ * places (`Number.toFixed`). They are different questions and operators ask the
+ * second one ("round this to one decimal"), so both exist rather than one
+ * pretending to be the other.
+ */
+export type ValueFormat = 'exponential' | 'precision' | 'fixed' | 'raw'
+
+/** Applied when neither the config nor a call site says otherwise. */
+export const DEFAULT_VALUE_FORMAT: ValueFormatOptions = {
+  format: 'fixed',
+  toFixed: 3,
+}
 
 /**
  * Formats a numeric value based on the specified format type.
@@ -94,13 +107,20 @@ export const getFormattedValue = ({
   if (value === null || value === undefined) {
     return 'N/A'
   }
-  const { format, toExponential = 2, toPrecision = 3 } = options || {}
+  const {
+    format,
+    toExponential = 2,
+    toPrecision = 3,
+    toFixed = 3,
+  } = options || {}
 
   switch (format) {
     case 'exponential':
       return value?.toExponential(toExponential) || 'N/A'
     case 'precision':
       return value?.toPrecision(toPrecision) || 'N/A'
+    case 'fixed':
+      return value.toFixed(toFixed)
     case 'raw':
       return value?.toString() || 'N/A'
     default:

@@ -70,6 +70,34 @@ The split is deliberate: the shared panels have data-only variance, while the
 bottom rows differ as component trees. Do not turn JSX into a YAML component
 language.
 
+## Number formatting
+
+Every sensor entry takes an optional `options:` deciding how its reading is
+rendered. It uses the **same definition** as L4 OPCPA's `format:` block
+(`src/lib/utils/value-format-schema.ts`), so both config formats accept the same
+values and `getFormattedValue` is the only thing that renders numbers:
+
+```yaml
+pressure:
+  pvName: E3-P3-PPS801:CDA_PRESSURE
+  label: PPS801
+  options: 2                                  # 2 decimal places
+flow:
+  pvName: E3-P3-PPS801:FLOW
+  label: PPFS801
+  options: { format: precision, toPrecision: 3 }
+```
+
+| Written as | Shows `23.456` as |
+| --- | --- |
+| `2` | `23.46` (decimal places — the usual case) |
+| `{ format: fixed, toFixed: 2 }` | `23.46` |
+| `{ format: precision, toPrecision: 2 }` | `23` (significant digits) |
+| `{ format: exponential, toExponential: 2 }` | `2.35e+1` |
+| `{ format: raw }` | `23.456` |
+
+Omitted, a reading renders the way it always has.
+
 ## PV names
 
 Store logical PV names. `useWebSocketData` applies the development prefix

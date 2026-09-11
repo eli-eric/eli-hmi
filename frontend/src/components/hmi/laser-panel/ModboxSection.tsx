@@ -20,7 +20,10 @@ import type {
   CommandPvResolver,
   LaserCommand,
 } from '@/app/(modules)/l4-opcpa/lib/pv-names'
-import type { MappedPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import type {
+  FormatConfig,
+  MappedPv,
+} from '@/app/(modules)/l4-opcpa/config/schema'
 import { WaveformSelect } from './WaveformSelect'
 import { makeCommandGate } from './commandGate'
 import { displayValue, ON_OFF_TEXT } from './value-text'
@@ -40,6 +43,8 @@ interface ModboxSectionProps {
   mbc2Pv?: string
   /** Commands this laser exposes. Buttons for commands not listed are hidden. */
   commands: readonly LaserCommand[]
+  /** Configured number format per signal role; each wins over the default. */
+  format?: FormatConfig
 }
 
 const WaveformActionDisclosure: FC<{ pvName: string }> = ({ pvName }) => {
@@ -73,6 +78,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   mbc1Pv,
   mbc2Pv,
   commands,
+  format = {},
 }) => {
   const [expanded, setExpanded] = useState(false)
   const can = makeCommandGate(commands)
@@ -174,7 +180,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
                     <FloatValue
                       pvName={mbc1Pv}
                       data={state[mbc1Pv] as Message<number | null> | undefined}
-                      precision={2}
+                      format={format.modboxMbc1}
                     />
                   </span>
                 </span>
@@ -186,7 +192,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
                     <FloatValue
                       pvName={mbc2Pv}
                       data={state[mbc2Pv] as Message<number | null> | undefined}
-                      precision={2}
+                      format={format.modboxMbc2}
                     />
                   </span>
                 </span>

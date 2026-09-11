@@ -198,7 +198,7 @@ describe('parseModuleConfig', () => {
             ...volume,
             pressure: {
               ...volume.pressure,
-              options: { ...volume.pressure.options, format: 'fixed' },
+              options: { ...volume.pressure.options, format: 'rounded' },
             },
           },
         ],
@@ -207,6 +207,39 @@ describe('parseModuleConfig', () => {
     expect(() =>
       parseModuleConfig(stringifyYaml(invalidFormat), 'modules/p3/config.yaml'),
     ).toThrow(/format/)
+  })
+
+  it('accepts the shared fixed format and its bare-number shorthand', () => {
+    // `options` uses the same definition as L4 OPCPA's `format:` block, so
+    // both worlds gained decimal places at once.
+    const withFormats = (options: unknown) => {
+      const [volume] = VALID_FILE.cleanDryAir.volumes
+      return {
+        ...VALID_FILE,
+        cleanDryAir: {
+          ...VALID_FILE.cleanDryAir,
+          volumes: [{ ...volume, pressure: { ...volume.pressure, options } }],
+        },
+      }
+    }
+
+    const shorthand = parseModuleConfig(
+      stringifyYaml(withFormats(2)),
+      'modules/p3/config.yaml',
+    )
+    expect(shorthand.cleanDryAir.volumes[0].pressure.options).toEqual({
+      format: 'fixed',
+      toFixed: 2,
+    })
+
+    const full = parseModuleConfig(
+      stringifyYaml(withFormats({ format: 'fixed', toFixed: 1 })),
+      'modules/p3/config.yaml',
+    )
+    expect(full.cleanDryAir.volumes[0].pressure.options).toEqual({
+      format: 'fixed',
+      toFixed: 1,
+    })
   })
 
   it('allows duplicate PV names because legacy placeholders are preserved verbatim', () => {

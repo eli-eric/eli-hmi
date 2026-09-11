@@ -55,6 +55,7 @@ field reference below is the format's documentation; the config validator
 | `delayPresets` | int[] | Trigger-delay preset buttons (ns). |
 | `commands` | map `SYMBOL: PV` or `SYMBOL: {pv, value}` | Which command buttons appear, which PV each writes and what it writes (see below). |
 | `units` | map `role: unit` | Optional. Engineering units for the numeric readouts (see below). |
+| `format` | map `role: decimals` | Optional. How each numeric readout is rounded (see below). |
 
 A "PV name" is any non-empty string — put the exact name the gateway exposes.
 
@@ -125,6 +126,46 @@ A unit set here **wins** over the PV's own EGU metadata and over the default
 built into the component, so this is the place to correct a wrong or missing
 unit without a code change. Chiller units appear once in the column header
 (`Temp (°C)`) rather than on every cell, which is far too narrow for them.
+
+### `format`
+
+Optional. How many decimal places each numeric readout is rounded to, keyed by
+**the same signal roles as `units`** — the two blocks are deliberately parallel:
+
+```yaml
+format:              # top level: applies to every laser in the file
+  regenTemp: 1       # one decimal place
+  chillerFlow: 2
+lasers:
+  - id: NL2
+    format:          # optional per-laser override, merged over the above
+      regenTemp: 3
+```
+
+A plain number is decimal places, which is what you want almost every time.
+When decimals are the wrong question, use the object form:
+
+| Written as | Shows `23.456` as | Use for |
+| --- | --- | --- |
+| `2` | `23.46` | the normal case — round to N decimals |
+| `{ format: fixed, toFixed: 2 }` | `23.46` | the same thing, spelled out |
+| `{ format: precision, toPrecision: 2 }` | `23` | N *significant digits*, not decimals |
+| `{ format: exponential, toExponential: 2 }` | `2.35e+1` | values spanning many orders of magnitude |
+| `{ format: raw }` | `23.456` | leave the number exactly as the PV sent it |
+
+Keys are the same list as `units`: `phdMean`, `phd2Mean`, `regenTemp`,
+`attenuator`, `modboxMbc1`, `modboxMbc2`, `triggerDelay`, `chillerFlow`,
+`chillerTemp`, `chillerLevel`. Anything else is rejected as a typo.
+
+**Roles, not PV names** — same reason as `units`. PV names are exactly what
+differs between stations, so a per-PV map would have to be rewritten in every
+zone's file; a role means the same thing everywhere. To target one laser's PV,
+use that laser's `format:` override.
+
+A role left out falls back to **three decimal places**, which is what every
+readout did before this block existed. `triggerDelay` is the one exception: it
+falls back to `raw`, because delays are whole nanoseconds and `790.000` helps
+nobody.
 
 ### `commands`
 
