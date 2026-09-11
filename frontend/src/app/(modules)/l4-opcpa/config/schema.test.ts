@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { stringify } from 'yaml'
+import { moduleConfigPath } from '@/lib/settings/zone-schema'
 import { parseLaserSpecs } from './schema'
 
-// The real config moved to the in-repo template dir (CSI-861) — validate the
-// template so a broken example never ships to the controls-team config repo.
+// Parse the file this repo actually ships for the `test` zone, so a config
+// edit that breaks the schema fails here as well as in `validate:config`.
 const realYaml = readFileSync(
-  join(process.cwd(), '..', 'eli-hmi-config/modules/l4-opcpa/lasers.yaml'),
+  join(process.cwd(), moduleConfigPath('l4-opcpa', 'test')),
   'utf8',
 )
 
@@ -42,8 +43,11 @@ const doc = (lasers: unknown[]) => stringify({ lasers })
 const docWithUnits = (units: unknown, lasers: unknown[]) =>
   stringify({ units, lasers })
 
+const docWithFormat = (format: unknown, lasers: unknown[]) =>
+  stringify({ format, lasers })
+
 describe('parseLaserSpecs', () => {
-  it('parses the real lasers.yaml into a non-empty set of unique laser ids', () => {
+  it('parses the shipped zone config into a non-empty set of unique laser ids', () => {
     const specs = parseLaserSpecs(realYaml)
     const laserIds = specs.map((s) => s.laser)
 
@@ -53,7 +57,7 @@ describe('parseLaserSpecs', () => {
   })
 
   // Detailed shape is asserted on a fixture (not the real file) so editing
-  // lasers.yaml — the file's whole purpose — doesn't break these checks.
+  // the shipped config — the file's whole purpose — doesn't break these checks.
   it('renames id → laser and passes every signal through verbatim', () => {
     const spec = parseLaserSpecs(doc([laser({ id: 'NLX' })]))[0]
     expect(spec.laser).toBe('NLX')
@@ -79,7 +83,7 @@ describe('parseLaserSpecs', () => {
     expect(spec.modbox[0]).toEqual({ label: 'Modbox 1', pv: 'BI_NL9_MODBOX_1' })
   })
 
-  it('the real lasers.yaml is structurally valid for every laser', () => {
+  it('the shipped zone config is structurally valid for every laser', () => {
     for (const spec of parseLaserSpecs(realYaml)) {
       expect(spec.pvs.connection.length).toBeGreaterThan(0)
       expect(spec.commands.length).toBeGreaterThan(0)
@@ -97,7 +101,7 @@ describe('parseLaserSpecs', () => {
 
   it('rejects unknown/misspelled keys', () => {
     expect(() => parseLaserSpecs(doc([laser({ chiller: [] })]))).toThrow(
-      /lasers\.yaml is invalid/,
+      /laser config is invalid/,
     )
   })
 
@@ -127,7 +131,7 @@ describe('parseLaserSpecs', () => {
       parseLaserSpecs(
         doc([laser({ commands: { NOT_A_COMMAND: 'NOT_A_COMMAND' } })]),
       ),
-    ).toThrow(/lasers\.yaml is invalid/)
+    ).toThrow(/laser config is invalid/)
   })
 
   it('normalises the commands map into commands (keys) + commandTargets (overrides only)', () => {
@@ -228,7 +232,7 @@ describe('parseLaserSpecs', () => {
           }),
         ]),
       ),
-    ).toThrow(/lasers\.yaml is invalid/)
+    ).toThrow(/laser config is invalid/)
   })
 
   it('rejects a command value that is neither the placeholder nor a PV (no ":")', () => {
@@ -271,7 +275,7 @@ describe('parseLaserSpecs', () => {
   it('rejects whitespace-only PV names', () => {
     expect(() =>
       parseLaserSpecs(doc([laser({ triggerDelay: ['   '] })])),
-    ).toThrow(/lasers\.yaml is invalid/)
+    ).toThrow(/laser config is invalid/)
   })
 
   it('defaults units to an empty map when the file specifies none', () => {
@@ -300,7 +304,72 @@ describe('parseLaserSpecs', () => {
   it('rejects an unknown unit key', () => {
     expect(() =>
       parseLaserSpecs(docWithUnits({ regenTemperature: '°C' }, [laser()])),
-    ).toThrow(/lasers\.yaml is invalid/)
+    ).toThrow(/laser config is invalid/)
+  })
+
+  it('defaults format to an empty map when the file specifies none', () => {
+    expect(parseLaserSpecs(doc([laser()]))[0].format).toEqual({})
+  })
+
+  it('expands the bare-number shorthand into decimal places', () => {
+    const [spec] = parseLaserSpecs(
+      docWithFormat({ regenTemp: 1, chillerFlow: 2 }, [laser()]),
+    )
+    expect(spec.format).toEqual({
+      regenTemp: { format: 'fixed', toFixed: 1 },
+      chillerFlow: { format: 'fixed', toFixed: 2 },
+    })
+  })
+
+  it('accepts the full object form alongside the shorthand', () => {
+    const [spec] = parseLaserSpecs(
+      docWithFormat(
+        { regenTemp: 1, phdMean: { format: 'exponential', toExponential: 2 } },
+        [laser()],
+      ),
+    )
+    expect(spec.format.phdMean).toEqual({
+      format: 'exponential',
+      toExponential: 2,
+    })
+  })
+
+  it('merges per-laser format overrides over the module-wide defaults', () => {
+    // Same precedence as `units:`, deliberately — one rule for both blocks.
+    const [spec] = parseLaserSpecs(
+      docWithFormat({ regenTemp: 1, chillerFlow: 2 }, [
+        laser({ format: { regenTemp: 3 } }),
+      ]),
+    )
+    expect(spec.format).toEqual({
+      regenTemp: { format: 'fixed', toFixed: 3 },
+      chillerFlow: { format: 'fixed', toFixed: 2 },
+    })
+  })
+
+  it('applies module-wide format to every laser', () => {
+    const specs = parseLaserSpecs(
+      docWithFormat({ attenuator: 0 }, [
+        laser({ id: 'NLA' }),
+        laser({ id: 'NLB' }),
+      ]),
+    )
+    expect(specs.map((s) => s.format.attenuator)).toEqual([
+      { format: 'fixed', toFixed: 0 },
+      { format: 'fixed', toFixed: 0 },
+    ])
+  })
+
+  it('rejects an unknown format key', () => {
+    expect(() =>
+      parseLaserSpecs(docWithFormat({ regenTemperature: 1 }, [laser()])),
+    ).toThrow(/laser config is invalid/)
+  })
+
+  it('rejects an invalid format value', () => {
+    expect(() =>
+      parseLaserSpecs(docWithFormat({ regenTemp: 'one' }, [laser()])),
+    ).toThrow(/laser config is invalid/)
   })
 
   it('rejects malformed YAML with a readable message', () => {

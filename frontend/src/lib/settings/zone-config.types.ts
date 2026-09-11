@@ -1,14 +1,18 @@
 import { NavigationItem } from './navigation'
 
 /**
- * Configuration for a specific zone, resolved from its zone file
- * (`zones/<ZONE_CODE>.yaml` in the runtime config dir — see ADR-0011).
- * There is no zone-code type: a zone exists iff its file does.
+ * What the app needs to know about the current zone, as `zone-service.ts`
+ * resolves it from `config/global.yaml` (see ADR-0012).
+ *
+ * This is the DERIVED shape, not the config shape: a zone file lists enabled
+ * modules once, and the two lists below are computed from it, so they can
+ * never disagree about which pages exist. There is no zone-code type — a zone
+ * exists iff it is a key under `zones:`.
  */
 export interface ZoneConfig {
-  /** Navigation items visible in the menu for this zone */
+  /** Menu entries, in order — the enabled modules that carry a label. */
   navigationItems: NavigationItem[]
-  /** Routes that are accessible for this zone */
+  /** Routes of every enabled module, in order; the first is the home route. */
   allowedRoutes: string[]
   /**
    * Name shown in the header. Undefined when the zone does not set one (or
@@ -19,8 +23,9 @@ export interface ZoneConfig {
 }
 
 /**
- * Default empty zone configuration
- * Used when zone is not configured or unknown
+ * What an unset or unknown `ZONE_CODE` degrades to: no routes, so every page
+ * redirects to `/no-access`. Deliberately not a crash — see
+ * `instrumentation-node.ts`.
  */
 export const EMPTY_ZONE_CONFIG: ZoneConfig = {
   navigationItems: [],

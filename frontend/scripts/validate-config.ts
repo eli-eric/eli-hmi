@@ -1,27 +1,31 @@
 /**
- * Validate a zone-config directory (CSI-861) — the check the controls team's
- * config repo runs in CI, and a handy local pre-flight before a deploy:
+ * Validate the in-repo configuration:
  *
- *   npm run validate:config -- --dir ../eli-hmi-config --all
- *   npm run validate:config -- --dir ../eli-hmi-config --zone test
+ *   npm run validate:config
+ *   npm run validate:config -- --zone test
  *
- * Also shipped as a container image so the controls team can run it without a
- * Node checkout — see the `validator` target in `Dockerfile`.
+ * Wired as `prebuild`, so a broken config fails `next build` rather than a
+ * container at startup. It reuses the app's REAL loader + zod validation — no
+ * re-implemented rules, so what passes here is exactly what the app accepts.
  *
- * Reuses the app's REAL loader + zod validation (`zone-config-loader.ts` via
- * CONFIG_DIR, incl. the zone-code filename rule and the symlink-safe module
- * ref resolution, plus the superRefine checks JSON Schema cannot express:
- * duplicate PVs, nav ⊆ allowedRoutes, module-ref presence). No re-implemented
- * rules — what passes here is exactly what the container accepts at startup.
- * Reports every invalid zone, then exits non-zero if there was any.
+ * Three things are checked:
+ *
+ *  1. `config/global.yaml` parses and validates.
+ *  2. Every module a zone turns ON has its `config/zones/<zone>.yaml`. There is
+ *     no fallback to a shared default file, so a missing one is an error —
+ *     silently serving another station's PV names is worse than failing here.
+ *  3. EVERY module config file on disk parses, including files for zones that
+ *     are not rolled out yet and modules no zone currently enables. Nothing
+ *     escapes validation just because it is not live.
+ *
+ * It also prints the full zone → module → file resolution, so "which config
+ * does this station actually get" is answerable with one command.
  */
-import { existsSync, readdirSync, statSync } from 'node:fs'
-import { basename, join, relative, resolve } from 'node:path'
+import { existsSync, readdirSync } from 'node:fs'
+import { basename, join } from 'node:path'
 
 function usage(): never {
-  console.error(
-    'usage: validate-config --dir <config-dir> (--all | --zone <code>)',
-  )
+  console.error('usage: validate-config [--zone <code>]')
   process.exit(2)
 }
 
@@ -30,85 +34,118 @@ function argValue(flag: string): string | undefined {
   const i = args.indexOf(flag)
   if (i < 0) return undefined
   const value = args[i + 1]
-  // `--dir --all` must be a usage error, not dir === '--all'.
   if (value === undefined || value.startsWith('--')) usage()
   return value
 }
 
 async function main(): Promise<void> {
-  const dir = argValue('--dir')
   const zoneArg = argValue('--zone')
-  const all = args.includes('--all')
-  if (!dir || (!all && !zoneArg) || (all && zoneArg)) usage()
+  if (args.some((a) => a.startsWith('--') && a !== '--zone')) usage()
 
-  const configDir = resolve(dir)
-  const zonesDir = join(configDir, 'zones')
-  if (!existsSync(zonesDir)) {
-    console.error(`no zones/ directory in ${configDir}`)
-    process.exit(2)
-  }
+  const { configRoot, GLOBAL_CONFIG_FILE, loadGlobalConfig } = await import(
+    '../src/lib/settings/config-loader'
+  )
+  const { listModuleConfigs, validateModuleConfig } = await import(
+    '../src/lib/settings/module-config-validation'
+  )
+  const { MODULES, MODULE_KEYS, moduleConfigPath, ZONE_CODE_RE } = await import(
+    '../src/lib/settings/zone-schema'
+  )
 
-  // Point the app loader at the directory under validation, then import it —
-  // the loader reads CONFIG_DIR through getConfigDir() on every call.
-  process.env.CONFIG_DIR = configDir
-  const { loadZoneFile, ZONE_CODE_RE } =
-    await import('../src/lib/settings/zone-config-loader')
-  const { listReferencedModuleConfigs, validateReferencedModuleConfigs } =
-    await import('../src/lib/settings/module-config-validation')
-
+  const root = configRoot()
   let failures = 0
   const fail = (name: string, message: string): void => {
     failures++
     console.error(`✗ ${name}: ${message}`)
   }
 
-  let zoneCodes: string[]
-  if (all) {
-    zoneCodes = []
-    for (const entry of readdirSync(zonesDir).sort()) {
-      // Anything in zones/ the runtime would not pick up is a hard error — a
-      // silently skipped file (prod.yml, typo'd stem) must not validate green.
-      if (!entry.endsWith('.yaml')) {
-        fail(entry, `not a .yaml file — the app only loads zones/<code>.yaml`)
-        continue
-      }
-      const stem = basename(entry, '.yaml')
-      if (!ZONE_CODE_RE.test(stem)) {
-        fail(
-          entry,
-          `invalid zone code "${stem}" — allowed characters: letters, digits, "_", "-"`,
-        )
-        continue
-      }
-      zoneCodes.push(stem)
-    }
-  } else {
-    zoneCodes = [zoneArg as string]
+  // 1. The global config.
+  let config
+  try {
+    config = loadGlobalConfig(root)
+  } catch (e) {
+    console.error(`✗ ${GLOBAL_CONFIG_FILE}: ${(e as Error).message}`)
+    process.exit(1)
   }
 
-  const referenced = new Set<string>()
+  const zoneCodes = zoneArg ? [zoneArg] : Object.keys(config.zones).sort()
+  if (zoneArg && !config.zones[zoneArg]) {
+    console.error(
+      `✗ unknown zone "${zoneArg}" — defined zones: ${Object.keys(config.zones).sort().join(', ')}`,
+    )
+    process.exit(1)
+  }
+
+  // 2. Per zone: every enabled module must have its file, and it must parse.
+  //    Disabled modules are reported too, so the resolution table is complete.
+  const checked = new Set<string>()
   for (const zoneCode of zoneCodes) {
-    try {
-      const zone = loadZoneFile(zoneCode)
-      const moduleReferences = listReferencedModuleConfigs(zone)
-      // Record references before parsing: a malformed referenced file is a
-      // validation failure, not an orphan as well.
-      for (const { config } of moduleReferences) {
-        referenced.add(resolve(configDir, config))
-      }
-      validateReferencedModuleConfigs(zone)
+    const zone = config.zones[zoneCode]
+    console.log(`\nzone ${zoneCode}${zone.title ? ` — ${zone.title}` : ''}`)
 
-      console.log(`✓ ${zoneCode}`)
-    } catch (e) {
-      fail(zoneCode, (e as Error).message)
+    for (const { moduleKey, config: path, enabled } of listModuleConfigs(
+      zoneCode,
+      zone,
+    )) {
+      const state = enabled
+        ? `enabled → ${MODULES[moduleKey].route}`
+        : 'disabled, validated only'
+      if (!existsSync(join(root, path))) {
+        if (enabled) {
+          fail(`${zoneCode}/${moduleKey}`, `missing config file ${path}`)
+        } else {
+          console.log(`  ${moduleKey.padEnd(9)} (no file, not enabled)`)
+        }
+        continue
+      }
+      checked.add(path)
+      try {
+        validateModuleConfig(moduleKey, zoneCode)
+        console.log(`  ${moduleKey.padEnd(9)} ${path}  [${state}]`)
+      } catch (e) {
+        fail(`${zoneCode}/${moduleKey}`, (e as Error).message)
+      }
     }
   }
 
-  // Non-fatal hygiene warnings (--all only — a single-zone run can't know
-  // what the other zones reference, and may run against a partial checkout).
-  if (all) {
-    for (const orphan of findUnreferencedModuleFiles(configDir, referenced)) {
-      console.warn(`⚠ ${orphan}: not referenced by any zone`)
+  // 3. Sweep every module config on disk, including zones not in global.yaml
+  //    yet. Only meaningful on a full run — a --zone run sees one slice.
+  if (!zoneArg) {
+    const stray: string[] = []
+    for (const key of MODULE_KEYS) {
+      const dir = join(root, MODULES[key].dir, 'config', 'zones')
+      if (!existsSync(dir)) continue
+      for (const entry of readdirSync(dir).sort()) {
+        if (!entry.endsWith('.yaml')) {
+          fail(
+            `${MODULES[key].dir}/config/zones/${entry}`,
+            'not a .yaml file — this directory holds one file per zone code',
+          )
+          continue
+        }
+        const stem = basename(entry, '.yaml')
+        if (!ZONE_CODE_RE.test(stem)) {
+          fail(
+            `${MODULES[key].dir}/config/zones/${entry}`,
+            `invalid zone code "${stem}" — allowed characters: letters, digits, "_", "-"`,
+          )
+          continue
+        }
+        const path = moduleConfigPath(key, stem)
+        if (checked.has(path)) continue
+        try {
+          validateModuleConfig(key, stem)
+          if (!config.zones[stem]) stray.push(`${path} (zone "${stem}")`)
+        } catch (e) {
+          fail(path, (e as Error).message)
+        }
+      }
+    }
+    if (stray.length > 0) {
+      console.warn(
+        `\n⚠ config present for zone(s) not in ${GLOBAL_CONFIG_FILE}:\n` +
+          stray.map((s) => `  ${s}`).join('\n'),
+      )
     }
   }
 
@@ -117,26 +154,6 @@ async function main(): Promise<void> {
     process.exit(1)
   }
   console.log(`\nall ${zoneCodes.length} zone(s) valid`)
-}
-
-function findUnreferencedModuleFiles(
-  configDir: string,
-  referenced: Set<string>,
-): string[] {
-  const modulesDir = join(configDir, 'modules')
-  if (!existsSync(modulesDir)) return []
-  const orphans: string[] = []
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir).sort()) {
-      const full = join(dir, entry)
-      if (statSync(full).isDirectory()) walk(full)
-      else if (entry.endsWith('.yaml') && !referenced.has(full)) {
-        orphans.push(relative(configDir, full))
-      }
-    }
-  }
-  walk(modulesDir)
-  return orphans
 }
 
 void main()

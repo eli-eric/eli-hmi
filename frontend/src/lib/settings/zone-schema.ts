@@ -1,18 +1,21 @@
 /**
- * Schema + parser for per-zone config files (`zones/<ZONE_CODE>.yaml` in the
- * config directory, see `zone-config-loader.ts`).
+ * Schema + parser for the global config file (`config/global.yaml`).
  *
- * A zone file is the single source of truth for one deployment environment:
- * which routes are reachable, what shows up in the top navigation, and where
- * each module's own config file lives (path relative to the config dir root).
+ * One file is the single source of truth for every deployment environment
+ * ("zone"): what the header calls it, and which module pages it turns on. A
+ * zone exists iff it is a key under `zones:`.
  *
- * One zod schema is the single source for both the `ZoneFile` type and
- * runtime validation (`strictObject` rejects unknown keys). The config format
- * is documented in prose in `eli-hmi-config/README.md`; there is no generated
- * JSON Schema.
+ * Routes are NOT written in the config — they are derived from the `MODULES`
+ * registry below, so a route cannot be misspelled and the three lists that
+ * used to say the same thing (navigationItems / allowedRoutes / modules)
+ * collapse into one ordered list per zone. Order is menu order, and the first
+ * entry is the zone's home route.
+ *
+ * One zod schema is the single source for both the `GlobalConfig` type and
+ * runtime validation (`strictObject` rejects unknown keys).
  *
  * Free of `server-only` / `fs` so it stays unit-testable from a plain string;
- * the file read lives in `zone-config-loader.ts`.
+ * the file read lives in `config-loader.ts`.
  */
 
 import { z } from 'zod'
@@ -21,148 +24,82 @@ import { parse as parseYaml } from 'yaml'
 import { deepFreeze } from '@/lib/utils/deep-freeze'
 
 /**
- * The one zone-file schema version this app build understands. Bumped on
- * breaking shape changes; a config written for another version fails fast with
- * a readable error instead of half-working. Config + image deploy together.
+ * Every module page the app knows: its route, and the directory holding its
+ * per-zone config. Keeping the keys here as the source of `ModuleKey` makes
+ * parser dispatch exhaustive at compile time (see `module-config-validation`).
+ *
+ * `dir` is relative to the frontend project root (`process.cwd()`).
  */
-export const ZONE_SCHEMA_VERSION = 1
-
-/**
- * Route ↔ module-config mapping: if a zone allows the route, it must also say
- * where that module's config file is. Keeping the keys here as the source of
- * `ModuleKey` makes parser dispatch exhaustive at compile time.
- */
-export const MODULE_ROUTES = {
-  'l4-opcpa': '/l4-opcpa',
-  p3: '/p3-controls',
-  l3bt: '/l3bt-controls',
-  l4fbt: '/l4fbt-controls',
+export const MODULES = {
+  'l4-opcpa': { route: '/l4-opcpa', dir: 'src/app/(modules)/l4-opcpa' },
+  p3: { route: '/p3-controls', dir: 'src/app/(modules)/p3-controls' },
+  l3bt: { route: '/l3bt-controls', dir: 'src/app/(modules)/l3bt-controls' },
+  l4fbt: { route: '/l4fbt-controls', dir: 'src/app/(modules)/l4fbt-controls' },
 } as const
 
-export type ModuleKey = keyof typeof MODULE_ROUTES
+export type ModuleKey = keyof typeof MODULES
 
-// "/" or "/"-separated non-empty segments — no trailing slash, no empty
-// segment. Proxy matches pathnames exactly, so a "/l4-opcpa/" entry
-// would validate but never match; reject it here instead.
-const routePath = z
-  .string()
-  .regex(
-    /^\/(?:[a-z0-9-]+(?:\/[a-z0-9-]+)*)?$/,
-    'route must be "/" or "/"-separated segments of lowercase letters, digits and "-" (no trailing slash)',
-  )
+export const MODULE_KEYS = Object.keys(MODULES) as ModuleKey[]
 
-const moduleRef = z.strictObject({
-  config: z
+/**
+ * Where a module's config for one zone lives. There is no fallback to a
+ * shared default file: a zone that enables a module must ship that module's
+ * file, because silently serving another station's PV names is worse in a
+ * control system than failing the build.
+ */
+export function moduleConfigPath(key: ModuleKey, zoneCode: string): string {
+  return `${MODULES[key].dir}/config/zones/${zoneCode}.yaml`
+}
+
+/** Zone codes are free-form but must be usable as a filename stem. */
+export const ZONE_CODE_RE = /^[A-Za-z0-9_-]+$/
+
+const zoneModuleSchema = z.strictObject({
+  key: z
+    .enum(MODULE_KEYS as [ModuleKey, ...ModuleKey[]])
+    .describe('Module to enable in this zone; its route comes from MODULES.'),
+  text: z
     .string()
     .trim()
     .min(1)
-    .regex(
-      /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$)).+$/,
-      'module config reference must be relative and stay inside the config dir',
-    )
+    .optional()
     .describe(
-      "Path to this module's config file, relative to the config dir root, e.g. modules/l4-opcpa/lasers.yaml.",
+      'Label in the top navigation. Omit to make the route reachable but hidden from the menu.',
     ),
 })
 
-const navigationItemSchema = z.strictObject({
-  text: z.string().trim().min(1).describe('Label shown in the top navigation.'),
-  href: routePath.describe(
-    'Route the item links to; must be in allowedRoutes.',
-  ),
+const zoneSchema = z.strictObject({
+  title: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe(
+      'Name shown in the header, e.g. "L4 OPCPA". Defaults to DEFAULT_ZONE_TITLE.',
+    ),
+  modules: z
+    .array(zoneModuleSchema)
+    .min(1)
+    .describe(
+      'Modules this zone turns on, in menu order. The first entry is the home route.',
+    ),
 })
 
-export const zoneFileSchema = z
-  .strictObject({
-    schemaVersion: z
-      .literal(ZONE_SCHEMA_VERSION)
-      .describe(
-        `Zone-file schema version understood by the app (currently ${ZONE_SCHEMA_VERSION}).`,
-      ),
-    title: z
-      .string()
-      .trim()
-      .min(1)
-      .optional()
-      .describe(
-        'Name shown in the header, e.g. "L4 OPCPA". Defaults to DEFAULT_ZONE_TITLE.',
-      ),
-    navigationItems: z
-      .array(navigationItemSchema)
-      .describe('Items shown in the top navigation, in order.'),
-    allowedRoutes: z
-      .array(routePath)
-      .describe(
-        'Routes reachable in this zone; first entry is the home route. Anything else redirects to /no-access.',
-      ),
-    modules: z
-      .strictObject({
-        'l4-opcpa': moduleRef
-          .optional()
-          .describe('L4 OPCPA laser config reference.'),
-        p3: moduleRef.optional().describe('P3 module config reference.'),
-        l3bt: moduleRef.optional().describe('L3BT module config reference.'),
-        l4fbt: moduleRef.optional().describe('L4FBT module config reference.'),
-      })
-      .prefault({})
-      .describe('Per-module config file references.'),
-  })
-  .superRefine((zone, ctx) => {
-    // The root page and authenticated sign-in page both redirect to the home
-    // route (= allowedRoutes[0]); using either as home creates a redirect loop.
-    const homeRoute = zone.allowedRoutes[0]
-    if (homeRoute === '/' || homeRoute === '/auth/signin') {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['allowedRoutes', 0],
-        message: `"${homeRoute}" cannot be the home route — it redirects to itself`,
-      })
-    }
+export const globalConfigSchema = z.strictObject({
+  zones: z
+    .record(z.string().regex(ZONE_CODE_RE), zoneSchema)
+    .describe('Every deployment zone, keyed by ZONE_CODE.'),
+})
 
-    const allowed = new Set(zone.allowedRoutes)
-    if (allowed.size !== zone.allowedRoutes.length) {
-      const seen = new Set<string>()
-      const dupes = zone.allowedRoutes.filter((r) => {
-        const dup = seen.has(r)
-        seen.add(r)
-        return dup
-      })
-      ctx.addIssue({
-        code: 'custom',
-        message: `duplicate allowedRoutes entries: ${[...new Set(dupes)].join(', ')}`,
-        path: ['allowedRoutes'],
-      })
-    }
-
-    zone.navigationItems.forEach((item, i) => {
-      if (!allowed.has(item.href)) {
-        ctx.addIssue({
-          code: 'custom',
-          message: `navigation item "${item.text}" points at ${item.href}, which is not in allowedRoutes`,
-          path: ['navigationItems', i, 'href'],
-        })
-      }
-    })
-
-    for (const [moduleKey, route] of Object.entries(MODULE_ROUTES)) {
-      if (allowed.has(route) && !zone.modules[moduleKey as ModuleKey]) {
-        ctx.addIssue({
-          code: 'custom',
-          message: `route ${route} is allowed but modules.${moduleKey} has no config reference`,
-          path: ['modules'],
-        })
-      }
-    }
-  })
-
-export type ZoneFile = z.infer<typeof zoneFileSchema>
+export type ZoneEntry = z.infer<typeof zoneSchema>
+export type GlobalConfig = z.infer<typeof globalConfigSchema>
 
 /**
- * Parse + validate raw YAML text into a `ZoneFile`. Throws an `Error` with an
- * operator-readable message on malformed YAML or schema violations. `name` is
- * used in error messages (e.g. "zones/TESTZ.yaml").
+ * Parse + validate raw YAML text into a `GlobalConfig`. Throws an `Error` with
+ * an operator-readable message on malformed YAML or schema violations. `name`
+ * is used in error messages (e.g. "config/global.yaml").
  */
-export function parseZoneFile(text: string, name: string): ZoneFile {
+export function parseGlobalConfig(text: string, name: string): GlobalConfig {
   let data: unknown
   try {
     data = parseYaml(text)
@@ -170,9 +107,24 @@ export function parseZoneFile(text: string, name: string): ZoneFile {
     throw new Error(`${name} is not valid YAML: ${(e as Error).message}`)
   }
 
-  const result = zoneFileSchema.safeParse(data)
+  const result = globalConfigSchema.safeParse(data)
   if (!result.success) {
     throw new Error(`${name} is invalid:\n${z.prettifyError(result.error)}`)
+  }
+
+  // A module listed twice would put the same route in the menu twice; zod has
+  // no built-in for "unique by field", so it is checked here where the error
+  // can name the zone and the key.
+  for (const [zoneCode, zone] of Object.entries(result.data.zones)) {
+    const seen = new Set<string>()
+    for (const entry of zone.modules) {
+      if (seen.has(entry.key)) {
+        throw new Error(
+          `${name} is invalid:\n  zone "${zoneCode}" lists module "${entry.key}" more than once`,
+        )
+      }
+      seen.add(entry.key)
+    }
   }
 
   // The parsed file is cached for the process lifetime and shared by

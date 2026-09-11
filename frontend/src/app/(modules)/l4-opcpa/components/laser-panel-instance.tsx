@@ -12,7 +12,7 @@ interface LaserPanelInstanceProps {
 
 /**
  * Renders one laser column from a {@link LaserSpec}. Every PV name comes from
- * the spec (resolved from `lasers.yaml`); command write targets resolve via
+ * the spec (resolved from the zone's laser config); command write targets resolve via
  * `makeCommandPv` (YAML override, else code-built `CMD_<laser>_<NAME>`).
  * Sections whose device bank is empty are omitted: no chillers → no Chillers
  * section, no flashlamps → no Flashlamps, no modbox PVs → no Modbox. General +
@@ -37,7 +37,8 @@ export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => {
         fullPowerPv={spec.pvs.fullPower}
         shutterPv={spec.pvs.shutter}
         phdMeanPv={spec.pvs.phdMean}
-        phdMeanUnits={spec.units.phdMean}
+        units={spec.units}
+        format={spec.format}
         mss={spec.mss}
         moduleErrors={spec.moduleErrors}
         commands={spec.commands}
@@ -48,16 +49,22 @@ export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => {
         phd2MeanPv={spec.pvs.phd2Mean}
         attenuatorPv={spec.pvs.attenuator}
         units={spec.units}
+        format={spec.format}
       />
       {spec.chillers.length > 0 && (
-        <LaserPanel.Chillers chillers={spec.chillers} units={spec.units} />
+        <LaserPanel.Chillers
+          chillers={spec.chillers}
+          units={spec.units}
+          format={spec.format}
+        />
       )}
       {spec.flashlamps.length > 0 && (
         <LaserPanel.Flashlamps
           cmdPv={cmdPv}
           flashlamps={spec.flashlamps}
           triggerDelay={spec.triggerDelay}
-          triggerDelayUnits={spec.units.triggerDelay}
+          units={spec.units}
+          format={spec.format}
           delayPresets={spec.delayPresets}
           commands={spec.commands}
         />
@@ -71,6 +78,7 @@ export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => {
           mbc1Pv={spec.pvs.modboxMbc1}
           mbc2Pv={spec.pvs.modboxMbc2}
           commands={spec.commands}
+          format={spec.format}
         />
       )}
     </LaserPanel>

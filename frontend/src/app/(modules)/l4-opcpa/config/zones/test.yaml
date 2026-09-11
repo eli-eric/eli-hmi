@@ -8,6 +8,18 @@ units:
   chillerTemp: '°C'
   chillerLevel: '%'
 
+# How each numeric readout is rounded, keyed by the same signal roles as
+# `units:` above. A plain number is decimal places; the object form
+# ({format: exponential, toExponential: 2}, {format: precision, toPrecision: 4})
+# is there when decimals are the wrong question. A laser may override any of
+# these with its own `format:` block.
+#
+# Roles left out fall back to three decimal places, which is what every readout
+# did before this block existed — so only the two that differed are listed.
+format:
+  modboxMbc1: 2
+  modboxMbc2: 2
+
 lasers:
   - id: NL2
     pvs:

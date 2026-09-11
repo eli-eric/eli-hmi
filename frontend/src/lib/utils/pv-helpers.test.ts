@@ -67,6 +67,29 @@ describe('getFormattedValue', () => {
     ).toBe('1.235')
   })
 
+  it('formats fixed decimal places', () => {
+    expect(
+      getFormattedValue({
+        value: 23.456,
+        options: { format: 'fixed', toFixed: 1 },
+      }),
+    ).toBe('23.5')
+  })
+
+  it('defaults fixed to three decimal places — the historical behaviour', () => {
+    expect(getFormattedValue({ value: 1.5, options: { format: 'fixed' } })).toBe(
+      '1.500',
+    )
+  })
+
+  it('formats fixed zero without turning it into N/A', () => {
+    // Every other branch guards the falsy result with `|| 'N/A'`, which would
+    // be wrong here: '0' is a reading, not a missing one.
+    expect(
+      getFormattedValue({ value: 0, options: { format: 'fixed', toFixed: 0 } }),
+    ).toBe('0')
+  })
+
   it('formats raw', () => {
     expect(getFormattedValue({ value: 42, options: { format: 'raw' } })).toBe(
       '42',

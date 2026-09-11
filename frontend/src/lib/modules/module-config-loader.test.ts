@@ -1,15 +1,17 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stringify as stringifyYaml } from 'yaml'
 
 vi.mock('server-only', () => ({}))
 
 import {
-  clearZoneCache,
-  ZoneConfigError,
-} from '@/lib/settings/zone-config-loader'
+  clearConfigCache,
+  ConfigError,
+  setConfigRootForTests,
+} from '@/lib/settings/config-loader'
+import { moduleConfigPath } from '@/lib/settings/zone-schema'
 import {
   clearModuleConfigCache,
   loadModuleConfig,
@@ -19,7 +21,6 @@ import {
 
 function moduleFile(heading: string): string {
   return stringifyYaml({
-    schemaVersion: 1,
     heading,
     interlocks: {
       title: `${heading} Interlocks`,
@@ -70,43 +71,38 @@ function moduleFile(heading: string): string {
   })
 }
 
+const P3_CONFIG = moduleConfigPath('p3', 'test')
+
 describe('loadModuleConfig', () => {
-  let configDir: string
+  let root: string
   let p3Path: string
 
   beforeEach(() => {
-    configDir = mkdtempSync(join(tmpdir(), 'module-config-'))
-    mkdirSync(join(configDir, 'zones'), { recursive: true })
-    mkdirSync(join(configDir, 'modules', 'p3'), { recursive: true })
-    p3Path = join(configDir, 'modules', 'p3', 'config.yaml')
+    // The path is derived from the module registry, not from the config, so
+    // the fixture root mirrors the real tree.
+    root = mkdtempSync(join(tmpdir(), 'module-config-'))
+    p3Path = join(root, P3_CONFIG)
+    mkdirSync(dirname(p3Path), { recursive: true })
     writeFileSync(p3Path, moduleFile('P3'))
-    writeFileSync(
-      join(configDir, 'zones', 'test.yaml'),
-      stringifyYaml({
-        schemaVersion: 1,
-        navigationItems: [],
-        allowedRoutes: [],
-        modules: { p3: { config: 'modules/p3/config.yaml' } },
-      }),
-    )
-    vi.stubEnv('CONFIG_DIR', configDir)
+    setConfigRootForTests(root)
     vi.stubEnv('ZONE_CODE', 'test')
-    clearZoneCache()
+    clearConfigCache()
     clearModuleConfigCache()
   })
 
   afterEach(() => {
     vi.unstubAllEnvs()
-    clearZoneCache()
+    setConfigRootForTests(undefined)
+    clearConfigCache()
     clearModuleConfigCache()
-    rmSync(configDir, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
   })
 
   it('exposes every shared ModuleConfig key', () => {
     expect(MODULE_CONFIG_KEYS).toEqual(['p3', 'l3bt', 'l4fbt'])
   })
 
-  it('resolves a module key through the current zone reference', () => {
+  it('resolves a module key to its per-zone file', () => {
     const key: ModuleConfigKey = 'p3'
     const config = loadModuleConfig(key)
 
@@ -116,24 +112,25 @@ describe('loadModuleConfig', () => {
 
   it('throws an actionable error when ZONE_CODE is not set', () => {
     vi.stubEnv('ZONE_CODE', '')
-    expect(() => loadModuleConfig('p3')).toThrow(ZoneConfigError)
+    expect(() => loadModuleConfig('p3')).toThrow(ConfigError)
     expect(() => loadModuleConfig('p3')).toThrow(
-      /ZONE_CODE is not set.*p3 module config/,
+      /ZONE_CODE is not set[\s\S]*p3 module config/,
     )
   })
 
-  it('throws an actionable error when the zone has no requested module reference', () => {
-    expect(() => loadModuleConfig('l3bt')).toThrow(ZoneConfigError)
+  it('throws an actionable error when this zone has no file for the module', () => {
+    // Deliberately no fallback to a shared default: a station must never
+    // silently come up on another station's PV names.
+    expect(() => loadModuleConfig('l3bt')).toThrow(ConfigError)
     expect(() => loadModuleConfig('l3bt')).toThrow(
-      /zone "test" has no modules\.l3bt config reference/,
+      /module config not found[\s\S]*zone "test"/,
     )
   })
 
-  it('includes the referenced path when module YAML is invalid', () => {
+  it('includes the resolved path when module YAML is invalid', () => {
     writeFileSync(p3Path, 'heading: [unclosed')
-    expect(() => loadModuleConfig('p3')).toThrow(
-      /modules\/p3\/config\.yaml is not valid YAML/,
-    )
+    expect(() => loadModuleConfig('p3')).toThrow(/is not valid YAML/)
+    expect(() => loadModuleConfig('p3')).toThrow(P3_CONFIG)
   })
 
   it('production: caches successful parses until the cache is cleared', () => {
@@ -150,7 +147,7 @@ describe('loadModuleConfig', () => {
     expect(fresh.heading).toBe('P3 edited')
   })
 
-  it('development: reloads the mounted file on every request', () => {
+  it('development: reloads the file on every request', () => {
     vi.stubEnv('NODE_ENV', 'development')
     const first = loadModuleConfig('p3')
     writeFileSync(p3Path, moduleFile('P3 edited'))

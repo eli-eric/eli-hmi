@@ -1,28 +1,25 @@
 import 'server-only'
 
 import {
-  getConfigDir,
-  loadZoneFile,
+  ConfigError,
+  configRoot,
   readModuleConfigText,
-  ZoneConfigError,
-} from '@/lib/settings/zone-config-loader'
+} from '@/lib/settings/config-loader'
 import { deepFreeze } from '@/lib/utils/deep-freeze'
 import { getCurrentZoneCode } from '@/lib/settings/zone-service'
+import { moduleConfigPath } from '@/lib/settings/zone-schema'
 import { parseLaserSpecs, type LaserSpec } from './schema'
 
 /**
- * Server-only loader for the L4 OPCPA per-laser config (CSI-861).
+ * Server-only loader for the L4 OPCPA per-laser config.
  *
- * The config is no longer baked into the build: the current zone's file
- * (`zones/<ZONE_CODE>.yaml` in the mounted config dir) names the laser config
- * to load (`modules.l4-opcpa.config`). Called from the server `page.tsx`,
- * which is `force-dynamic` — invalid config surfaces as a runtime error (and
- * is caught loudly at container start by `instrumentation.ts`), not a build
- * failure.
+ * The file ships in the image at `config/zones/<ZONE_CODE>.yaml` next to this
+ * loader — one file per zone, because different stations run against different
+ * PVs. Called from the server `page.tsx`, which is `force-dynamic` because
+ * `ZONE_CODE` is only known at runtime.
  *
- * In production, parses are cached per (configDir, zone, path) for the
- * process lifetime — container restart = config reload; uncached in
- * development, same policy as the zone loader.
+ * In production, parses are cached per (root, zone) for the process lifetime;
+ * uncached in development, same policy as the config loader.
  *
  * The actual parse/validation lives in `schema.ts` (no `server-only`), so it
  * stays unit-testable from a plain string.
@@ -37,28 +34,30 @@ export function clearLaserSpecsCache(): void {
 export function loadLaserSpecs(): readonly LaserSpec[] {
   const zoneCode = getCurrentZoneCode()
   if (!zoneCode) {
-    throw new ZoneConfigError(
+    throw new ConfigError(
       'ZONE_CODE is not set — cannot resolve the L4 OPCPA laser config',
     )
   }
 
-  const zone = loadZoneFile(zoneCode)
-  const ref = zone.modules['l4-opcpa']
-  if (!ref) {
-    throw new ZoneConfigError(
-      `zone "${zoneCode}" has no modules.l4-opcpa config reference`,
-    )
-  }
-
-  // configDir is part of the key for the same reason as in the zone cache:
-  // tests stub CONFIG_DIR per case; in production it never changes.
-  const key = `${getConfigDir()}\0${zoneCode}\0${ref.config}`
+  // root is part of the key for the same reason as in the config cache: tests
+  // load fixture roots; in production it never changes.
+  const key = `${configRoot()}\0${zoneCode}`
   const cached = specsCache.get(key)
   if (cached) return cached
 
-  const specs = deepFreeze(parseLaserSpecs(readModuleConfigText(ref.config)))
-  // Production only, same policy as the zone cache: dev edits reload per
-  // request, deployments reload on container restart.
+  const path = moduleConfigPath('l4-opcpa', zoneCode)
+  let specs: readonly LaserSpec[]
+  try {
+    specs = deepFreeze(
+      parseLaserSpecs(readModuleConfigText('l4-opcpa', zoneCode), path),
+    )
+  } catch (e) {
+    if (e instanceof ConfigError) throw e
+    throw new ConfigError((e as Error).message, { cause: e })
+  }
+
+  // Production only, same policy as the config cache: dev edits reload per
+  // request; in production the config is fixed for the image's lifetime.
   if (process.env.NODE_ENV === 'production') {
     specsCache.set(key, specs)
   }

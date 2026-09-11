@@ -7,8 +7,8 @@ The laser-control page. Lives at `frontend/src/app/(modules)/l4-opcpa/`. Source 
 Three things distinguish it from the other module pages:
 
 1. **Custom shell, not `ModuleControlPage`.** The L4 wireframe is a flat 5-column grid of laser status panels — General / Regen / Chillers / Flashlamps / Modbox. The vacuum-system layout of `ModuleControlPage` doesn't fit; forcing it would mean stubbing out every panel. See [ADR-0007](../adr/0007-l4-custom-shell-not-modulecontrolpage.md).
-2. **Per-laser topology in runtime YAML, not `ModuleConfig`.** The current zone points to a zod-validated, human-editable file (the template is `eli-hmi-config/modules/l4-opcpa/lasers.yaml`) describing each laser's *topology* (counts, IDs, presets, commands) independently. See [ADR-0010](../adr/0010-per-laser-yaml-config.md) and [ADR-0011](../adr/0011-runtime-zone-config.md).
-3. **Full PV strings in config, not assembled names.** Each signal's complete PV name lives in that mounted YAML file; the frontend reads it verbatim. Only command PVs (`CMD_<id>_<NAME>`) are built in code. See [ADR-0010](../adr/0010-per-laser-yaml-config.md) (supersedes the read-PV registry of [ADR-0006](../adr/0006-pv-name-registry-l4-opcpa.md)).
+2. **Per-laser topology in its own YAML, not `ModuleConfig`.** A zod-validated, human-editable file per zone (`config/zones/<ZONE_CODE>.yaml` beside this module) describes each laser's *topology* (counts, IDs, presets, commands) independently. See [ADR-0010](../adr/0010-per-laser-yaml-config.md) and [ADR-0012](../adr/0012-in-repo-config.md).
+3. **Full PV strings in config, not assembled names.** Each signal's complete PV name lives in that per-zone YAML file; the frontend reads it verbatim. Only command PVs (`CMD_<id>_<NAME>`) are built in code. See [ADR-0010](../adr/0010-per-laser-yaml-config.md) (supersedes the read-PV registry of [ADR-0006](../adr/0006-pv-name-registry-l4-opcpa.md)).
 
 ## Layout
 
@@ -17,7 +17,7 @@ app/(modules)/l4-opcpa/
 ├── page.tsx                       # force-dynamic server shell: loads the zone's laser config
 ├── page.module.css
 ├── error.tsx                      # error boundary for runtime config failures
-├── config/                        # zod schema + server-only mounted-config loader
+├── config/                        # zod schema + server-only loader + zones/<ZONE_CODE>.yaml
 ├── lib/
 │   ├── pv-names.ts                # PV-name registry
 │   └── pv-names.test.ts
@@ -32,7 +32,7 @@ app/(modules)/l4-opcpa/
 
 ## PV naming
 
-Signal PV names are full strings in the zone-referenced `lasers.yaml` — read verbatim, never
+Signal PV names are full strings in the zone's laser config — read verbatim, never
 assembled from prefixes. Only the command PV is built in code:
 
 ```ts
@@ -42,7 +42,7 @@ pv.cmd('NL2', 'START_LASER') // 'CMD_NL2_START_LASER'
 
 The mock backend (`backend/mockup-websocket-server/l4_opcpa.go`) is test-only and
 seeds the names currently in the template YAML; it does not read the file. Swapping a
-PV name to its real EPICS value is a pure config-repository edit and container restart.
+PV name to its real EPICS value is a pure config edit — a PR and a redeploy, no code change.
 
 ## Write path
 
@@ -55,9 +55,9 @@ All controls share one lifecycle via `usePvWrite()` — see [hmi-components](hmi
 
 ## Topology source
 
-The template at `eli-hmi-config/modules/l4-opcpa/lasers.yaml` mirrors NL2's topology across NL1, NL3, NL4, and NL5 because Confluence only documents NL2 and APL. When divergent topology is confirmed (chiller bank counts, flashlamp box IDs per laser), edit each laser's entry in the deployed config — every laser is configured independently.
+The `test` zone's file mirrors NL2's topology across NL1, NL3, NL4, and NL5 because Confluence only documents NL2 and APL. When divergent topology is confirmed (chiller bank counts, flashlamp box IDs per laser), edit each laser's entry in the deployed config — every laser is configured independently.
 
-`loadLaserSpecs()` resolves `modules.l4-opcpa.config` from `zones/<ZONE_CODE>.yaml`, reads it under `CONFIG_DIR`, validates it with `config/schema.ts`, and caches it for the production process lifetime. A container restart reloads production config; development reloads on the next request. The loader remains the seam for a future `GET /lasers` gateway endpoint. Runtime loading is recorded in [ADR-0011](../adr/0011-runtime-zone-config.md).
+`loadLaserSpecs()` reads `config/zones/<ZONE_CODE>.yaml` beside this module — the path comes from the `MODULES` registry, so there is no reference to resolve and no fallback if the file is missing — validates it with `config/schema.ts`, and caches it for the production process lifetime. Development reloads on the next request. The loader remains the seam for a future `GET /lasers` gateway endpoint. See [ADR-0012](../adr/0012-in-repo-config.md).
 
 Unlike the p3/l3bt/l4fbt pages, L4 OPCPA uses a laser-specific runtime-YAML
 schema rather than the shared `ModuleConfig` schema. The vacuum pages' bespoke

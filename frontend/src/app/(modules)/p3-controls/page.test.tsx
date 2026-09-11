@@ -24,7 +24,7 @@ describe('P3ControlsPage', () => {
     mocks.loadModuleConfig.mockReturnValue(runtimeConfig)
   })
 
-  it('is rendered dynamically so runtime config is not baked into the build', () => {
+  it('is rendered dynamically because ZONE_CODE picks the config at run time', () => {
     expect(dynamic).toBe('force-dynamic')
   })
 

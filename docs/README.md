@@ -55,6 +55,7 @@ This tree mirrors to the [GitHub Wiki](https://github.com/eli-eric/eli-hmi/wiki)
 - [ADR-0009 Shared WS protocol contract](adr/0009-shared-ws-protocol-contract.md)
 - [ADR-0010 Per-laser L4 OPCPA config as full PV names in YAML](adr/0010-per-laser-yaml-config.md)
 - [ADR-0011 Runtime zone configuration from a mounted config directory](adr/0011-runtime-zone-config.md)
+- [ADR-0012 Configuration lives in the app repo and ships inside the image](adr/0012-in-repo-config.md)
 
 ## Workflows
 

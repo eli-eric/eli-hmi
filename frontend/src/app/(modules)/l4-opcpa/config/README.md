@@ -1,10 +1,10 @@
-# L4 OPCPA laser config (`lasers.yaml`)
+# L4 OPCPA laser config (`zones/<ZONE_CODE>.yaml`)
 
-`lasers.yaml` is the **frontend source of truth** for the L4 OPCPA page. For
-every laser (NL1–NL5) it holds the **full PV name of each signal** — exactly the
-string the controls team / EPICS gateway provides. The frontend reads these
-verbatim; it does **not** assemble names from prefixes. **Edit the YAML, not the
-code.**
+The files in [`zones/`](zones) are the **frontend source of truth** for the L4
+OPCPA page — one per deployment zone. For every laser (NL1–NL5) each file holds
+the **full PV name of each signal** — exactly the string the controls team /
+EPICS gateway provides. The frontend reads these verbatim; it does **not**
+assemble names from prefixes. **Edit the YAML, not the code.**
 
 > The names currently in the file are the mock-backend convention
 > (`BI_NL2_CONN`, `AI_NL2_CHILLER_11_FLOW`, …). When controls deliver the real
@@ -12,18 +12,25 @@ code.**
 > change.
 
 You do not need to know TypeScript, and there is no editor setup to do. The
-field reference below is the format's documentation; the config validator
-(see [../README.md](../README.md)) is what checks your edits.
+field reference below is the format's documentation; `npm run validate:config`
+(run from `frontend/`, and run for you by `next build`) is what checks your
+edits. It names the file and the exact path inside it.
 
 ## How it works
 
 - Each item under `lasers:` is one laser. **File order = panel order** (left to right).
 - Every field is required and explicit — no hidden defaults.
-- The file is loaded **at runtime** from the mounted config directory: the
-  zone file (`zones/<ZONE_CODE>.yaml`) points at it via `modules.l4-opcpa.config`.
-  It is parsed + validated at container start (a broken file stops the
-  container with a readable message) and cached — **restart the container to
-  pick up changes**; no application rebuild is needed.
+- **One file per zone**, at `config/zones/<ZONE_CODE>.yaml` beside this README.
+  Which one is used follows from `ZONE_CODE` alone — there is no reference to
+  resolve and **no fallback**, so a zone that enables this module must have its
+  own file or the build fails. That is deliberate: a station silently coming up
+  on another station's PV names would be worse.
+- Whole files are selected, never merged. Two zones with different PVs are two
+  complete files.
+- The file is validated at **build** by `npm run validate:config` (wired as
+  `prebuild`), and cached for the process lifetime in production —
+  **changing it is a PR and a redeploy**, not a restart. Development reparses
+  on every request.
 
 ## Fields
 
@@ -40,6 +47,9 @@ field reference below is the format's documentation; the config validator
 | `pvs.attenuator` | PV name | Attenuator value (read + direct write). |
 | `pvs.loadedWaveform` | PV name | Current waveform preset. |
 | `pvs.latestWaveform` | PV name | Previous waveform moved into Waveform Latest when a new preset is applied. Optional. |
+| `pvs.modboxMbc1` | PV name | Modbox MBC1 bias readout. Optional — omit and the MBC1 half of the Bias Value row is hidden. |
+| `pvs.modboxMbc2` | PV name | Modbox MBC2 bias readout. Optional — omit and the MBC2 half of the Bias Value row is hidden. |
+| `pvs.sequencerRunning` | PV name | Sequencer-busy flag. Optional — omit and the whole Sequencer section is hidden. |
 | `triggerDelay` | PV name[] | Trigger-delay readouts; all should read equal (mismatch is flagged). |
 | `mss` | `{label, pv, values?}`[] | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below). |
 | `moduleErrors` | `{label, pv}`[] | Error indicators: `label` shown in UI, `pv` is the indicator PV. |
@@ -49,6 +59,7 @@ field reference below is the format's documentation; the config validator
 | `delayPresets` | int[] | Trigger-delay preset buttons (ns). |
 | `commands` | map `SYMBOL: PV` or `SYMBOL: {pv, value}` | Which command buttons appear, which PV each writes and what it writes (see below). |
 | `units` | map `role: unit` | Optional. Engineering units for the numeric readouts (see below). |
+| `format` | map `role: decimals` | Optional. How each numeric readout is rounded (see below). |
 
 A "PV name" is any non-empty string — put the exact name the gateway exposes.
 
@@ -120,6 +131,46 @@ built into the component, so this is the place to correct a wrong or missing
 unit without a code change. Chiller units appear once in the column header
 (`Temp (°C)`) rather than on every cell, which is far too narrow for them.
 
+### `format`
+
+Optional. How many decimal places each numeric readout is rounded to, keyed by
+**the same signal roles as `units`** — the two blocks are deliberately parallel:
+
+```yaml
+format:              # top level: applies to every laser in the file
+  regenTemp: 1       # one decimal place
+  chillerFlow: 2
+lasers:
+  - id: NL2
+    format:          # optional per-laser override, merged over the above
+      regenTemp: 3
+```
+
+A plain number is decimal places, which is what you want almost every time.
+When decimals are the wrong question, use the object form:
+
+| Written as | Shows `23.456` as | Use for |
+| --- | --- | --- |
+| `2` | `23.46` | the normal case — round to N decimals |
+| `{ format: fixed, toFixed: 2 }` | `23.46` | the same thing, spelled out |
+| `{ format: precision, toPrecision: 2 }` | `23` | N *significant digits*, not decimals |
+| `{ format: exponential, toExponential: 2 }` | `2.35e+1` | values spanning many orders of magnitude |
+| `{ format: raw }` | `23.456` | leave the number exactly as the PV sent it |
+
+Keys are the same list as `units`: `phdMean`, `phd2Mean`, `regenTemp`,
+`attenuator`, `modboxMbc1`, `modboxMbc2`, `triggerDelay`, `chillerFlow`,
+`chillerTemp`, `chillerLevel`. Anything else is rejected as a typo.
+
+**Roles, not PV names** — same reason as `units`. PV names are exactly what
+differs between stations, so a per-PV map would have to be rewritten in every
+zone's file; a role means the same thing everywhere. To target one laser's PV,
+use that laser's `format:` override.
+
+A role left out falls back to **three decimal places**, which is what every
+readout did before this block existed. `triggerDelay` is the one exception: it
+falls back to `raw`, because delays are whole nanoseconds and `790.000` helps
+nobody.
+
 ### `commands`
 
 A map from a command symbol to **the PV the button's write goes to** and, when
@@ -178,11 +229,13 @@ subsystem). General and Regen always render.
 
 ## Validation
 
-The authoritative rules live in the app's zod schema
-(`l4-opcpa/config/schema.ts`) and run in three places: at container startup, in
-this repo's CI, and in the config validator you can run by hand — see
-[../README.md](../README.md). Beyond field types they enforce what no schema
-could express, such as rejecting duplicate PV names across lasers.
+The authoritative rules live in the app's zod schema (`../config/schema.ts`)
+and run in one place that matters: `npm run validate:config`, wired as
+`prebuild`, so a broken file fails `next build` and never reaches a container.
+The same command runs in CI and can be run by hand from `frontend/`.
+
+Beyond field types the schema enforces what no field list could express, such as
+rejecting duplicate PV names within a laser and duplicate laser ids.
 
 ## Mock backend caveat (test-only)
 

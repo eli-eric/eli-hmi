@@ -1,0 +1,32 @@
+# Global configuration: every deployment zone this image can come up as.
+#
+# ZONE_CODE (set per station in that deployment's docker-compose.yml) picks one
+# key under `zones:`. A zone exists iff it is a key here — there is no zone list
+# anywhere in the code.
+#
+# Each zone lists the module pages it turns on, in menu order:
+#
+#   - the route comes from the MODULES registry in
+#     src/lib/settings/zone-schema.ts, so it cannot be misspelled here
+#   - the FIRST entry is the home route (login redirect + logo link)
+#   - `text` is the top-navigation label; omit it to leave a page reachable by
+#     URL but hidden from the menu
+#   - a module NOT listed is unreachable — its route redirects to /no-access
+#
+# Each enabled module must ship its own config for this zone at
+# src/app/(modules)/<module>/config/zones/<ZONE_CODE>.yaml. There is no
+# fallback to a shared default: a station must never silently run on another
+# station's PV names. `npm run validate:config` prints the full resolution.
+
+zones:
+  test:
+    # Name shown in the header, next to "sign out". Without it the header reads
+    # "ELI HMI" rather than naming a station this deployment may not be.
+    title: L4 OPCPA
+
+    modules:
+      - { key: l4-opcpa, text: L4 OPCPA Controls }
+      # p3, l3bt and l4fbt are deliberately NOT enabled here: their pages
+      # redirect to /no-access, exactly as before. Their config files exist and
+      # are validated on every build, so turning one on is a one-line change
+      # that cannot be the first time its data gets checked.

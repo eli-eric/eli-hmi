@@ -35,7 +35,6 @@ Mock server has REST helpers: `GET /pv/:name/:value` to set a value, `GET /mode/
 NEXTAUTH_SECRET=...
 API_URL=localhost:8080
 ZONE_CODE=test                       # see "Zones" below
-# CONFIG_DIR=../eli-hmi-config       # dev fallback; deployments mount /app/zone-config
 LDAP_SERVER_URL=ldap://10.78.0.11    # only used in prod auth
 LDAP_BASE_DN=dc=lcs,dc=local
 ```
@@ -63,21 +62,21 @@ Wire protocol: client sends `{ type: 'subscribe', pvs: { NAME: true, ... } }`; s
 
 ### Zones (runtime access control, CSI-861)
 
-Runtime env vars `ZONE_CODE` + `CONFIG_DIR` (no `NEXT_PUBLIC_` prefix — supplied by each deployment's `docker-compose.yml`) select `zones/<ZONE_CODE>.yaml` from the mounted config directory (`/app/zone-config` in containers; in-repo development fallback: `eli-hmi-config/`). There is no zone list in code — a zone exists iff its file does. The Next.js 16 Proxy (`src/proxy.ts`, Node runtime) enforces routes on every request; the client nav gets `navigationItems`/`homeRoute` from `/api/runtime-config` via `useRuntimeConfig()`. **To add a page, allow its route in the zone file(s) or Proxy redirects it to `/no-access`.**
+`ZONE_CODE` (no `NEXT_PUBLIC_` prefix — supplied by each deployment's `docker-compose.yml`) selects a zone from `frontend/config/global.yaml`, which ships inside the image. A zone lists the modules it enables, in menu order; routes come from the `MODULES` registry in `zone-schema.ts`, never from config. The Next.js 16 Proxy (`src/proxy.ts`, Node runtime) enforces routes on every request; the client nav gets `navigationItems`/`homeRoute` from `/api/runtime-config` via `useRuntimeConfig()`. **To add a page, enable its module in the relevant zones or Proxy redirects it to `/no-access`.**
 
 L4 OPCPA laser data and the p3/l3bt/l4fbt `ModuleConfig` data are loaded from
 the zone's referenced runtime YAML. The bespoke p3/l3bt/l4fbt `parts/` wiring
 remains TSX because it is structural rather than data-only.
 
-Config is validated at container start (`src/instrumentation.ts`): broken/missing config exits non-zero in production (visible crash-loop), warns in dev. Pre-deploy check: `npm run validate:config -- --dir <config-dir> --all`. See ADR-0011.
+Config is validated at **build** (`npm run validate:config`, wired as `prebuild`), so broken config fails `next build`, not a container. Startup (`src/instrumentation.ts`) logs a summary and never exits — an unknown `ZONE_CODE` is reported with the valid zones while the UI serves `/no-access`. See ADR-0012.
 
-CI builds one global frontend image; `ZONE_CODE`/`API_URL`/`CONFIG_DIR` are never baked in, so switching zones (or changing config) is a compose restart, not a rebuild.
+CI builds one global frontend image; `ZONE_CODE`/`API_URL` are never baked in, so pointing a station at a different existing zone is a compose restart. Changing config content is a PR plus a redeploy.
 
 ### Module pages
 
 Three control pages (`l3bt-controls`, `l4fbt-controls`, `p3-controls`) all use a single `<ModuleControlPage config={...} bottomRow={...} />` (`src/components/module-page/module-control-page.tsx`). A small dynamic server page loads the zone-referenced YAML through `src/lib/modules/module-config-loader.ts`; a colocated client view renders the typed `ModuleConfig`. The `bottomRow` slot is bespoke per-module JSX — volumes and connectors with site-specific structural wiring stay in `src/app/(modules)/<m>-controls/parts/`.
 
-To add a new module: add its key/route to the supported-module maps, create `modules/<m>/config.yaml` in the config directory, add a server page + client view under `src/app/(modules)/<m>-controls/`, and reference/allow it in the relevant zone files. See `frontend/src/lib/modules/README.md`.
+To add a new module: register it in `MODULES` (`zone-schema.ts`), `moduleConfigKeyMap` (`module-config-loader.ts`) and `MODULE_CONFIG_PARSERS` (`module-config-validation.ts`); add a server page + client view under `src/app/(modules)/<m>-controls/`; add `config/zones/<ZONE_CODE>.yaml` there for every zone that enables it; and list it in those zones in `config/global.yaml`. See `frontend/src/lib/modules/README.md`.
 
 ### Compound HMI components
 

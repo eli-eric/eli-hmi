@@ -11,7 +11,7 @@ import {
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  // Zone data is resolved here (server-side, from the mounted config dir)
+  // Zone data is resolved here (server-side, from the in-repo config)
   // because client components cannot fs-read the zone file themselves.
   //
   // DELIBERATELY unauthenticated (Proxy bypasses /api): the client
