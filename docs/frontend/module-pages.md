@@ -16,22 +16,24 @@ bottom-row JSX. [L4 OPCPA deliberately opts out](l4-opcpa.md).
   differs structurally between modules.
 
 The app owns the strict Zod schema and derived TypeScript types under
-`src/lib/modules/`. The controls-owned data lives in the mounted config
-directory:
+`src/lib/modules/`. The data lives beside each module, one file per zone:
 
 ```text
-eli-hmi-config/
-├── modules/
-│   ├── l3bt/config.yaml
-│   ├── l4fbt/config.yaml
-│   └── p3/config.yaml
-└── zones/test.yaml                  # modules.<key>.config references
+src/app/(modules)/
+├── p3-controls/config/zones/test.yaml
+├── l3bt-controls/config/zones/test.yaml
+└── l4fbt-controls/config/zones/test.yaml
 ```
+
+The path is derived from the `MODULES` registry plus `ZONE_CODE`, so there is
+no reference to resolve — and no fallback if a zone's file is missing, since a
+station coming up on another station's PV names would be worse than a failed
+build.
 
 At request time, the dynamic server `page.tsx` calls `loadModuleConfig(key)`
 and passes the deeply frozen result to a colocated client view. Production
 caches the validated object for the process lifetime; development reparses on
-each request. Container restart is the reload boundary in deployments.
+each request.
 
 ## Why split this way
 
@@ -42,22 +44,23 @@ links. Forcing that into YAML would either explode the schema or recreate JSX
 as an awkward data language.
 
 This is `ModuleControlPage`'s **depth**: a small interface
-(`config + bottomRow`) renders five fully wired panels while the runtime loader
-lets controls change their data without rebuilding the app.
+(`config + bottomRow`) renders five fully wired panels, and per-zone data files
+let one image drive stations whose PV sets differ.
 
 ## Adding a module
 
 See the full [adding-a-control-page workflow](../workflows/adding-a-control-page.md).
 In outline:
 
-1. Register the module key/route in the app's supported-module maps and parser
-   registry.
-2. Add `modules/<key>/config.yaml` with `schemaVersion: 1` to the config
-   directory.
-3. Add a dynamic server page, a client view, and bespoke `parts/` under
+1. Register the module in `MODULES` (`zone-schema.ts`), `moduleConfigKeyMap`
+   (`module-config-loader.ts`) and `MODULE_CONFIG_PARSERS`
+   (`module-config-validation.ts`).
+2. Add a dynamic server page, a client view, and bespoke `parts/` under
    `src/app/(modules)/<key>-controls/`.
-4. Add `modules.<key>.config` to each zone that should validate the data; add
-   the route/nav entry only to zones that should expose the page.
+3. Add `config/zones/<ZONE_CODE>.yaml` under that directory for every zone that
+   will enable it.
+4. Add `{ key: <module> }` to those zones in `config/global.yaml` — with `text`
+   only if the page belongs in the menu.
 
 ## PV naming inside configs
 
@@ -71,9 +74,11 @@ deliberately preserved in YAML rather than guessed during migration. See
 
 ## Validation and tests
 
-- `npm run validate:config -- --dir <config-dir> --all` validates every module
-  file referenced by every zone and warns about orphan YAML files.
-- Production startup validates every referenced file before serving traffic.
-- The format is documented in prose in `eli-hmi-config/modules/README.md`;
+- `npm run validate:config` runs as `prebuild`, so broken data fails
+  `next build`. It parses **every** module YAML on disk — including files for
+  zones not rolled out yet and modules no zone enables — and prints the full
+  zone → module → file resolution.
+- The format is documented in prose in
+  [`frontend/src/lib/modules/README.md`](../../frontend/src/lib/modules/README.md);
   there is no generated JSON Schema.
 - `src/components/module-page/**` remains inside the coverage gate.

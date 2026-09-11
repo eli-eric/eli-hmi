@@ -10,14 +10,18 @@ directory; the editable data lives in the runtime config directory under
 ## Files and ownership
 
 - `module-config-schema.ts` — strict Zod schema, YAML parser, and inferred
-  types. The file format adds `schemaVersion: 1`; the object passed to the UI
-  retains the original `ModuleConfig` shape.
+  types. The YAML file *is* the `ModuleConfig` shape; there is no
+  `schemaVersion`, because config and schema now ship in the same commit.
 - `types.ts` — compatibility type exports for components.
-- `module-config-loader.ts` — resolves the current zone's module reference,
-  parses it, deeply freezes it, and caches successful production reads.
-- `eli-hmi-config/modules/{p3,l3bt,l4fbt}/config.yaml` — controls-owned data.
-- `eli-hmi-config/modules/README.md` — the format's prose field reference; keep
-  it in step with this schema, it is the only documentation controls has.
+- `module-config-loader.ts` — resolves the file for the current zone, parses it,
+  deeply freezes it, and caches successful production reads.
+- `src/app/(modules)/{p3,l3bt,l4fbt}-controls/config/zones/<ZONE_CODE>.yaml` —
+  the data, one file per zone. The path comes from the `MODULES` registry, so
+  there is no reference to resolve; there is also **no fallback** if a zone's
+  file is missing, because a station silently running on another station's PV
+  names is worse than a failed build.
+- This file is the format's prose field reference — keep it in step with the
+  schema; it is the only documentation the controls team has.
 
 The small route `page.tsx` files are server entries. They call
 `loadModuleConfig(key)` and pass the result to a colocated `'use client'` view,
@@ -25,30 +29,34 @@ which composes `<ModuleControlPage>` with the module's bespoke `bottomRow`.
 
 ## Adding a new module
 
-1. Add the module key and route to `MODULE_ROUTES` in
-   `src/lib/settings/zone-schema.ts`, to `MODULE_CONFIG_KEYS` in
-   `module-config-loader.ts`, and to the exhaustive parser registry in
-   `src/lib/settings/module-config-validation.ts`.
-2. Add `modules/<module>/config.yaml` to the config directory. Start with:
+1. Add the module to `MODULES` in `src/lib/settings/zone-schema.ts` (route +
+   config directory), to `moduleConfigKeyMap` in `module-config-loader.ts`, and
+   to the exhaustive parser registry in
+   `src/lib/settings/module-config-validation.ts`. The `satisfies` constraints
+   make a missing entry a compile error.
+2. Add `config/zones/<ZONE_CODE>.yaml` under
+   `src/app/(modules)/<module>-controls/`, one per zone that will enable it:
 
    ```yaml
-   schemaVersion: 1
    heading: My Module
    # interlocks, safetyPermission, cleanDryAir, backing, roughing …
    ```
 
-   Use the generated schema/editor completion and an existing module file for
-   the complete shape.
+   Copy an existing module's file for the complete shape — the schema is strict,
+   so unknown keys are rejected rather than ignored.
 
 3. Add bespoke parts under
    `src/app/(modules)/<module>-controls/parts/`. Their PV-to-component wiring
    stays React code because it is structural.
 4. Add a dynamic server page and explicit client view following one of the
    existing three routes.
-5. Add `modules.<module>.config` to every zone that should validate the data.
-   Add its route/nav entry only to zones that should expose the page.
-6. Run `npm run validate:config -- --dir ../eli-hmi-config --all` plus the
-   normal test/build gates.
+5. List the module in `config/global.yaml` for every zone that should expose
+   the page — with `text` if it belongs in the menu, without if it should be
+   reachable but hidden. A zone that does not list it still gets its file
+   validated on every build, so turning it on later cannot be the first time
+   that data is checked.
+6. Run `npm run validate:config` (also wired as `prebuild`) plus the normal
+   test/build gates.
 
 ## What goes in YAML vs. `parts/`?
 
@@ -82,6 +90,6 @@ canonical PV.
 Useful searches from the repository root:
 
 ```bash
-grep -RIn 'TODO\|undefined[0-9]' eli-hmi-config/modules/{p3,l3bt,l4fbt}
+grep -RIn 'TODO\|undefined[0-9]' frontend/src/app/'(modules)'/{p3,l3bt,l4fbt}-controls/config
 grep -RIn 'TODO\|SI_???\|AI_RPM_SPEED_P04' frontend/src/app/'(modules)'/{p3,l3bt,l4fbt}-controls/parts
 ```

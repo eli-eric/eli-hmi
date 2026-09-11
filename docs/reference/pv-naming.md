@@ -25,7 +25,7 @@ These conventions are **mock-only**. The real EPICS network does not use them. I
 ## L4 OPCPA signal config and command registry
 
 L4 OPCPA signal PV names are complete strings in the zone-referenced runtime
-YAML (template: `eli-hmi-config/modules/l4-opcpa/lasers.yaml`). The frontend
+YAML (`frontend/src/app/(modules)/l4-opcpa/config/zones/<ZONE_CODE>.yaml`). The frontend
 does not assemble them. The small typed registry builds only command names and
 the mock-only sequence-state names:
 
@@ -41,7 +41,7 @@ template's signal names and the command shapes. See [ADR-0010](../adr/0010-per-l
 
 ## Deliberate placeholders
 
-`eli-hmi-config/modules/{p3,l3bt,l4fbt}/config.yaml` carries placeholder PV
+`frontend/src/app/(modules)/{p3,l3bt,l4fbt}-controls/config/zones/<ZONE_CODE>.yaml` carries placeholder PV
 names and TODO comments inherited from the legacy TypeScript configs. Examples
 include `undefined1:PRESSURE` and `AI_RPM_SPEED_P000`. These are **deliberate**,
 not oversights: the migration preserves ambiguity instead of inventing control

@@ -5,7 +5,7 @@
 - Next.js app centered in `src/app` (routes, providers).
 - `src/lib/websocket/` — WebSocket layer: connection hook, data hook, provider, types, `PVDisplay`, `debug` helper.
 - `src/lib/settings/` — zone schema + runtime config loader + helpers (`getDefaultRoute`, `isRouteAllowed`).
-- `src/lib/modules/` — `ModuleConfig` schema/types + runtime loader for the shared `<ModuleControlPage>`; data files live under `eli-hmi-config/modules/`.
+- `src/lib/modules/` — `ModuleConfig` schema/types + loader for the shared `<ModuleControlPage>`; data lives at `src/app/(modules)/<m>-controls/config/zones/<ZONE_CODE>.yaml`.
 - `src/components/hmi/` — reusable HMI compound components (`VolumePanel`, `ConnectorLine`, `StatusBar`).
 - `src/components/ui/` — generic primitives (buttons, dropdown, tooltip, icons, heading).
 - `src/components/module-page/` — `<ModuleControlPage>` shell + 5 config-driven panels.
@@ -21,7 +21,7 @@
 - `npm run lint` — Next.js/ESLint rules; fix reported issues before committing.
 - `npm test` / `npm run test:run` — Vitest, watch / one-shot.
 - `npm run test:coverage` — runs with the CI threshold gate (70/70/70/60 on the include scope).
-- Create `.env.local` from `env.example` before running (`NEXTAUTH_SECRET`, `API_URL`, `ZONE_CODE`; `CONFIG_DIR` may stay unset for the in-repo dev fallback).
+- Create `.env.local` from `env.example` before running (`NEXTAUTH_SECRET`, `API_URL`, `ZONE_CODE`).
 
 ## Testing
 
@@ -43,17 +43,19 @@
 
 ## Zones (CSI-861)
 
-`ZONE_CODE` selects `zones/<ZONE_CODE>.yaml` at **runtime** from the config directory (`CONFIG_DIR`; deployments mount it at `/app/zone-config`, while local development falls back to `../eli-hmi-config`). No zone list exists in code — a zone exists iff its file does. The Next.js 16 Proxy (`src/proxy.ts`, Node runtime) blocks routes not in the zone's `allowedRoutes`; the client nav sources `navigationItems`/`homeRoute` from `/api/runtime-config` via `useRuntimeConfig()`. Adding a page means adding an `allowedRoutes` entry (and optional nav item) to every zone file that should expose it.
+`ZONE_CODE` selects a zone from `config/global.yaml`, which ships inside the image. A zone entry is just `title` plus an ordered list of enabled modules; `allowedRoutes`, `navigationItems` and the home route are **derived** from it in `zone-service.ts`, with routes coming from the `MODULES` registry in `zone-schema.ts` so they cannot be misspelled in config. The Next.js 16 Proxy (`src/proxy.ts`, Node runtime) blocks routes the zone does not enable; the client nav sources `navigationItems`/`homeRoute` from `/api/runtime-config` via `useRuntimeConfig()`. Exposing a page means listing its module in the relevant zones, with `text` if it belongs in the menu.
+
+Each module's data is per zone: `src/app/(modules)/<m>/config/zones/<ZONE_CODE>.yaml`, resolved by convention from the registry. Whole files are selected, never merged, and there is **no fallback** — a zone enabling a module must ship its file, or the build fails.
 
 Runtime YAML covers L4 OPCPA laser data and p3/l3bt/l4fbt `ModuleConfig`
 data. The vacuum pages' bespoke `parts/` remain TSX; do not move structural
 compound-component wiring into the data schema.
 
-Config is validated at server start (`src/instrumentation.ts`; prod exits non-zero on broken config) and by `npm run validate:config -- --dir <path> --all`, which also ships as a container image (`--target validator`). There is no generated JSON Schema — the config format is documented in prose under `eli-hmi-config/`. See `docs/adr/0011-runtime-zone-config.md`.
+`npm run validate:config` is wired as `prebuild`, so broken config fails `next build` rather than a container. It parses every module YAML on disk — including files for zones that are not rolled out and modules no zone enables — and prints the zone → module → file resolution. Startup (`src/instrumentation.ts`) logs a summary and never exits. There is no generated JSON Schema. See `docs/adr/0012-in-repo-config.md`.
 
 ### Production deployment
 
-Set `ZONE_CODE=<site>` and mount the config checkout at `CONFIG_DIR` in that site's `docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml`); add `zones/<site>.yaml` to the checkout. No rebuild required — CI ships one global image.
+Add the zone to `config/global.yaml` plus a `config/zones/<site>.yaml` under every module it enables, then set `ZONE_CODE=<site>` in that site's `docker-compose.yml` (see `deployments/zones/testz/docker-compose.yml`). CI ships one global image, so pointing a station at an existing zone needs no rebuild.
 
 ## Commit & Pull Request Guidelines
 

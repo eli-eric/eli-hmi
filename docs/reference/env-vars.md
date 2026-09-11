@@ -10,8 +10,7 @@ Consolidated reference across the three modules. *Source of truth, not aspiratio
 | `NEXTAUTH_URL` | dev | `http://localhost:8080/api/auth` | NextAuth callback base — set per host |
 | `API_URL` | yes | — | host:port for both `ws://<host>/ws/pvs` and `http://<host>/pv` (see `frontend/src/types/constants.ts`) |
 | `API_SCHEME` | optional | `http` | Scheme for `API_URL`; set `https` for TLS deployments |
-| `ZONE_CODE` | yes | (empty zone = no routes) | Runtime zone selector — see [zones](../frontend/zones.md) |
-| `CONFIG_DIR` | prod | `../eli-hmi-config` in local development | Directory containing `zones/` and `modules/`; mount it at `/app/zone-config` in containers |
+| `ZONE_CODE` | yes | (unknown zone = no routes) | Runtime zone selector; must be a key under `zones:` in `frontend/config/global.yaml` — see [zones](../frontend/zones.md) |
 | `LDAP_SERVER_URL` | prod | — | LDAP bind URL for the production auth path |
 | `LDAP_BASE_DN` | prod | — | LDAP base DN |
 | `LDAP_USE_TLS` | optional | `false` | Toggle StartTLS on the LDAP bind |
@@ -19,7 +18,9 @@ Consolidated reference across the three modules. *Source of truth, not aspiratio
 
 A template lives at `frontend/env.example`.
 
-`API_URL`, `API_SCHEME`, `ZONE_CODE`, and `CONFIG_DIR` are deliberately **not** `NEXT_PUBLIC_*` — that prefix would make Next.js bake values into the browser bundle at build time. They are read at container runtime by server code (`proxy.ts`, `zone-service.ts`, and the config loaders); the client receives its safe subset from `/api/runtime-config`. Deployments set `ZONE_CODE` and mount their config clone read-only at `/app/zone-config` with `CONFIG_DIR=/app/zone-config`. This lets CI publish one image for every zone — see [zones](../frontend/zones.md#runtime-not-build-time) and [operator stations](../runbooks/operator-stations.md).
+`API_URL`, `API_SCHEME` and `ZONE_CODE` are deliberately **not** `NEXT_PUBLIC_*` — that prefix would make Next.js bake values into the browser bundle at build time. They are read at container runtime by server code (`proxy.ts`, `zone-service.ts`, and the config loaders); the client receives its safe subset from `/api/runtime-config`.
+
+There is no `CONFIG_DIR`: since [ADR-0012](../adr/0012-in-repo-config.md) the config ships inside the image, so `ZONE_CODE` is the only per-station knob. Every zone is in every image, which is what lets CI publish one image for all of them — see [zones](../frontend/zones.md#one-image-every-station) and [operator stations](../runbooks/operator-stations.md).
 
 ## Mock backend (Go)
 

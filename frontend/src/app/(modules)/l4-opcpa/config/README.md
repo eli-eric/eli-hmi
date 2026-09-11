@@ -19,11 +19,17 @@ field reference below is the format's documentation; the config validator
 
 - Each item under `lasers:` is one laser. **File order = panel order** (left to right).
 - Every field is required and explicit — no hidden defaults.
-- The file is loaded **at runtime** from the mounted config directory: the
-  zone file (`zones/<ZONE_CODE>.yaml`) points at it via `modules.l4-opcpa.config`.
-  It is parsed + validated at container start (a broken file stops the
-  container with a readable message) and cached — **restart the container to
-  pick up changes**; no application rebuild is needed.
+- **One file per zone**, at `config/zones/<ZONE_CODE>.yaml` beside this README.
+  Which one is used follows from `ZONE_CODE` alone — there is no reference to
+  resolve and **no fallback**, so a zone that enables this module must have its
+  own file or the build fails. That is deliberate: a station silently coming up
+  on another station's PV names would be worse.
+- Whole files are selected, never merged. Two zones with different PVs are two
+  complete files.
+- The file is validated at **build** by `npm run validate:config` (wired as
+  `prebuild`), and cached for the process lifetime in production —
+  **changing it is a PR and a redeploy**, not a restart. Development reparses
+  on every request.
 
 ## Fields
 

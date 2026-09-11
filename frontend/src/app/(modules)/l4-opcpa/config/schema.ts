@@ -11,8 +11,7 @@
  *
  * One zod schema is the single source for both the `LaserSpec` type the UI
  * consumes and runtime validation (`.strict()` rejects unknown keys; duplicate
- * ids rejected). The file format is documented in prose in
- * `eli-hmi-config/modules/l4-opcpa/README.md`.
+ * ids rejected). The file format is documented in prose in `./README.md`.
  *
  * Free of `server-only` / `fs` so it stays unit-testable from a plain string;
  * the file read lives in `load-laser-specs.ts`.
@@ -323,17 +322,20 @@ export type LaserSpec = Omit<RawLaserConfig, 'id' | 'commands' | 'units'> & {
  * Parse + validate raw YAML text into `LaserSpec[]`. Throws an `Error` with an
  * operator-readable message on malformed YAML or schema violations.
  */
-export function parseLaserSpecs(text: string): LaserSpec[] {
+export function parseLaserSpecs(
+  text: string,
+  name = 'laser config',
+): LaserSpec[] {
   let data: unknown
   try {
     data = parseYaml(text)
   } catch (e) {
-    throw new Error(`lasers.yaml is not valid YAML: ${(e as Error).message}`)
+    throw new Error(`${name} is not valid YAML: ${(e as Error).message}`)
   }
 
   const result = configSchema.safeParse(data)
   if (!result.success) {
-    throw new Error(`lasers.yaml is invalid:\n${z.prettifyError(result.error)}`)
+    throw new Error(`${name} is invalid:\n${z.prettifyError(result.error)}`)
   }
 
   const moduleUnits = result.data.units ?? {}

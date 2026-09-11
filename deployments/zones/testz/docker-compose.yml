@@ -29,14 +29,8 @@ services:
       # /api/runtime-config for the client, process.env directly for
       # Proxy) — the image is the same global build for every zone.
       API_URL: testz-deploy20:8080
+      # Picks one key under `zones:` in the image's config/global.yaml. The
+      # config itself ships inside the image (ADR-0012), so changing it means a
+      # new image tag, not a volume edit; switching this station to a DIFFERENT
+      # existing zone is still just an edit here plus a restart.
       ZONE_CODE: test
-      # Zone + module config (CSI-861) is read at runtime from this mounted
-      # directory — a clone of the controls-team config repo (layout: the
-      # in-repo eli-hmi-config/ template). Config change = edit/pull the clone
-      # + restart this container; no image rebuild. A broken/missing config
-      # stops the container at startup (see frontend instrumentation.ts).
-      CONFIG_DIR: /app/zone-config
-    volumes:
-      # Path to the config repo clone on the deploy host; must be readable by
-      # uid 1001 (the image's `nextjs` user).
-      - /opt/eli-hmi-config:/app/zone-config:ro

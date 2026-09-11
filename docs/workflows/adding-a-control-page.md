@@ -6,10 +6,10 @@ For a *vacuum-system* control page (L3BT, L4fBT, P3 shape). If the page is laser
 
 ### 1. Write the config
 
-`modules/<m>/config.yaml` in the runtime config directory:
+`src/app/(modules)/<m>-controls/config/zones/<ZONE_CODE>.yaml` — one file per
+zone that enables the page, because stations run against different PVs:
 
 ```yaml
-schemaVersion: 1
 heading: My Module
 interlocks:
   title: My Module Interlocks
@@ -61,7 +61,8 @@ format migration.
 
 ### 2. Add the page
 
-Use a dynamic server entry so config is read from the running container:
+Use a dynamic server entry — `ZONE_CODE` is only known at runtime, so the page
+cannot be prerendered:
 
 ```tsx
 import { loadModuleConfig } from '@/lib/modules/module-config-loader'
@@ -103,41 +104,46 @@ export function MyModuleView({ config }: { config: ModuleConfig }) {
 
 Anything not data-only (volumes with mixed compound children, connectors with cross-module hyperlinks, etc.) lives in `frontend/src/app/(modules)/<m>-controls/parts/` as React components. Use the compound HMI building blocks — [hmi-components](../frontend/hmi-components.md).
 
-### 4. Register the route in a zone
+### 4. Register the module, then enable it per zone
 
-First add the new key/route to `MODULE_ROUTES`, the `ModuleConfigKey` registry,
-and the exhaustive module parser registry. TypeScript then forces every
-runtime validation path to understand the key.
+First add the new module to three registries. TypeScript then forces every
+validation path to understand the key:
 
-In every applicable config directory, reference the data file. Add the route
-and nav item only to zones that should expose the page:
+| Registry | File |
+| --- | --- |
+| `MODULES` (route + config dir) | `src/lib/settings/zone-schema.ts` |
+| `moduleConfigKeyMap` | `src/lib/modules/module-config-loader.ts` |
+| `MODULE_CONFIG_PARSERS` | `src/lib/settings/module-config-validation.ts` |
+
+Then enable it in `config/global.yaml`, for the zones that should expose it:
 
 ```yaml
-modules:
-  my-module:
-    config: modules/my-module/config.yaml
-navigationItems:
-  # existing …
-  - text: My Module
-    href: /<m>-controls
-allowedRoutes:
-  # existing …
-  - /<m>-controls
+zones:
+  test:
+    modules:
+      # existing …
+      - { key: my-module, text: My Module }
 ```
 
-The module reference makes startup/CI validate the file; it does not grant
-route access. Skip `allowedRoutes` and Next.js Proxy redirects to `/no-access`
-even though the page exists. `CONFIG_DIR` selects the config directory and
-`ZONE_CODE` selects its zone file at runtime; deployments mount the directory
-read-only at `/app/zone-config`.
+The route comes from `MODULES`, so it is never written here. Omit `text` to
+leave the page reachable but hidden from the menu; omit the entry entirely and
+Proxy redirects to `/no-access` even though the page exists.
+
+Note the asymmetry: a zone that *enables* the module must have its
+`config/zones/<ZONE_CODE>.yaml` or the build fails, but a config file for a
+zone that does not enable the module is still validated on every build — so
+turning it on later cannot be the first time that data is checked.
 
 ### 5. Test it
 
 ```bash
 npm test                # vitest watch
 npm run dev             # localhost:8082
-npm run validate:config -- --dir ../eli-hmi-config --all
+npm run validate:config # also runs as prebuild, so this is what CI enforces
 ```
+
+`validate:config` prints the zone → module → file resolution, which is how you
+confirm a station gets the config you think it does.
 
 Hit the new page; subscribe traffic should appear in the network panel.
 

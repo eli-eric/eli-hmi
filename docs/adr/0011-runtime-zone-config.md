@@ -1,9 +1,16 @@
 # ADR-0011: Runtime zone configuration from a mounted, controls-owned config dir
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0012](0012-in-repo-config.md)
 **Date:** 2026-07-30
 **Deciders:** ELI-HMI team, controls team (CSI-861)
 **Supersedes:** the build-time-loading decision of [ADR-0010](0010-per-laser-yaml-config.md) (its YAML/zod format stands); the hardcoded zone map that backed the original zone-service
+
+> **Superseded (2026-09-11):** the standalone controls-team config repo this
+> ADR is built around was never created, so every deployment mounted a clone of
+> the app repo's own `eli-hmi-config/` — paying for a split that never
+> happened. The controls team is taking over this repository instead.
+> [ADR-0012](0012-in-repo-config.md) moves config back into the repo and into
+> the image; the YAML + zod format decision of ADR-0010 still stands.
 
 > **Amended (CSI-861 follow-up):** the generated JSON Schemas this ADR
 > describes were removed. They only ever powered editor autocomplete, the

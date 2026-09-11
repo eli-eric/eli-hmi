@@ -64,7 +64,7 @@ Server-side LDAP bind on credentials login (or dev bypass `test/test`); the Next
 
 Three patterns recur inside the frontend and earn their own pages:
 
-- **Zone config** (`src/lib/settings/zone-schema.ts`, `zone-config-loader.ts`, and `src/proxy.ts`) — runtime access control from `zones/<ZONE_CODE>.yaml` under `CONFIG_DIR`. Proxy is the request adapter; the validated zone file is the interface. See [frontend/zones](frontend/zones.md).
+- **Zone config** (`src/lib/settings/zone-schema.ts`, `config-loader.ts`, and `src/proxy.ts`) — access control from `config/global.yaml`, which ships in the image and is selected at runtime by `ZONE_CODE`. Proxy is the request adapter; the validated zone entry is the interface. See [frontend/zones](frontend/zones.md).
 - **ModuleConfig** (`src/lib/modules/` schema/loader + zone-referenced YAML) — deep declarative shape that drives `<ModuleControlPage>`. Used by three pages today; the pattern is a real seam. See [frontend/module-pages](frontend/module-pages.md). L4 OPCPA opts out — see [ADR-0007](adr/0007-l4-custom-shell-not-modulecontrolpage.md).
 - **Compound HMI components** (`components/hmi/{volume-panel,connector-line,laser-panel,controls}`) — parent attaches subcomponents as static properties so pages compose declaratively. See [frontend/hmi-components](frontend/hmi-components.md) and [ADR-0003](adr/0003-compound-components-for-hmi-panels.md).
 

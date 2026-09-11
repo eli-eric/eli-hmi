@@ -16,13 +16,11 @@ import type {
   SensorEntry,
   SensorGroup,
 } from './types'
-import {
-  MODULE_CONFIG_SCHEMA_VERSION,
-  parseModuleConfig,
-} from './module-config-schema'
+import { moduleConfigPath } from '@/lib/settings/zone-schema'
+import { parseModuleConfig } from './module-config-schema'
+import type { ModuleConfigKey } from './module-config-loader'
 
 const VALID_FILE = {
-  schemaVersion: 1,
   heading: 'P3',
   interlocks: {
     title: 'P3 Interlocks',
@@ -96,7 +94,7 @@ function validYaml(): string {
 }
 
 describe('parseModuleConfig', () => {
-  it('parses the existing camelCase ModuleConfig shape and removes schemaVersion', () => {
+  it('parses the camelCase ModuleConfig shape', () => {
     const config = parseModuleConfig(validYaml(), 'modules/p3/config.yaml')
 
     expect(config.heading).toBe('P3')
@@ -107,7 +105,6 @@ describe('parseModuleConfig', () => {
       toPrecision: 3,
     })
     expect(config.roughing.locking?.pvName).toBe('P3:LOCKED')
-    expect(config).not.toHaveProperty('schemaVersion')
     expectTypeOf(config).toEqualTypeOf<ModuleConfig>()
   })
 
@@ -144,23 +141,15 @@ describe('parseModuleConfig', () => {
     ).toThrow(/modules\/p3\/config\.yaml is not valid YAML/)
   })
 
-  it('rejects missing and unsupported schema versions', () => {
-    const withoutVersion = { ...VALID_FILE }
-    Reflect.deleteProperty(withoutVersion, 'schemaVersion')
-
+  it('rejects a leftover schemaVersion key', () => {
+    // Config and schema now ship in the same commit, so a version field can
+    // only ever be stale — it is rejected rather than ignored.
     expect(() =>
       parseModuleConfig(
-        stringifyYaml(withoutVersion),
+        stringifyYaml({ ...VALID_FILE, schemaVersion: 1 }),
         'modules/p3/config.yaml',
       ),
-    ).toThrow(/schemaVersion/)
-    expect(() =>
-      parseModuleConfig(
-        stringifyYaml({ ...VALID_FILE, schemaVersion: 999 }),
-        'modules/p3/config.yaml',
-      ),
-    ).toThrow(/schemaVersion/)
-    expect(MODULE_CONFIG_SCHEMA_VERSION).toBe(1)
+    ).toThrow(/is invalid/)
   })
 
   it('strictly rejects unknown top-level and nested keys', () => {
@@ -240,38 +229,33 @@ describe('parseModuleConfig', () => {
     ).toBe('P3:INTERLOCK')
   })
 
-  it('parses all real module templates, including duplicate and placeholder PVs', () => {
-    const modulesDir = join(process.cwd(), '..', 'eli-hmi-config', 'modules')
+  it('parses every shipped vacuum config, including duplicate and placeholder PVs', () => {
+    // Reads the real files out of the repo, so a config edit that breaks the
+    // schema fails here as well as in `validate:config`.
+    const read = (key: ModuleConfigKey, zone = 'test') => {
+      const path = moduleConfigPath(key, zone)
+      return parseModuleConfig(
+        readFileSync(join(process.cwd(), path), 'utf8'),
+        path,
+      )
+    }
+
     const expectedHeadings = {
       p3: 'P3',
       l3bt: 'L3BT',
       l4fbt: 'L4fBT',
     } as const
-
     for (const [key, heading] of Object.entries(expectedHeadings)) {
-      const name = `modules/${key}/config.yaml`
-      const config = parseModuleConfig(
-        readFileSync(join(modulesDir, key, 'config.yaml'), 'utf8'),
-        name,
-      )
-      expect(config.heading).toBe(heading)
+      expect(read(key as ModuleConfigKey).heading).toBe(heading)
     }
 
-    const p3 = parseModuleConfig(
-      readFileSync(join(modulesDir, 'p3', 'config.yaml'), 'utf8'),
-      'modules/p3/config.yaml',
-    )
     expect(
-      p3.interlocks.items.filter(
+      read('p3').interlocks.items.filter(
         ({ pvname }) => pvname === 'L3BT-VCS-EGV501:INTERLOCK',
       ),
     ).toHaveLength(2)
 
-    const l4fbt = parseModuleConfig(
-      readFileSync(join(modulesDir, 'l4fbt', 'config.yaml'), 'utf8'),
-      'modules/l4fbt/config.yaml',
-    )
-    expect(l4fbt.interlocks.items[0].pvname).toBe('undefined:INTERLOCK')
+    expect(read('l4fbt').interlocks.items[0].pvname).toBe('undefined:INTERLOCK')
   })
 
   it('returns a deeply frozen object suitable for the process cache', () => {

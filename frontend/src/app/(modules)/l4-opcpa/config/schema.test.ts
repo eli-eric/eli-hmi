@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { stringify } from 'yaml'
+import { moduleConfigPath } from '@/lib/settings/zone-schema'
 import { parseLaserSpecs } from './schema'
 
-// The real config moved to the in-repo template dir (CSI-861) — validate the
-// template so a broken example never ships to the controls-team config repo.
+// Parse the file this repo actually ships for the `test` zone, so a config
+// edit that breaks the schema fails here as well as in `validate:config`.
 const realYaml = readFileSync(
-  join(process.cwd(), '..', 'eli-hmi-config/modules/l4-opcpa/lasers.yaml'),
+  join(process.cwd(), moduleConfigPath('l4-opcpa', 'test')),
   'utf8',
 )
 
@@ -97,7 +98,7 @@ describe('parseLaserSpecs', () => {
 
   it('rejects unknown/misspelled keys', () => {
     expect(() => parseLaserSpecs(doc([laser({ chiller: [] })]))).toThrow(
-      /lasers\.yaml is invalid/,
+      /laser config is invalid/,
     )
   })
 
@@ -127,7 +128,7 @@ describe('parseLaserSpecs', () => {
       parseLaserSpecs(
         doc([laser({ commands: { NOT_A_COMMAND: 'NOT_A_COMMAND' } })]),
       ),
-    ).toThrow(/lasers\.yaml is invalid/)
+    ).toThrow(/laser config is invalid/)
   })
 
   it('normalises the commands map into commands (keys) + commandTargets (overrides only)', () => {
@@ -228,7 +229,7 @@ describe('parseLaserSpecs', () => {
           }),
         ]),
       ),
-    ).toThrow(/lasers\.yaml is invalid/)
+    ).toThrow(/laser config is invalid/)
   })
 
   it('rejects a command value that is neither the placeholder nor a PV (no ":")', () => {
@@ -271,7 +272,7 @@ describe('parseLaserSpecs', () => {
   it('rejects whitespace-only PV names', () => {
     expect(() =>
       parseLaserSpecs(doc([laser({ triggerDelay: ['   '] })])),
-    ).toThrow(/lasers\.yaml is invalid/)
+    ).toThrow(/laser config is invalid/)
   })
 
   it('defaults units to an empty map when the file specifies none', () => {
@@ -300,7 +301,7 @@ describe('parseLaserSpecs', () => {
   it('rejects an unknown unit key', () => {
     expect(() =>
       parseLaserSpecs(docWithUnits({ regenTemperature: '°C' }, [laser()])),
-    ).toThrow(/lasers\.yaml is invalid/)
+    ).toThrow(/laser config is invalid/)
   })
 
   it('rejects malformed YAML with a readable message', () => {

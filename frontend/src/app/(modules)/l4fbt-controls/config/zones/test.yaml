@@ -1,6 +1,5 @@
 # The placeholder values below are intentionally preserved from the legacy
 # TypeScript config. Replace them only when controls supplies confirmed PVs.
-schemaVersion: 1
 heading: L4fBT
 interlocks:
   title: L4fBT Interlocks

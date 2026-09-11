@@ -1,21 +1,20 @@
 /**
  * Schema + parser for the shared p3/l3bt/l4fbt module-page configuration.
  *
- * The YAML file adds `schemaVersion` to the existing camelCase `ModuleConfig`
- * shape. The UI-facing object deliberately omits that file-only field so the
- * shared module-page components keep their established contract.
+ * The YAML file IS the camelCase `ModuleConfig` shape. There is no
+ * `schemaVersion`: config and schema now ship in the same commit, so they
+ * cannot disagree, and a shape change is caught by `validate:config` in the
+ * very PR that makes it.
  *
  * This module has no filesystem or `server-only` dependency: runtime file
- * resolution lives in `module-config-loader.ts`, while tests and config-repo
- * validation can parse a supplied string directly.
+ * resolution lives in `module-config-loader.ts`, while tests and the
+ * `validate:config` CLI can parse a supplied string directly.
  */
 
 import { z } from 'zod'
 import { parse as parseYaml } from 'yaml'
 
 import { deepFreeze } from '@/lib/utils/deep-freeze'
-
-export const MODULE_CONFIG_SCHEMA_VERSION = 1
 
 const nonBlank = z.string().trim().min(1)
 const displayText = nonBlank.describe('Non-empty text displayed in the UI.')
@@ -107,7 +106,7 @@ export const cleanDryAirConfigSchema = z.strictObject({
   volumes: z.array(cdaVolumeSchema),
 })
 
-/** UI-facing shape; intentionally has no file-only schemaVersion field. */
+/** The complete file shape, which is also what the UI components receive. */
 export const moduleConfigSchema = z.strictObject({
   heading: displayText.describe('Heading text rendered in the top section.'),
   interlocks: interlockGroupConfigSchema,
@@ -115,16 +114,6 @@ export const moduleConfigSchema = z.strictObject({
   cleanDryAir: cleanDryAirConfigSchema,
   backing: backingConfigSchema,
   roughing: roughingConfigSchema,
-})
-
-/** Complete runtime YAML file shape used for parsing and JSON Schema output. */
-export const moduleConfigFileSchema = z.strictObject({
-  schemaVersion: z
-    .literal(MODULE_CONFIG_SCHEMA_VERSION)
-    .describe(
-      `Module-config schema version understood by the app (currently ${MODULE_CONFIG_SCHEMA_VERSION}).`,
-    ),
-  ...moduleConfigSchema.shape,
 })
 
 export type InterlockItem = z.infer<typeof interlockItemSchema>
@@ -138,11 +127,10 @@ export type RoughingConfig = z.infer<typeof roughingConfigSchema>
 export type CDAVolume = z.infer<typeof cdaVolumeSchema>
 export type CleanDryAirConfig = z.infer<typeof cleanDryAirConfigSchema>
 export type ModuleConfig = z.infer<typeof moduleConfigSchema>
-export type ModuleConfigFile = z.infer<typeof moduleConfigFileSchema>
 
 /**
- * Parse one module YAML file into the established UI-facing `ModuleConfig`.
- * `name` is the config-dir-relative reference used in operator-facing errors.
+ * Parse one module YAML file into the UI-facing `ModuleConfig`.
+ * `name` is the repo-relative path used in operator-facing errors.
  */
 export function parseModuleConfig(text: string, name: string): ModuleConfig {
   let data: unknown
@@ -152,12 +140,10 @@ export function parseModuleConfig(text: string, name: string): ModuleConfig {
     throw new Error(`${name} is not valid YAML: ${(e as Error).message}`)
   }
 
-  const result = moduleConfigFileSchema.safeParse(data)
+  const result = moduleConfigSchema.safeParse(data)
   if (!result.success) {
     throw new Error(`${name} is invalid:\n${z.prettifyError(result.error)}`)
   }
 
-  const config = { ...result.data }
-  Reflect.deleteProperty(config, 'schemaVersion')
-  return deepFreeze(config)
+  return deepFreeze(result.data)
 }

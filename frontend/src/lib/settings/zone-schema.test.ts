@@ -1,257 +1,130 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  MODULE_ROUTES,
-  parseZoneFile,
-  ZONE_SCHEMA_VERSION,
+  MODULE_KEYS,
+  MODULES,
+  moduleConfigPath,
+  parseGlobalConfig,
+  ZONE_CODE_RE,
 } from './zone-schema'
 
 const VALID = `
-schemaVersion: ${ZONE_SCHEMA_VERSION}
-navigationItems:
-  - text: L4 OPCPA Controls
-    href: /l4-opcpa
-allowedRoutes:
-  - /l4-opcpa
-modules:
-  l4-opcpa:
-    config: modules/l4-opcpa/lasers.yaml
+zones:
+  test:
+    title: L4 OPCPA
+    modules:
+      - { key: l4-opcpa, text: L4 OPCPA Controls }
 `
 
-describe('parseZoneFile', () => {
-  it('parses a valid zone file', () => {
-    const zone = parseZoneFile(VALID, 'zones/test.yaml')
-    expect(zone.schemaVersion).toBe(ZONE_SCHEMA_VERSION)
-    expect(zone.navigationItems).toEqual([
-      { text: 'L4 OPCPA Controls', href: '/l4-opcpa' },
+const parse = (text: string) => parseGlobalConfig(text, 'config/global.yaml')
+
+describe('MODULES registry', () => {
+  it('gives every module a unique route', () => {
+    const routes = MODULE_KEYS.map((k) => MODULES[k].route)
+    expect(new Set(routes).size).toBe(routes.length)
+  })
+
+  it('derives a module config path from the module dir and the zone code', () => {
+    expect(moduleConfigPath('p3', 'test')).toBe(
+      'src/app/(modules)/p3-controls/config/zones/test.yaml',
+    )
+  })
+})
+
+describe('parseGlobalConfig', () => {
+  it('parses a valid global config', () => {
+    const config = parse(VALID)
+    expect(config.zones.test.title).toBe('L4 OPCPA')
+    expect(config.zones.test.modules).toEqual([
+      { key: 'l4-opcpa', text: 'L4 OPCPA Controls' },
     ])
-    expect(zone.allowedRoutes).toEqual(['/l4-opcpa'])
-    expect(zone.modules['l4-opcpa']?.config).toBe(
-      'modules/l4-opcpa/lasers.yaml',
-    )
   })
 
-  it('parses an empty zone (no routes, no nav, no modules key)', () => {
-    const zone = parseZoneFile(
-      `schemaVersion: ${ZONE_SCHEMA_VERSION}\nnavigationItems: []\nallowedRoutes: []\n`,
-      'zones/empty.yaml',
-    )
-    expect(zone.navigationItems).toEqual([])
-    expect(zone.allowedRoutes).toEqual([])
-    expect(zone.modules).toEqual({})
+  it('accepts every module key', () => {
+    const modules = MODULE_KEYS.map((k) => `      - { key: ${k} }`).join('\n')
+    const config = parse(`zones:\n  test:\n    modules:\n${modules}\n`)
+    expect(config.zones.test.modules.map((m) => m.key)).toEqual(MODULE_KEYS)
   })
 
-  it('accepts runtime config references for every module route', () => {
-    const zone = parseZoneFile(
-      `
-schemaVersion: ${ZONE_SCHEMA_VERSION}
-navigationItems: []
-allowedRoutes:
-  - /l4-opcpa
-modules:
-  l4-opcpa:
-    config: modules/l4-opcpa/lasers.yaml
-  p3:
-    config: modules/p3/config.yaml
-  l3bt:
-    config: modules/l3bt/config.yaml
-  l4fbt:
-    config: modules/l4fbt/config.yaml
+  it('accepts a module without `text` — reachable but hidden from the menu', () => {
+    const config = parse(
+      'zones:\n  test:\n    modules:\n      - { key: l4-opcpa }\n',
+    )
+    expect(config.zones.test.modules[0].text).toBeUndefined()
+  })
+
+  it('accepts several zones', () => {
+    const config = parse(
+      `zones:
+  test:
+    modules: [{ key: l4-opcpa }]
+  l4:
+    title: L4
+    modules: [{ key: p3, text: P3 }]
 `,
-      'zones/all-modules.yaml',
     )
-
-    expect(ZONE_SCHEMA_VERSION).toBe(1)
-    expect(MODULE_ROUTES).toEqual({
-      'l4-opcpa': '/l4-opcpa',
-      p3: '/p3-controls',
-      l3bt: '/l3bt-controls',
-      l4fbt: '/l4fbt-controls',
-    })
-    expect(zone.modules).toEqual({
-      'l4-opcpa': { config: 'modules/l4-opcpa/lasers.yaml' },
-      p3: { config: 'modules/p3/config.yaml' },
-      l3bt: { config: 'modules/l3bt/config.yaml' },
-      l4fbt: { config: 'modules/l4fbt/config.yaml' },
-    })
+    expect(Object.keys(config.zones).sort()).toEqual(['l4', 'test'])
   })
 
-  it('rejects malformed YAML with the file name in the message', () => {
-    expect(() => parseZoneFile('foo: [unclosed', 'zones/broken.yaml')).toThrow(
-      /zones\/broken\.yaml is not valid YAML/,
-    )
-  })
-
-  it('rejects a wrong schemaVersion', () => {
-    const text = VALID.replace(
-      `schemaVersion: ${ZONE_SCHEMA_VERSION}`,
-      'schemaVersion: 999',
-    )
-    expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
-      /schemaVersion/,
-    )
-  })
-
-  it('rejects a missing schemaVersion', () => {
-    const text = VALID.replace(`schemaVersion: ${ZONE_SCHEMA_VERSION}\n`, '')
-    expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
-      /schemaVersion/,
-    )
-  })
-
-  it('rejects unknown top-level keys', () => {
-    expect(() =>
-      parseZoneFile(`${VALID}\nbogus: 1\n`, 'zones/test.yaml'),
-    ).toThrow(/bogus/)
-  })
-
-  it('rejects a navigation item pointing outside allowedRoutes', () => {
-    const text = `
-schemaVersion: ${ZONE_SCHEMA_VERSION}
-navigationItems:
-  - text: P3
-    href: /p3-controls
-allowedRoutes:
-  - /l4-opcpa
-modules:
-  l4-opcpa:
-    config: modules/l4-opcpa/lasers.yaml
-`
-    expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
-      /not in allowedRoutes/,
-    )
-  })
-
-  it('rejects duplicate allowedRoutes', () => {
-    const text = VALID.replace(
-      'allowedRoutes:\n  - /l4-opcpa',
-      'allowedRoutes:\n  - /l4-opcpa\n  - /l4-opcpa',
-    )
-    expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
-      /duplicate allowedRoutes/,
-    )
-  })
-
-  it('rejects an allowed module route without a module config reference', () => {
-    const text = `
-schemaVersion: ${ZONE_SCHEMA_VERSION}
-navigationItems: []
-allowedRoutes:
-  - /l4-opcpa
-`
-    expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
-      /modules\.l4-opcpa has no config reference/,
-    )
-  })
-
-  it.each([
-    ['p3', '/p3-controls'],
-    ['l3bt', '/l3bt-controls'],
-    ['l4fbt', '/l4fbt-controls'],
-  ])(
-    'rejects allowed %s route without its module config reference',
-    (moduleKey, route) => {
-      const text = `
-schemaVersion: ${ZONE_SCHEMA_VERSION}
-navigationItems: []
-allowedRoutes:
-  - ${route}
-`
-      expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
-        new RegExp(`modules\\.${moduleKey} has no config reference`),
-      )
-    },
-  )
-
-  it('rejects a route not starting with /', () => {
-    const text = VALID.replace('- /l4-opcpa\n', '- l4-opcpa\n')
-    expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(/route/)
-  })
-
-  it('rejects "/" as the home route (would redirect to itself)', () => {
-    const text = `
-schemaVersion: ${ZONE_SCHEMA_VERSION}
-navigationItems: []
-allowedRoutes:
-  - /
-  - /l4-opcpa
-modules:
-  l4-opcpa:
-    config: modules/l4-opcpa/lasers.yaml
-`
-    expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
-      /cannot be the home route/,
-    )
-  })
-
-  it('rejects "/auth/signin" as the home route (would redirect to itself)', () => {
-    const text = `
-schemaVersion: ${ZONE_SCHEMA_VERSION}
-navigationItems: []
-allowedRoutes:
-  - /auth/signin
-`
-    expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
-      /cannot be the home route/,
-    )
-  })
-
-  it('accepts "/" as a non-home allowed route', () => {
-    const text = `
-schemaVersion: ${ZONE_SCHEMA_VERSION}
-navigationItems: []
-allowedRoutes:
-  - /l4-opcpa
-  - /
-modules:
-  l4-opcpa:
-    config: modules/l4-opcpa/lasers.yaml
-`
-    expect(parseZoneFile(text, 'zones/test.yaml').allowedRoutes[0]).toBe(
-      '/l4-opcpa',
-    )
-  })
-
-  it('rejects trailing slashes and empty segments (Proxy matches exactly)', () => {
-    for (const bad of ['/l4-opcpa/', '/a//b', '//']) {
-      const text = VALID.replace('href: /l4-opcpa', `href: ${bad}`).replace(
-        '- /l4-opcpa',
-        `- ${bad}`,
-      )
-      expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(/route/)
-    }
-  })
-
-  it('rejects absolute and parent-traversing module config references', () => {
-    for (const bad of [
-      '/etc/passwd',
-      '../secrets.yaml',
-      'modules/../secrets.yaml',
-    ]) {
-      const text = VALID.replace('modules/l4-opcpa/lasers.yaml', bad)
-      expect(() => parseZoneFile(text, 'zones/test.yaml')).toThrow(
-        /module config reference/,
-      )
-    }
-  })
-
-  it('returns a deeply frozen object (cached config is shared by reference)', () => {
-    const zone = parseZoneFile(VALID, 'zones/test.yaml')
-    expect(Object.isFrozen(zone)).toBe(true)
-    expect(Object.isFrozen(zone.allowedRoutes)).toBe(true)
-    expect(Object.isFrozen(zone.navigationItems[0])).toBe(true)
+  it('freezes the result — it is cached and shared across requests', () => {
+    const config = parse(VALID)
     expect(() => {
-      ;(zone.allowedRoutes as string[]).push('/hacked')
+      config.zones.test.title = 'nope'
     }).toThrow()
   })
 
-  it('accepts an optional title and rejects a blank one', () => {
-    // Omitted: the header falls back to a generic name rather than a station's.
-    expect(parseZoneFile(VALID, 'test').title).toBeUndefined()
-    expect(parseZoneFile(`${VALID}\ntitle: L4 OPCPA\n`, 'test').title).toBe(
-      'L4 OPCPA',
+  it('rejects malformed YAML', () => {
+    expect(() => parse('zones:\n  test: [')).toThrow(/is not valid YAML/)
+  })
+
+  it('rejects an unknown module key', () => {
+    expect(() =>
+      parse('zones:\n  test:\n    modules:\n      - { key: nope }\n'),
+    ).toThrow(/is invalid/)
+  })
+
+  it('rejects a zone with no modules — it could only serve /no-access', () => {
+    expect(() => parse('zones:\n  test:\n    modules: []\n')).toThrow(
+      /is invalid/,
     )
-    // A whitespace-only title would render an empty header rather than a name.
-    expect(() => parseZoneFile(`${VALID}\ntitle: "   "\n`, 'test')).toThrow()
+  })
+
+  it('rejects the same module listed twice, naming the zone and key', () => {
+    // Two entries would put the same route in the menu twice.
+    expect(() =>
+      parse(
+        'zones:\n  test:\n    modules:\n      - { key: p3 }\n      - { key: p3 }\n',
+      ),
+    ).toThrow(/zone "test" lists module "p3" more than once/)
+  })
+
+  it('rejects unknown keys (typo protection)', () => {
+    expect(() =>
+      parse(
+        'zones:\n  test:\n    modules: [{ key: p3 }]\n    allowedRoutes: [/p3-controls]\n',
+      ),
+    ).toThrow(/is invalid/)
+  })
+
+  it('rejects a route written by hand — routes come from the registry', () => {
+    expect(() =>
+      parse(
+        'zones:\n  test:\n    modules:\n      - { key: p3, href: /p3-controls }\n',
+      ),
+    ).toThrow(/is invalid/)
+  })
+
+  it('rejects a blank title', () => {
+    expect(() =>
+      parse('zones:\n  test:\n    title: "  "\n    modules: [{ key: p3 }]\n'),
+    ).toThrow(/is invalid/)
+  })
+
+  it('rejects a zone code that is not usable as a filename stem', () => {
+    // The code becomes `config/zones/<code>.yaml` under every module.
+    expect(() =>
+      parse('zones:\n  "../etc":\n    modules: [{ key: p3 }]\n'),
+    ).toThrow(/is invalid/)
+    expect(ZONE_CODE_RE.test('../etc')).toBe(false)
   })
 })

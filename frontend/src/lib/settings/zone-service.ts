@@ -1,18 +1,25 @@
+import { ConfigError, getZone } from './config-loader'
 import { NavigationItem } from './navigation'
-import { loadZoneFile, ZoneConfigError } from './zone-config-loader'
 import { EMPTY_ZONE_CONFIG, ZoneConfig } from './zone-config.types'
+import { MODULES } from './zone-schema'
 
 /**
- * Server-side zone resolution, backed by the runtime config directory
- * (`zone-config-loader.ts`) instead of a hardcoded zone map. The public API is
- * unchanged and synchronous, so Proxy and server components keep working
- * as before.
+ * Server-side zone resolution, backed by the in-repo config
+ * (`config-loader.ts`). The public API is unchanged and synchronous, so Proxy
+ * and server components keep working as before.
  *
- * Failure policy: an unset/unknown ZONE_CODE or a broken zone file degrades to
- * `EMPTY_ZONE_CONFIG` here (UI falls back to /no-access, exactly like an
- * unconfigured zone always has). Hard fail-fast on truly broken config is the
- * job of the startup check in `instrumentation.ts`; per-request code must not
- * crash the whole app for it. Errors are logged once per zone code.
+ * A zone names its modules in one ordered list; the three things callers ask
+ * for are derived from it here, so the config cannot express a menu item
+ * pointing at a route it did not enable:
+ *
+ *   navigationItems — entries carrying `text`, in order
+ *   allowedRoutes   — every entry's route, in order
+ *   homeRoute       — allowedRoutes[0]
+ *
+ * Failure policy: an unset/unknown ZONE_CODE degrades to `EMPTY_ZONE_CONFIG`
+ * here (UI falls back to /no-access, exactly like an unconfigured zone always
+ * has). That is now the only runtime config failure — everything else is
+ * caught by `validate:config` at build. Errors are logged once per zone code.
  */
 
 /**
@@ -20,7 +27,8 @@ import { EMPTY_ZONE_CONFIG, ZoneConfig } from './zone-config.types'
  *
  * `ZONE_CODE` deliberately has no `NEXT_PUBLIC_` prefix so Next.js does not
  * inline it at build time — this reads fresh from the container's env on
- * every Proxy/server-component invocation. Client components have no
+ * every Proxy/server-component invocation, so switching a station to another
+ * zone is a compose restart, not a rebuild. Client components have no
  * access to this at all and must instead source the zone code from
  * `useRuntimeConfig()`-derived data (see /api/runtime-config).
  * @returns The zone code or undefined if not set
@@ -33,28 +41,30 @@ const loggedZones = new Set<string>()
 
 /**
  * Get the configuration for the current zone
- * Returns empty config if the zone is not set, has no zone file, or its file
- * fails validation (logged once; startup check reports it loudly).
+ * Returns empty config if the zone is not set or is not defined in
+ * config/global.yaml (logged once; the startup check reports it loudly).
  * @param zoneCode - Optional zone code, defaults to current zone
  * @returns Zone configuration
  */
 export function getZoneConfig(zoneCode?: string): ZoneConfig {
-  const zone = zoneCode ?? getCurrentZoneCode()
-  if (!zone) {
+  const code = zoneCode ?? getCurrentZoneCode()
+  if (!code) {
     return EMPTY_ZONE_CONFIG
   }
 
   try {
-    const file = loadZoneFile(zone)
+    const zone = getZone(code)
     return {
-      navigationItems: file.navigationItems,
-      allowedRoutes: file.allowedRoutes,
-      title: file.title,
+      navigationItems: zone.modules
+        .filter((m) => m.text !== undefined)
+        .map((m) => ({ text: m.text!, href: MODULES[m.key].route })),
+      allowedRoutes: zone.modules.map((m) => MODULES[m.key].route),
+      title: zone.title,
     }
   } catch (e) {
-    if (!loggedZones.has(zone)) {
-      loggedZones.add(zone)
-      const detail = e instanceof ZoneConfigError ? e.message : String(e)
+    if (!loggedZones.has(code)) {
+      loggedZones.add(code)
+      const detail = e instanceof ConfigError ? e.message : String(e)
       console.error(`[zone-service] falling back to empty zone: ${detail}`)
     }
     return EMPTY_ZONE_CONFIG
