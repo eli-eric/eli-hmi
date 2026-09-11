@@ -70,6 +70,125 @@ The split is deliberate: the shared panels have data-only variance, while the
 bottom rows differ as component trees. Do not turn JSX into a YAML component
 language.
 
+## Key names are not consistent — read this first
+
+The YAML mirrors an older TypeScript shape, and that shape spelled the same
+concept differently in different places. These are the easiest mistakes to make,
+and the validator is the only thing that catches them:
+
+| Context | Correct key | **Not** |
+|---|---|---|
+| Interlock / safety-permission items | `pvname` | ~~`pvName`~~ |
+| Sensor entries (`sensorPVs`, `pressure`, `flow`) | `pvName` | ~~`pvname`~~ |
+| Locking | `pvName` | ~~`pvname`~~ |
+| Pump speed | `rpmPV` | ~~`rpmPv`~~ |
+| Pump valve | `valvePv` | ~~`valvePV`~~ |
+
+Unknown keys are rejected outright rather than ignored, so a typo fails the
+build instead of silently dropping a signal. `npm run validate:config` names the
+file and the exact path inside it:
+
+```
+✗ p3 (src/app/(modules)/p3-controls/config/zones/test.yaml): … is invalid:
+✖ Unrecognized key: "pvName"
+  → at interlocks.items[0]
+✖ Invalid input: expected string, received undefined
+  → at interlocks.items[0].pvname
+```
+
+## Field reference
+
+Every top-level field is **required**; all three existing files set all of them.
+Every string is trimmed and must be non-empty.
+
+| Field | Type | What it is |
+|---|---|---|
+| `heading` | text | Heading rendered in the page's top section. |
+| `interlocks` | interlock group | Interlock indicator panel. |
+| `safetyPermission` | interlock group | Machine-safety-permission panel; same shape as `interlocks`. |
+| `cleanDryAir` | CDA block | Clean-dry-air section. |
+| `backing` | backing block | Backing pump + sensor section. |
+| `roughing` | roughing block | Roughing pump + sensor section. |
+
+There is no `schemaVersion`: config and schema ship in the same commit, so they
+cannot disagree. A leftover one is rejected as an unknown key.
+
+### Interlock group (`interlocks`, `safetyPermission`)
+
+| Field | Required | Type | What it is |
+|---|---|---|---|
+| `title` | yes | text | Panel title. |
+| `items` | yes | list | Indicators, in display order. |
+| `items[].pvname` | yes | PV name | Interlock PV. Note the lowercase `n`. |
+| `items[].title` | yes | text | Indicator label. |
+| `checkClearPv` | no | PV name | PV used to clear the whole group. |
+| `width` | no | CSS size | Panel width, e.g. `320px`. |
+
+### Sensor entry
+
+Used by `sensorPVs` inside a sensor bar, and by CDA `pressure` / `flow`.
+
+| Field | Required | Type | What it is |
+|---|---|---|---|
+| `pvName` | yes | PV name | Readout PV. Note the capital `N`. |
+| `label` | yes | text | Displayed label. |
+| `options` | no | number or object | Numeric formatting — see [Number formatting](#number-formatting). |
+
+### Sensor bar (`sensorBar`)
+
+| Field | Required | Type | What it is |
+|---|---|---|---|
+| `title` | yes | text | Bar title. |
+| `label` | yes | text | Bar label. |
+| `sensorPVs` | yes | list | Sensor entries, in display order. |
+| `height` | no | CSS size | Bar height. |
+
+### Pump (`pump`)
+
+All four fields are required.
+
+| Field | Type | What it is |
+|---|---|---|
+| `title` | text | Pump title. |
+| `rpmPV` | PV name | Pump speed readout. Capital `PV`. |
+| `valvePv` | PV name | Associated valve PV. Lowercase `v`, capital `P`. |
+| `valveLabel` | text | Valve label. |
+
+### `backing`
+
+| Field | Required | Type |
+|---|---|---|
+| `title` | yes | text |
+| `sensorBar` | yes | sensor bar |
+| `pump` | yes | pump |
+| `width` | no | CSS size |
+| `containerWidth` | no | CSS size |
+
+### `roughing`
+
+Same as `backing`, plus an optional interlock-style locking readout:
+
+| Field | Required | Type |
+|---|---|---|
+| `title` | yes | text |
+| `sensorBar` | yes | sensor bar |
+| `pump` | yes | pump |
+| `locking` | no | object with required `label` (text) and `pvName` (PV name) |
+| `width` | no | CSS size |
+| `containerWidth` | no | CSS size |
+
+### `cleanDryAir`
+
+| Field | Required | Type | What it is |
+|---|---|---|---|
+| `title` | yes | text | Section title. |
+| `volumes` | yes | list | One entry per CDA volume, in display order. |
+| `volumes[].title` | yes | text | Volume title. |
+| `volumes[].pressure` | yes | sensor entry | Pressure readout. |
+| `volumes[].flow` | yes | sensor entry | Flow readout. |
+| `volumes[].width` | no | CSS size | Volume width. |
+| `width` | no | CSS size | Section width. |
+
 ## Number formatting
 
 Every sensor entry takes an optional `options:` deciding how its reading is

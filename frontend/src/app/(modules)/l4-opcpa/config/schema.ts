@@ -1,5 +1,6 @@
 /**
- * Schema + parser for the L4 OPCPA per-laser config (`lasers.yaml`).
+ * Schema + parser for the L4 OPCPA per-laser config
+ * (`config/zones/<ZONE_CODE>.yaml`, one file per zone).
  *
  * The config holds the **full PV name** for every signal — exactly the strings
  * the controls team / EPICS gateway provides (e.g. `SY3PL50M:32`). The frontend

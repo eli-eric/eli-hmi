@@ -8,7 +8,7 @@ Three things distinguish it from the other module pages:
 
 1. **Custom shell, not `ModuleControlPage`.** The L4 wireframe is a flat 5-column grid of laser status panels — General / Regen / Chillers / Flashlamps / Modbox. The vacuum-system layout of `ModuleControlPage` doesn't fit; forcing it would mean stubbing out every panel. See [ADR-0007](../adr/0007-l4-custom-shell-not-modulecontrolpage.md).
 2. **Per-laser topology in its own YAML, not `ModuleConfig`.** A zod-validated, human-editable file per zone (`config/zones/<ZONE_CODE>.yaml` beside this module) describes each laser's *topology* (counts, IDs, presets, commands) independently. See [ADR-0010](../adr/0010-per-laser-yaml-config.md) and [ADR-0012](../adr/0012-in-repo-config.md).
-3. **Full PV strings in config, not assembled names.** Each signal's complete PV name lives in that mounted YAML file; the frontend reads it verbatim. Only command PVs (`CMD_<id>_<NAME>`) are built in code. See [ADR-0010](../adr/0010-per-laser-yaml-config.md) (supersedes the read-PV registry of [ADR-0006](../adr/0006-pv-name-registry-l4-opcpa.md)).
+3. **Full PV strings in config, not assembled names.** Each signal's complete PV name lives in that per-zone YAML file; the frontend reads it verbatim. Only command PVs (`CMD_<id>_<NAME>`) are built in code. See [ADR-0010](../adr/0010-per-laser-yaml-config.md) (supersedes the read-PV registry of [ADR-0006](../adr/0006-pv-name-registry-l4-opcpa.md)).
 
 ## Layout
 
@@ -17,7 +17,7 @@ app/(modules)/l4-opcpa/
 ├── page.tsx                       # force-dynamic server shell: loads the zone's laser config
 ├── page.module.css
 ├── error.tsx                      # error boundary for runtime config failures
-├── config/                        # zod schema + server-only mounted-config loader
+├── config/                        # zod schema + server-only loader + zones/<ZONE_CODE>.yaml
 ├── lib/
 │   ├── pv-names.ts                # PV-name registry
 │   └── pv-names.test.ts
@@ -32,7 +32,7 @@ app/(modules)/l4-opcpa/
 
 ## PV naming
 
-Signal PV names are full strings in the zone-referenced `lasers.yaml` — read verbatim, never
+Signal PV names are full strings in the zone's laser config — read verbatim, never
 assembled from prefixes. Only the command PV is built in code:
 
 ```ts
@@ -42,7 +42,7 @@ pv.cmd('NL2', 'START_LASER') // 'CMD_NL2_START_LASER'
 
 The mock backend (`backend/mockup-websocket-server/l4_opcpa.go`) is test-only and
 seeds the names currently in the template YAML; it does not read the file. Swapping a
-PV name to its real EPICS value is a pure config-repository edit and container restart.
+PV name to its real EPICS value is a pure config edit — a PR and a redeploy, no code change.
 
 ## Write path
 

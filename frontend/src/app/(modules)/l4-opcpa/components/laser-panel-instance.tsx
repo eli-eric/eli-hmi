@@ -12,7 +12,7 @@ interface LaserPanelInstanceProps {
 
 /**
  * Renders one laser column from a {@link LaserSpec}. Every PV name comes from
- * the spec (resolved from `lasers.yaml`); command write targets resolve via
+ * the spec (resolved from the zone's laser config); command write targets resolve via
  * `makeCommandPv` (YAML override, else code-built `CMD_<laser>_<NAME>`).
  * Sections whose device bank is empty are omitted: no chillers → no Chillers
  * section, no flashlamps → no Flashlamps, no modbox PVs → no Modbox. General +

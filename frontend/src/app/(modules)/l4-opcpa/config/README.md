@@ -1,10 +1,10 @@
-# L4 OPCPA laser config (`lasers.yaml`)
+# L4 OPCPA laser config (`zones/<ZONE_CODE>.yaml`)
 
-`lasers.yaml` is the **frontend source of truth** for the L4 OPCPA page. For
-every laser (NL1–NL5) it holds the **full PV name of each signal** — exactly the
-string the controls team / EPICS gateway provides. The frontend reads these
-verbatim; it does **not** assemble names from prefixes. **Edit the YAML, not the
-code.**
+The files in [`zones/`](zones) are the **frontend source of truth** for the L4
+OPCPA page — one per deployment zone. For every laser (NL1–NL5) each file holds
+the **full PV name of each signal** — exactly the string the controls team /
+EPICS gateway provides. The frontend reads these verbatim; it does **not**
+assemble names from prefixes. **Edit the YAML, not the code.**
 
 > The names currently in the file are the mock-backend convention
 > (`BI_NL2_CONN`, `AI_NL2_CHILLER_11_FLOW`, …). When controls deliver the real
@@ -12,8 +12,9 @@ code.**
 > change.
 
 You do not need to know TypeScript, and there is no editor setup to do. The
-field reference below is the format's documentation; the config validator
-(see [../README.md](../README.md)) is what checks your edits.
+field reference below is the format's documentation; `npm run validate:config`
+(run from `frontend/`, and run for you by `next build`) is what checks your
+edits. It names the file and the exact path inside it.
 
 ## How it works
 
@@ -46,6 +47,9 @@ field reference below is the format's documentation; the config validator
 | `pvs.attenuator` | PV name | Attenuator value (read + direct write). |
 | `pvs.loadedWaveform` | PV name | Current waveform preset. |
 | `pvs.latestWaveform` | PV name | Previous waveform moved into Waveform Latest when a new preset is applied. Optional. |
+| `pvs.modboxMbc1` | PV name | Modbox MBC1 bias readout. Optional — omit and the MBC1 half of the Bias Value row is hidden. |
+| `pvs.modboxMbc2` | PV name | Modbox MBC2 bias readout. Optional — omit and the MBC2 half of the Bias Value row is hidden. |
+| `pvs.sequencerRunning` | PV name | Sequencer-busy flag. Optional — omit and the whole Sequencer section is hidden. |
 | `triggerDelay` | PV name[] | Trigger-delay readouts; all should read equal (mismatch is flagged). |
 | `mss` | `{label, pv, values?}`[] | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below). |
 | `moduleErrors` | `{label, pv}`[] | Error indicators: `label` shown in UI, `pv` is the indicator PV. |
@@ -225,11 +229,13 @@ subsystem). General and Regen always render.
 
 ## Validation
 
-The authoritative rules live in the app's zod schema
-(`l4-opcpa/config/schema.ts`) and run in three places: at container startup, in
-this repo's CI, and in the config validator you can run by hand — see
-[../README.md](../README.md). Beyond field types they enforce what no schema
-could express, such as rejecting duplicate PV names across lasers.
+The authoritative rules live in the app's zod schema (`../config/schema.ts`)
+and run in one place that matters: `npm run validate:config`, wired as
+`prebuild`, so a broken file fails `next build` and never reaches a container.
+The same command runs in CI and can be run by hand from `frontend/`.
+
+Beyond field types the schema enforces what no field list could express, such as
+rejecting duplicate PV names within a laser and duplicate laser ids.
 
 ## Mock backend caveat (test-only)
 

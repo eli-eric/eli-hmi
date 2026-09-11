@@ -47,7 +47,7 @@ const docWithFormat = (format: unknown, lasers: unknown[]) =>
   stringify({ format, lasers })
 
 describe('parseLaserSpecs', () => {
-  it('parses the real lasers.yaml into a non-empty set of unique laser ids', () => {
+  it('parses the shipped zone config into a non-empty set of unique laser ids', () => {
     const specs = parseLaserSpecs(realYaml)
     const laserIds = specs.map((s) => s.laser)
 
@@ -57,7 +57,7 @@ describe('parseLaserSpecs', () => {
   })
 
   // Detailed shape is asserted on a fixture (not the real file) so editing
-  // lasers.yaml — the file's whole purpose — doesn't break these checks.
+  // the shipped config — the file's whole purpose — doesn't break these checks.
   it('renames id → laser and passes every signal through verbatim', () => {
     const spec = parseLaserSpecs(doc([laser({ id: 'NLX' })]))[0]
     expect(spec.laser).toBe('NLX')
@@ -83,7 +83,7 @@ describe('parseLaserSpecs', () => {
     expect(spec.modbox[0]).toEqual({ label: 'Modbox 1', pv: 'BI_NL9_MODBOX_1' })
   })
 
-  it('the real lasers.yaml is structurally valid for every laser', () => {
+  it('the shipped zone config is structurally valid for every laser', () => {
     for (const spec of parseLaserSpecs(realYaml)) {
       expect(spec.pvs.connection.length).toBeGreaterThan(0)
       expect(spec.commands.length).toBeGreaterThan(0)

@@ -57,7 +57,7 @@ It remains the seam for a future
 
 ## PV naming
 
-Signal PV names are **full strings in the zone's `lasers.yaml`** (what controls
+Signal PV names are **full strings in the zone's laser config** (what controls
 provides) — the frontend reads them verbatim; it does **not** assemble names
 from prefixes. The only thing built in code is the **command PV**
 (`CMD_<laser>_<NAME>`), because a command maps to a backend sequence of writes,
@@ -105,5 +105,5 @@ curl http://localhost:8080/mode/fail-rate/10
 NL1, NL3, NL4, NL5 mirror NL2's topology because Confluence only documents
 NL2 and APL. Once divergent topology is confirmed (chiller bank counts,
 flashlamp box ids per laser), edit the per-laser entries in the zone's
-`lasers.yaml` — each laser is configured independently. Tracked via
+the zone's laser config — each laser is configured independently. Tracked via
 footer comments on the source Confluence page.

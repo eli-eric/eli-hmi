@@ -8,7 +8,7 @@ import {
   TestWebSocketProvider,
 } from '@/test/ws-test-provider'
 
-// A self-contained fixture (NOT read from lasers.yaml) so editing the real
+// A self-contained fixture (NOT read from the zone config) so editing the real
 // config never breaks this rendering test.
 const NL2: LaserSpec = {
   laser: 'NL2',

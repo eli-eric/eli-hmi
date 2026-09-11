@@ -12,7 +12,7 @@ Two backends, one frontend. The frontend is environment-agnostic: `API_URL` (e.g
 
 ## Modules (top-level)
 
-- **frontend** — Next.js 16 App Router. Renders routes allowed by runtime-mounted zone config.
+- **frontend** — Next.js 16 App Router. Renders the module pages the current zone enables.
 - **mock-backend** — Go service. Fakes PVs from name-prefix conventions. Dev/test only.
 - **python-backend** — FastAPI + aioca. Production adapter onto a real EPICS network.
 

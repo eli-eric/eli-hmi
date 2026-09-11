@@ -72,4 +72,4 @@ Three patterns recur inside the frontend and earn their own pages:
 
 - **PV naming.** Logical PV names in code (`MOD1.AI_TEMP`) are resolved to prefixed wire names (`DEV:MOD1:AI_TEMP`) by `getPrefixedPV` (`src/lib/utils/pv-helpers.ts`). The hook does this on subscribe; one write site does it inline. See [reference/pv-naming](reference/pv-naming.md).
 - **L4 OPCPA PV names.** Signal PV names live as full strings in the zone-referenced runtime YAML; only command PVs are assembled by the page's small registry. See [ADR-0010](adr/0010-per-laser-yaml-config.md) and [frontend/l4-opcpa](frontend/l4-opcpa.md).
-- **Runtime config scope.** Zone navigation/routes, L4 OPCPA per-laser signal data, and p3/l3bt/l4fbt `ModuleConfig` data come from mounted YAML. The vacuum pages' structurally bespoke bottom rows remain compiled TSX.
+- **Config scope.** Zone navigation/routes, L4 OPCPA per-laser signal data, and p3/l3bt/l4fbt `ModuleConfig` data come from in-repo YAML that ships in the image, selected per station by `ZONE_CODE`. The vacuum pages' structurally bespoke bottom rows remain compiled TSX.

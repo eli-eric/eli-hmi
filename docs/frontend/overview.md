@@ -11,7 +11,7 @@ A control-system HMI rendered in the browser, run from operator stations. The au
 | Path | Role |
 | --- | --- |
 | `app/` | Routes (App Router), providers, layouts. |
-| `app/(modules)/<m>-controls/` | One route per control module: a dynamic server entry loads mounted YAML and a colocated client view composes `<ModuleControlPage>`. |
+| `app/(modules)/<m>-controls/` | One route per control module: a dynamic server entry loads that module's YAML for the current zone (`config/zones/<ZONE_CODE>.yaml`) and a colocated client view composes `<ModuleControlPage>`. |
 | `app/(modules)/l4-opcpa/` | Exception: custom shell, custom PV registry. [Detail.](l4-opcpa.md) |
 | `app/providers/` | `WebSocketProvider`, session provider, theme. |
 | `components/hmi/` | Compound HMI components: `VolumePanel`, `ConnectorLine`, `LaserPanel`, `StatusBar`, `controls/`. [Detail.](hmi-components.md) |
@@ -20,7 +20,7 @@ A control-system HMI rendered in the browser, run from operator stations. The au
 | `lib/websocket/` | WS client adapter — `useWebSocket`, `useWebSocketData`, `PVDisplay`, `WebSocketProvider`. [Detail.](websocket-client.md) |
 | `lib/settings/` | Runtime zone schema, YAML loader, and route helpers. [Detail.](zones.md) |
 | `lib/runtime-config/` | Client context populated by `/api/runtime-config`. |
-| `lib/modules/` | `ModuleConfig` schema/types + mounted-YAML loader. [Detail.](module-pages.md) |
+| `lib/modules/` | `ModuleConfig` schema/types + per-zone YAML loader. [Detail.](module-pages.md) |
 | `lib/server/auth/` | NextAuth + LDAP. [Detail.](auth.md) |
 | `lib/utils/pv-helpers.ts` | `getPrefixedPV`, `getFormattedValue`. [Detail.](../reference/pv-naming.md) |
 | `lib/api/pvs.ts` | `pvWrite()` — the single PV-write adapter onto `POST /pv/<NAME>`. |

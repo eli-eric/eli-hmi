@@ -13,7 +13,7 @@ interface L4OpcpaViewProps {
 
 /**
  * Client view for the L4 OPCPA page. Receives the validated per-laser specs
- * from the server `page.tsx` (which resolves the current zone's `lasers.yaml`
+ * from the server `page.tsx` (which resolves the current zone's laser config
  * at runtime) and renders the grid. Client because of the live connection
  * banner.
  */

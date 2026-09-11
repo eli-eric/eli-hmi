@@ -57,7 +57,7 @@ export function loadLaserSpecs(): readonly LaserSpec[] {
   }
 
   // Production only, same policy as the config cache: dev edits reload per
-  // request, deployments reload on container restart.
+  // request; in production the config is fixed for the image's lifetime.
   if (process.env.NODE_ENV === 'production') {
     specsCache.set(key, specs)
   }
