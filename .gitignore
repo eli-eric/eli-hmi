@@ -52,3 +52,4 @@ backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.tar.gz
 backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.tar.gz.sha256
 backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.tar.gz.tmp
 backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.zip
+.vscode/settings.json
