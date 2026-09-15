@@ -1,0 +1,19 @@
+# The IOC in a container with a stock EPICS base build.
+#
+#   docker compose -f ioc/docker-compose.yml up --build
+#   ZONE_CODE=ioc EPICS_BACKEND=aioca python -m app
+#
+# `network_mode: host` is not a shortcut: Channel Access resolves PV names by
+# UDP broadcast, which does not survive Docker's default bridge NAT. On Linux
+# host networking makes the IOC reachable as if it were a local process; on
+# macOS and Windows, Docker has no host network, so use `python ioc/run_ioc.py`
+# there instead.
+
+services:
+  l4-opcpa-ioc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: l4-opcpa-ioc
+    network_mode: host
+    restart: unless-stopped

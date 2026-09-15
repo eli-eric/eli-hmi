@@ -1,0 +1,1122 @@
+# EPICS database for the L4 OPCPA panel — GENERATED, DO NOT EDIT.
+#
+#     python ioc/generate.py --zone test
+#
+# Source: config/zones/test.yaml
+# Lasers: NL2
+#
+# Injected faults, so the panel's alarm paths are exercised from the
+# first page load (see INJECTED_FAULTS in the generator):
+#   * chiller 2 outlet temperature runs above HIHI  -> MAJOR
+#   * chiller 3 water level is never processed      -> INVALID / UDF
+#   * the last MSS permission is denied (ZSV MINOR) -> MINOR, reads NO
+#   * one module reports error code 0021            -> ERR is not 0/n
+#   * two flashlamp channels sit in STOP            -> tally is not all SB
+#
+# Renamed for this IOC. Each of these names a field of a synApps record type,
+# which EPICS base does not have, so it is served as a plain `bi`
+# record under a colon-separated name:
+#   L4-OPCPA-NL2:PortControl.CNCT  ->  L4-OPCPA-NL2:PortControl:CNCT
+#   L4-OPCPA-NL2:SetAlignmentMode.BUSY  ->  L4-OPCPA-NL2:SetAlignmentMode:BUSY
+#
+# Records scan at 1 second; analogue readouts random-walk inside their band.
+#
+# Lasers that watch the same site-wide PV (an MSS interlock, say) share
+# one record — it is defined here once and read by all of them.
+
+# --------------------------------------------------------------------------
+# NL2 — status readbacks
+# --------------------------------------------------------------------------
+record(bi, "L4-OPCPA-NL2:PortControl:CNCT") {
+    field(DESC, "NL2 controller connection")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "Disconnected")
+    field(ONAM, "Connected")
+}
+record(bi, "L4-OPCPA-NL2:FullPower") {
+    field(DESC, "NL2 at full power")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+record(bi, "L4-OPCPA-NL2:IO:15:RC1_pin31") {
+    field(DESC, "NL2 shutter")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZNAM, "CLOSED")
+    field(ONAM, "OPEN")
+}
+record(calc, "L4-OPCPA-NL2:PHD1K000:49:Mean") {
+    field(DESC, "NL2 PHD1 mean")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "1.0")
+    field(INPA, "L4-OPCPA-NL2:PHD1K000:49:Mean.VAL NPP NMS")
+    field(B, "0.05")
+    field(C, "0.4")
+    field(D, "1.6")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "mJ")
+    field(PREC, "3")
+    field(LOPR, "0.4")
+    field(HOPR, "1.6")
+}
+record(calc, "L4-OPCPA-NL2:PHD1K000:48:Mean") {
+    field(DESC, "NL2 PHD2 mean")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "0.55")
+    field(INPA, "L4-OPCPA-NL2:PHD1K000:48:Mean.VAL NPP NMS")
+    field(B, "0.04")
+    field(C, "0.2")
+    field(D, "0.9")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "mJ")
+    field(PREC, "3")
+    field(LOPR, "0.2")
+    field(HOPR, "0.9")
+}
+record(mbbi, "L4-OPCPA-NL2:SY3PL50M:32:State") {
+    field(DESC, "NL2 regen state")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZRST, "OFF")
+    field(ONST, "ON")
+    field(TWST, "STANDBY")
+    field(THST, "FAILURE")
+}
+record(calc, "L4-OPCPA-NL2:TK6:44:DisplayTemperature") {
+    field(DESC, "NL2 regen temperature")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "22.75")
+    field(INPA, "L4-OPCPA-NL2:TK6:44:DisplayTemperature.VAL NPP NMS")
+    field(B, "0.08")
+    field(C, "21.5")
+    field(D, "24.0")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "degC")
+    field(PREC, "3")
+    field(LOPR, "21.5")
+    field(HOPR, "24.0")
+    field(HIGH, "24.5")
+    field(HSV, "MINOR")
+    field(HIHI, "25.0")
+    field(HHSV, "MAJOR")
+}
+record(bi, "L4-OPCPA-NL2:SetAlignmentMode:BUSY") {
+    field(DESC, "NL2 sequencer busy")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZNAM, "IDLE")
+    field(ONAM, "RUNNING")
+}
+
+# --------------------------------------------------------------------------
+# NL2 — MSS permissions and module errors
+# --------------------------------------------------------------------------
+record(bi, "L4-PSS:NP2_PERMISSION_TO_OPERATE_CH1") {
+    field(DESC, "PSS permission")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "NO")
+    field(ONAM, "YES")
+}
+record(bi, "L4-MSS:NP2_PERMISSION_TO_OPERATE_CH1") {
+    field(DESC, "MSS permission")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "NO")
+    field(ONAM, "YES")
+}
+record(bi, "L4-MSS:OPA_interlock") {
+    field(DESC, "OPCPA MSS interlock")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "NO")
+    field(ONAM, "YES")
+}
+record(bi, "L4-VCS-NL2:ReadyToFire") {
+    field(DESC, "NL2 vacuum good")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "NO")
+    field(ONAM, "YES")
+}
+record(bi, "L4-VCS-NSOPA_PUMP_TEL:ReadyToFire") {
+    field(DESC, "OPCPA pump tel. vac. good")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "NO")
+    field(ONAM, "YES")
+}
+record(bi, "L4-VCS-NSOPA_SEED_TEL:ReadyToFire") {
+    field(DESC, "OPCPA seed tel. vac. good")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "NO")
+    field(ONAM, "YES")
+}
+record(bi, "L4-MSS:BEAMDUMP_CHILLER_ALARM") {
+    field(DESC, "Beamdump chiller alarm")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "NO")
+    field(ONAM, "YES")
+}
+record(bi, "L4-MSS:BEAMDUMP_CHILLER_WARNING") {
+    field(DESC, "Beamdump chiller warning")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZNAM, "NO")
+    field(ONAM, "YES")
+    field(ZSV, "MINOR")
+}
+record(stringin, "L4-OPCPA-NL2:PS1225:11:ErrorCode") {
+    field(DESC, "PS1225:11 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PS1225:12:ErrorCode") {
+    field(DESC, "PS1225:12 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PS1225:13:ErrorCode") {
+    field(DESC, "PS1225:13 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PS1225:14:ErrorCode") {
+    field(DESC, "PS1225:14 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:IO:15:ErrorCode") {
+    field(DESC, "IO:15 error code")
+    field(PINI, "YES")
+    field(VAL, "0021")
+}
+record(stringin, "L4-OPCPA-NL2:LDM150V5:16:ErrorCode") {
+    field(DESC, "LDM150V5:16 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PS5059:22:ErrorCode") {
+    field(DESC, "PS5059:22 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PS5059:23:ErrorCode") {
+    field(DESC, "PS5059:23 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PS5059:24:ErrorCode") {
+    field(DESC, "PS5059:24 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PS5059:25:ErrorCode") {
+    field(DESC, "PS5059:25 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PS5059:26:ErrorCode") {
+    field(DESC, "PS5059:26 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PS5059:27:ErrorCode") {
+    field(DESC, "PS5059:27 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PS5059:28:ErrorCode") {
+    field(DESC, "PS5059:28 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:SY3PL50M:32:ErrorCode") {
+    field(DESC, "SY3PL50M:32 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:HV40W:40:ErrorCode") {
+    field(DESC, "HV40W:40 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:HV40W:42:ErrorCode") {
+    field(DESC, "HV40W:42 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:TK6:44:ErrorCode") {
+    field(DESC, "TK6:44 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PHD1K000:48:ErrorCode") {
+    field(DESC, "PHD1K000:48 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:PHD1K000:49:ErrorCode") {
+    field(DESC, "PHD1K000:49 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:SM5-SH:50:ErrorCode") {
+    field(DESC, "SM5-SH:50 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:SM5-ATT1:51:ErrorCode") {
+    field(DESC, "SM5-ATT1:51 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+record(stringin, "L4-OPCPA-NL2:SM5-ATT2:52:ErrorCode") {
+    field(DESC, "SM5-ATT2:52 error code")
+    field(PINI, "YES")
+    field(VAL, "0000")
+}
+
+# --------------------------------------------------------------------------
+# NL2 — chillers
+# --------------------------------------------------------------------------
+record(calc, "L4-OPCPA-NL2:PS1225:11:MeasuredFlow") {
+    field(DESC, "PS1225:11 flow")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "13.5")
+    field(INPA, "L4-OPCPA-NL2:PS1225:11:MeasuredFlow.VAL NPP NMS")
+    field(B, "0.12")
+    field(C, "11.5")
+    field(D, "15.5")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "l/min")
+    field(PREC, "3")
+    field(LOPR, "11.5")
+    field(HOPR, "15.5")
+    field(LOW, "11.0")
+    field(LSV, "MINOR")
+    field(LOLO, "10.0")
+    field(LLSV, "MAJOR")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:11:T_out") {
+    field(DESC, "PS1225:11 outlet temperature")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "23.25")
+    field(INPA, "L4-OPCPA-NL2:PS1225:11:T_out.VAL NPP NMS")
+    field(B, "0.1")
+    field(C, "22.0")
+    field(D, "24.5")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "degC")
+    field(PREC, "3")
+    field(LOPR, "22.0")
+    field(HOPR, "24.5")
+    field(HIGH, "25.5")
+    field(HSV, "MINOR")
+    field(HIHI, "26.5")
+    field(HHSV, "MAJOR")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:11:MeasuredLevel") {
+    field(DESC, "PS1225:11 water level")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "89.0")
+    field(INPA, "L4-OPCPA-NL2:PS1225:11:MeasuredLevel.VAL NPP NMS")
+    field(B, "0.4")
+    field(C, "80.0")
+    field(D, "98.0")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "%")
+    field(PREC, "3")
+    field(LOPR, "80.0")
+    field(HOPR, "98.0")
+    field(LOW, "75.0")
+    field(LSV, "MINOR")
+    field(LOLO, "70.0")
+    field(LLSV, "MAJOR")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:12:MeasuredFlow") {
+    field(DESC, "PS1225:12 flow")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "13.5")
+    field(INPA, "L4-OPCPA-NL2:PS1225:12:MeasuredFlow.VAL NPP NMS")
+    field(B, "0.12")
+    field(C, "11.5")
+    field(D, "15.5")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "l/min")
+    field(PREC, "3")
+    field(LOPR, "11.5")
+    field(HOPR, "15.5")
+    field(LOW, "11.0")
+    field(LSV, "MINOR")
+    field(LOLO, "10.0")
+    field(LLSV, "MAJOR")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:12:T_out") {
+    field(DESC, "PS1225:12 outlet temperature")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "27.25")
+    field(INPA, "L4-OPCPA-NL2:PS1225:12:T_out.VAL NPP NMS")
+    field(B, "0.1")
+    field(C, "26.0")
+    field(D, "28.5")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "degC")
+    field(PREC, "3")
+    field(LOPR, "26.0")
+    field(HOPR, "28.5")
+    field(HIGH, "25.5")
+    field(HSV, "MINOR")
+    field(HIHI, "26.5")
+    field(HHSV, "MAJOR")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:12:MeasuredLevel") {
+    field(DESC, "PS1225:12 water level")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "89.0")
+    field(INPA, "L4-OPCPA-NL2:PS1225:12:MeasuredLevel.VAL NPP NMS")
+    field(B, "0.4")
+    field(C, "80.0")
+    field(D, "98.0")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "%")
+    field(PREC, "3")
+    field(LOPR, "80.0")
+    field(HOPR, "98.0")
+    field(LOW, "75.0")
+    field(LSV, "MINOR")
+    field(LOLO, "70.0")
+    field(LLSV, "MAJOR")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:13:MeasuredFlow") {
+    field(DESC, "PS1225:13 flow")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "13.5")
+    field(INPA, "L4-OPCPA-NL2:PS1225:13:MeasuredFlow.VAL NPP NMS")
+    field(B, "0.12")
+    field(C, "11.5")
+    field(D, "15.5")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "l/min")
+    field(PREC, "3")
+    field(LOPR, "11.5")
+    field(HOPR, "15.5")
+    field(LOW, "11.0")
+    field(LSV, "MINOR")
+    field(LOLO, "10.0")
+    field(LLSV, "MAJOR")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:13:T_out") {
+    field(DESC, "PS1225:13 outlet temperature")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "23.25")
+    field(INPA, "L4-OPCPA-NL2:PS1225:13:T_out.VAL NPP NMS")
+    field(B, "0.1")
+    field(C, "22.0")
+    field(D, "24.5")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "degC")
+    field(PREC, "3")
+    field(LOPR, "22.0")
+    field(HOPR, "24.5")
+    field(HIGH, "25.5")
+    field(HSV, "MINOR")
+    field(HIHI, "26.5")
+    field(HHSV, "MAJOR")
+}
+# Deliberately never processed: reads INVALID/UDF (panel shows PV INV).
+record(calc, "L4-OPCPA-NL2:PS1225:13:MeasuredLevel") {
+    field(DESC, "PS1225:13 water level")
+    field(SCAN, "Passive")
+    field(EGU, "%")
+    field(PREC, "3")
+    field(LOPR, "80.0")
+    field(HOPR, "98.0")
+    field(LOW, "75.0")
+    field(LSV, "MINOR")
+    field(LOLO, "70.0")
+    field(LLSV, "MAJOR")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:14:MeasuredFlow") {
+    field(DESC, "PS1225:14 flow")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "13.5")
+    field(INPA, "L4-OPCPA-NL2:PS1225:14:MeasuredFlow.VAL NPP NMS")
+    field(B, "0.12")
+    field(C, "11.5")
+    field(D, "15.5")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "l/min")
+    field(PREC, "3")
+    field(LOPR, "11.5")
+    field(HOPR, "15.5")
+    field(LOW, "11.0")
+    field(LSV, "MINOR")
+    field(LOLO, "10.0")
+    field(LLSV, "MAJOR")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:14:T_out") {
+    field(DESC, "PS1225:14 outlet temperature")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "23.25")
+    field(INPA, "L4-OPCPA-NL2:PS1225:14:T_out.VAL NPP NMS")
+    field(B, "0.1")
+    field(C, "22.0")
+    field(D, "24.5")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "degC")
+    field(PREC, "3")
+    field(LOPR, "22.0")
+    field(HOPR, "24.5")
+    field(HIGH, "25.5")
+    field(HSV, "MINOR")
+    field(HIHI, "26.5")
+    field(HHSV, "MAJOR")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:14:MeasuredLevel") {
+    field(DESC, "PS1225:14 water level")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "89.0")
+    field(INPA, "L4-OPCPA-NL2:PS1225:14:MeasuredLevel.VAL NPP NMS")
+    field(B, "0.4")
+    field(C, "80.0")
+    field(D, "98.0")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "%")
+    field(PREC, "3")
+    field(LOPR, "80.0")
+    field(HOPR, "98.0")
+    field(LOW, "75.0")
+    field(LSV, "MINOR")
+    field(LOLO, "70.0")
+    field(LLSV, "MAJOR")
+}
+
+# --------------------------------------------------------------------------
+# NL2 — flashlamps and trigger delay
+# --------------------------------------------------------------------------
+record(mbbi, "L4-OPCPA-NL2:PS5059:22:Ch1_State") {
+    field(DESC, "PS5059:22 Ch1")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:22:Ch2_State") {
+    field(DESC, "PS5059:22 Ch2")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:23:Ch1_State") {
+    field(DESC, "PS5059:23 Ch1")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:23:Ch2_State") {
+    field(DESC, "PS5059:23 Ch2")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:24:Ch1_State") {
+    field(DESC, "PS5059:24 Ch1")
+    field(PINI, "YES")
+    field(VAL, "2")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:24:Ch2_State") {
+    field(DESC, "PS5059:24 Ch2")
+    field(PINI, "YES")
+    field(VAL, "2")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:25:Ch1_State") {
+    field(DESC, "PS5059:25 Ch1")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:25:Ch2_State") {
+    field(DESC, "PS5059:25 Ch2")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:26:Ch1_State") {
+    field(DESC, "PS5059:26 Ch1")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:26:Ch2_State") {
+    field(DESC, "PS5059:26 Ch2")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:27:Ch1_State") {
+    field(DESC, "PS5059:27 Ch1")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:27:Ch2_State") {
+    field(DESC, "PS5059:27 Ch2")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:28:Ch1_State") {
+    field(DESC, "PS5059:28 Ch1")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(mbbi, "L4-OPCPA-NL2:PS5059:28:Ch2_State") {
+    field(DESC, "PS5059:28 Ch2")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "STOP")
+    field(THST, "FAILURE")
+    field(FRST, "IGNITION")
+    field(FVST, "BUSY")
+    field(SXST, "OFF")
+}
+record(dfanout, "SIM:NL2:flashlampsAll") {
+    field(DESC, "NL2 all flashlamp channels")
+    field(VAL, "0")
+    field(OUTA, "L4-OPCPA-NL2:PS5059:22:Ch1_State PP")
+    field(OUTB, "L4-OPCPA-NL2:PS5059:22:Ch2_State PP")
+    field(OUTC, "L4-OPCPA-NL2:PS5059:23:Ch1_State PP")
+    field(OUTD, "L4-OPCPA-NL2:PS5059:23:Ch2_State PP")
+    field(OUTE, "L4-OPCPA-NL2:PS5059:24:Ch1_State PP")
+    field(OUTF, "L4-OPCPA-NL2:PS5059:24:Ch2_State PP")
+    field(OUTG, "L4-OPCPA-NL2:PS5059:25:Ch1_State PP")
+    field(OUTH, "L4-OPCPA-NL2:PS5059:25:Ch2_State PP")
+    field(OUTI, "L4-OPCPA-NL2:PS5059:26:Ch1_State PP")
+    field(OUTJ, "L4-OPCPA-NL2:PS5059:26:Ch2_State PP")
+    field(OUTK, "L4-OPCPA-NL2:PS5059:27:Ch1_State PP")
+    field(OUTL, "L4-OPCPA-NL2:PS5059:27:Ch2_State PP")
+    field(OUTM, "L4-OPCPA-NL2:PS5059:28:Ch1_State PP")
+    field(OUTN, "L4-OPCPA-NL2:PS5059:28:Ch2_State PP")
+}
+record(longin, "L4-OPCPA-NL2:PS5059:22:Ch1TriggeringDelay") {
+    field(DESC, "NL2 trigger delay")
+    field(PINI, "YES")
+    field(VAL, "790")
+    field(EGU, "ns")
+}
+record(longin, "L4-OPCPA-NL2:PS5059:22:Ch2TriggeringDelay") {
+    field(DESC, "NL2 trigger delay")
+    field(PINI, "YES")
+    field(VAL, "790")
+    field(EGU, "ns")
+}
+
+# --------------------------------------------------------------------------
+# NL2 — Modbox
+# --------------------------------------------------------------------------
+record(bi, "L4-OPCPA-NL2:ModBox:AWG:State") {
+    field(DESC, "AWG state")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "OFF")
+    field(ONAM, "ON")
+}
+record(bi, "L4-OPCPA-NL2:ModBox:RF1:Power") {
+    field(DESC, "RF1 power")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "OFF")
+    field(ONAM, "ON")
+}
+record(bi, "L4-OPCPA-NL2:ModBox:RF2:Power") {
+    field(DESC, "RF2 power")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "OFF")
+    field(ONAM, "ON")
+}
+record(bi, "L4-OPCPA-NL2:ModBox:AOM:State") {
+    field(DESC, "AOM state")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "OFF")
+    field(ONAM, "ON")
+}
+record(bi, "L4-OPCPA-NL2:ModBox:LAS1:State") {
+    field(DESC, "LAS1 state")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "OFF")
+    field(ONAM, "ON")
+}
+record(bi, "L4-OPCPA-NL2:ModBox:YDFA:State") {
+    field(DESC, "YDFA state")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "OFF")
+    field(ONAM, "ON")
+}
+record(bi, "L4-OPCPA-NL2:ModBox:YDFA:SoftwareKey") {
+    field(DESC, "AWG software key")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "OFF")
+    field(ONAM, "ON")
+}
+record(dfanout, "SIM:NL2:modboxAll") {
+    field(DESC, "NL2 all modbox subsystems")
+    field(VAL, "1")
+    field(OUTA, "L4-OPCPA-NL2:ModBox:AWG:State PP")
+    field(OUTB, "L4-OPCPA-NL2:ModBox:RF1:Power PP")
+    field(OUTC, "L4-OPCPA-NL2:ModBox:RF2:Power PP")
+    field(OUTD, "L4-OPCPA-NL2:ModBox:AOM:State PP")
+    field(OUTE, "L4-OPCPA-NL2:ModBox:LAS1:State PP")
+    field(OUTF, "L4-OPCPA-NL2:ModBox:YDFA:State PP")
+    field(OUTG, "L4-OPCPA-NL2:ModBox:YDFA:SoftwareKey PP")
+}
+record(stringin, "SI_NL2_LOADED_WAVEFORM") {
+    field(DESC, "NL2 loaded waveform")
+    field(PINI, "YES")
+    field(VAL, "std-100ps")
+}
+record(stringin, "SI_NL2_LATEST_WAVEFORM") {
+    field(DESC, "NL2 previous waveform")
+    field(PINI, "YES")
+    field(VAL, "narrow-50ps")
+}
+record(calc, "L4-OPCPA-NL2::ModBox:MBC1:BiasValue") {
+    field(DESC, "NL2 MBC1 bias")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "2.1")
+    field(INPA, "L4-OPCPA-NL2::ModBox:MBC1:BiasValue.VAL NPP NMS")
+    field(B, "0.03")
+    field(C, "1.8")
+    field(D, "2.4")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "V")
+    field(PREC, "2")
+    field(LOPR, "1.8")
+    field(HOPR, "2.4")
+}
+record(calc, "L4-OPCPA-NL2::ModBox:MBC2:BiasValue") {
+    field(DESC, "NL2 MBC2 bias")
+    field(SCAN, "1 second")
+    field(PINI, "YES")
+    field(VAL, "2.1")
+    field(INPA, "L4-OPCPA-NL2::ModBox:MBC2:BiasValue.VAL NPP NMS")
+    field(B, "0.03")
+    field(C, "1.8")
+    field(D, "2.4")
+    field(CALC, "MIN(D,MAX(C,A+(RNDM-0.5)*B))")
+    field(EGU, "V")
+    field(PREC, "2")
+    field(LOPR, "1.8")
+    field(HOPR, "2.4")
+}
+
+# --------------------------------------------------------------------------
+# NL2 — operator setpoints
+# --------------------------------------------------------------------------
+# Written directly by the panel (Set Attenuator); no command chain.
+record(longout, "L4-OPCPA-NL2:SM5-ATT1:51:CurrentPosition") {
+    field(DESC, "NL2 attenuator position")
+    field(PINI, "YES")
+    field(VAL, "51")
+    field(DRVL, "0")
+    field(DRVH, "100")
+}
+
+# --------------------------------------------------------------------------
+# NL2 — sequencer state (proof of concept, as in the React app)
+# --------------------------------------------------------------------------
+record(bi, "BI_NL2_SEQ_START_LASER") {
+    field(DESC, "Start Laser state")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZNAM, "IDLE")
+    field(ONAM, "RUNNING")
+}
+record(bi, "BI_NL2_SEQ_STOP_LASER") {
+    field(DESC, "Stop Laser state")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZNAM, "IDLE")
+    field(ONAM, "RUNNING")
+}
+record(bi, "BI_NL2_SEQ_ALIGNMENT_MODE") {
+    field(DESC, "Set to Alignment Mode state")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZNAM, "IDLE")
+    field(ONAM, "RUNNING")
+}
+record(bi, "BI_NL2_SEQ_SYSTEM_STANDBY") {
+    field(DESC, "Set to System Standby state")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZNAM, "IDLE")
+    field(ONAM, "RUNNING")
+}
+record(bi, "BI_NL2_SEQ_FLASHLAMPS_RUN") {
+    field(DESC, "Set All Flashlamps to Run state")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZNAM, "IDLE")
+    field(ONAM, "RUNNING")
+}
+record(bi, "BI_NL2_SEQ_FLASHLAMPS_STANDBY") {
+    field(DESC, "Set All Flashlamps to Standby state")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZNAM, "IDLE")
+    field(ONAM, "RUNNING")
+}
+
+# --------------------------------------------------------------------------
+# NL2 — commands
+# --------------------------------------------------------------------------
+record(bo, "CMD_NL2_START_LASER") {
+    field(DESC, "START_LASER trigger")
+    field(FLNK, "SIM:NL2:seqStartLaser")
+    field(ZNAM, "IDLE")
+    field(ONAM, "GO")
+}
+record(seq, "SIM:NL2:seqStartLaser") {
+    field(DESC, "sequence seqStartLaser")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "BI_NL2_SEQ_START_LASER PP")
+    field(DLY1, "0")
+    field(DO1, "1")
+    field(LNK1, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+    field(DLY2, "0")
+    field(DO2, "1")
+    field(LNK2, "L4-OPCPA-NL2:FullPower PP")
+    field(DLY3, "0")
+    field(DO3, "1")
+    field(LNK3, "L4-OPCPA-NL2:IO:15:RC1_pin31 PP")
+    field(DLY4, "0")
+    field(DO4, "1")
+    field(LNK4, "L4-OPCPA-NL2:SY3PL50M:32:State PP")
+    field(DLY5, "0")
+    field(DO5, "1")
+    field(LNK5, "SIM:NL2:flashlampsAll PP")
+    field(DLY6, "3")
+    field(DO6, "0")
+    field(LNK6, "BI_NL2_SEQ_START_LASER PP")
+    field(DLY7, "0")
+    field(DO7, "0")
+    field(LNK7, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+}
+record(bo, "CMD_NL2_STOP_LASER") {
+    field(DESC, "STOP_LASER trigger")
+    field(FLNK, "SIM:NL2:seqStopLaser")
+    field(ZNAM, "IDLE")
+    field(ONAM, "GO")
+}
+record(seq, "SIM:NL2:seqStopLaser") {
+    field(DESC, "sequence seqStopLaser")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "BI_NL2_SEQ_STOP_LASER PP")
+    field(DLY1, "0")
+    field(DO1, "1")
+    field(LNK1, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+    field(DLY2, "0")
+    field(DO2, "0")
+    field(LNK2, "L4-OPCPA-NL2:IO:15:RC1_pin31 PP")
+    field(DLY3, "0")
+    field(DO3, "0")
+    field(LNK3, "L4-OPCPA-NL2:FullPower PP")
+    field(DLY4, "0")
+    field(DO4, "0")
+    field(LNK4, "L4-OPCPA-NL2:SY3PL50M:32:State PP")
+    field(DLY5, "0")
+    field(DO5, "2")
+    field(LNK5, "SIM:NL2:flashlampsAll PP")
+    field(DLY6, "3")
+    field(DO6, "0")
+    field(LNK6, "BI_NL2_SEQ_STOP_LASER PP")
+    field(DLY7, "0")
+    field(DO7, "0")
+    field(LNK7, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+}
+record(bo, "L4-OPCPA-NL2:SetAlignmentMode") {
+    field(DESC, "ALIGNMENT_MODE trigger")
+    field(FLNK, "SIM:NL2:seqAlignmentMode")
+    field(ZNAM, "IDLE")
+    field(ONAM, "GO")
+}
+record(seq, "SIM:NL2:seqAlignmentMode") {
+    field(DESC, "sequence seqAlignmentMode")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "BI_NL2_SEQ_ALIGNMENT_MODE PP")
+    field(DLY1, "0")
+    field(DO1, "1")
+    field(LNK1, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+    field(DLY2, "0")
+    field(DO2, "0")
+    field(LNK2, "L4-OPCPA-NL2:FullPower PP")
+    field(DLY3, "0")
+    field(DO3, "2")
+    field(LNK3, "L4-OPCPA-NL2:SY3PL50M:32:State PP")
+    field(DLY4, "3")
+    field(DO4, "0")
+    field(LNK4, "BI_NL2_SEQ_ALIGNMENT_MODE PP")
+    field(DLY5, "0")
+    field(DO5, "0")
+    field(LNK5, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+}
+record(bo, "CMD_NL2_SYSTEM_STANDBY") {
+    field(DESC, "SYSTEM_STANDBY trigger")
+    field(FLNK, "SIM:NL2:seqSystemStandby")
+    field(ZNAM, "IDLE")
+    field(ONAM, "GO")
+}
+record(seq, "SIM:NL2:seqSystemStandby") {
+    field(DESC, "sequence seqSystemStandby")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "BI_NL2_SEQ_SYSTEM_STANDBY PP")
+    field(DLY1, "0")
+    field(DO1, "1")
+    field(LNK1, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+    field(DLY2, "0")
+    field(DO2, "0")
+    field(LNK2, "L4-OPCPA-NL2:FullPower PP")
+    field(DLY3, "0")
+    field(DO3, "0")
+    field(LNK3, "L4-OPCPA-NL2:IO:15:RC1_pin31 PP")
+    field(DLY4, "0")
+    field(DO4, "0")
+    field(LNK4, "SIM:NL2:flashlampsAll PP")
+    field(DLY5, "3")
+    field(DO5, "0")
+    field(LNK5, "BI_NL2_SEQ_SYSTEM_STANDBY PP")
+    field(DLY6, "0")
+    field(DO6, "0")
+    field(LNK6, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+}
+record(bo, "CMD_NL2_FLASHLAMPS_RUN") {
+    field(DESC, "FLASHLAMPS_RUN trigger")
+    field(FLNK, "SIM:NL2:seqFlashlampsRun")
+    field(ZNAM, "IDLE")
+    field(ONAM, "GO")
+}
+record(seq, "SIM:NL2:seqFlashlampsRun") {
+    field(DESC, "sequence seqFlashlampsRun")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "BI_NL2_SEQ_FLASHLAMPS_RUN PP")
+    field(DLY1, "0")
+    field(DO1, "1")
+    field(LNK1, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+    field(DLY2, "0")
+    field(DO2, "1")
+    field(LNK2, "SIM:NL2:flashlampsAll PP")
+    field(DLY3, "3")
+    field(DO3, "0")
+    field(LNK3, "BI_NL2_SEQ_FLASHLAMPS_RUN PP")
+    field(DLY4, "0")
+    field(DO4, "0")
+    field(LNK4, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+}
+record(bo, "CMD_NL2_FLASHLAMPS_STANDBY") {
+    field(DESC, "FLASHLAMPS_STANDBY trigger")
+    field(FLNK, "SIM:NL2:seqFlashlampsStandby")
+    field(ZNAM, "IDLE")
+    field(ONAM, "GO")
+}
+record(seq, "SIM:NL2:seqFlashlampsStandby") {
+    field(DESC, "sequence seqFlashlampsStandby")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "BI_NL2_SEQ_FLASHLAMPS_STANDBY PP")
+    field(DLY1, "0")
+    field(DO1, "1")
+    field(LNK1, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+    field(DLY2, "0")
+    field(DO2, "0")
+    field(LNK2, "SIM:NL2:flashlampsAll PP")
+    field(DLY3, "3")
+    field(DO3, "0")
+    field(LNK3, "BI_NL2_SEQ_FLASHLAMPS_STANDBY PP")
+    field(DLY4, "0")
+    field(DO4, "0")
+    field(LNK4, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+}
+record(bo, "CMD_NL2_MODBOX_ON") {
+    field(DESC, "MODBOX_ON trigger")
+    field(FLNK, "SIM:NL2:seqModboxOn")
+    field(ZNAM, "IDLE")
+    field(ONAM, "GO")
+}
+record(seq, "SIM:NL2:seqModboxOn") {
+    field(DESC, "sequence seqModboxOn")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+    field(DLY1, "0")
+    field(DO1, "1")
+    field(LNK1, "SIM:NL2:modboxAll PP")
+    field(DLY2, "0")
+    field(DO2, "0")
+    field(LNK2, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+}
+# Writing 'Sleep' here runs the MODBOX_OFF chain. Base has no record that can compare strings, so ANY write to it runs the chain — the panel only ever writes this one value.
+record(stringout, "L4-OPCPA-NL2:ModBox:Awake") {
+    field(DESC, "MODBOX_OFF trigger")
+    field(FLNK, "SIM:NL2:seqModboxOff")
+}
+record(seq, "SIM:NL2:seqModboxOff") {
+    field(DESC, "sequence seqModboxOff")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+    field(DLY1, "0")
+    field(DO1, "0")
+    field(LNK1, "SIM:NL2:modboxAll PP")
+    field(DLY2, "0")
+    field(DO2, "0")
+    field(LNK2, "L4-OPCPA-NL2:SetAlignmentMode:BUSY PP")
+}
+record(dfanout, "L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay") {
+    field(DESC, "NL2 set both channel delays")
+    field(VAL, "790")
+    field(OUTA, "L4-OPCPA-NL2:PS5059:22:Ch1TriggeringDelay PP")
+    field(OUTB, "L4-OPCPA-NL2:PS5059:22:Ch2TriggeringDelay PP")
+}
+# The panel writes the waveform name here; the chain below applies it.
+record(stringout, "CMD_NL2_LOAD_WAVEFORM") {
+    field(DESC, "LOAD_WAVEFORM trigger")
+    field(FLNK, "SIM:NL2:wfFan")
+}
+record(fanout, "SIM:NL2:wfFan") {
+    field(DESC, "waveform apply order")
+    field(LNK1, "SIM:NL2:wfSaveOld")
+    field(LNK2, "SIM:NL2:wfApply")
+}
+record(stringout, "SIM:NL2:wfSaveOld") {
+    field(DESC, "previous waveform -> latest")
+    field(DOL, "SI_NL2_LOADED_WAVEFORM NPP NMS")
+    field(OMSL, "closed_loop")
+    field(OUT, "SI_NL2_LATEST_WAVEFORM PP")
+}
+record(stringout, "SIM:NL2:wfApply") {
+    field(DESC, "command waveform -> loaded")
+    field(DOL, "CMD_NL2_LOAD_WAVEFORM NPP NMS")
+    field(OMSL, "closed_loop")
+    field(OUT, "SI_NL2_LOADED_WAVEFORM PP")
+}

@@ -6,3 +6,6 @@
 # the same client library.
 -r requirements.txt
 aioca==2.0
+
+# A local IOC to talk to: see ioc/requirements.txt (pythonSoftIOC, which brings
+# EPICS base along as a wheel) and ioc/README.md.

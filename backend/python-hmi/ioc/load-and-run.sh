@@ -4,8 +4,8 @@ set -euo pipefail
 # Load a shared image tarball and run the IOC via image-only compose.
 # Usage: ./load-and-run.sh [image_archive] [image_tag]
 
-IMAGE_ARCHIVE="${1:-laser-mockup-ioc-image.tar.gz}"
-IMAGE_TAG="${2:-laser-mockup-ioc:ready}"
+IMAGE_ARCHIVE="${1:-l4-opcpa-ioc-image.tar.gz}"
+IMAGE_TAG="${2:-l4-opcpa-ioc:ready}"
 CHECKSUM_FILE="${IMAGE_ARCHIVE}.sha256"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,6 +36,6 @@ fi
 
 docker load -i "$IMAGE_ARCHIVE"
 
-LASER_IOC_IMAGE="$IMAGE_TAG" docker compose -f docker-compose.image.yml up -d
+L4_OPCPA_IOC_IMAGE="$IMAGE_TAG" docker compose -f docker-compose.image.yml up -d
 
 echo "Container started from image '$IMAGE_TAG'"

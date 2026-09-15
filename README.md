@@ -9,6 +9,7 @@ frontend/                            Next.js 16 / React 19 / TS app (port 8082)
 backend/mockup-websocket-server/     Go simulator (Echo + Gorilla); port 8080
 backend/python-websocket-server/     FastAPI + aioca gateway to a real EPICS network
 backend/python-hmi/                  DRAFT: the same HMI as one Python process
+backend/python-hmi/ioc/              local EPICS IOC, generated from the zone config
 ```
 
 Configuration lives inside `frontend/`: `config/global.yaml` declares the zones,
@@ -71,6 +72,19 @@ PV simulator so it runs with no IOC:
 cd backend/python-hmi && pip install -r requirements.txt
 ZONE_CODE=demo EPICS_BACKEND=sim python -m app          # :8082
 ```
+
+It also ships a **local EPICS IOC** in `backend/python-hmi/ioc/`, generated from
+the same zone YAML, so the app can be run against real Channel Access on a
+laptop:
+
+```bash
+pip install -r ioc/requirements.txt
+python ioc/run_ioc.py     # a real IOC: calc records scanning, real alarm limits
+make run-ioc              # the HMI against it
+```
+
+This replaces `backend/epics/`, whose database was hand-written and had drifted
+from the config. See [backend/python-hmi/ioc/README.md](backend/python-hmi/ioc/README.md).
 
 Not a production target yet — no authentication, and the visuals have not been
 reviewed against the React page. See

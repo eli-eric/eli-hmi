@@ -14,6 +14,7 @@ For architecture, runbooks, ADRs, and the canonical map of the codebase, start a
 - `backend/mockup-websocket-server/` — Go (Echo + Gorilla) simulator that fakes EPICS PVs for local dev.
 - `backend/python-websocket-server/` — FastAPI + `aioca` gateway that talks to a real EPICS network. Production target.
 - `backend/python-hmi/` — **draft**: the whole HMI as one Python process (FastAPI + Jinja server-side rendering + Datastar over SSE + `aioca`), replacing the frontend *and* the gateway. Renders L4 OPCPA only, from the same zone YAML. Has its own README and test suite (`make test`); ships a built-in PV simulator (`EPICS_BACKEND=sim`) so it needs no IOC and no Node.
+- `backend/python-hmi/ioc/` — a local EPICS IOC whose database is **generated** from the zone config (`python ioc/generate.py`). Runs from a pip install via pythonSoftIOC — no EPICS build — or as a stock `softIoc` in Docker. Replaced `backend/epics/`, whose hand-written db had drifted from the config; edit a zone and regenerate, never edit `ioc/db/*.db`.
 
 The two backends speak the **same WebSocket protocol** (`/ws/pvs`); the frontend doesn't know which is on the other end.
 
@@ -29,6 +30,8 @@ Mockup backend: `cd backend/mockup-websocket-server && go run main.go` (port 808
 Python backend: `cd backend/python-websocket-server && fastapi dev server.py`.
 
 Server-rendered HMI: `cd backend/python-hmi && ZONE_CODE=demo EPICS_BACKEND=sim python -m app` (port 8082, same as the frontend — run one or the other). `make test` there runs its own suite; it does not share any code with `frontend/` or with the other backends, and it deliberately re-implements the presentation rules from `frontend/src/lib/websocket/` in Python rather than importing anything.
+
+Local IOC for that app: `make ioc` (a real EPICS IOC on CA 5064) and `make run-ioc` in another shell (the HMI against it, `ZONE_CODE=ioc`). `make ioc-verify` is the CA smoke test. The `ioc` zone is generated and differs from `test` in exactly two PVs — the ones naming a field of a synApps record type, which no base-only IOC can serve.
 
 Mock server has REST helpers: `GET /pv/:name/:value` to set a value, `GET /mode/:prefix/:value` to switch a PV-prefix between auto-sim and manual.
 
