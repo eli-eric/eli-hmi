@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"{% if palette %} data-palette="{{ palette }}"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ELI HMI{% endblock %}</title>
+  <link rel="stylesheet" href="{{ static('/css/hmi.css') }}">
+  {#
+    Datastar is the only JavaScript this application ships. It is vendored
+    rather than pulled from a CDN because a control room is not assumed to have
+    a route to the public internet, and because the version the Python SDK
+    generates events for should be pinned to the one the browser runs.
+  #}
+  <script type="module" src="{{ static('/vendor/datastar.js') }}"></script>
+</head>
+<body>
+  <div class="layout">
+    <nav class="nav">
+      <span class="nav-brand">ELI HMI</span>
+      {% for item in nav_items %}
+      <a class="nav-link" href="{{ item.href }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.label }}</a>
+      {% endfor %}
+      <span class="nav-spacer"></span>
+      <span class="nav-meta">zone {{ zone_code }} · {{ backend_label }}</span>
+    </nav>
+    <main class="page-container">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

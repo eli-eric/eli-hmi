@@ -1,0 +1,11 @@
+# Core: everything needed to run the HMI, including the simulator.
+#
+# `aioca` is deliberately NOT here — see requirements-epics.txt. It pulls in
+# `epicscorelibs`, a large platform-specific wheel with no build for some
+# developer machines, and an engineer working on the UI does not need Channel
+# Access. `app.epics.aioca_backend` imports it lazily, so this split is a real
+# one rather than an optimistic one.
+fastapi[standard]==0.135.2
+jinja2>=3.1,<4
+pyyaml>=6,<7
+datastar-py==1.0.2

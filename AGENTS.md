@@ -13,6 +13,7 @@ For architecture, runbooks, ADRs, and the canonical map of the codebase, start a
 - `frontend/` — Next.js 16 / React 19 / TypeScript app. App Router. Has its own `CLAUDE.md` and `AGENTS.md`.
 - `backend/mockup-websocket-server/` — Go (Echo + Gorilla) simulator that fakes EPICS PVs for local dev.
 - `backend/python-websocket-server/` — FastAPI + `aioca` gateway that talks to a real EPICS network. Production target.
+- `backend/python-hmi/` — **draft**: the whole HMI as one Python process (FastAPI + Jinja server-side rendering + Datastar over SSE + `aioca`), replacing the frontend *and* the gateway. Renders L4 OPCPA only, from the same zone YAML. Has its own README and test suite (`make test`); ships a built-in PV simulator (`EPICS_BACKEND=sim`) so it needs no IOC and no Node.
 
 The two backends speak the **same WebSocket protocol** (`/ws/pvs`); the frontend doesn't know which is on the other end.
 
@@ -26,6 +27,8 @@ Frontend (run from `frontend/`):
 Mockup backend: `cd backend/mockup-websocket-server && go run main.go` (port 8080).
 
 Python backend: `cd backend/python-websocket-server && fastapi dev server.py`.
+
+Server-rendered HMI: `cd backend/python-hmi && ZONE_CODE=demo EPICS_BACKEND=sim python -m app` (port 8082, same as the frontend — run one or the other). `make test` there runs its own suite; it does not share any code with `frontend/` or with the other backends, and it deliberately re-implements the presentation rules from `frontend/src/lib/websocket/` in Python rather than importing anything.
 
 Mock server has REST helpers: `GET /pv/:name/:value` to set a value, `GET /mode/:prefix/:value` to switch a PV-prefix between auto-sim and manual.
 

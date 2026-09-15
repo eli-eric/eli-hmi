@@ -8,6 +8,7 @@ Application for **control system operators** and **control system engineers** at
 frontend/                            Next.js 16 / React 19 / TS app (port 8082)
 backend/mockup-websocket-server/     Go simulator (Echo + Gorilla); port 8080
 backend/python-websocket-server/     FastAPI + aioca gateway to a real EPICS network
+backend/python-hmi/                  DRAFT: the same HMI as one Python process
 ```
 
 Configuration lives inside `frontend/`: `config/global.yaml` declares the zones,
@@ -53,6 +54,27 @@ For development and testing only. Not a production target.
 ### Python WebSocket Server (`backend/python-websocket-server`)
 
 FastAPI + `aioca` gateway that talks to a real EPICS network. **Production target** — built and pushed to Harbor by `.gitlab-ci.yml`.
+
+### Server-rendered HMI (`backend/python-hmi`) — draft
+
+An experiment in collapsing the three boxes above into one: FastAPI + Jinja
+render the operator page on the server, [Datastar](https://data-star.dev/)
+patches individual cells over Server-Sent Events as PVs report, and `aioca`
+talks to EPICS from the same process. No Node, no bundler, no WebSocket
+protocol between halves.
+
+It currently renders **L4 OPCPA only**, reading the same
+`config/zones/<ZONE_CODE>.yaml` format as the React module, and ships a built-in
+PV simulator so it runs with no IOC:
+
+```bash
+cd backend/python-hmi && pip install -r requirements.txt
+ZONE_CODE=demo EPICS_BACKEND=sim python -m app          # :8082
+```
+
+Not a production target yet — no authentication, and the visuals have not been
+reviewed against the React page. See
+[backend/python-hmi/README.md](backend/python-hmi/README.md).
 
 ## Quick start
 

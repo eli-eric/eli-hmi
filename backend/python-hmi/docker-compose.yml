@@ -1,0 +1,40 @@
+# Standalone quick start for the server-rendered HMI.
+#
+#   docker compose -f backend/python-hmi/docker-compose.yml up --build
+#   open http://localhost:8082
+#
+# Kept separate from the repository's root `docker-compose.yml`, which brings up
+# the Next.js frontend and the Go mock backend: this app replaces both, so
+# running them together would only compete for ports.
+
+services:
+  python-hmi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '8082:8082'
+    environment:
+      ZONE_CODE: demo
+      # The quick start has no EPICS network, so it runs the built-in
+      # simulator. A station sets `aioca` here and needs host networking for
+      # Channel Access (see the commented block below).
+      EPICS_BACKEND: sim
+      LOG_LEVEL: INFO
+    # Channel Access uses UDP broadcast for name resolution and does not survive
+    # Docker's default bridge NAT. A real deployment therefore wants:
+    #
+    # network_mode: host
+    # environment:
+    #   EPICS_BACKEND: aioca
+    #   EPICS_CA_ADDR_LIST: 10.78.0.255
+    #   EPICS_CA_AUTO_ADDR_LIST: 'NO'
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8082/health/ready').status == 200 else 1)"
+      interval: 30s
+      timeout: 3s
+      start_period: 10s

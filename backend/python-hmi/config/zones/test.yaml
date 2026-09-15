@@ -1,0 +1,144 @@
+# Engineering units for the numeric readouts, applied to every laser below.
+# A laser may override any of these with its own `units:` block. The config
+# value wins over the PV's own EGU metadata and over the component default.
+units:
+  regenTemp: "°C"
+  triggerDelay: ns
+  chillerFlow: l/min
+  chillerTemp: "°C"
+  chillerLevel: "%"
+
+# How each numeric readout is rounded, keyed by the same signal roles as
+# `units:` above. A plain number is decimal places; the object form
+# ({format: exponential, toExponential: 2}, {format: precision, toPrecision: 4})
+# is there when decimals are the wrong question. A laser may override any of
+# these with its own `format:` block.
+#
+# Roles left out fall back to three decimal places, which is what every readout
+# did before this block existed — so only the two that differed are listed.
+format:
+  modboxMbc1: 2
+  modboxMbc2: 2
+
+lasers:
+  - id: NL2
+    pvs:
+      connection: L4-OPCPA-NL2:PortControl.CNCT
+      fullPower: L4-OPCPA-NL2:FullPower
+      shutter: L4-OPCPA-NL2:IO:15:RC1_pin31
+      phdMean: L4-OPCPA-NL2:PHD1K000:49:Mean
+      regenState: L4-OPCPA-NL2:SY3PL50M:32:State
+      regenTemp: L4-OPCPA-NL2:TK6:44:DisplayTemperature
+      phd2Mean: L4-OPCPA-NL2:PHD1K000:48:Mean
+      attenuator: L4-OPCPA-NL2:SM5-ATT1:51:CurrentPosition
+      loadedWaveform: SI_NL2_LOADED_WAVEFORM
+      latestWaveform: SI_NL2_LATEST_WAVEFORM
+      modboxMbc1: L4-OPCPA-NL2::ModBox:MBC1:BiasValue
+      modboxMbc2: L4-OPCPA-NL2::ModBox:MBC2:BiasValue
+      sequencerRunning: L4-OPCPA-NL2:SetAlignmentMode.BUSY
+    triggerDelay:
+      [
+        L4-OPCPA-NL2:PS5059:22:Ch1TriggeringDelay,
+        L4-OPCPA-NL2:PS5059:22:Ch2TriggeringDelay,
+      ]
+    mss:
+      - { label: "PSS permission", pv: L4-PSS:NP2_PERMISSION_TO_OPERATE_CH1 }
+      - { label: "MSS permission", pv: L4-MSS:NP2_PERMISSION_TO_OPERATE_CH1 }
+      - { label: "OPCPA MSS interlock", pv: L4-MSS:OPA_interlock }
+      - { label: "NL2 vacuum good", pv: L4-VCS-NL2:ReadyToFire }
+      - {
+          label: "OPCPA pump tel. vac. good",
+          pv: L4-VCS-NSOPA_PUMP_TEL:ReadyToFire,
+        }
+      - {
+          label: "OPCPA seed tel. vac. good",
+          pv: L4-VCS-NSOPA_SEED_TEL:ReadyToFire,
+        }
+      - { label: "Beamdump chiller alarm", pv: L4-MSS:BEAMDUMP_CHILLER_ALARM }
+      - {
+          label: "Beamdump chiller warning",
+          pv: L4-MSS:BEAMDUMP_CHILLER_WARNING,
+        }
+    moduleErrors:
+      - { label: PS1225:11, pv: L4-OPCPA-NL2:PS1225:11:ErrorCode }
+      - { label: PS1225:12, pv: L4-OPCPA-NL2:PS1225:12:ErrorCode }
+      - { label: PS1225:13, pv: L4-OPCPA-NL2:PS1225:13:ErrorCode }
+      - { label: PS1225:14, pv: L4-OPCPA-NL2:PS1225:14:ErrorCode }
+      - { label: IO:15, pv: L4-OPCPA-NL2:IO:15:ErrorCode }
+      - { label: LDM150V5:16, pv: L4-OPCPA-NL2:LDM150V5:16:ErrorCode }
+      - { label: PS5059:22, pv: L4-OPCPA-NL2:PS5059:22:ErrorCode }
+      - { label: PS5059:23, pv: L4-OPCPA-NL2:PS5059:23:ErrorCode }
+      - { label: PS5059:24, pv: L4-OPCPA-NL2:PS5059:24:ErrorCode }
+      - { label: PS5059:25, pv: L4-OPCPA-NL2:PS5059:25:ErrorCode }
+      - { label: PS5059:26, pv: L4-OPCPA-NL2:PS5059:26:ErrorCode }
+      - { label: PS5059:27, pv: L4-OPCPA-NL2:PS5059:27:ErrorCode }
+      - { label: PS5059:28, pv: L4-OPCPA-NL2:PS5059:28:ErrorCode }
+      - { label: SY3PL50M:32, pv: L4-OPCPA-NL2:SY3PL50M:32:ErrorCode }
+      - { label: HV40W:40, pv: L4-OPCPA-NL2:HV40W:40:ErrorCode }
+      - { label: HV40W:42, pv: L4-OPCPA-NL2:HV40W:42:ErrorCode }
+      - { label: TK6:44, pv: L4-OPCPA-NL2:TK6:44:ErrorCode }
+      - { label: PHD1K000:48, pv: L4-OPCPA-NL2:PHD1K000:48:ErrorCode }
+      - { label: PHD1K000:49, pv: L4-OPCPA-NL2:PHD1K000:49:ErrorCode }
+      - { label: SM5-SH:50, pv: L4-OPCPA-NL2:SM5-SH:50:ErrorCode }
+      - { label: SM5-ATT1:51, pv: L4-OPCPA-NL2:SM5-ATT1:51:ErrorCode }
+      - { label: SM5-ATT2:52, pv: L4-OPCPA-NL2:SM5-ATT2:52:ErrorCode }
+    chillers:
+      - {
+          label: "PS1225:11",
+          flow: L4-OPCPA-NL2:PS1225:11:MeasuredFlow,
+          temp: L4-OPCPA-NL2:PS1225:11:T_out,
+          level: L4-OPCPA-NL2:PS1225:11:MeasuredLevel,
+        }
+      - {
+          label: "PS1225:12",
+          flow: L4-OPCPA-NL2:PS1225:12:MeasuredFlow,
+          temp: L4-OPCPA-NL2:PS1225:12:T_out,
+          level: L4-OPCPA-NL2:PS1225:12:MeasuredLevel,
+        }
+      - {
+          label: "PS1225:13",
+          flow: L4-OPCPA-NL2:PS1225:13:MeasuredFlow,
+          temp: L4-OPCPA-NL2:PS1225:13:T_out,
+          level: L4-OPCPA-NL2:PS1225:13:MeasuredLevel,
+        }
+      - {
+          label: "PS1225:14",
+          flow: L4-OPCPA-NL2:PS1225:14:MeasuredFlow,
+          temp: L4-OPCPA-NL2:PS1225:14:T_out,
+          level: L4-OPCPA-NL2:PS1225:14:MeasuredLevel,
+        }
+    flashlamps:
+      - { label: "PS5059:22 Ch1", pv: L4-OPCPA-NL2:PS5059:22:Ch1_State }
+      - { label: "PS5059:22 Ch2", pv: L4-OPCPA-NL2:PS5059:22:Ch2_State }
+      - { label: "PS5059:23 Ch1", pv: L4-OPCPA-NL2:PS5059:23:Ch1_State }
+      - { label: "PS5059:23 Ch2", pv: L4-OPCPA-NL2:PS5059:23:Ch2_State }
+      - { label: "PS5059:24 Ch1", pv: L4-OPCPA-NL2:PS5059:24:Ch1_State }
+      - { label: "PS5059:24 Ch2", pv: L4-OPCPA-NL2:PS5059:24:Ch2_State }
+      - { label: "PS5059:25 Ch1", pv: L4-OPCPA-NL2:PS5059:25:Ch1_State }
+      - { label: "PS5059:25 Ch2", pv: L4-OPCPA-NL2:PS5059:25:Ch2_State }
+      - { label: "PS5059:26 Ch1", pv: L4-OPCPA-NL2:PS5059:26:Ch1_State }
+      - { label: "PS5059:26 Ch2", pv: L4-OPCPA-NL2:PS5059:26:Ch2_State }
+      - { label: "PS5059:27 Ch1", pv: L4-OPCPA-NL2:PS5059:27:Ch1_State }
+      - { label: "PS5059:27 Ch2", pv: L4-OPCPA-NL2:PS5059:27:Ch2_State }
+      - { label: "PS5059:28 Ch1", pv: L4-OPCPA-NL2:PS5059:28:Ch1_State }
+      - { label: "PS5059:28 Ch2", pv: L4-OPCPA-NL2:PS5059:28:Ch2_State }
+    modbox:
+      - { label: "AWG state", pv: L4-OPCPA-NL2:ModBox:AWG:State }
+      - { label: "RF1 power", pv: L4-OPCPA-NL2:ModBox:RF1:Power }
+      - { label: "RF2 power", pv: L4-OPCPA-NL2:ModBox:RF2:Power }
+      - { label: "AOM state", pv: L4-OPCPA-NL2:ModBox:AOM:State }
+      - { label: "LAS1 state", pv: L4-OPCPA-NL2:ModBox:LAS1:State }
+      - { label: "YDFA state", pv: L4-OPCPA-NL2:ModBox:YDFA:State }
+      - { label: "AWG software key", pv: L4-OPCPA-NL2:ModBox:YDFA:SoftwareKey }
+    delayPresets: [50, 500, 700, 790]
+    commands:
+      START_LASER: START_LASER
+      STOP_LASER: STOP_LASER
+      ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode
+      SYSTEM_STANDBY: SYSTEM_STANDBY
+      FLASHLAMPS_RUN: FLASHLAMPS_RUN
+      FLASHLAMPS_STANDBY: FLASHLAMPS_STANDBY
+      MODBOX_ON: MODBOX_ON
+      MODBOX_OFF: { pv: L4-OPCPA-NL2:ModBox:Awake, value: Sleep }
+      SET_DELAY: L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay
+      LOAD_WAVEFORM: LOAD_WAVEFORM
