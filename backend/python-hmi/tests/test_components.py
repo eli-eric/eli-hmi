@@ -8,11 +8,16 @@ The second exercises each component's own judgements.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from core.components import Component, PvReader, PvSpec, registry, slug
 from core.epics import Datatype, PvId, PvSample
 from core.jinja import create_environment
+
+#: The app root, for the two tests that read the stylesheet itself.
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def build(name: str, **block) -> Component:
@@ -398,3 +403,52 @@ class TestValve:
     def test_without_command_pvs_the_buttons_write_the_state_directly(self):
         component = build("valve", label="V", pv="X:V:State")
         assert component.context()["open_target"] == ("X:V:State", 1)
+
+
+class TestRowLayout:
+    """How wide a value is, is a design decision — and one worth a test.
+
+    A reading occupies a fixed field; it does not stretch to the end of its row.
+    Stretching made a one-word state ("YES") a box the width of the panel, which
+    read as emphasis nobody meant, and it left every reading in a card a
+    different width, so a column could not be scanned down. Two rules enforce
+    it, one in the stylesheet and one in the row macro, and each of them is easy
+    to undo by accident.
+    """
+
+    @staticmethod
+    def stylesheet() -> str:
+        return (ROOT / "core" / "static" / "css" / "hmi.css").read_text()
+
+    def test_a_card_declares_a_fixed_value_field(self):
+        assert "--hmi-value-width:" in self.stylesheet()
+
+    def test_a_row_has_no_stretching_track(self):
+        """The row's tracks must add up to LESS than the row: no `1fr` on the
+        value column, or the value fills whatever is left again."""
+        css = self.stylesheet()
+        rule = css[css.index("\n.row {") : css.index("\n.row[data-has-action")]
+        assert "minmax(0, var(--hmi-value-width, 1fr))" in rule
+        assert "minmax(0, 1fr)" not in rule
+
+    def test_a_row_can_ask_for_the_rest_of_the_card(self):
+        """The escape hatch for a cell that carries more than one reading."""
+        css = self.stylesheet()
+        assert ".row[data-value='wide']" in css
+        rows = (ROOT / "components" / "templates" / "rows.html").read_text()
+        assert 'data-value="wide"' in rows
+
+    def test_a_value_component_passes_the_flag_through(self):
+        """`wide: true` in a zone's YAML has to reach the markup, or the screen
+        author's only recourse is editing the stylesheet."""
+        component = build("value", label="V", pv="X:V", wide=True)
+        assert component.config.wide is True
+
+    def test_a_column_header_wraps_rather_than_colliding(self):
+        """A header wider than its column used to overflow its grid track and
+        print on top of its neighbour — "Flow (l/min)" and "Temp (degC)" became
+        one illegible word in a 22rem panel."""
+        css = self.stylesheet()
+        rule = css[css.index("\n.col-header {") :][: css[css.index("\n.col-header {") :].index("}")]
+        assert "white-space: nowrap" not in rule
+        assert "overflow-wrap: normal" in rule

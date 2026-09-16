@@ -181,6 +181,12 @@ class Readable(ComponentConfig):
     setpoint: Setpoint | None = Field(
         default=None, description="A value the operator types or picks."
     )
+    wide: bool = Field(
+        default=False,
+        description="Widen this row's value field, for a string that does not fit "
+        "the standard one (a long recipe or state name). Readings are otherwise "
+        "all one width, which is what lets a column be scanned down.",
+    )
 
     @property
     def value_format(self) -> ValueFormatOptions | None:

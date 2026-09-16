@@ -4,7 +4,7 @@
 ZONE_CODE ?= TESTZ
 PORT ?= 8082
 
-.PHONY: install install-epics install-dev install-ioc \
+.PHONY: snapshot install install-epics install-dev install-ioc \
         run run-zone run-epics run-ioc ioc ioc-db ioc-verify \
         components test
 
@@ -60,6 +60,11 @@ components:
 	@python -c "from core.components import registry; \
 	rows = sorted(registry().items()); \
 	[print(f'{name:14s} {cls.summary}') for name, cls in rows]"
+
+# Freeze one render of every screen as plain HTML, for a layout review without
+# a running IOC (see tools/snapshot.py).
+snapshot:
+	python tools/snapshot.py --zone $(ZONE_CODE) --out snapshot
 
 test:
 	python -m pytest tests -q

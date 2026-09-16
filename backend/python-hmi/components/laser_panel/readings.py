@@ -327,7 +327,9 @@ def bias_row(read: PvReader, spec: Config) -> dict[str, Any]:
                     read(pv_name),
                     pv_name=pv_name,
                     value_format=spec.value_format(role),
-                    units=spec.unit(role),
+                    # No unit in the cell: two of these share one row, and the
+                    # row's label carries the unit instead (see panel.html).
+                    units=None,
                     is_connected=read.is_connected,
                 ),
             }

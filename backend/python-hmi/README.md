@@ -57,8 +57,15 @@ Against the control system, on a station in a zone:
 python -m core            # zone from the hostname; see zones/README.md
 ```
 
-Tests: `make test` (241 tests, ~8 s — the end-to-end ones run a real uvicorn
+Tests: `make test` (246 tests, ~8 s — the end-to-end ones run a real uvicorn
 socket, because the thing under test is a streaming response).
+
+To *look* at a screen without a running IOC — for a layout review, a diff
+against the React page, or to send someone a page to comment on:
+
+```bash
+python tools/snapshot.py --zone TESTZ --out /tmp/snapshot   # frozen HTML, opens anywhere
+```
 
 ## Adding a screen
 
@@ -210,9 +217,14 @@ the zone was resolved).
 
 ## Known gaps in this draft
 
-- **Not visually reviewed.** The CSS is a faithful port of the React CSS
-  Modules, but nobody has put the two side by side. Expect spacing to need a
-  pass.
+- **Not reviewed against the React page side by side.** The layout itself has
+  been reviewed (`tools/snapshot.py` renders it), and no reading truncates at
+  1280–2560px — but nobody has put the two apps next to each other.
+- **No webfont is shipped.** The stylesheet asks for Roboto Condensed and falls
+  back to Arial Narrow, and the fixed 8.5rem label column was measured with
+  Roboto Condensed: on a machine without it, the longest device labels
+  ("Regen SY3PL50M:32") truncate by a few pixels. They carry the full text as a
+  tooltip, but vendoring the font beside `datastar.js` is the fix.
 - **No authentication.** The React app used NextAuth + LDAP and both backends
   required a JWT on the WebSocket. Nothing here checks anything, so `/api/write`
   is open to whoever can reach the port.

@@ -65,6 +65,19 @@ read for its `components:` as well, in filename order — so one file per device
 keeps a twenty-motor screen reviewable, and adding a device is adding a file.
 See `zones/01/motors/`.
 
+### `wide:` when a value does not fit
+
+A reading gets a fixed field, so a column of them lines up and a one-word state
+does not become a box the width of the panel. A string that needs more than that
+— a recipe name, a long state — asks for it:
+
+```yaml
+- { component: value, label: Recipe, pv: "…:Recipe:Name", wide: true }
+```
+
+It is deliberately the exception: every row that takes it costs the alignment
+that makes a card scannable.
+
 ### `range:` and `alarm:` are worth filling in
 
 They are engineering information, not decoration:

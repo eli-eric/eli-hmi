@@ -86,7 +86,10 @@
     {# -------------------------------------------------------------- Chillers #}
     {% if c.chillers %}
     <section class="card">
-      <div class="data-grid" style="--data-grid-columns: 3">
+      {# A narrower label column than a reading row's: the row label is a
+         chiller id, and the width it gives back is what lets an alarmed
+         "27.250" keep its last digit in a ~4rem cell. #}
+      <div class="data-grid" style="--data-grid-columns: 3; --hmi-label-width: 7rem">
         <span></span>
         {# The unit goes in the column header once instead of on every cell: a
            chiller cell is only ~3.9rem wide and "24.810" already fills it. #}
@@ -95,7 +98,7 @@
         <span class="col-header">Water{% if c.unit('chillerLevel') %} ({{ c.unit('chillerLevel') }}){% endif %}</span>
         {% for chiller in c.chillers %}
         <div class="contents">
-          <span class="row-label">Chiller {{ chiller.label }}</span>
+          <span class="row-label" title="Chiller {{ chiller.label }}">{{ chiller.label }}</span>
           {{ w['chiller_%d_flow' % loop.index0] }}
           {{ w['chiller_%d_temp' % loop.index0] }}
           {{ w['chiller_%d_level' % loop.index0] }}
@@ -163,7 +166,9 @@
       {{ w['modbox_list'] }}
 
       {% if 'bias' in w %}
-      {{ rows.row('Bias Value', w['bias'], bare=true) }}
+      {% set bias_unit = c.unit('modboxMbc1') or c.unit('modboxMbc2') %}
+      {{ rows.row('Bias Value' ~ (' (' ~ bias_unit ~ ')' if bias_unit else ''),
+                  w['bias'], bare=true, wide=true) }}
       {% endif %}
 
       {% if c.can('LOAD_WAVEFORM') %}

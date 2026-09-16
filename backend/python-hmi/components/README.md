@@ -44,7 +44,7 @@ class Valve(Component):
 A folder with an `__init__.py` is a component; importing `components` imports
 all of them, which is how they register. There is no list to keep in step.
 
-### The four rules that matter
+### The five rules that matter
 
 **1. A widget is a value cell, never a whole row.** Labels, buttons and inputs
 are rendered once with the page and never patched, so an SSE update cannot land
@@ -68,6 +68,16 @@ component that reads an undeclared PV works against the real network and shows
 component's documentation as far as a controls engineer is concerned: they are
 what the error message shows. "Which state is good news, and therefore green"
 beats "the good state".
+
+**5. Never decide width either.** A reading sits in a fixed field
+(`--hmi-value-width`, 7.5rem), not the rest of the row. Two reasons, and both
+are about reading a card rather than a line: a one-word state stretched across a
+panel reads as emphasis nobody meant, and readings all one width can be scanned
+down a column, decimals included. Call `rows.row(...)` and you get this for
+free. A cell that genuinely carries more than a reading — two channels with
+their own labels — passes `wide=true` and takes the rest of the card; a screen
+author can ask for the same with `wide: true` in YAML. Anything you reach for
+beyond those two belongs in a review, not in a template.
 
 ### Declaring a command
 

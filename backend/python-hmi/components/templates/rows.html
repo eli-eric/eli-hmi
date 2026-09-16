@@ -29,19 +29,26 @@
 
     `value` is already-rendered widget HTML. `bare` is for a value that carries
     its own chrome (a pill), where a bordered cell around it would be a box
-    inside a box. -#}
-{%- macro row(label, value, action=none, bare=false) -%}
-<div class="row" data-has-action="{{ 'true' if action else 'false' }}">
-<span class="label">{{ label }}</span>
+    inside a box.
+
+    `wide` widens the value field for a row that carries more than a reading —
+    two channels in one cell, a long waveform name. Values are otherwise all
+    one width, which is what lets a card be scanned down its column rather than
+    read line by line, so reach for this only when the content needs it. -#}
+{%- macro row(label, value, action=none, bare=false, wide=false) -%}
+<div class="row" data-has-action="{{ 'true' if action else 'false' }}"
+     {%- if wide %} data-value="wide"{% endif %}>
+<span class="label" title="{{ label }}">{{ label }}</span>
 {% if bare %}<span class="value value-bare">{{ value }}</span>{% else %}{{ value }}{% endif %}
 {% if action %}<span class="action">{{ action }}</span>{% endif %}
 </div>
 {%- endmacro -%}
 
 {#- A row whose label is a button that expands a detail list. -#}
-{%- macro expandable_row(label, value, signal, action=none) -%}
-<div class="row" data-has-action="{{ 'true' if action else 'false' }}">
-<span class="label">{{ label }}</span>
+{%- macro expandable_row(label, value, signal, action=none, wide=false) -%}
+<div class="row" data-has-action="{{ 'true' if action else 'false' }}"
+     {%- if wide %} data-value="wide"{% endif %}>
+<span class="label" title="{{ label }}">{{ label }}</span>
 <span class="value value-bare">
 <button type="button" class="state-button" aria-label="Toggle {{ label }} detail"
         data-on:click="${{ signal }} = !${{ signal }}"
