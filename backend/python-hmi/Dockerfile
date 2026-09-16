@@ -16,6 +16,12 @@ WORKDIR /app
 # EPICS by default: this image is the production target, and a station that
 # cannot reach Channel Access should fail loudly rather than quietly show
 # simulated numbers. Local development runs from a checkout, not from here.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    make \
+    libc-dev \
+    && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt requirements-epics.txt ./
 RUN pip install --no-cache-dir -r requirements-epics.txt
 
