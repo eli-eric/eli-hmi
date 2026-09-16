@@ -8,9 +8,9 @@ import asyncio
 
 import pytest
 
-from app.epics.hub import PvHub
-from app.epics.sim_backend import SimBackend, SimSpec
-from app.epics.types import Datatype, PvId, PvSample
+from core.epics.hub import PvHub
+from core.epics.sim_backend import SimBackend, SimSpec
+from core.epics.types import Datatype, PvId, PvSample
 
 
 class RecordingBackend:

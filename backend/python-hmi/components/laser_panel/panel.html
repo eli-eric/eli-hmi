@@ -1,0 +1,203 @@
+{#
+  One laser's column: the static structure of the five sections.
+
+  Every live value is a `{{ w[...] }}` widget; everything else here is rendered
+  once and never touched again. Sections whose device bank is empty are omitted
+  — the component only declares widgets for the ones the config fills — and
+  `c.can(...)` gates every action button, with no fail-open default, so an
+  omission in the config can never silently re-enable a control.
+
+  Context: `c` (the laser's config), `w` (its widgets), `signals`, `cmd`
+  (resolved command targets) and `states` (the flashlamp columns).
+#}
+{% import "rows.html" as rows with context %}
+{% import "controls.html" as controls with context %}
+
+<article class="panel">
+  <header class="panel-header"><h2 class="panel-title">{{ c.laser }}</h2></header>
+  <div class="panel-body">
+
+    {# ------------------------------------------------------------- Sequencer #}
+    {% if 'sequencer_pill' in w %}
+    <section class="card">
+      {{ rows.expandable_row('Sequencer', w['sequencer_pill'], signals.seq) }}
+      {{ w['sequencer_list'] }}
+    </section>
+    {% endif %}
+
+    {# --------------------------------------------------------------- General #}
+    <section class="card">
+      <div class="overview-wrapper">
+        <div class="overview-row">
+          <span class="row-label">Overview</span>
+          {{ w['overview'] }}
+        </div>
+      </div>
+      {{ w['mss_list'] }}
+      {{ w['err_list'] }}
+
+      {% set shutter_cog = comp.signal('cog_shutter') %}
+      {% set shutter_actions %}
+      {% call controls.cog(shutter_cog, 'Shutter actions') %}
+        {{ controls.action_button('Open Shutter', c.pvs.shutter, 1, 'secondary', shutter_cog) }}
+        {{ controls.action_button('Close Shutter', c.pvs.shutter, 0, 'secondary', shutter_cog) }}
+      {% endcall %}
+      {% endset %}
+      {{ rows.row('Shutter Position', w['shutter'], shutter_actions, bare=true) }}
+
+      {{ rows.row('PHD1K000:49/Mean', w['phd_mean']) }}
+
+      {% if c.can('START_LASER') or c.can('STOP_LASER') or c.can('ALIGNMENT_MODE') or c.can('SYSTEM_STANDBY') %}
+      {% set general_cog = comp.signal('cog_general') %}
+      <div class="action-row">
+        {% call controls.cog(general_cog, 'General Actions', 'General Actions') %}
+          {% if c.can('START_LASER') %}
+            {{ controls.action_button('Start Laser', cmd.START_LASER.pv, cmd.START_LASER.value, 'primary', general_cog) }}
+          {% endif %}
+          {% if c.can('STOP_LASER') %}
+            {{ controls.action_button('Stop Laser', cmd.STOP_LASER.pv, cmd.STOP_LASER.value, 'danger', general_cog) }}
+          {% endif %}
+          {% if c.can('ALIGNMENT_MODE') %}
+            {{ controls.action_button('Set to Alignment Mode', cmd.ALIGNMENT_MODE.pv, cmd.ALIGNMENT_MODE.value, 'secondary', general_cog) }}
+          {% endif %}
+          {% if c.can('SYSTEM_STANDBY') %}
+            {{ controls.action_button('Set to System Standby', cmd.SYSTEM_STANDBY.pv, cmd.SYSTEM_STANDBY.value, 'secondary', general_cog) }}
+          {% endif %}
+        {% endcall %}
+      </div>
+      {% endif %}
+    </section>
+
+    {# ----------------------------------------------------------------- Regen #}
+    <section class="card">
+      {{ rows.row('Regen SY3PL50M:32', w['regen_state']) }}
+      {{ rows.row('Regen Temp TK6:44', w['regen_temp']) }}
+      {{ rows.row('PHD1K000:48/Mean', w['phd2_mean']) }}
+      {% set atten_cog = comp.signal('cog_atten') %}
+      {% set atten_actions %}
+      {% call controls.cog(atten_cog, 'Set attenuator') %}
+        {{ controls.preset_input('Set Attenuator', [], c.pvs.attenuator,
+                                 comp.signal('set_atten', ''), atten_cog) }}
+      {% endcall %}
+      {% endset %}
+      {{ rows.row('Atten. SM5:ATT1:51', w['attenuator'], atten_actions) }}
+    </section>
+
+    {# -------------------------------------------------------------- Chillers #}
+    {% if c.chillers %}
+    <section class="card">
+      <div class="data-grid" style="--data-grid-columns: 3">
+        <span></span>
+        {# The unit goes in the column header once instead of on every cell: a
+           chiller cell is only ~3.9rem wide and "24.810" already fills it. #}
+        <span class="col-header">Flow{% if c.unit('chillerFlow') %} ({{ c.unit('chillerFlow') }}){% endif %}</span>
+        <span class="col-header">Temp{% if c.unit('chillerTemp') %} ({{ c.unit('chillerTemp') }}){% endif %}</span>
+        <span class="col-header">Water{% if c.unit('chillerLevel') %} ({{ c.unit('chillerLevel') }}){% endif %}</span>
+        {% for chiller in c.chillers %}
+        <div class="contents">
+          <span class="row-label">Chiller {{ chiller.label }}</span>
+          {{ w['chiller_%d_flow' % loop.index0] }}
+          {{ w['chiller_%d_temp' % loop.index0] }}
+          {{ w['chiller_%d_level' % loop.index0] }}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {# ------------------------------------------------------------ Flashlamps #}
+    {% if c.flashlamps %}
+    <section class="card">
+      <div class="tally-grid" style="--tally-state-count: {{ states | length }}">
+        <span class="row-label"></span>
+        {% for state in states %}
+        <span class="col-header">{{ state }}</span>
+        {% endfor %}
+        <span></span>
+
+        <button type="button" class="flashlamp-state-button" aria-label="Toggle Flashlamps channel detail"
+                data-on:click="${{ signals.fl }} = !${{ signals.fl }}"
+                data-attr="{'aria-expanded': ${{ signals.fl }} ? 'true' : 'false'}">
+          <span>Flashlamps State</span>
+          <span class="corner-triangle" data-class="{expanded: ${{ signals.fl }}}" aria-hidden="true"></span>
+        </button>
+        {{ w['flashlamp_counts'] }}
+        {% if c.can('FLASHLAMPS_RUN') or c.can('FLASHLAMPS_STANDBY') %}
+        {% set fl_cog = comp.signal('cog_flashlamps') %}
+        <span>
+          {% call controls.cog(fl_cog, 'Flashlamps actions') %}
+            {% if c.can('FLASHLAMPS_RUN') %}
+              {{ controls.action_button('Set All to Run', cmd.FLASHLAMPS_RUN.pv, cmd.FLASHLAMPS_RUN.value, 'primary', fl_cog) }}
+            {% endif %}
+            {% if c.can('FLASHLAMPS_STANDBY') %}
+              {{ controls.action_button('Set All to Standby', cmd.FLASHLAMPS_STANDBY.pv, cmd.FLASHLAMPS_STANDBY.value, 'secondary', fl_cog) }}
+            {% endif %}
+          {% endcall %}
+        </span>
+        {% else %}
+        <span></span>
+        {% endif %}
+      </div>
+
+      {{ w['flashlamp_list'] }}
+
+      {% if c.can('SET_DELAY') %}
+      {% set delay_cog = comp.signal('cog_delay') %}
+      {% set delay_actions %}
+      {% call controls.cog(delay_cog, 'Set trigger delay') %}
+        {{ controls.preset_input('Set Trigger Delay', c.delay_presets, cmd.SET_DELAY.pv,
+                                 comp.signal('set_delay', ''), delay_cog) }}
+      {% endcall %}
+      {% endset %}
+      {{ rows.row('Trigger Delay', w['trigger_delay'], delay_actions) }}
+      {% else %}
+      {{ rows.row('Trigger Delay', w['trigger_delay']) }}
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {# ---------------------------------------------------------------- Modbox #}
+    {% if c.modbox %}
+    <section class="card">
+      {{ rows.expandable_row('Modbox State', w['modbox_pill'], signals.modbox) }}
+      {{ w['modbox_list'] }}
+
+      {% if 'bias' in w %}
+      {{ rows.row('Bias Value', w['bias'], bare=true) }}
+      {% endif %}
+
+      {% if c.can('LOAD_WAVEFORM') %}
+      {% set wf_cog = comp.signal('cog_waveform') %}
+      {% set wf_actions %}
+      {% call controls.cog(wf_cog, 'Set waveform preset') %}
+        {{ controls.choice_select(cmd.LOAD_WAVEFORM.pv, comp.signal('set_waveform', ''),
+                                  waveforms, 'Set waveform', wf_cog) }}
+      {% endcall %}
+      {% endset %}
+      {{ rows.row('Waveform Preset', w['waveform_preset'], wf_actions) }}
+      {% else %}
+      {{ rows.row('Waveform Preset', w['waveform_preset']) }}
+      {% endif %}
+
+      {% if 'waveform_latest' in w %}
+      {{ rows.row('Waveform Latest', w['waveform_latest']) }}
+      {% endif %}
+
+      {% if c.can('MODBOX_ON') or c.can('MODBOX_OFF') %}
+      {% set modbox_cog = comp.signal('cog_modbox') %}
+      <div class="action-row">
+        {% call controls.cog(modbox_cog, 'Modbox actions', 'Modbox Actions') %}
+          {% if c.can('MODBOX_ON') %}
+            {{ controls.action_button('Set Modbox ON', cmd.MODBOX_ON.pv, cmd.MODBOX_ON.value, 'primary', modbox_cog) }}
+          {% endif %}
+          {% if c.can('MODBOX_OFF') %}
+            {{ controls.action_button('Set Modbox OFF', cmd.MODBOX_OFF.pv, cmd.MODBOX_OFF.value, 'secondary', modbox_cog) }}
+          {% endif %}
+        {% endcall %}
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+  </div>
+</article>

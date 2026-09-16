@@ -1,0 +1,1265 @@
+/* ===========================================================================
+ * ELI HMI — one stylesheet.
+ *
+ * Ported from the React app's CSS Modules: `globals.css` (tokens + the tone
+ * layer), `LaserPanel.module.css`, `sections.module.css`,
+ * `OverviewBar.module.css`, `DataRow.module.css`, `Values.module.css`,
+ * `SectionCard.module.css`, `DetailList.module.css`, `ActionButton.module.css`,
+ * `CogToggle.module.css`, `PresetIntegerInput.module.css`, `page.module.css`
+ * and `laser-grid.module.css`.
+ *
+ * The scoping CSS Modules provided is gone, so class names are global and
+ * kebab-case. That is a real trade — but the panel is one page with one design
+ * language, and the alternative (a build step to hash class names) would put
+ * back the toolchain this rewrite removed.
+ *
+ * What did NOT change is the division of responsibility, because it is what
+ * keeps the HMI honest:
+ *
+ *   - Component rules own GEOMETRY: size, spacing, alignment.
+ *   - The tone layer owns COLOUR. A component opts in by declaring
+ *     `data-tone-surface`; it never writes a status colour itself.
+ *
+ * A template that picked its own red would be a second notion of "bad",
+ * competing with what the control system reported. There is exactly one.
+ * ======================================================================== */
+
+:root {
+  /* Base colors — graduated grayscale palette */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e6e6e6;
+  --color-gray-300: #d9d9d9;
+  --color-gray-400: #d1d1d1;
+  --color-gray-500: #b0b0b0;
+  --color-gray-600: #9e9e9e;
+  --color-gray-700: #757575;
+  --color-gray-800: #454545;
+  --color-gray-900: #212121;
+  --color-black: #000;
+
+  /* Semantic colors built on the grayscale palette */
+  --color-background: var(--color-gray-500);
+  --color-surface-lighter: var(--color-gray-200);
+  --color-surface-light: var(--color-gray-300);
+  --color-surface: var(--color-gray-400);
+  --color-border: var(--color-gray-500);
+  --color-text: var(--color-black);
+  --color-text-secondary: var(--color-gray-600);
+  --color-nav-background: var(--color-gray-800);
+
+  /* L4 OPCPA panel design tokens (CSI-782): the single source of truth for the
+   * panel width, spacing scale and typography. */
+  --hmi-panel-width: 22rem;
+  --hmi-gap: 0.1429rem;
+  --hmi-gap-sm: 0.1429rem;
+  --hmi-font-size: 0.8125rem;
+  --hmi-row-min-h: 1.375rem;
+
+  --color-warning-light: #fbbf24;
+  --color-warning: #f59e0b;
+  --color-warning-dark: #d97706;
+
+  --color-error-light: #ff5c52;
+  --color-error: #ff3b30;
+  --color-error-dark: #e91004;
+
+  --color-success-light: #34d399;
+  --color-success: #10b981;
+  --color-success-dark: #059669;
+
+  --color-invalid-light: #a78bfa;
+  --color-invalid: #8b5cf6;
+  --color-invalid-dark: #7c3aed;
+
+  /* Alarm badge marking MINOR/MAJOR readings (see the tone layer). In em so it
+   * tracks the text it accompanies, and kept narrow deliberately: it steals
+   * width from the value, and a chiller cell has little to spare. */
+  --tone-alert-width: 1em;
+  --tone-alert-gap: 0.125rem;
+  --tone-border-width: 1px;
+
+  /* Translucent blue focus ring; see the accessibility block at the end. */
+  --color-focus: rgba(2, 132, 199, 0.5);
+  --border-radius-sm: 0.125rem;
+}
+
+/* The L4 hall's laser-safety goggles filter the wavelengths this panel signals
+ * trouble with, so every negative indication is repainted in a colour that
+ * survives the filter, with a black border. Consequence, accepted: MINOR and
+ * MAJOR become the same colour — they stay distinguishable by their tooltip,
+ * and INVALID still replaces the reading with PV INV / PV DSC, so no state has
+ * colour as its only channel. `--color-success*` is deliberately not
+ * redefined: whether green survives these goggles is unverified. */
+:root[data-palette='l4-goggles'] {
+  --color-warning: #ff00c8;
+  --color-warning-dark: #000;
+  --color-error: #ff00c8;
+  --color-error-light: #ff00c8;
+  --color-error-dark: #000;
+  --color-invalid: #ff00c8;
+  --color-invalid-dark: #000;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Fluid base unit, so the fully rem-based UI adapts across phones ->
+   * monitors -> TVs. 12.5px floor keeps five panels in one row at 1600px;
+   * 18px on 4K displays is readable across a control room. Browser zoom still
+   * works on top of this. */
+  font-size: clamp(12.5px, 0.5vw + 4.5px, 18px);
+  /* Narrow fallbacks matter: a wide sans-serif overflows the fixed-width label
+   * columns and truncates them. */
+  font-family: 'Roboto Condensed', 'Arial Narrow', 'Roboto', system-ui, sans-serif;
+  background: var(--color-background);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--color-text);
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-nav-background);
+  color: var(--color-gray-100);
+  font-size: var(--hmi-font-size);
+}
+
+/* The zone code, and it is the loudest thing in the header on purpose: each
+ * zone is a separate network and this app runs once per zone, so "which zone
+ * is this" must never be a guess. */
+.nav-zone {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.0625rem 0.375rem;
+  background: var(--color-gray-100);
+  color: var(--color-black);
+  border: 1px solid var(--color-gray-100);
+}
+
+.nav-link {
+  color: var(--color-gray-100);
+  text-decoration: none;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid transparent;
+}
+
+.nav-link[aria-current='page'] {
+  border-color: var(--color-gray-100);
+}
+
+.nav-spacer {
+  flex: 1 1 auto;
+}
+
+.nav-meta {
+  color: var(--color-gray-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.page-container {
+  flex: 1 1 auto;
+  overflow: auto;
+  background: var(--color-background);
+}
+
+/* ------------------------------------------------------------------ the page */
+
+.page {
+  --header-stack-height: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.375rem 0.5rem;
+  width: 100%;
+}
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-background);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.page-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.125rem;
+  border-bottom: 1px solid var(--color-text-secondary);
+}
+
+.page-description {
+  font-size: var(--hmi-font-size);
+  color: var(--color-gray-800);
+}
+
+.page-title {
+  margin: 0;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.write-status,
+.write-busy {
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  padding: 0.0625rem 0.375rem;
+  background: var(--color-surface-lighter);
+  border: 1px solid var(--color-text);
+  max-width: 40rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.write-busy {
+  border-style: dashed;
+}
+
+/* The watchdog element exists only to run `data-on-interval`; it has nothing to
+ * show. */
+.stream-watchdog {
+  display: none;
+}
+
+.banner {
+  padding: 0.1875rem 0.375rem;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-error-light);
+  border: 1px solid var(--color-error-dark);
+  color: var(--color-text);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: var(--hmi-font-size);
+  letter-spacing: 0.04em;
+}
+
+.legend-item {
+  display: inline-flex;
+}
+
+/* Geometry only. The swatches are painted by the global tone layer — that is
+ * the point of this legend: it shows the real tones, not a copy of them. */
+.legend-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.125rem 0.5rem;
+  min-height: 1.25rem;
+}
+
+/* Panels wrap to fit any width: 1 per row on a phone, several on a monitor. */
+.component-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem 0;
+  align-items: start;
+  align-content: flex-start;
+}
+
+.component-grid > * {
+  width: var(--hmi-panel-width);
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+
+/* ----------------------------------------------------------------- one panel */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hmi-gap);
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-secondary);
+  min-width: var(--hmi-panel-width);
+}
+
+.panel-header {
+  position: sticky;
+  top: var(--header-stack-height, 0);
+  z-index: 1;
+  background: var(--color-text);
+  color: var(--color-surface-lighter);
+  padding: 0.1875rem 0.375rem;
+  border-bottom: 1px solid var(--color-text);
+}
+
+.panel-title {
+  margin: 0;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-surface-lighter);
+}
+
+/* A panel that holds a wide table asks for two columns. Everything still
+ * wraps, so a narrow window puts it back to one. */
+.panel[data-width='double'] {
+  width: calc(var(--hmi-panel-width) * 2 + 0.25rem);
+}
+
+.panel-subtitle {
+  font-size: var(--hmi-font-size);
+  color: var(--color-gray-500);
+  margin-left: 0.5rem;
+}
+
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hmi-gap);
+  padding: 0 0 0.1429rem;
+}
+
+.card {
+  /* 8.5rem: the widest device label ("Regen SY3PL50M:32") measures 94px with
+   * the font loaded, so this keeps ~25px of margin and still holds a narrow
+   * fallback font. 7.25rem truncated in the field. */
+  --hmi-label-width: 8.5rem;
+  --hmi-action-width: 2.25rem;
+  --hmi-column-gap: 0.1429rem;
+  background: var(--color-surface-light);
+  border: 1px solid var(--color-text);
+  padding: 0.1875rem 0.375rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--hmi-gap-sm);
+}
+
+/* ------------------------------------------------------------------- one row */
+
+.row {
+  display: grid;
+  grid-template-columns: var(--hmi-label-width, 13rem) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--hmi-column-gap, 0.375rem);
+  font-size: var(--hmi-font-size);
+  line-height: 1.15;
+  min-height: var(--hmi-row-min-h);
+}
+
+.row[data-has-action='true'] {
+  grid-template-columns:
+    var(--hmi-label-width, 13rem)
+    minmax(0, 1fr)
+    var(--hmi-action-width, 1.75rem);
+}
+
+.label {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Geometry only. Colour — including severity, which fills the whole cell rather
+ * than a chip around the text — comes from the tone layer, which this cell opts
+ * into with `data-tone-surface="cell"`. No `overflow: hidden` here: it would
+ * clip the alarm badge back inside the border. The value inside truncates. */
+.value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  padding: 0.0625rem 0.25rem;
+  min-height: var(--hmi-row-min-h);
+  white-space: nowrap;
+}
+
+/* Used when the inner element already provides its own chrome (a pill). It
+ * declares no tone surface, so the tone layer never paints it. */
+.value-bare {
+  padding: 0;
+  min-height: auto;
+  overflow: visible;
+  border: none;
+  background: transparent;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.action > span {
+  width: 100%;
+}
+
+.action-row {
+  display: grid;
+  grid-template-columns: var(--hmi-label-width, 13rem) minmax(0, 1fr);
+  gap: var(--hmi-column-gap, 0.375rem);
+  align-items: center;
+  padding-top: 0.125rem;
+}
+
+.action-row > * {
+  grid-column: 2;
+  width: 100%;
+}
+
+/* ------------------------------------------------------------------- readouts */
+
+/* Ink is inherited from the surface that paints: that surface knows whether it
+ * is filled, so the value never has to guess which ink is readable on it. The
+ * value truncates itself rather than letting the cell clip — see `.value`. */
+.number {
+  display: block;
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.value-with-units {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.units {
+  margin-left: 0.375rem;
+  font-size: var(--hmi-font-size);
+  font-weight: 400;
+  color: var(--color-gray-800);
+}
+
+.text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: inherit;
+}
+
+/* Renders `<>` / `PV INV` / `PV DSC`. Same weight and ink as a real reading — a
+ * value must not change weight because its PV went bad, and greying a missing
+ * reading is the `unknown` tone's job, not this rule's. */
+.placeholder {
+  font-family: 'Roboto Condensed', monospace;
+  font-size: var(--hmi-font-size);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: inherit;
+}
+
+/* Geometry only — colour comes from the tone layer via `data-tone-surface`. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.125rem 0.5rem;
+  font-size: var(--hmi-font-size);
+  width: 100%;
+  min-height: var(--hmi-row-min-h);
+}
+
+/* ------------------------------------------------------------------- overview */
+
+.overview-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.overview-row {
+  display: grid;
+  grid-template-columns: var(--hmi-label-width, 13rem) minmax(0, 1fr);
+  gap: var(--hmi-column-gap, 0.375rem);
+  align-items: center;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.125rem;
+}
+
+.overview-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.overview-label {
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.overview-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  min-width: 0;
+  width: 100%;
+  padding: 0.125rem 0.1875rem;
+  font-size: var(--hmi-font-size);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  /* `.pill-count` inside does the truncating — a tone surface must not clip, or
+   * it clips the alarm badge off its own border. */
+  white-space: nowrap;
+}
+
+.pill-count,
+.state-count {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.pill-button,
+.state-button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  width: 100%;
+  display: inline-flex;
+  font: inherit;
+  color: inherit;
+}
+
+.pill-button:hover .overview-pill,
+.state-button:hover .state-pill {
+  filter: brightness(0.93);
+}
+
+.pill-button[aria-expanded='true'] .overview-pill,
+.state-button[aria-expanded='true'] .state-pill {
+  outline: 2px solid var(--color-text);
+  outline-offset: 1px;
+}
+
+/* Geometry only. No bit-value colouring: 1/0 is not pass/fail, and only EPICS
+ * severity ever tones this pill. */
+.state-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--hmi-row-min-h);
+  padding: 0.0625rem 0.25rem;
+  padding-right: 0.9rem; /* room for the corner triangle */
+  font-size: var(--hmi-font-size);
+}
+
+/* Corner triangle marking an expandable element. */
+.corner-triangle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-bottom: 0.5rem solid var(--color-text);
+  border-left: 0.5rem solid transparent;
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.corner-triangle.expanded {
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------- detail lists */
+
+.detail-list,
+.sequence-list {
+  list-style: none;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--hmi-font-size);
+  background: var(--color-surface-lighter);
+  border: 1px solid var(--color-border);
+}
+
+.detail-list {
+  padding: 0.25rem 0;
+  gap: 0.125rem;
+}
+
+/* The Sequencer's list is tighter than the expanded detail lists — it sits
+   inside a card rather than replacing one (`sections.module.css`). */
+.sequence-list {
+  padding: 0.125rem 0;
+  gap: 0.0625rem;
+}
+
+.detail-item,
+.sequence-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.detail-item {
+  gap: 0.5rem;
+  padding: 0.125rem 0.5rem;
+}
+
+.sequence-item {
+  gap: 0.25rem;
+  padding: 0.0625rem 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-label,
+.sequence-item > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* One indicator per row: text label (primary) tinted by colour (secondary).
+ * Geometry only. */
+.detail-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.detail-note {
+  padding: 0.125rem 0.5rem;
+  font-weight: 400;
+  color: var(--color-text);
+}
+
+/* Equal-width state chip (CSI-754): min-width holds the longest label so IDLE /
+ * RUNNING / <> all render at the same width. 11ch contains "RUNNING" with
+ * margin; the unit stays font-relative so it tracks the font-size token. */
+.sequence-state {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 11ch;
+  min-height: 1.125rem;
+  font-size: var(--hmi-font-size);
+  letter-spacing: 0.04em;
+  padding: 0 0.375rem;
+  text-align: center;
+}
+
+/* -------------------------------------------------------------- grid sections */
+
+.contents {
+  display: contents;
+}
+
+.col-header {
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.row-label {
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A table of readings: a label column plus one per quantity. The column count
+ * comes from the component (`--data-grid-columns`), so the track list cannot
+ * drift out of step with the configured columns. */
+.data-grid {
+  display: grid;
+  grid-template-columns:
+    var(--hmi-label-width, 13rem)
+    repeat(var(--data-grid-columns, 3), minmax(0, 1fr));
+  gap: 0.125rem var(--hmi-column-gap, 0.375rem);
+  align-items: center;
+}
+
+/* A column a row leaves out. Blank reads as "not applicable"; a placeholder
+ * would read as "broken". */
+.num-cell-empty {
+  min-height: var(--hmi-row-min-h);
+}
+
+/* Geometry only — the cell is a tone surface, so it paints itself edge to edge
+ * and its value child just supplies the text. */
+.num-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.0625rem 0.25rem;
+  min-height: var(--hmi-row-min-h);
+  min-width: 0;
+  white-space: nowrap;
+  font-size: var(--hmi-font-size);
+}
+
+.tally-grid {
+  /* One column per flashlamp state; the count comes from the template
+   * (`--tally-state-count`) so the track list cannot drift out of sync with the
+   * states. There is only room for ~4 state columns beside the label: a
+   * 22rem panel minus the 8.5rem label and 2.25rem action column leaves ~2.4rem
+   * each, about what a bold 4-character header ("STOP") needs. */
+  display: grid;
+  grid-template-columns:
+    var(--hmi-label-width, 13rem)
+    repeat(var(--tally-state-count, 4), minmax(0, 1fr))
+    var(--hmi-action-width, 1.75rem);
+  gap: 0.125rem;
+  align-items: center;
+}
+
+.flashlamp-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.0625rem 0.1875rem;
+  min-height: var(--hmi-row-min-h);
+  min-width: 0;
+  font-size: var(--hmi-font-size);
+}
+
+.flashlamp-state-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  background: transparent;
+  border: none;
+  padding: 0 0.9rem 0 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  text-align: left;
+  width: 100%;
+  min-width: 0;
+}
+
+.flashlamp-state-button > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.flashlamp-state-button:hover > span:first-child {
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------- modbox */
+
+.mbc-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.mbc-pair {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.mbc-label {
+  flex: none;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.mbc-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--hmi-row-min-h);
+  padding: 0.0625rem 0.25rem;
+  font-size: var(--hmi-font-size);
+}
+
+/* ------------------------------------------------------------- write controls */
+
+/* All variants share one appearance. The `variant` attribute is kept for
+ * semantics but does not change colour: a control room full of green and red
+ * buttons trains operators to look at chrome instead of at readings. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 0.1875rem 0.375rem;
+  font: inherit;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  border-radius: 0;
+  border: 1px solid var(--color-text);
+  background: var(--color-surface-lighter);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--color-surface);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.cog-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* Full-width action bars stack their panel in normal flow so it grows the card
+ * and stays inside the panel border, instead of an absolute dropdown that
+ * overflows it. */
+.cog-wrapper[data-inline='true'] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.cog-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1875rem;
+  background: var(--color-surface-lighter);
+  border: 1px solid var(--color-text);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  padding: 0.0625rem 0.25rem;
+  border-radius: 0;
+  cursor: pointer;
+  min-height: var(--hmi-row-min-h);
+  min-width: 0;
+}
+
+.cog-button[data-has-inline-label='false'] {
+  width: var(--hmi-action-width, 1.75rem);
+  padding-inline: 0;
+}
+
+.cog-button[data-has-inline-label='true'] {
+  width: 100%;
+  justify-content: flex-start;
+  padding-inline: 0.375rem;
+}
+
+.cog-button:hover {
+  background: var(--color-surface);
+}
+
+.cog-button[aria-expanded='true'] {
+  background: var(--color-text);
+  color: var(--color-surface-lighter);
+}
+
+.cog-glyph {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  line-height: 1;
+}
+
+.cog-inline-label {
+  white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.cog-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 5;
+  background: var(--color-surface-light);
+  border: 1px solid var(--color-text);
+  padding: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  min-width: 14rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.cog-panel[data-inline='true'] {
+  position: static;
+  right: auto;
+  margin-top: 0.125rem;
+  min-width: 0;
+  width: 100%;
+  box-shadow: none;
+}
+
+.preset-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.preset-label,
+.waveform-action-label {
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.preset-chips {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.25rem;
+}
+
+.preset-chip {
+  font: inherit;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  padding: 0.25rem 0.375rem;
+  border-radius: 0;
+  border: 1px solid var(--color-text);
+  background: var(--color-surface-lighter);
+  color: var(--color-text);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.preset-chip:hover {
+  background: var(--color-surface);
+}
+
+/* Custom value + Confirm sit on one row, Confirm next to the field. */
+.preset-custom,
+.waveform-select {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: var(--hmi-font-size);
+}
+
+.preset-custom-label {
+  text-transform: uppercase;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.preset-field,
+.waveform-field {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--hmi-font-size);
+  font-variant-numeric: tabular-nums;
+  padding: 0.25rem 0.375rem;
+  border-radius: 0;
+  border: 1px solid var(--color-text);
+  background: var(--color-surface-lighter);
+  color: var(--color-text);
+}
+
+.preset-confirm {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0;
+  border: 1px solid var(--color-text);
+  background: var(--color-surface-lighter);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.preset-confirm:hover {
+  background: var(--color-surface);
+}
+
+/* ===========================================================================
+ * Tone layer — the single definition of how status colour works.
+ *
+ * Two attributes, nothing else:
+ *   data-tone-surface="chip|cell"   I am the element that paints.
+ *   data-tone="<tone>"              This is the tone to paint with. It may sit
+ *                                   on the surface itself (chips) or on a
+ *                                   descendant (a value inside a cell) — the
+ *                                   surface picks it up either way.
+ *
+ * A tone only sets variables; painting happens once, on the surface. That is
+ * why a toned <span> inside a cell can never paint a chip around its own text
+ * (the bug this layer exists to make impossible).
+ *
+ * Which tone applies is decided in `presentation/severity.py`, never here.
+ * ======================================================================== */
+
+/* Widget-chosen emphasis. Value tones use the -light shades so they stay
+ * distinguishable from the saturated severity tones below. */
+[data-tone='positive-important'],
+[data-tone-surface]:has([data-tone='positive-important']) {
+  --tone-bg: var(--color-success-light);
+  --tone-border: var(--color-success-dark);
+}
+
+/* `negative-important` is the trigger-delay MISMATCH — the one condition no PV
+ * can report. The other two are defined so a widget (or a future palette) can
+ * use them without touching this layer. */
+[data-tone='negative-important'],
+[data-tone-surface]:has([data-tone='negative-important']) {
+  --tone-bg: var(--color-error-light);
+  --tone-border: var(--color-error-dark);
+}
+[data-tone='positive-neutral'],
+[data-tone-surface]:has([data-tone='positive-neutral']) {
+  --tone-bg: var(--color-surface-lighter);
+  --tone-border: var(--color-text);
+}
+[data-tone='negative-neutral'],
+[data-tone-surface]:has([data-tone='negative-neutral']) {
+  --tone-bg: var(--color-surface);
+  --tone-border: var(--color-gray-800);
+}
+
+/* EPICS severity. Saturated shades, always filled — a fill means the control
+ * system is reporting something, not that a value is merely notable. */
+[data-tone='warning'],
+[data-tone-surface]:has([data-tone='warning']) {
+  --tone-bg: var(--color-warning);
+  --tone-border: var(--color-warning-dark);
+  --tone-alert: '!';
+}
+[data-tone='error'],
+[data-tone-surface]:has([data-tone='error']) {
+  --tone-bg: var(--color-error);
+  --tone-border: var(--color-error-dark);
+  --tone-alert: '!';
+}
+[data-tone='invalid'],
+[data-tone-surface]:has([data-tone='invalid']) {
+  --tone-bg: var(--color-invalid);
+  --tone-border: var(--color-invalid-dark);
+}
+
+/* No live data: nothing received yet, or the backend link is down. Dotted so it
+ * reads as "not current" rather than as a status. */
+[data-tone='unknown'],
+[data-tone-surface]:has([data-tone='unknown']) {
+  --tone-bg: transparent;
+  --tone-border: var(--color-gray-800);
+  --tone-border-style: dotted;
+  --tone-ink: var(--color-gray-800);
+}
+
+/* The two neutral defaults, declared once. Every status element is one of
+ * these; a tone above simply overrides the variables they consume. */
+[data-tone-surface] {
+  position: relative;
+  background: var(--tone-bg, var(--color-surface-lighter));
+  border: var(--tone-border-width) solid var(--tone-border, var(--tone-surface-border));
+  border-style: var(--tone-border-style, solid);
+  color: var(--tone-ink, var(--color-text));
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chip — asserts itself. Status rows, pills, count cells, sequencer. */
+[data-tone-surface='chip'] {
+  --tone-surface-border: var(--color-text);
+  font-weight: 700;
+}
+
+/* Cell — recedes into a dense column of rows. Value cells and readouts. */
+[data-tone-surface='cell'] {
+  --tone-surface-border: var(--color-border);
+  font-weight: 700;
+}
+
+/* Alarm badge.
+ *
+ * Colour must never be the only carrier of a status: a colour vision
+ * deficiency, a sun-washed screen, or goggles that filter the wavelength in use
+ * all lose amber-vs-red. MINOR and MAJOR keep showing the real reading —
+ * nothing in the text says "alarm" — so they get a second, non-colour channel:
+ * a white exclamation mark in a black block down the left edge.
+ *
+ * INVALID and "no data" need no badge: they already replace the value with
+ * PV INV / PV DSC / <>, which is text, not colour.
+ *
+ * The offsets are pulled out by the border width so the black block reaches the
+ * outer edge — it replaces the border along that side rather than sitting
+ * inside it. This is why no tone surface may set `overflow: hidden`: that would
+ * clip the badge back to the padding box. */
+[data-tone-surface]::before {
+  content: var(--tone-alert, none);
+  position: absolute;
+  top: calc(-1 * var(--tone-border-width));
+  bottom: calc(-1 * var(--tone-border-width));
+  left: calc(-1 * var(--tone-border-width));
+  width: calc(var(--tone-alert-width) + var(--tone-border-width));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-black);
+  color: var(--color-gray-50);
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* A surface containing another surface steps aside. This is what stops a pill
+ * inside a value cell from producing a box inside a box: the innermost surface —
+ * the one closest to the text — is the one that paints. */
+[data-tone-surface]:has([data-tone-surface]) {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* …and stands down from the badge with it, so an alarm is marked once. */
+[data-tone-surface]:has([data-tone-surface])::before {
+  content: none;
+}
+
+/* Shared chip metrics, so two labels of different length cannot render as two
+ * differently sized boxes (e.g. "PV INV" vs "PV DSC"). */
+[data-tone-surface='chip'][data-tone-chip='status'] {
+  min-width: 4.75rem;
+  padding: 0 0.375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* Room for the badge, so it never sits on top of the value. Deliberately the
+ * LAST rule in the layer: it has the same specificity as the chip metrics
+ * above, whose `padding` shorthand would otherwise reset this side. */
+[data-tone-surface][data-tone='warning'],
+[data-tone-surface][data-tone='error'],
+[data-tone-surface]:has([data-tone='warning']),
+[data-tone-surface]:has([data-tone='error']) {
+  padding-left: calc(var(--tone-alert-width) + var(--tone-alert-gap));
+}
+
+
+/* ===========================================================================
+ * Accessibility — `app/accessibility.css`.
+ *
+ * The focus ring is the one that matters here: every control on this page is a
+ * button, an input or a select, and an operator working from the keyboard has
+ * nothing else to go on. Without these rules the browser default applies,
+ * which on a grey-on-grey panel is close to invisible.
+ * ======================================================================== */
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--border-radius-sm);
+}
+
+/* Hide the outline for the mouse, keep it for the keyboard. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+button,
+a,
+input,
+select {
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:hover,
+a:hover {
+  opacity: 0.9;
+}
+
+button:active,
+a:active {
+  opacity: 0.8;
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --color-text: #000;
+    --color-background: #fff;
+  }
+}

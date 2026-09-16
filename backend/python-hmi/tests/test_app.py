@@ -13,8 +13,8 @@ import threading
 import pytest
 import uvicorn
 
-from app.main import create_app
-from app.settings import Settings
+from core.server import create_app
+from core.settings import Settings
 
 
 def free_port() -> int:
@@ -28,7 +28,7 @@ def server():
     port = free_port()
     app = create_app(
         Settings(
-            zone_code="test",
+            zone_code="TESTZ",
             epics_backend="sim",
             sim_tick_seconds=0.2,
             render_interval=0.05,
@@ -91,6 +91,42 @@ async def read_events(
 
 
 class TestPage:
+    async def test_every_screen_in_the_zone_is_served(self, client):
+        """The routes come from the zone's folders, so the menu cannot disagree
+        with what the app serves."""
+        for slug in ("l4-opcpa", "chillers", "vacuum"):
+            response = await client.get(f"/{slug}")
+            assert response.status_code == 200, slug
+
+    async def test_the_menu_is_the_same_on_every_screen(self, client):
+        menus = []
+        for slug in ("l4-opcpa", "chillers", "vacuum"):
+            body = (await client.get(f"/{slug}")).text
+            menus.append(re.findall(r'class="nav-link"[^>]*>([^<]+)', body))
+        assert menus[0] == menus[1] == menus[2]
+        assert menus[0] == ["L4 OPCPA", "Chillers", "Vacuum"]
+
+    async def test_the_zone_is_named_on_every_screen(self, client):
+        """Each zone is a separate network, so "which zone is this" must never
+        be a guess."""
+        body = (await client.get("/chillers")).text
+        assert 'class="nav-zone"' in body
+        assert ">TESTZ<" in body
+
+    async def test_a_screen_the_zone_does_not_have_is_a_404(self, client):
+        assert (await client.get("/telepathy")).status_code == 404
+
+    async def test_a_yaml_only_screen_renders_live_values(self, client):
+        """Nobody wrote Python for the Chillers screen: it is components from
+        `components/` configured in YAML, and the simulator is seeded from what
+        those components declare."""
+        body = (await client.get("/chillers")).text
+        assert "Chiller bank" in body
+        assert 'class="data-grid"' in body
+        # A real reading, not a placeholder, and the injected faults are there.
+        assert body.count('data-tone="unknown"') <= 1
+        assert "PV INV" in body
+
     async def test_renders_with_real_values_not_placeholders(self, client):
         """The prewarmed cache is what makes server-side rendering worth
         anything: a control-room page that renders `<>` and fills in after a
@@ -99,8 +135,8 @@ class TestPage:
         assert response.status_code == 200
         body = response.text
         assert "L4 OPCPA" in body
-        assert 'id="w-NL2-overview"' in body
-        # CONN is seeded true, so it must already read YES in the HTML itself.
+        assert 'id="NL2-overview"' in body
+        # CONN is declared true, so it must already read YES in the HTML itself.
         assert ">YES<" in body
         assert body.count('data-tone="unknown"') <= 1
 
@@ -116,7 +152,7 @@ class TestPage:
         assert body.count("<script") == 1
         assert "datastar.js" in body
 
-    async def test_index_redirects_to_the_page(self, client):
+    async def test_index_redirects_to_the_zone_first_screen(self, client):
         response = await client.get("/", follow_redirects=False)
         assert response.status_code in (307, 308)
         assert response.headers["location"] == "/l4-opcpa"
@@ -130,8 +166,8 @@ class TestStream:
         assert '{"_age":0}' in events[0]
         assert events[1].startswith("event: datastar-patch-elements")
         # The opening sync carries every widget.
-        assert 'id="w-NL2-overview"' in events[1]
-        assert 'id="w-NL2-chiller_0_flow"' in events[1]
+        assert 'id="NL2-overview"' in events[1]
+        assert 'id="NL2-chiller-0-flow"' in events[1]
 
     async def test_later_patches_carry_only_what_changed(self, client):
         events = await read_events(client, "/l4-opcpa/stream", count=8)
@@ -140,9 +176,9 @@ class TestStream:
         # The drifting analogue readouts move; the shutter does not flap.
         patched = set()
         for event in element_events:
-            patched.update(re.findall(r'id="(w-[^"]+)"', event))
+            patched.update(re.findall(r'id="(NL2-[^"]+)"', event))
         assert patched
-        assert "w-NL2-shutter" not in patched
+        assert "NL2-shutter" not in patched
 
     async def test_heartbeat_resets_the_browser_watchdog(self, client):
         events = await read_events(client, "/l4-opcpa/stream", count=6)
@@ -216,7 +252,11 @@ class TestOps:
         assert (await client.get("/health/live")).text == "live"
         assert (await client.get("/health/ready")).json()["status"] == "ready"
         stats = (await client.get("/stats")).json()
-        assert stats["lasers"] == ["NL2"]
+        assert stats["zone"] == "TESTZ"
+        # How the zone was chosen is the second question after "is anything
+        # monitored", so /stats answers both.
+        assert stats["zone_resolved_by"] == "ZONE_CODE"
+        assert set(stats["screens"]) == {"l4-opcpa", "chillers", "vacuum"}
         assert stats["monitored_pvs"] > 0
         assert stats["link_ok"] is True
 

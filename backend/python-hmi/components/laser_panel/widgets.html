@@ -1,0 +1,49 @@
+{#
+  The laser panel's own widget macros: the shapes no other screen needs.
+
+  Everything generic — value cells, pills, detail lists, tally cells — comes
+  from `components/templates/readouts.html`, which is searched after this file.
+#}
+{% import "readouts.html" as base with context %}
+
+{%- macro _overview_cell(label, readout) -%}
+<div class="overview-cell">
+<span class="overview-label">{{ label }}</span>
+<span class="overview-pill" data-tone-surface="chip"
+      {%- if readout.tone %} data-tone="{{ readout.tone }}"{% endif %}
+      {%- if readout.title %} title="{{ readout.title }}"{% endif %}>{{ readout.text }}</span>
+</div>
+{%- endmacro -%}
+
+{%- macro _overview_button(label, readout, signal) -%}
+<div class="overview-cell">
+<span class="overview-label">{{ label }}</span>
+<button type="button" class="pill-button" data-on:click="${{ signal }} = !${{ signal }}"
+        data-attr="{'aria-expanded': ${{ signal }} ? 'true' : 'false'}"
+        aria-label="Toggle {{ label }} detail">
+<span class="overview-pill" data-tone-surface="chip"
+      {%- if readout.tone %} data-tone="{{ readout.tone }}"{% endif %}
+      {%- if readout.title %} title="{{ readout.title }}"{% endif %}>
+<span class="pill-count">{{ readout.text }}</span>
+<span class="corner-triangle" data-class="{expanded: ${{ signal }}}" aria-hidden="true"></span>
+</span>
+</button>
+</div>
+{%- endmacro -%}
+
+{#- CONN / FULLP / MSS / ERR in one four-cell cluster. MSS and ERR expand a
+    per-item detail list, per the spec: "Through a click it can be expanded in a
+    list showing all individual MSS boolean indicators".
+
+    Four cells rather than four rows because they are read together — an
+    operator checks "is it connected, is it at power, are the permissions in,
+    are there errors" as one question. -#}
+{%- macro overview(id, show, conn, fullp, mss, err, mss_signal, err_signal) -%}
+<div id="{{ id }}" class="overview-grid"
+     {%- if show %} data-show="{{ show }}" style="display:none"{% endif %}>
+{{ _overview_cell('CONN', conn) }}
+{{ _overview_cell('FULLP', fullp) }}
+{{ _overview_button('MSS', mss, mss_signal) }}
+{{ _overview_button('ERR', err, err_signal) }}
+</div>
+{%- endmacro -%}

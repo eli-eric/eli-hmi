@@ -1,0 +1,107 @@
+# Vacuum system — another screen with no Python behind it.
+#
+# Shows the device components: `valve`, `motor`, and `tally` for a bank of
+# identical channels. Between them and `value`/`grid`/`group` on the Chillers
+# screen, that is every component in `components/` except `laser-panel`.
+#
+# The motors name each signal explicitly rather than using `prefix:`. Both work;
+# see `components/motor/__init__.py` for why the explicit form is the one that
+# also runs against the local IOC.
+title: Vacuum
+order: 30
+description: Chambers, gate valves and the sample manipulator.
+
+components:
+  - component: panel
+    title: NL2 chamber
+    components:
+      - component: value
+        label: Pressure
+        pv: L4-VCS-NL2:Pressure
+        units: mbar
+        format: { format: exponential, toExponential: 2 }
+        range: [0.0000001, 0.00001]
+        alarm: { high: 0.000005, hihi: 0.00001 }
+      - component: value
+        label: Ready to fire
+        pv: L4-VCS-NL2:ReadyToFire
+        kind: bool
+        on_text: "YES"
+        off_text: "NO"
+        good: on
+      - component: valve
+        label: VV1 gate valve
+        pv: L4-VCS-NL2:VV1:State
+        open_pv: L4-VCS-NL2:VV1:Open
+        close_pv: L4-VCS-NL2:VV1:Close
+      - component: valve
+        label: VV2 roughing valve
+        pv: L4-VCS-NL2:VV2:State
+        open_pv: L4-VCS-NL2:VV2:Open
+        close_pv: L4-VCS-NL2:VV2:Close
+      - component: group
+        label: Interlocks
+        mode: permissions
+        note: A closed valve is not a fault; a missing permission stops a shot.
+        items:
+          - { label: Chamber pressure OK, pv: "L4-VCS-NL2:PressureOK" }
+          - { label: Turbo at speed,      pv: "L4-VCS-NL2:TurboAtSpeed" }
+          - { label: Gate valve open,     pv: "L4-VCS-NL2:GateOpen", demo: { value: 0 } }
+
+  - component: panel
+    title: Pumps
+    components:
+      - component: tally
+        label: Turbo pumps
+        states: [STOP, SPIN, RUN, FAIL]
+        aliases: { STOPPED: STOP, "SPINNING UP": SPIN, RUNNING: RUN, FAULT: FAIL }
+        channels:
+          - { label: TP1, pv: "L4-VCS-NL2:TP1:State", demo: { state: RUNNING } }
+          - { label: TP2, pv: "L4-VCS-NL2:TP2:State", demo: { state: RUNNING } }
+          - { label: TP3, pv: "L4-VCS-NL2:TP3:State", demo: { state: "SPINNING UP" } }
+          - { label: TP4, pv: "L4-VCS-NL2:TP4:State", demo: { state: STOPPED } }
+      - component: value
+        label: Backing pressure
+        pv: L4-VCS-NL2:BackingPressure
+        units: mbar
+        format: 3
+        range: [0.5, 3.0]
+        alarm: { high: 2.5, hihi: 2.9 }
+
+  - component: panel
+    title: Sample manipulator
+    components:
+      - component: motor
+        label: Sample X
+        readback: L4-MOT-SAMPLE:X:Position
+        setpoint: L4-MOT-SAMPLE:X:Target
+        moving: L4-MOT-SAMPLE:X:Moving
+        stop: L4-MOT-SAMPLE:X:Stop
+        limits: [L4-MOT-SAMPLE:X:LowLimit, L4-MOT-SAMPLE:X:HighLimit]
+        units: mm
+        format: 3
+        range: [-25, 25]
+        presets: [-10, 0, 10]
+        step: 0.1
+      - component: motor
+        label: Sample Y
+        readback: L4-MOT-SAMPLE:Y:Position
+        setpoint: L4-MOT-SAMPLE:Y:Target
+        moving: L4-MOT-SAMPLE:Y:Moving
+        stop: L4-MOT-SAMPLE:Y:Stop
+        units: mm
+        format: 3
+        range: [-25, 25]
+        presets: [-5, 0, 5]
+        step: 0.1
+      - component: motor
+        label: Sample rotation
+        readback: L4-MOT-SAMPLE:RZ:Position
+        setpoint: L4-MOT-SAMPLE:RZ:Target
+        moving: L4-MOT-SAMPLE:RZ:Moving
+        stop: L4-MOT-SAMPLE:RZ:Stop
+        units: deg
+        format: 2
+        range: [0, 360]
+        presets: [0, 90, 180, 270]
+        step: 1

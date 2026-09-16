@@ -1,0 +1,4 @@
+{#- One row. The value cell is the only patched part; the label and the cog are
+    rendered once (see `components/templates/rows.html`). -#}
+{% import "rows.html" as rows with context %}
+{{ rows.row(c.label, w['value'], rows.write_controls(comp, c), bare=(c.kind == 'bool')) }}

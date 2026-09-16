@@ -1,0 +1,21 @@
+{#- A motor: position row with its setpoint cog, then the state pill. -#}
+{% import "rows.html" as rows with context %}
+{% import "controls.html" as controls with context %}
+
+{% set actions %}
+{% if setpoint_pv or stop_pv %}
+{% call controls.cog(cog, c.label ~ ' move') %}
+{% if setpoint_pv %}
+{{ controls.preset_input('Move to', c.presets, setpoint_pv, set_signal, cog, c.step) }}
+{% endif %}
+{% if stop_pv %}
+{{ controls.action_button('Stop', stop_pv, 1, 'danger', cog) }}
+{% endif %}
+{% endcall %}
+{% endif %}
+{% endset %}
+
+{{ rows.row(c.label, w['position'], actions) }}
+{% if has_state %}
+{{ rows.row('', w['state'], none, bare=true) }}
+{% endif %}

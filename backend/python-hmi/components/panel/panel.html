@@ -1,0 +1,16 @@
+{#- A panel: dark title bar, then whatever it contains.
+
+    The header is sticky so a laser's or a chamber's name stays visible while a
+    long screen scrolls — on a wall display the panels are what an operator
+    navigates by. -#}
+<article class="panel" data-width="{{ c.width }}">
+  {% if c.title %}
+  <header class="panel-header">
+    <h2 class="panel-title">{{ c.title }}</h2>
+    {% if c.subtitle %}<span class="panel-subtitle">{{ c.subtitle }}</span>{% endif %}
+  </header>
+  {% endif %}
+  <div class="panel-body">
+    {% for child in children %}{{ child }}{% endfor %}
+  </div>
+</article>

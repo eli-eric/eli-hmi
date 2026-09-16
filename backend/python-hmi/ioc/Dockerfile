@@ -27,9 +27,9 @@ ENV EPICS_HOST_ARCH=linux-x86_64
 ENV PATH=${EPICS_BASE}/bin/${EPICS_HOST_ARCH}:${PATH}
 
 WORKDIR /usr/EPICS/ioc
-COPY db/l4-opcpa.db db/l4-opcpa.db
+COPY db/testz.db db/testz.db
 COPY st.cmd st.cmd
 
 # `-S` runs without the interactive iocsh, so the container logs cleanly under
 # compose. Drop it (and use `docker run -it`) when you want `dbl` / `dbpr`.
-ENTRYPOINT ["softIoc", "-S", "-d", "db/l4-opcpa.db"]
+ENTRYPOINT ["softIoc", "-S", "-d", "db/testz.db"]

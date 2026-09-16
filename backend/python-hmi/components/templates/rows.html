@@ -1,0 +1,78 @@
+{#
+  Row layout and section chrome — the static half of a screen.
+
+  None of this is ever patched. It is rendered once with the page and then lives
+  entirely in the browser, because it is the half the operator *interacts* with:
+  a cog panel that is open, a half-typed setpoint, a selected choice. An SSE
+  patch landing here would close panels and eat keystrokes, so a component's
+  widgets deliberately stop at the value cell (`{{ w['…'] }}` below).
+
+  A component template usually needs only two of these:
+
+      {% import "rows.html" as rows with context %}
+      {{ rows.card() }} … {{ rows.endcard() }}       a section box
+      {{ rows.row(c.label, w['value'], actions) }}   one labelled row
+#}
+{% import "controls.html" as controls with context %}
+
+{#- A section box. Rows inside it share one label-column width, which is what
+    keeps a column of readings aligned. -#}
+{%- macro card_open() -%}
+<section class="card">
+{%- endmacro -%}
+
+{%- macro card_close() -%}
+</section>
+{%- endmacro -%}
+
+{#- The standard row: label, value, optional action slot.
+
+    `value` is already-rendered widget HTML. `bare` is for a value that carries
+    its own chrome (a pill), where a bordered cell around it would be a box
+    inside a box. -#}
+{%- macro row(label, value, action=none, bare=false) -%}
+<div class="row" data-has-action="{{ 'true' if action else 'false' }}">
+<span class="label">{{ label }}</span>
+{% if bare %}<span class="value value-bare">{{ value }}</span>{% else %}{{ value }}{% endif %}
+{% if action %}<span class="action">{{ action }}</span>{% endif %}
+</div>
+{%- endmacro -%}
+
+{#- A row whose label is a button that expands a detail list. -#}
+{%- macro expandable_row(label, value, signal, action=none) -%}
+<div class="row" data-has-action="{{ 'true' if action else 'false' }}">
+<span class="label">{{ label }}</span>
+<span class="value value-bare">
+<button type="button" class="state-button" aria-label="Toggle {{ label }} detail"
+        data-on:click="${{ signal }} = !${{ signal }}"
+        data-attr="{'aria-expanded': ${{ signal }} ? 'true' : 'false'}">
+{{ value }}
+</button>
+</span>
+{% if action %}<span class="action">{{ action }}</span>{% endif %}
+</div>
+{%- endmacro -%}
+
+{#- The cog and its panel for a row's buttons and setpoint, built from the
+    component's config. A component template calls this and is done with
+    writing — it never has to know how `@post` works. -#}
+{%- macro write_controls(comp, cfg, aria=none) -%}
+{% if cfg.actions or cfg.setpoint %}
+{% set signal = comp.signal('cog_' ~ (cfg.id or cfg.label)) %}
+{% call controls.cog(signal, aria or (cfg.label ~ ' actions')) %}
+{% for action in cfg.actions %}
+{{ controls.action_button(action.label, action.pv or cfg.pv, action.value, action.variant, signal) }}
+{% endfor %}
+{% if cfg.setpoint %}
+{% if cfg.setpoint.is_choice %}
+{{ controls.choice_select(cfg.setpoint.pv or cfg.pv,
+                          comp.signal('set_' ~ (cfg.id or cfg.label), ''),
+                          cfg.setpoint.choices, cfg.setpoint.label, signal) }}
+{% else %}
+{{ controls.preset_input(cfg.setpoint.label, cfg.setpoint.presets, cfg.setpoint.pv or cfg.pv,
+                         comp.signal('set_' ~ (cfg.id or cfg.label), ''), signal, cfg.setpoint.step) }}
+{% endif %}
+{% endif %}
+{% endcall %}
+{% endif %}
+{%- endmacro -%}

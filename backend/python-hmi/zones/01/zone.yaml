@@ -1,0 +1,14 @@
+# Zone 01 — example of a real deployment: a separate network, its own station.
+#
+# `hostnames:` is how a station knows which zone it is. With no ZONE_CODE in the
+# environment, the app matches the machine's hostname against these globs; one
+# match starts, none or several is a start-up failure. A screen quietly showing
+# another zone's PVs is worse than one that did not start, because every value
+# on it looks plausible.
+title: Zone 01 — L4 hall
+description: >
+  L4 OPCPA lasers, the chiller plant and the vacuum system.
+hostnames:
+  - "eli-hmi-z01*"
+  - "*-z01-*"
+  - "hmi01*"

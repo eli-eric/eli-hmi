@@ -1,67 +1,89 @@
 # Server-rendered HMI (Python only)
 
-One Python process that is both the operator interface and the EPICS gateway.
-It renders the **L4 OPCPA** page — a port of
-[`frontend/src/app/(modules)/l4-opcpa`](../../frontend/src/app/(modules)/l4-opcpa) —
-as plain HTML from Jinja templates, and pushes live PV updates to the browser as
-HTML fragments over Server-Sent Events using
-[Datastar](https://data-star.dev/).
+One Python process that is both the operator interface and the EPICS gateway. It
+renders screens as plain HTML from Jinja templates and pushes live PV updates to
+the browser as HTML fragments over Server-Sent Events, using
+[Datastar](https://data-star.dev/). No Node, no bundler, no WebSocket protocol
+between halves.
 
-**Status: draft.** The functionality is complete and tested; the visual result
-has not been reviewed against the React app side by side.
+**Status: draft.** Functionality is complete and tested; the visual result has
+not been reviewed against the React app side by side.
+
+## Three folders, three audiences
+
+```
+zones/          what each station shows          ← controls engineers live here
+components/     the pieces a screen is made of   ← whoever adds a new kind of piece
+core/           how any of it reaches a browser  ← rarely touched
+```
+
+- **[zones/](zones/README.md)** — one folder per control-system zone, one folder
+  per screen inside it. A folder *is* a screen: creating one adds a route and a
+  menu entry, deleting one removes them. Screens are YAML.
+- **[components/](components/README.md)** — `value`, `group`, `grid`, `tally`,
+  `motor`, `valve`, `panel`, and the bespoke `laser-panel`. Python, written once,
+  used from YAML any number of times.
+- **core/** — zone resolution, the EPICS hub, severity and rendering, the
+  routes. See `core/__init__.py`.
+
+Plus **[ioc/](ioc/README.md)** — a real local EPICS IOC, generated from what the
+components declare, so a screen can be developed against real Channel Access.
 
 ## Quick start
 
 ```bash
 cd backend/python-hmi
 pip install -r requirements.txt
-ZONE_CODE=demo EPICS_BACKEND=sim python -m app     # or: make run-demo
+make run                  # ZONE_CODE=TESTZ, built-in simulator, :8082
 ```
 
-Open <http://localhost:8082>. No IOC, no Node, no build step — the simulator
-seeds every PV the page references from the same YAML config the page reads.
+Open <http://localhost:8082>. Three screens in the menu: **L4 OPCPA** (the
+bespoke laser panel), **Chillers** and **Vacuum** (both pure YAML, no Python
+written for them). Values move, alarms appear, buttons write.
 
 Against a **real EPICS IOC on your own machine** — same Channel Access, same
 `aioca` code path as the hall, nothing simulated in Python:
 
 ```bash
 pip install -r requirements-epics.txt -r ioc/requirements.txt   # make install-ioc
-python ioc/run_ioc.py            # make ioc       — a real IOC, generated from the config
-make run-ioc                     # the HMI against it (ZONE_CODE=ioc EPICS_BACKEND=aioca)
+python ioc/generate.py    # db + the TESTZ-IOC zone, from the components
+make ioc                  # a real IOC on CA port 5064
+make run-ioc              # the HMI against it
 ```
 
-See [ioc/README.md](ioc/README.md): the database is generated from the same zone
-YAML the page reads, the readouts move because `calc` records are scanning, the
-alarms are real EPICS alarms, and a command press runs a `seq` record inside the
-IOC. Against the real control system it is the same command with
-`ZONE_CODE=test`:
+Against the control system, on a station in a zone:
 
 ```bash
-ZONE_CODE=test EPICS_BACKEND=aioca python -m app   # or: make run-epics
+python -m core            # zone from the hostname; see zones/README.md
 ```
 
-Tests: `make test` (128 tests, ~7 s — the end-to-end ones run a real uvicorn
+Tests: `make test` (241 tests, ~8 s — the end-to-end ones run a real uvicorn
 socket, because the thing under test is a streaming response).
 
-## What replaced what
+## Adding a screen
 
-| MVP | Here |
-| --- | --- |
-| Next.js app, React components, CSS Modules | Jinja templates + one stylesheet (`app/static/css/hmi.css`) |
-| `useWebSocketData` subscribing per component | server-side subscription + render loop (`modules/l4_opcpa/routes.py`) |
-| WebSocket `/ws/pvs` carrying JSON values | SSE `/l4-opcpa/stream` carrying rendered HTML |
-| `websocket_pv_manager.py` fan-out | `app/epics/hub.py` |
-| `severity.ts`, `severity-presentation.ts`, `pv-tooltip.ts` | `app/presentation/severity.py` |
-| `Values.tsx` readout primitives | `app/presentation/readouts.py` |
-| `pv-helpers.ts`, `format.ts`, `units.ts` | `app/presentation/formatting.py` |
-| `config/schema.ts` (zod) | `modules/l4_opcpa/config.py` (pydantic) |
-| Go mock server (`l4_opcpa.go`) | `app/epics/sim_backend.py` + `modules/l4_opcpa/sim_seed.py` |
-| `backend/epics` hand-written IOC database | `ioc/` — generated from the zone config |
-| `POST /pv/<NAME>` | `POST /api/write` |
+```bash
+mkdir zones/01/chillers
+cp zones/TESTZ/chillers/gui.yaml zones/01/chillers/
+$EDITOR zones/01/chillers/gui.yaml      # change the PV names
+make run ZONE_CODE=01
+```
 
-The zone YAML format is **unchanged**, deliberately: `config/zones/test.yaml` is
-a copy of the React app's file, so a zone can be moved over without an operator
-editing anything.
+That is the whole loop: no Python, no route, no registry, no menu to update. The
+screen works against the simulator immediately, because the components it uses
+declare what their PVs are — and for the same reason `python ioc/generate.py`
+gives it a real EPICS database too.
+
+[zones/README.md](zones/README.md) has the details, including the YAML traps
+(`OFF` is a boolean) and what `range:` and `alarm:` are for.
+
+## Adding a new kind of piece
+
+[components/README.md](components/README.md). A component is a folder with a
+Python file and a template: a name, a pydantic `Config` (which is its
+documentation and its error messages), a `setup()` that declares the live parts,
+and a `pv_specs()` that says what each PV is. `components/valve/` is the
+smallest one; copy it.
 
 ## How a value reaches the screen
 
@@ -72,18 +94,17 @@ EPICS ──camonitor──▶ PvHub ──invalidates──▶ render loop ─�
                        └──▶ page render (first paint already has values)
 ```
 
-1. **`app/epics/`** holds the monitors. One per distinct (PV, datatype) —
-   `PvId` carries both, because an mbbi record read natively delivers its index
-   and read as `enum_string` delivers its state name, and the panel needs
+1. **`core/epics/`** holds the monitors. One per distinct (PV, datatype) —
+   `PvId` carries both, because an enum record read natively delivers its index
+   and read as `enum_string` delivers its state name, and a screen needs
    different ones in different places. The hub ref-counts, caches, and hands out
    *invalidations* rather than values.
-2. **`modules/l4_opcpa/widgets.py`** is the registry: for each live part of the
-   page, its DOM `id`, the PVs it reads, and how to turn readings into a template
-   context. This is what `useWebSocketData` used to do, moved to the server.
-3. **`modules/l4_opcpa/view.py`** keeps the reverse index (PV → widgets) and
-   renders — either the whole page, or just the widgets a change touched.
-4. **`routes.py`** runs the loop: wait for a change, let the burst settle for
-   `RENDER_INTERVAL`, re-render the touched widgets, push one
+2. **A component** declares widgets: for each live part, its DOM `id`, the PVs
+   it reads, and how to turn readings into a template context.
+3. **`core/page.py`** keeps the reverse index (PV → widgets) and renders —
+   either the whole screen, or just the widgets a change touched.
+4. **`core/routes.py`** runs the loop: wait for a change, let the burst settle
+   for `RENDER_INTERVAL`, re-render the touched widgets, push one
    `datastar-patch-elements` event.
 
 One renderer serves both paths, so a cell pushed over SSE is byte-identical to
@@ -95,172 +116,114 @@ the cell the page was rendered with. There is a test for exactly that
 A widget is a **value cell, pill or list — never a row**. Labels, cog buttons,
 inputs and preset chips are rendered once and never patched, so a patch cannot
 land in the middle of an operator typing a setpoint or close a panel they just
-opened. Expandable regions (MSS, module errors, flashlamp channels, Modbox,
-Sequencer) are always rendered and shown/hidden client-side by a Datastar
-signal.
+opened. Expandable regions are always rendered and shown/hidden client-side by a
+Datastar signal.
 
-One widget per *section* would repaint ~3 kB whenever any of forty PVs twitched;
-one per *PV* would mean ~200 ids per laser. A cell is the unit an operator
-reads, and also the unit that changes.
+One widget per *screen* would repaint everything whenever any of forty PVs
+twitched; one per *PV* would mean hundreds of ids. A cell is the unit an
+operator reads, and also the unit that changes.
 
 ### Colour
 
-Unchanged from the React app, because it is what keeps the HMI honest:
-
-- templates own **geometry**; they emit `data-tone-surface` ("I am the element
+- components own **geometry**; they emit `data-tone-surface` ("I am the element
   that paints") and `data-tone` ("this is the tone");
-- `app/static/css/hmi.css`'s tone layer owns **colour**;
-- `app/presentation/severity.py` is the only thing that decides *which* tone
-  applies — transport loss > EPICS severity > widget emphasis.
+- `core/static/css/hmi.css`'s tone layer owns **colour**;
+- `core/render/severity.py` is the only thing that decides *which* tone applies
+  — transport loss > EPICS severity > a component's own emphasis.
 
-So a template cannot invent its own red, and a widget's "this is good" emphasis
-can never paint over an alarm.
+So a component cannot invent its own red, and a "this is good" emphasis can
+never paint over an alarm.
 
 ## Writes
 
 Every control posts to one endpoint, in one of two forms:
 
 ```html
-data-on:click="@post('/api/write?pv=…&value=1')"           <!-- fixed value -->
-data-on:click="@post('/api/write?pv=…&signal=NL2_delay')"  <!-- operator's value -->
+data-on:click="@post('/api/write?pv=…&value=1')"          <!-- fixed value -->
+data-on:click="@post('/api/write?pv=…&signal=nl2_set')"   <!-- operator's value -->
 ```
 
 `@post` sends every Datastar signal with the request, so the second form only
 has to name which signal carries the value. The response is SSE events that
-patch the status line — `usePvWrite`'s whole lifecycle, minus the hook.
+patch the status line.
 
-A command PV (`CMD_<laser>_<NAME>`) is a trigger: the backend turns one press
-into a coordinated chain of writes. The simulator implements short chains for
-each command, which is the only reason the Sequencer row has anything to show.
+A component builds both from its `actions:` and `setpoint:` config — see
+`components/templates/rows.html`. A *command* PV is a trigger: the control system
+turns one press into a coordinated chain of writes, and a component declares that
+chain once (`PvSpec(command=True, effects=…)`) for both the simulator and the
+local IOC.
 
 ## Two kinds of "disconnected"
 
-The React app had one banner for a dead WebSocket. Here there are two failures
-with two different operator responses, so there are two sentences:
+Two failures with two different operator responses, so two sentences:
 
 - **`#link-banner`** — the *server* cannot reach EPICS. Channel Access has no
   session to query, so the hub judges it the way an operator would: the link is
   down when it is monitoring PVs and **not one of them** currently has a usable
-  reading (a gateway restart or a pulled cable disconnects every channel at
-  once; one dead IOC does not, and shows as `PV DSC` on its own rows). Pushed on
-  the heartbeat; every readout greys out and keeps its last value.
+  reading (a gateway restart disconnects every channel at once; one dead IOC does
+  not, and shows as `PV DSC` on its own rows). Pushed on the heartbeat; every
+  readout greys out and keeps its last value.
 - **the `$_age` watchdog** — the *browser* is no longer receiving the stream.
-  `data-on-interval` counts seconds, every heartbeat resets it to 0, and the
-  banner appears past 6. Without it a frozen page looks exactly like a quiet
-  machine.
+  `data-on-interval` counts seconds, every heartbeat resets it, and the banner
+  appears past 6. Without it a frozen page looks exactly like a quiet machine.
 
 ## Configuration
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `ZONE_CODE` | `test` | Which `config/zones/<code>.yaml` to load |
+| `ZONE_CODE` | *(from the hostname)* | Which `zones/<code>/` to serve |
 | `EPICS_BACKEND` | `sim` | `sim` (built-in simulator) or `aioca` (real network) |
 | `PORT` / `HOST` | `8082` / `0.0.0.0` | Same port the React app used |
 | `RENDER_INTERVAL` | `0.15` | Seconds a burst of updates is collected before one render |
 | `HEARTBEAT_SECONDS` | `2.0` | Stream heartbeat; must stay well under the watchdog's 6 s |
-| `PREWARM` | `1` | Hold the page's monitors for the process lifetime so the first render has real values |
+| `PREWARM` | `1` | Hold the screens' monitors for the process lifetime, so the first render has real values |
+| `PALETTE` | — | `l4-goggles` repaints every negative indication in a colour that survives the L4 hall's safety goggles |
 | `SIM_TICK_SECONDS` | `1.0` | Simulator update rate |
 | `SIM_SEED` | `1` | Fixed seed keeps a demo reproducible; set empty for fresh noise |
-| `DEV` | `0` | Reload templates and reparse the YAML on every request |
+| `ZONES_ROOT` | `zones/` | Where the zone folders live |
+| `DEV` | `0` | Reload templates on every render |
 | `LOG_LEVEL` | `INFO` | |
 
-Zones: `test` is the faithful copy of the React app's config (NL2 only).
-`demo` clones it to NL1/NL2/NL3 so the grid wrapping is visible. `ioc` is
-generated by `ioc/generate.py` and differs from `test` in exactly two PVs — the
-ones that name a field of a synApps record type, which a base-only IOC cannot
-serve (see [ioc/README.md](ioc/README.md)).
-
-Against a real network, Channel Access also reads its own environment
-(`EPICS_CA_ADDR_LIST`, `EPICS_CA_AUTO_ADDR_LIST`); nothing in this app
-overrides it.
+Channel Access reads its own environment too (`EPICS_CA_ADDR_LIST`,
+`EPICS_CA_AUTO_ADDR_LIST`); nothing here overrides it.
 
 Operational endpoints: `/health/live`, `/health/ready` (503 until the hub is
-up), `/stats` (monitor and stream counts — when a panel shows `<>`, the first
-question is whether anything is monitoring that PV at all).
+up), `/stats` (screens, widget and PV counts, monitor and stream counts, and how
+the zone was resolved).
 
-## Layout
+## What replaced what
 
-```
-app/
-├── main.py                     app factory, lifespan, backend selection
-├── settings.py                 environment -> Settings
-├── templating.py               Jinja env; the one function that renders a widget
-├── epics/
-│   ├── types.py                PvId, PvSample, the EpicsBackend protocol
-│   ├── hub.py                  monitors, cache, invalidation fan-out
-│   ├── aioca_backend.py        real EPICS (lazy import)
-│   └── sim_backend.py          in-process simulator
-├── presentation/
-│   ├── severity.py             tone/text/tooltip — the single decision table
-│   ├── readouts.py             float/int/string/bool/aggregate readouts
-│   ├── formatting.py           number format + units resolution
-│   └── value_text.py           1/0 -> ON/OFF, YES/NO
-├── modules/l4_opcpa/
-│   ├── config.py               pydantic schema + zone loader
-│   ├── pv_names.py             command vocabulary, CMD_<laser>_<NAME>
-│   ├── widgets.py              the widget registry and its context builders
-│   ├── view.py                 reverse index, page render, patch render
-│   ├── routes.py               page, SSE stream, write endpoint
-│   └── sim_seed.py             simulator seeding + command effect chains
-├── templates/
-│   ├── base.html               shell
-│   └── l4_opcpa/
-│       ├── page.html           signals, stream, legend, grid
-│       ├── panel.html          one laser's static structure
-│       ├── widgets.html        every patchable element (macros)
-│       └── controls.html       write controls (never patched)
-└── static/
-    ├── css/hmi.css             tokens, geometry, the tone layer
-    └── vendor/datastar.js      pinned v1.0.2, vendored — no CDN in a control room
-ioc/
-├── generate.py                 zone config -> EPICS database + the `ioc` zone
-├── run_ioc.py                  runs it as a real IOC from a pip install
-├── verify.py                   CA smoke test: connections, alarms, write, command
-├── db/l4-opcpa.db              generated; committed so it can be read and diffed
-├── st.cmd, Dockerfile          for a stock EPICS base installation
-└── README.md
-config/zones/{test,demo,ioc}.yaml
-tests/
-```
-
-## Three ways to get PV data
-
-| | What it is | When |
-| --- | --- | --- |
-| `EPICS_BACKEND=sim` | In-process simulator (`app/epics/sim_backend.py`) | Working on the UI. One command, no IOC. |
-| `EPICS_BACKEND=aioca` + `ioc/` | A real EPICS IOC on localhost, database generated from the config | Testing the thing that will actually run: real records, real alarms, real CA. |
-| `EPICS_BACKEND=aioca` | The control system | On site. |
-
-The middle one exists because the first one can only be wrong in ways the
-simulator itself invented. An `mbbi` read at its native type really does return
-an index rather than a state name, and finding that out from a real IOC is worth
-more than any amount of mock fidelity.
-
-## Adding a module
-
-The L4 page is one module under `app/modules/`. Another one needs: a config
-schema + loader, a widget registry, a panel template, and routes — the same four
-pieces, and `main.py` gains one `include_router`. `app/epics/` and
-`app/presentation/` are module-agnostic and should stay that way.
+| MVP | Here |
+| --- | --- |
+| Next.js app, React components, CSS Modules | Jinja templates + one stylesheet (`core/static/css/hmi.css`) |
+| `useWebSocketData` subscribing per component | server-side subscription + render loop (`core/routes.py`) |
+| WebSocket `/ws/pvs` carrying JSON values | SSE `/<screen>/stream` carrying rendered HTML |
+| `websocket_pv_manager.py` fan-out | `core/epics/hub.py` |
+| `severity.ts`, `severity-presentation.ts`, `pv-tooltip.ts` | `core/render/severity.py` |
+| `Values.tsx` readout primitives | `core/render/readouts.py` |
+| `pv-helpers.ts`, `format.ts`, `units.ts` | `core/render/formatting.py` |
+| `config/schema.ts` (zod) | each component's `Config` (pydantic) |
+| `MODULES` registry + `src/proxy.ts` route enforcement | the zone's folder listing |
+| Go mock server (`l4_opcpa.go`) | `core/epics/sim_backend.py`, seeded from `pv_specs()` |
+| `backend/epics` hand-written IOC database | `ioc/` — generated from `pv_specs()` |
+| `POST /pv/<NAME>` | `POST /api/write` |
 
 ## Known gaps in this draft
 
-- **Not visually reviewed.** The CSS is a faithful port of the CSS Modules, but
-  nobody has put the two pages side by side. Expect spacing to need a pass.
+- **Not visually reviewed.** The CSS is a faithful port of the React CSS
+  Modules, but nobody has put the two side by side. Expect spacing to need a
+  pass.
 - **No authentication.** The React app used NextAuth + LDAP and both backends
   required a JWT on the WebSocket. Nothing here checks anything, so `/api/write`
   is open to whoever can reach the port.
-- **Only `/l4-opcpa`.** The vacuum modules (`p3`, `l3bt`, `l4fbt`) and the
-  zone/route enforcement from `src/proxy.ts` are not ported.
+- **The vacuum modules from the React app** (`p3`, `l3bt`, `l4fbt`) are not
+  ported. They would be `panel` + `value` + `group` screens, or a component of
+  their own if the volume/connector layout is worth one.
 - **CSS Modules' scoping is gone** — class names are global and kebab-case.
-- **The `l4-goggles` palette is defined but not selectable**; nothing sets
-  `data-palette` yet.
+- **The `l4-goggles` palette** is selected by `PALETTE=l4-goggles`, not yet by
+  an operator-facing control.
 - **No metadata tier for units/precision.** Subscriptions run at `FORMAT_TIME`,
   which carries severity, status and timestamp but not EGU or PREC, so units
   come from the config. `resolve_units`/`resolve_format` already have the slot.
-- **A cog panel closes on press, not on success.** `usePvWrite` closed it when
-  the write resolved; the result lands in the status line either way, and
-  leaving the panel open over the value it just changed hides what the operator
-  pressed the button to see.
-- **`Escape` closes cog panels; there is no outside-click close.** `CogToggle`
-  had both.
+- **A cog panel closes on press, not on success**, and `Escape` closes it but an
+  outside click does not.

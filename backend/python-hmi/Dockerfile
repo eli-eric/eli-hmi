@@ -2,9 +2,10 @@
 #
 # The React app needed a Node build stage and shipped a bundler's output; there
 # is nothing to build here, so the image is the source plus its dependencies.
-# `ZONE_CODE` and `EPICS_BACKEND` are supplied at runtime by each deployment's
-# compose file and are never baked in, so one image still serves every station
-# (ADR-0012).
+#
+# Every zone is in the image and the station picks itself: `core.zones` matches
+# the machine's hostname against each zone's `hostnames:` patterns. So one image
+# serves every zone, and a deployment needs no per-zone configuration at all.
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -25,11 +26,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt requirements-epics.txt ./
 RUN pip install --no-cache-dir -r requirements-epics.txt
 
-COPY app ./app
-COPY config ./config
+COPY core ./core
+COPY components ./components
+COPY zones ./zones
 
-ENV ZONE_CODE=test \
-    EPICS_BACKEND=aioca \
+# No ZONE_CODE: a station works out which zone it is from its hostname, so one
+# image serves every zone and nothing has to be set per deployment. Set it
+# explicitly for a container whose hostname is not the station's.
+ENV EPICS_BACKEND=aioca \
     HOST=0.0.0.0 \
     PORT=8082
 
@@ -40,4 +44,4 @@ EXPOSE 8082
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8082/health/ready').status == 200 else 1)"
 
-CMD ["python", "-m", "app"]
+CMD ["python", "-m", "core"]

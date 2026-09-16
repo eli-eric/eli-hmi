@@ -14,9 +14,10 @@ that if you want `caget`/`caput` and a stock `softIoc` binary alongside).
 The records do the simulating; there is no Python in the loop. This file loads
 the database and hands control to the IOC shell.
 
-Then point the HMI at it:
+Then point the HMI at the generated zone (the one whose field PVs were rewritten
+to names a base-only IOC can serve):
 
-    ZONE_CODE=ioc EPICS_BACKEND=aioca python -m app
+    ZONE_CODE=TESTZ-IOC EPICS_BACKEND=aioca python -m core
 
 `--list` prints every PV the IOC will serve, which is the quickest way to check
 a config change reached the database.
@@ -31,7 +32,9 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_DB = HERE / "db" / "l4-opcpa.db"
+#: The development zone's database. `--db` picks another; `make ioc
+#: ZONE_CODE=01` passes the right one.
+DEFAULT_DB = HERE / "db" / "testz.db"
 
 
 def record_names(db: Path) -> list[str]:
@@ -76,7 +79,7 @@ def main() -> int:
     print(
         f"\nIOC serving {len(names)} records from {args.db.name} "
         f"on CA port {os.environ.get('EPICS_CA_SERVER_PORT', '5064')}.\n"
-        f"Point the HMI at it with:  ZONE_CODE=ioc EPICS_BACKEND=aioca python -m app\n",
+        f"Point the HMI at it with:  make run-ioc\n",
         flush=True,
     )
 

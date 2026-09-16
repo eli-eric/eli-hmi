@@ -28,8 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app.modules.l4_opcpa.config import load_laser_specs  # noqa: E402
-from app.modules.l4_opcpa.widgets import build_panel  # noqa: E402
+from core.zones import load_zone  # noqa: E402
 
 PASS = "  ok   "
 FAIL = "  FAIL "
@@ -38,12 +37,14 @@ FAIL = "  FAIL "
 async def run(zone: str, timeout: float) -> int:
     import aioca
 
-    specs = load_laser_specs(zone, cache=False)
-    panels = [build_panel(spec) for spec in specs]
-    pvs = sorted({pv.name for panel in panels for pv in panel.all_pvs})
+    loaded = load_zone(zone)
+    pvs = sorted({pv.name for gui in loaded.guis for pv in gui.all_pvs()})
     failures = 0
 
-    print(f"zone {zone}: {len(pvs)} PVs across {len(specs)} laser(s)")
+    print(
+        f"zone {zone}: {len(pvs)} PVs across {len(loaded.guis)} screen(s) "
+        f"({', '.join(gui.slug for gui in loaded.guis)})"
+    )
 
     print("\n1. connections")
     # aioca's caget takes a list and returns one value per name.
@@ -73,7 +74,11 @@ async def run(zone: str, timeout: float) -> int:
             failures += 1
             print(f"{FAIL} no {label} reading — the database should inject one")
 
-    spec = specs[0]
+    spec = _first_laser(loaded)
+    if spec is None:
+        print("\n3. write path: skipped, no laser panel in this zone")
+        print("\n4. command chain: skipped")
+        return 1 if failures else 0
     print(f"\n3. write path ({spec.laser} shutter)")
     shutter = spec.pvs.shutter
     before = await aioca.caget(shutter, datatype=aioca.DBR_ENUM_STR, throw=False)
@@ -121,9 +126,25 @@ async def run(zone: str, timeout: float) -> int:
     return 1 if failures else 0
 
 
+def _first_laser(zone):
+    """The first laser panel in the zone, if it has one.
+
+    Checks 3 and 4 press a real control and watch what moves, and a laser panel
+    is the screen with a known one. A zone of generic screens gets checks 1 and
+    2 — which are the ones that catch a stale database anyway.
+    """
+    for gui in zone.guis:
+        for component in gui.walk():
+            if component.name == "laser-panel":
+                return component.config
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--zone", default="ioc", help="zone to check (default: ioc)")
+    parser.add_argument(
+        "--zone", default="TESTZ-IOC", help="zone to check (default: TESTZ-IOC)"
+    )
     parser.add_argument("--timeout", type=float, default=3.0, help="CA timeout in seconds")
     args = parser.parse_args()
     try:

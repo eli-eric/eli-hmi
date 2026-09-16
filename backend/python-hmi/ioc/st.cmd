@@ -2,7 +2,7 @@
 #
 # IOC startup script for a stock EPICS base installation.
 #
-#   softIoc -d ioc/db/l4-opcpa.db          # simplest: no st.cmd needed at all
+#   softIoc -d ioc/db/testz.db          # simplest: no st.cmd needed at all
 #   softIoc ioc/st.cmd                     # this file, from backend/python-hmi
 #
 # `run_ioc.py` does the same thing from a pip install (pythonSoftIOC brings
@@ -12,7 +12,7 @@
 dbLoadDatabase("$(EPICS_BASE)/dbd/softIoc.dbd")
 softIoc_registerRecordDeviceDriver(pdbbase)
 
-dbLoadRecords("db/l4-opcpa.db")
+dbLoadRecords("db/testz.db")
 
 iocInit()
 

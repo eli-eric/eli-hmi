@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ gui.title }} — zone {{ zone.code }}{% endblock %}
+
+{#
+  One screen of one zone.
+
+  This is the whole client: one `data-signals` declaration, one `data-init` that
+  opens the SSE stream, and the components the zone's YAML listed. There is no
+  bundler, no hydration and no client-side state beyond what an operator is
+  doing with their own mouse — which panels they have expanded, what they have
+  typed into a setpoint field.
+
+  The page is rendered from the hub's cache, so the first paint already shows
+  the machine. The stream then patches individual cells as PVs report. That
+  ordering matters in a control room: a page that renders placeholders and fills
+  them in after a round-trip reads as "the system is down" for the second it
+  takes.
+#}
+
+{% block content %}
+<div class="page"
+     data-signals="{{ signals_json }}"
+     data-init="@get('{{ stream_url }}')">
+
+  <div class="sticky-header">
+    <header class="page-header">
+      <h1 class="page-title">{{ gui.title }}</h1>
+      {% if gui.description %}<span class="page-description">{{ gui.description }}</span>{% endif %}
+      {# Two independent failure reports. `#link-banner` is pushed by the server
+         when it cannot reach EPICS. The watchdog below is the browser noticing
+         that the stream itself has stopped arriving: `$_age` counts seconds and
+         every heartbeat resets it, so nothing has to poll and a dead stream
+         cannot masquerade as a quiet machine. #}
+      <span class="stream-watchdog"
+            data-on-interval__duration.1s="$_age = $_age + 1; $_toast_age = $_toast_age + 1"></span>
+      <span class="write-status" data-show="$_toast != '' && $_toast_age < {{ toast_seconds }}"
+            style="display:none" data-text="$_toast"></span>
+      <span class="write-busy" data-show="$_busy" style="display:none">writing…</span>
+    </header>
+    {{ link_banner }}
+    <div class="banner" role="status" data-show="$_age > 6" style="display:none">
+      Live updates have stopped — this page is frozen at its last update. Reload if it persists.
+    </div>
+    <div class="legend" aria-label="Status legend">
+      {% for item in legend %}
+      <div class="legend-item">
+        <span class="legend-swatch" data-tone-surface="chip"
+              {%- if item.tone %} data-tone="{{ item.tone }}"{% endif %} title="{{ item.meaning }}">{{ item.label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# Components wrap to the window: one per row on a phone, several on a wall
+     display. Which ones, and in what order, is the zone's YAML. #}
+  <div class="component-grid">
+    {% for component in components %}{{ component }}{% endfor %}
+  </div>
+</div>
+{% endblock %}

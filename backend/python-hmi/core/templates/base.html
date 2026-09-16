@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"{% if palette %} data-palette="{{ palette }}"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ELI HMI{% endblock %}</title>
+  <link rel="stylesheet" href="{{ static('/css/hmi.css') }}">
+  {#
+    Datastar is the only JavaScript this application ships. It is vendored
+    rather than pulled from a CDN because a control room is not assumed to have
+    a route to the public internet, and because the version the Python SDK
+    generates events for should be pinned to the one the browser runs.
+  #}
+  <script type="module" src="{{ static('/vendor/datastar.js') }}"></script>
+</head>
+<body>
+  <div class="layout">
+    {#
+      The menu is the zone's folder listing: one entry per screen folder under
+      `zones/<CODE>/`. It cannot disagree with what the app serves, because the
+      routes come from the same listing.
+
+      The zone code is deliberately prominent. Each zone is a separate network
+      and this app is deployed once per zone, so "which zone am I looking at"
+      is a question an operator must never have to guess — and a wrong answer
+      looks exactly like a right one.
+    #}
+    <nav class="nav">
+      <span class="nav-zone" title="{{ zone.title }} — resolved from {{ zone.resolved_by }}">{{ zone.code }}</span>
+      {% for item in menu %}
+      <a class="nav-link" href="{{ item.href }}"
+         {%- if item.slug == gui.slug %} aria-current="page"{% endif %}>{{ item.label }}</a>
+      {% endfor %}
+      <span class="nav-spacer"></span>
+      <span class="nav-meta">{{ zone.title }} · {{ backend_label }}</span>
+    </nav>
+    <main class="page-container">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

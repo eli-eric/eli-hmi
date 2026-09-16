@@ -1,46 +1,75 @@
 # Local EPICS IOC
 
-A real EPICS IOC serving every PV the L4 OPCPA panel reads, so the HMI can be
-run the way it will run in the hall — `EPICS_BACKEND=aioca`, Channel Access,
-real records — on a laptop.
+A real EPICS IOC serving every PV a zone's screens read, so the HMI can be run
+the way it will run in the hall — `EPICS_BACKEND=aioca`, Channel Access, real
+records — on a laptop.
 
-This replaces `backend/epics/`, whose database was hand-written against a config
-that kept moving: half its records still carried the Go mock's `AI_`/`BI_` names
-while the config had gone over to real ones. Here the database is **generated
-from the config**, so a PV rename cannot leave the IOC behind.
+**The database is generated from what the components declare**, not written by
+hand. Every component says what each of its PVs is (`Component.pv_specs()`), and
+`generate.py` turns those declarations into records. So a screen written purely
+in YAML gets a working IOC with no extra work, and a PV rename cannot leave the
+IOC behind. That is the failure the old `backend/epics` suffered: half its
+records still carried the Go mock's `AI_`/`BI_` names while the config had gone
+over to real ones.
 
 ## Run it
 
 ```bash
 cd backend/python-hmi
 pip install -r ioc/requirements.txt          # pythonSoftIOC: EPICS base as a wheel
-python ioc/generate.py                       # db + the `ioc` zone (committed; regenerate after a config edit)
-python ioc/run_ioc.py                        # IOC on CA port 5064
+python ioc/generate.py                       # db + the TESTZ-IOC zone
+make ioc                                     # the IOC, on CA port 5064
 ```
 
 Then, in another shell:
 
 ```bash
-ZONE_CODE=ioc EPICS_BACKEND=aioca python -m app     # or: make run-ioc
+make run-ioc                                 # the HMI against it
 ```
 
 Open <http://localhost:8082>. Nothing is simulated in Python: the numbers move
 because `calc` records are scanning, the alarms are real EPICS alarms from real
-limit fields, and pressing **Start Laser** runs a `seq` record inside the IOC.
+limit fields, and pressing a button runs a `seq` record inside the IOC.
 
 Check it without the HMI:
 
 ```bash
-python ioc/verify.py        # connects every PV, checks the alarms, presses a command
+make ioc-verify             # connects every PV, checks the alarms, presses a control
 python ioc/run_ioc.py --list    # every PV the IOC will serve
 ```
 
-If PVs do not connect, the usual cause is name resolution rather than the IOC:
+Another zone:
+
+```bash
+python ioc/generate.py --zone 01
+make ioc ZONE_CODE=01
+make run-ioc ZONE_CODE=01
+```
+
+If PVs do not connect, the usual cause is name resolution rather than the IOC
+(`make run-ioc` and `make ioc-verify` set these for you):
 
 ```bash
 export EPICS_CA_ADDR_LIST=127.0.0.1
 export EPICS_CA_AUTO_ADDR_LIST=NO
 ```
+
+## One declaration, two backends
+
+| A component declares | The simulator | This IOC |
+| --- | --- | --- |
+| `kind="float"`, a band and a step | random walk in the band | `calc` with `MIN(D,MAX(C,A+(RNDM-0.5)*B))`, `INPA` on its own VAL |
+| alarm limits | evaluated on every read | real `HIGH`/`HIHI`/`LOW`/`LOLO` + `HSV`/`HHSV` |
+| `kind="bool"`, `states=("CLOSED","OPEN")` | holds; readable by name | `bi` with `ZNAM`/`ONAM`, so `caget` reads CLOSED/OPEN |
+| `kind="enum"`, `states=(…)` | index or name, by datatype | `mbbi` with the names in `ZRST`… |
+| `kind="string"` | holds | `stringin` |
+| `kind="int"` | holds | `longin` with integer limit fields |
+| `command=True`, `effects`, `busy` | applies the writes, holds busy | `bo` + `seq` with a delayed release step |
+| one value to many records | a loop | one `dfanout` (16 outputs) |
+| `undefined=True` | severity INVALID | a record that is never processed — UDF, exactly as in a real IOC |
+
+Nothing in `generate.py` knows what a laser, a chiller or a motor is. Add a
+component and the database knows about it the next time this runs.
 
 ## Is this a "real" IOC?
 
@@ -51,81 +80,61 @@ packages. Record processing, scan threads, link semantics, alarm evaluation and
 the Channel Access server are all base's. What you do not get is a *built* EPICS
 installation, and with it the command-line tools.
 
-For those, `Dockerfile` still builds base 7.0.8 from the bundled tarball (moved
-here from `backend/epics`) and runs a stock `softIoc`:
+For those, `Dockerfile` builds base 7.0.8 from the bundled tarball and runs a
+stock `softIoc`:
 
 ```bash
 docker compose -f ioc/docker-compose.yml up --build    # ~10 min the first time
 docker exec -it l4-opcpa-ioc caget L4-OPCPA-NL2:FullPower
 ```
 
-`export-image.sh` / `load-and-run.sh` hand that image to someone who has
-neither Python nor EPICS. Host networking is required in both compose files:
-Channel Access resolves PV names by UDP broadcast, which Docker's bridge
-network does not pass. macOS and Windows have no host network, so use
-`run_ioc.py` there.
+`export-image.sh` / `load-and-run.sh` hand that image to someone who has neither
+Python nor EPICS. Host networking is required in both compose files: Channel
+Access resolves PV names by UDP broadcast, which Docker's bridge network does
+not pass. macOS and Windows have no host network, so use `run_ioc.py` there.
 
-## What the records simulate
+## The `<ZONE>-IOC` zone
 
-Everything is plain EPICS base — no `sub` records with C, no Python in the loop.
-That is the point: if the simulation needed a language the IOC does not have,
-the HMI would be talking to something that only resembles a control system.
+Some PVs name a *field* of a record: an EPICS motor record's `.RBV`, an asyn
+record's `.CNCT`, an sseq record's `.BUSY`. A record name cannot contain a dot —
+Channel Access splits the name there to find the field — so **no base-only IOC
+can serve them under their real names**. Reproducing them needs a full EPICS
+build with synApps.
 
-| Panel element | Records | Behaviour |
-| --- | --- | --- |
-| Analogue readouts (PHD, temperatures, flows, levels, bias) | `calc` | Random walk inside a band: `MIN(D,MAX(C,A+(RNDM-0.5)*B))` with `INPA` reading the record's own `VAL`, so each scan moves from the last one. Carries `EGU`, `PREC` and real `HIGH`/`HIHI`/`LOW`/`LOLO` limits with `HSV`/`HHSV` severities. |
-| Booleans (connection, full power, shutter, MSS, Modbox) | `bi` | Soft input records: they keep whatever the IOC's own sequences write to them. `ZSV` makes a denied MSS permission a MINOR alarm. |
-| Enum states (regen, flashlamp channels) | `mbbi` | State names in `ZRST`…, so the panel's `enum_string` read gets `RUN` rather than `1`. |
-| Error codes, waveform names | `stringin` | Strings, as the panel expects. |
-| Trigger delay, attenuator | `longin` / `longout` | `EGU ns`; the attenuator is written directly by the panel. |
-| Commands (`CMD_<laser>_<NAME>`, `SetAlignmentMode`) | `bo` + `seq` | One press, a coordinated set of writes, and a step delayed 3 s that clears the sequencer state — which is why the Sequencer row reads RUNNING and then IDLE. |
-| Set All Flashlamps to Run/Standby | `dfanout` | One value to all 14 channels. A `dfanout` has 16 outputs, so this is one record. |
-| Set Trigger Delay | `dfanout` | One setpoint to both channels, which is what keeps them equal — the panel flags MISMATCH when they are not. |
-| Waveform preset | `fanout` + two `stringout` (`OMSL=closed_loop`) | Applying a preset copies the current one into "Waveform Latest" *first*, then overwrites it. A `seq` cannot do this: its steps carry doubles, not strings. |
+So `generate.py` writes a second thing: a copy of the zone with those PVs
+pointed at colon-separated stand-ins, as `zones/<ZONE>-IOC/`. Run the HMI with
+`ZONE_CODE=<ZONE>-IOC` (which is what `make run-ioc` does). It is a generated
+folder, marked as such, and it answers to no hostname, so a station in the hall
+can never resolve to it. `tests/test_ioc_db.py` asserts nothing but those names
+differs, and that a device's signals stay wired to each other across the
+rewrite.
 
-### Faults it starts with
+For a screen you want to develop against this IOC, name a motor's signals
+explicitly rather than with `prefix:` — see `components/motor/__init__.py`.
 
-The panel's whole job is telling kinds of bad news apart, so the database
-injects one of each rather than leaving that to chance:
+## Faults the database starts with
+
+The panel's whole job is telling kinds of bad news apart, so both the simulator
+and this database inject one of each rather than leaving it to chance. They come
+from the screens themselves (`demo:` in a zone's YAML, or `FAULTS` in
+`components/laser_panel/simulate.py`), so a screen shows an engineer what an
+alarm looks like without anyone having to break a chiller:
 
 | Injected | Shows up as |
 | --- | --- |
-| Chiller 2 outlet temperature runs above its `HIHI` | MAJOR — a real reading the control system is unhappy about, still displayed |
-| Chiller 3 water level is never processed | INVALID/UDF — `PV INV`, with the tooltip saying why |
-| The last MSS permission is denied, and its record calls that MINOR | The MSS pill reads `NO` in a warning tone |
-| One module reports error code `0021` | ERR reads `1/22` instead of `0/22` |
-| Two flashlamp channels sit in `STOP` | The tally is not a single column |
-
-They are listed in `INJECTED_FAULTS` in the generator and in the header of the
-generated `.db`.
-
-## The two renamed PVs
-
-Two PVs in the `test` zone name a *field* of a record type EPICS base does not
-have:
-
-| Config | Record type it needs | Served here as |
-| --- | --- | --- |
-| `L4-OPCPA-NL2:PortControl.CNCT` | asynRecord (`asyn`) | `L4-OPCPA-NL2:PortControl:CNCT` |
-| `L4-OPCPA-NL2:SetAlignmentMode.BUSY` | sseqRecord (`calc`/synApps) | `L4-OPCPA-NL2:SetAlignmentMode:BUSY` |
-
-No base-only IOC can serve them under their real names: a record name cannot
-contain a dot, because Channel Access splits the name there to find the field.
-Reproducing them needs a full EPICS build with synApps.
-
-So `generate.py` writes a second file — `config/zones/ioc.yaml`, identical to
-the source zone except for those two names — and you run the HMI with
-`ZONE_CODE=ioc`. That is exactly what the zone mechanism is for, the rewrite is
-mechanical rather than hand-edited, and `tests/test_ioc_db.py` asserts nothing
-else differs.
+| A chiller temperature above its `HIHI` | MAJOR — a real reading the control system dislikes, still displayed |
+| A water level that is never processed | INVALID/UDF — `PV INV`, with the tooltip saying why |
+| A denied permission whose record calls that MINOR | The interlock pill reads `NO` in a warning tone |
+| One module reporting error code `0021` | ERR reads `1/n` instead of `0/n` |
+| Two flashlamp channels in `STOP` | The tally is not one full column |
 
 ## Files
 
 ```
-generate.py       config -> db + the `ioc` zone. Run after editing a zone.
+generate.py       a zone -> db + the <ZONE>-IOC zone. Run after editing a screen.
 run_ioc.py        runs the db as an IOC from a pip install (no EPICS build)
 verify.py         CA smoke test: connections, alarms, a write, a command
-db/l4-opcpa.db    generated; committed so it can be read and diffed
+db/<zone>.db      generated; committed so it can be read and diffed
 st.cmd            for a stock `softIoc` binary
 Dockerfile        builds EPICS base 7.0.8 and runs `softIoc` (adds caget/caput)
 docker-compose.yml        build and run the IOC container
@@ -134,16 +143,14 @@ export-image.sh / load-and-run.sh   hand that image to a colleague
 base-7.0.8.tar.gz         EPICS base source, for the Dockerfile
 ```
 
-## Adding a laser or renaming a PV
-
-Edit the zone YAML, then:
+## After editing a screen
 
 ```bash
-python ioc/generate.py --zone test    # or --zone demo for the 3-laser grid
-make test                              # test_ioc_db.py fails if the db is stale
+python ioc/generate.py --zone TESTZ
+make test          # test_ioc_db.py fails if the committed db is stale
 ```
 
-A PV that several lasers read — a site-wide MSS interlock, say — is emitted once
-and read by all of them. Asking for the same name with a *different* definition
-fails loudly instead, because `dbLoadRecords` would otherwise keep whichever
-came last and the IOC would serve a record nobody meant.
+A PV read by two components is emitted once — one signal, one record, however
+many screens show it. Two components *describing* the same PV differently (a
+different band, a different precision) is reported but not fatal: in the hall
+that is ordinary, and the first description is the one the database uses.
