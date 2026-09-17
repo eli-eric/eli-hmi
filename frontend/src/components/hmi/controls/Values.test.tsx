@@ -24,6 +24,61 @@ describe('FloatValue', () => {
     expect(el).not.toHaveAttribute('data-tone')
   })
 
+  it('renders three decimal places without a format — unchanged by config support', () => {
+    // Guards the migration: adding the config layer must not restyle any
+    // readout that never asked for a format.
+    render(<FloatValue data={msg({ value: 23.456789 })} />)
+    expect(screen.getByText('23.457')).toBeInTheDocument()
+  })
+
+  it('honours a configured number of decimal places', () => {
+    render(
+      <FloatValue
+        data={msg({ value: 23.456789 })}
+        format={{ format: 'fixed', toFixed: 1 }}
+      />,
+    )
+    expect(screen.getByText('23.5')).toBeInTheDocument()
+  })
+
+  it('honours a configured non-decimal format', () => {
+    render(
+      <FloatValue
+        data={msg({ value: 0.001234 })}
+        format={{ format: 'exponential', toExponential: 2 }}
+      />,
+    )
+    expect(screen.getByText('1.23e-3')).toBeInTheDocument()
+  })
+
+  it('prefers the config over a component fallback', () => {
+    render(
+      <FloatValue
+        data={msg({ value: 790 })}
+        format={{ format: 'fixed', toFixed: 2 }}
+        formatFallback={{ format: 'raw' }}
+      />,
+    )
+    expect(screen.getByText('790.00')).toBeInTheDocument()
+  })
+
+  it("uses a component's fallback when the config is silent", () => {
+    render(
+      <FloatValue data={msg({ value: 790 })} formatFallback={{ format: 'raw' }} />,
+    )
+    expect(screen.getByText('790')).toBeInTheDocument()
+  })
+
+  it('still formats a severity-tinted value', () => {
+    render(
+      <FloatValue
+        data={msg({ value: 23.456, severity: 2 })}
+        format={{ format: 'fixed', toFixed: 1 }}
+      />,
+    )
+    expect(screen.getByText('23.5')).toHaveAttribute('data-tone', 'error')
+  })
+
   it('keeps the real value for MINOR / MAJOR alarms, tinting it', () => {
     const { rerender } = render(
       <FloatValue data={msg({ value: 1.5, severity: 1 })} />,
@@ -136,6 +191,23 @@ describe('IntegerValue', () => {
   it('applies severity tone to the rounded value', () => {
     render(<IntegerValue data={msg({ value: 4.7, severity: 2 })} />)
     expect(screen.getByText('5')).toHaveAttribute('data-tone', 'error')
+  })
+
+  it('rounds without a format, so config support changed nothing', () => {
+    render(<IntegerValue data={msg({ value: 4.7 })} />)
+    expect(screen.getByText('5')).toBeInTheDocument()
+  })
+
+  it('honours a configured format when one is given', () => {
+    // Needed because the attenuator has a units role but had no formatting
+    // knob at all before this.
+    render(
+      <IntegerValue
+        data={msg({ value: 4.7 })}
+        format={{ format: 'fixed', toFixed: 2 }}
+      />,
+    )
+    expect(screen.getByText('4.70')).toBeInTheDocument()
   })
 })
 

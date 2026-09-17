@@ -1,8 +1,6 @@
 **
 !frontend/
 !frontend/**
-!eli-hmi-config/
-!eli-hmi-config/**
 
 frontend/.next
 frontend/.npm

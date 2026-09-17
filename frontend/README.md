@@ -37,7 +37,6 @@ Login `test` / `test` (LDAP bypass; see `src/lib/server/auth/ldap-auth.ts`).
 NEXTAUTH_SECRET=...                         # any strong random value
 API_URL=localhost:8080
 ZONE_CODE=test                              # see "Zone configuration" below
-# CONFIG_DIR=../eli-hmi-config              # optional in dev; containers use /app/zone-config
 LDAP_SERVER_URL=ldap://10.78.0.11           # only used in prod auth
 LDAP_BASE_DN=dc=lcs,dc=local
 ```
@@ -65,8 +64,9 @@ See [`src/lib/modules/README.md`](src/lib/modules/README.md). TL;DR:
    }
    ```
 
-4. Add `modules.<m>.config` plus the route/nav entry to the relevant zone
-   file(s) (`eli-hmi-config/zones/*.yaml`; see "Zone configuration" below).
+4. Add `config/zones/<ZONE_CODE>.yaml` under the module for every zone that
+   enables it, and add `{ key: <m>, text: … }` to those zones in
+   `config/global.yaml` (see "Zone configuration" below).
 
 ## Reusable HMI components
 
@@ -112,27 +112,49 @@ The hook **buries** the dev-vs-prod PV-name prefix mapping (`getPrefixedPV`). Pa
 
 Wire protocol: client sends `{ type: 'subscribe', pvs: { NAME: true } }`; server pushes `{ type: 'pv', name, value, severity, units, timestamp, ok }`.
 
-## Zone configuration (CSI-861)
+## Zone configuration
 
-Per-environment config — navigation, allowed routes, L4 OPCPA laser data, and
-p3/l3bt/l4fbt `ModuleConfig` data — lives **outside the app build** in a
-zone-config directory ([ADR-0011](../docs/adr/0011-runtime-zone-config.md)):
+Per-environment config lives in this repo and ships inside the image
+([ADR-0012](../docs/adr/0012-in-repo-config.md)):
 
-- `ZONE_CODE` picks the zone at **runtime**; a code is valid exactly when `zones/<ZONE_CODE>.yaml` exists in the config dir — **no zone list in the code**.
-- `CONFIG_DIR` points at the directory. Deployments mount a config checkout
-  read-only (currently based on the in-repo template; a standalone
-  controls-team repo is a follow-up; see
-  `deployments/zones/testz/docker-compose.yml`). In development it defaults to
-  [`../eli-hmi-config`](../eli-hmi-config/README.md), which documents the full
-  file format.
-- Config is read at server start and cached — **config change = restart the container**, never a rebuild. A broken/missing config **stops the container at startup** with a readable log message (`src/instrumentation.ts`). Per-request zone lookup failures degrade to `/no-access`; a module-file failure after startup surfaces as a page error.
-- The Next.js 16 Proxy (`src/proxy.ts`, Node runtime) gates routes via `src/lib/settings/zone-service.ts`; the client nav receives `navigationItems`/`homeRoute` from `/api/runtime-config` via `useRuntimeConfig()`.
-- Validate a config dir before deploy: `npm run validate:config -- --dir <path> --all`. The same check ships as a container image (`--target validator` in `Dockerfile`) for the controls team, who have no Node checkout.
+```
+config/global.yaml                                  which zones exist, and what each turns on
+src/app/(modules)/<module>/config/zones/<zone>.yaml that module's data for that zone
+```
 
-The vacuum pages' data-only `ModuleConfig` fields are runtime YAML. Their
-bespoke volume/connector `parts/` remain compiled TSX by design.
+- **`config/global.yaml`** lists each zone's `title` and its enabled modules, in
+  menu order. Routes are *not* written there — they come from the `MODULES`
+  registry in `src/lib/settings/zone-schema.ts`, so `allowedRoutes`,
+  `navigationItems` and the module list collapse into one list that cannot
+  disagree with itself.
+- **`ZONE_CODE`** picks the zone at runtime; a code is valid exactly when it is
+  a key under `zones:`. Every zone is in every image, so switching a station to
+  another existing zone is a compose restart, not a rebuild.
+- **One module config per zone**, selected by convention from `ZONE_CODE`.
+  Whole files are selected, never merged, and there is **no fallback to a
+  shared default** — a zone that enables a module must ship its file, because a
+  station silently running on another station's PV names is worse than a failed
+  build.
+- **Validation is build-time.** `npm run validate:config` runs as `prebuild`,
+  so broken config fails `next build`. It parses every module YAML on disk —
+  including files for zones not rolled out yet — and prints the full
+  zone → module → file resolution.
+- **Startup never exits.** `src/instrumentation.ts` logs a summary; the one
+  remaining runtime failure, a `ZONE_CODE` naming no zone, is reported with the
+  list of valid zones while the UI serves `/no-access`. A crash-loop behind
+  `restart: unless-stopped` just looks like a dead port.
+- The Next.js 16 Proxy (`src/proxy.ts`, Node runtime) gates routes via
+  `src/lib/settings/zone-service.ts`; the client nav receives
+  `navigationItems`/`homeRoute` from `/api/runtime-config` via
+  `useRuntimeConfig()`.
 
-To bring up a new site: add `zones/<site>.yaml` to the config repo, set `ZONE_CODE=<site>` + the mount in that site's `docker-compose.yml` — CI ships one global image.
+The vacuum pages' data-only `ModuleConfig` fields are YAML. Their bespoke
+volume/connector `parts/` remain compiled TSX by design.
+
+To bring up a new site: add the zone to `config/global.yaml`, add
+`config/zones/<site>.yaml` under every module it enables, and set
+`ZONE_CODE=<site>` in that site's `docker-compose.yml` — CI ships one global
+image.
 
 ## Testing
 

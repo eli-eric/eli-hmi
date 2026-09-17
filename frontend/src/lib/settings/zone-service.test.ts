@@ -1,7 +1,11 @@
-import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { clearZoneCache } from './zone-config-loader'
+import {
+  ConfigRoot,
+  GLOBAL_BROKEN,
+  GLOBAL_TWO_ZONES,
+} from '@/test/config-root'
+import { clearConfigCache, setConfigRootForTests } from './config-loader'
 import {
   DEFAULT_ZONE_TITLE,
   getDefaultRoute,
@@ -12,37 +16,41 @@ import {
   isRouteAllowed,
 } from './zone-service'
 
-const FIXTURE_DIR = join(__dirname, '__fixtures__', 'config-dir')
-
 describe('zone-service', () => {
+  let root: ConfigRoot
+
   beforeEach(() => {
     vi.unstubAllEnvs()
-    vi.stubEnv('CONFIG_DIR', FIXTURE_DIR)
-    clearZoneCache()
+    root = new ConfigRoot().global(GLOBAL_TWO_ZONES)
+    setConfigRootForTests(root.path)
+    clearConfigCache()
   })
   afterEach(() => {
     vi.unstubAllEnvs()
-    clearZoneCache()
+    setConfigRootForTests(undefined)
+    clearConfigCache()
+    root.cleanup()
   })
 
-  describe('test zone (fixture with l4-opcpa)', () => {
+  describe('test zone (l4-opcpa with a label, p3 without one)', () => {
     beforeEach(() => {
       vi.stubEnv('ZONE_CODE', 'test')
     })
 
-    it('isRouteAllowed returns true for the allowed L4 OPCPA route', () => {
+    it('isRouteAllowed is true for every enabled module route', () => {
       expect(isRouteAllowed('/l4-opcpa')).toBe(true)
+      // Enabled without `text`: reachable, just not in the menu.
+      expect(isRouteAllowed('/p3-controls')).toBe(true)
     })
 
-    it('isRouteAllowed returns false for routes outside the zone', () => {
-      expect(isRouteAllowed('/p3-controls')).toBe(false)
+    it('isRouteAllowed returns false for routes the zone does not enable', () => {
       expect(isRouteAllowed('/l3bt-controls')).toBe(false)
       expect(isRouteAllowed('/l4fbt-controls')).toBe(false)
       expect(isRouteAllowed('/nonexistent')).toBe(false)
       expect(isRouteAllowed('')).toBe(false)
     })
 
-    it('getDefaultRoute returns the first allowed route', () => {
+    it('getDefaultRoute returns the first listed module route', () => {
       expect(getDefaultRoute()).toBe('/l4-opcpa')
     })
 
@@ -58,66 +66,58 @@ describe('zone-service', () => {
       expect(getZoneTitle()).toBe('L4 OPCPA')
     })
 
-    it('getNavigationItems returns the configured item', () => {
-      const items = getNavigationItems()
-      expect(items).toHaveLength(1)
-      expect(items[0]).toEqual({
-        text: 'L4 OPCPA Controls',
-        href: '/l4-opcpa',
-      })
+    it('getNavigationItems only includes modules carrying `text`', () => {
+      // The menu is derived from the same list as the routes, so it cannot
+      // point at a page the zone did not enable.
+      expect(getNavigationItems()).toEqual([
+        { text: 'L4 OPCPA Controls', href: '/l4-opcpa' },
+      ])
     })
   })
 
-  describe('empty zone (intentionally no routes)', () => {
+  describe('zone that names no title', () => {
     beforeEach(() => {
-      vi.stubEnv('ZONE_CODE', 'empty')
+      vi.stubEnv('ZONE_CODE', 'minimal')
     })
 
-    it('isRouteAllowed returns false for every route', () => {
-      expect(isRouteAllowed('/p3-controls')).toBe(false)
-    })
-
-    it('getDefaultRoute returns null', () => {
-      expect(getDefaultRoute()).toBeNull()
-    })
-
-    it('getHomeRoute falls back to /no-access', () => {
-      expect(getHomeRoute()).toBe('/no-access')
-    })
-
-    it('hasAccessibleRoutes is false', () => {
-      expect(hasAccessibleRoutes()).toBe(false)
-    })
-
-    it('getNavigationItems is empty', () => {
-      expect(getNavigationItems()).toEqual([])
-    })
-
-    it('getZoneTitle falls back to the generic name, not a station name', () => {
-      // A zone that does not name itself must not be given someone else's
-      // name: the header used to be hardcoded to one station's.
+    it('falls back to the generic name, not another station name', () => {
+      // The header used to be hardcoded to one station's name and showed it
+      // on every deployment regardless of what the page controlled.
       expect(getZoneTitle()).toBe(DEFAULT_ZONE_TITLE)
     })
+
+    it('still resolves its own routes', () => {
+      expect(getHomeRoute()).toBe('/l4fbt-controls')
+      expect(isRouteAllowed('/l4-opcpa')).toBe(false)
+    })
   })
 
-  describe('unknown zone (no zone file)', () => {
+  describe('unknown zone', () => {
     beforeEach(() => {
       vi.stubEnv('ZONE_CODE', 'fhqwhgads')
     })
 
-    it('falls back to empty config', () => {
+    it('degrades to the empty zone instead of throwing', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       expect(isRouteAllowed('/p3-controls')).toBe(false)
       expect(getDefaultRoute()).toBeNull()
+      expect(getHomeRoute()).toBe('/no-access')
       expect(hasAccessibleRoutes()).toBe(false)
+      expect(getZoneTitle()).toBe(DEFAULT_ZONE_TITLE)
+      errorSpy.mockRestore()
     })
   })
 
-  describe('broken zone file', () => {
+  describe('broken global config', () => {
     beforeEach(() => {
-      vi.stubEnv('ZONE_CODE', 'broken')
+      root.global(GLOBAL_BROKEN)
+      clearConfigCache()
+      vi.stubEnv('ZONE_CODE', 'test')
     })
 
-    it('falls back to empty config instead of throwing', () => {
+    it('degrades to the empty zone instead of throwing', () => {
+      // Per-request code must never crash the whole app over config; the
+      // build-time validator is what refuses to ship a file like this.
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       expect(isRouteAllowed('/l4-opcpa')).toBe(false)
       expect(getHomeRoute()).toBe('/no-access')
@@ -131,14 +131,14 @@ describe('zone-service', () => {
     })
 
     it('falls back to empty config', () => {
-      expect(isRouteAllowed('/p3-controls')).toBe(false)
+      expect(isRouteAllowed('/l4-opcpa')).toBe(false)
       expect(hasAccessibleRoutes()).toBe(false)
     })
   })
 
   describe('explicit zoneCode argument overrides env', () => {
     beforeEach(() => {
-      vi.stubEnv('ZONE_CODE', 'empty')
+      vi.stubEnv('ZONE_CODE', 'minimal')
     })
 
     it('uses the passed code', () => {

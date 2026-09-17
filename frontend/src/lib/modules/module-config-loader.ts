@@ -1,13 +1,12 @@
 import 'server-only'
 
 import {
-  getConfigDir,
-  loadZoneFile,
+  ConfigError,
+  configRoot,
   readModuleConfigText,
-  ZoneConfigError,
-} from '@/lib/settings/zone-config-loader'
+} from '@/lib/settings/config-loader'
 import { getCurrentZoneCode } from '@/lib/settings/zone-service'
-import type { ModuleKey } from '@/lib/settings/zone-schema'
+import { moduleConfigPath, type ModuleKey } from '@/lib/settings/zone-schema'
 
 import { parseModuleConfig, type ModuleConfig } from './module-config-schema'
 
@@ -37,29 +36,22 @@ export function clearModuleConfigCache(): void {
 export function loadModuleConfig(key: ModuleConfigKey): ModuleConfig {
   const zoneCode = getCurrentZoneCode()
   if (!zoneCode) {
-    throw new ZoneConfigError(
+    throw new ConfigError(
       `ZONE_CODE is not set — cannot resolve the ${key} module config`,
     )
   }
 
-  const zone = loadZoneFile(zoneCode)
-  const ref = zone.modules[key]
-  if (!ref) {
-    throw new ZoneConfigError(
-      `zone "${zoneCode}" has no modules.${key} config reference`,
-    )
-  }
-
-  const cacheKey = `${getConfigDir()}\0${zoneCode}\0${key}\0${ref.config}`
+  const cacheKey = `${configRoot()}\0${zoneCode}\0${key}`
   const cached = moduleConfigCache.get(cacheKey)
   if (cached) return cached
 
+  const path = moduleConfigPath(key, zoneCode)
   let config: ModuleConfig
   try {
-    config = parseModuleConfig(readModuleConfigText(ref.config), ref.config)
+    config = parseModuleConfig(readModuleConfigText(key, zoneCode), path)
   } catch (e) {
-    if (e instanceof ZoneConfigError) throw e
-    throw new ZoneConfigError((e as Error).message, { cause: e })
+    if (e instanceof ConfigError) throw e
+    throw new ConfigError((e as Error).message, { cause: e })
   }
 
   if (process.env.NODE_ENV === 'production') {

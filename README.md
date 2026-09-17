@@ -8,10 +8,11 @@ Application for **control system operators** and **control system engineers** at
 frontend/                            Next.js 16 / React 19 / TS app (port 8082)
 backend/mockup-websocket-server/     Go simulator (Echo + Gorilla); port 8080
 backend/python-websocket-server/     FastAPI + aioca gateway to a real EPICS network
-eli-hmi-config/                      Zone-config template + dev default (CSI-861) — per-zone
-                                     navigation/routes and module data, mounted at runtime;
-                                     future seed for a controls-team config repo
 ```
+
+Configuration lives inside `frontend/`: `config/global.yaml` declares the zones,
+and each module keeps one config file per zone beside its own schema under
+`src/app/(modules)/<module>/config/zones/`.
 
 The two backends speak the **same WebSocket protocol** (`/ws/pvs`); the frontend doesn't know which is on the other end.
 
@@ -25,16 +26,18 @@ in TSX. WebSocket data flows through a single hook
 
 See [frontend/README.md](frontend/README.md) for setup, environment variables, the WebSocket pub/sub protocol, and how to add a new control module.
 
-**Zone configuration:** which pages a deployment shows (top navigation and
-allowed routes) and each supported module's data come from YAML read **at
-runtime** from a mounted directory selected by `CONFIG_DIR` + `ZONE_CODE`, not
-from the build. This includes L4 OPCPA laser data and the P3/L3BT/L4fBT
-`ModuleConfig` data; only their bespoke volume/connector wiring remains TSX.
-One image serves every zone; a config change requires a config commit/pull and
-container restart. [`eli-hmi-config/`](eli-hmi-config/README.md) is the
-documented template and development default; creating the standalone
-controls-team repository is still a deployment follow-up. See
-[ADR-0011](docs/adr/0011-runtime-zone-config.md).
+**Zone configuration:** `frontend/config/global.yaml` declares every zone and
+the module pages it turns on; each module carries its own YAML per zone, because
+stations run against different PVs. This covers L4 OPCPA laser data and the
+P3/L3BT/L4fBT `ModuleConfig` data — only their bespoke volume/connector wiring
+remains TSX.
+
+The config ships **inside the image** and `ZONE_CODE` selects a zone at runtime,
+so one image still serves every station and switching a station between existing
+zones is a compose restart. Changing config *content* is a PR plus a redeploy,
+and `npm run validate:config` runs as `prebuild` so broken config fails the
+build rather than a container. See
+[ADR-0012](docs/adr/0012-in-repo-config.md).
 
 ## Backend
 

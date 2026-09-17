@@ -22,7 +22,13 @@ import type {
   CommandPvResolver,
   LaserCommand,
 } from '@/app/(modules)/l4-opcpa/lib/pv-names'
-import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import type {
+  FormatConfig,
+  LabeledPv,
+  UnitsConfig,
+} from '@/app/(modules)/l4-opcpa/config/schema'
+import { getFormattedValue } from '@/lib/utils/pv-helpers'
+import { resolveFormat } from '@/lib/websocket/format'
 import { makeCommandGate } from './commandGate'
 import styles from './sections.module.css'
 
@@ -33,8 +39,10 @@ interface FlashlampsSectionProps {
   flashlamps: readonly LabeledPv[]
   /** Trigger-delay readout PVs; all should read equal (mismatch is flagged). */
   triggerDelay: readonly string[]
-  /** Configured unit for the trigger delay (wins over PV metadata). */
-  triggerDelayUnits?: string
+  /** Configured units per signal role; each wins over PV metadata. */
+  units?: UnitsConfig
+  /** Configured number format per signal role; each wins over the default. */
+  format?: FormatConfig
   /** Trigger-delay preset values (ns). */
   delayPresets: readonly number[]
   /** Commands this laser exposes. Buttons for commands not listed are hidden. */
@@ -80,7 +88,8 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
   cmdPv,
   flashlamps,
   triggerDelay,
-  triggerDelayUnits,
+  units = {},
+  format = {},
   delayPresets,
   commands,
 }) => {
@@ -216,7 +225,7 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
     // Only a real reading carries a unit — the branches above replace the
     // value entirely, so a unit there would decorate a non-value.
     const unit = resolveUnits({
-      config: triggerDelayUnits,
+      config: units.triggerDelay,
       metadata: delayState[triggerDelay[0]]?.units,
       fallback: 'ns',
     })
@@ -229,7 +238,19 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
         data-tone={delaySeverity.tone}
         title={delaySeverity.title}
       >
-        <span>{known[0]}</span>
+        <span>
+          {getFormattedValue({
+            value: known[0],
+            // Raw unless the config says otherwise: this readout was
+            // unformatted before it became configurable, and delays are whole
+            // nanoseconds, so the shared 3-decimal default would turn 790 into
+            // 790.000 for everyone who never asked for a format.
+            options: resolveFormat({
+              config: format.triggerDelay,
+              fallback: { format: 'raw' },
+            }),
+          })}
+        </span>
         {unit && <span className={styles.delayUnits}>{unit}</span>}
       </span>
     )

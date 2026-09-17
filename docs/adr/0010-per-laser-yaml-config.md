@@ -1,6 +1,6 @@
 # ADR-0010: Per-laser L4 OPCPA config as full PV names in YAML (zod-validated)
 
-**Status:** Accepted; loading mechanism superseded by [ADR-0011](0011-runtime-zone-config.md) (YAML/zod format stands; the file now lives in the zone-config dir and is read at runtime, not at build)
+**Status:** Accepted. The YAML/zod format stands throughout. Loading was moved out of the build by [ADR-0011](0011-runtime-zone-config.md) and moved back in by [ADR-0012](0012-in-repo-config.md), which now also gives the module one file per zone.
 **Date:** 2026-05-25
 **Deciders:** ELI-HMI team (L4 OPCPA workstream)
 **Supersedes:** [ADR-0008](0008-laser-specs-location.md); supersedes the read-PV registry of [ADR-0006](0006-pv-name-registry-l4-opcpa.md) (command PVs excepted)
@@ -10,8 +10,9 @@
 > controls team requires their config repo to hold hand-written YAML and
 > nothing else, and its members edit in different editors, so the feature had
 > no dependable consumer. Zod remains the single source for validation and
-> types; the config format is now documented in prose under `eli-hmi-config/`,
-> and `validate:config` also ships as a container image.
+> types; the config format is documented in prose beside each module's config.
+> (`validate:config` also shipped as a container image for a while; ADR-0012
+> dropped that along with the external config repo it existed for.)
 
 ## Context
 

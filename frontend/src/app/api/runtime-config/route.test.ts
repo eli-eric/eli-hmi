@@ -1,26 +1,30 @@
-import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { clearZoneCache } from '@/lib/settings/zone-config-loader'
+import { ConfigRoot, GLOBAL_TWO_ZONES } from '@/test/config-root'
+
+import {
+  clearConfigCache,
+  setConfigRootForTests,
+} from '@/lib/settings/config-loader'
 import { GET } from './route'
 
-const FIXTURE_DIR = join(
-  process.cwd(),
-  'src/lib/settings/__fixtures__/config-dir',
-)
-
 describe('GET /api/runtime-config', () => {
+  let root: ConfigRoot
+
   beforeEach(() => {
     vi.unstubAllEnvs()
-    vi.stubEnv('CONFIG_DIR', FIXTURE_DIR)
-    clearZoneCache()
+    root = new ConfigRoot().global(GLOBAL_TWO_ZONES)
+    setConfigRootForTests(root.path)
+    clearConfigCache()
   })
   afterEach(() => {
     vi.unstubAllEnvs()
-    clearZoneCache()
+    setConfigRootForTests(undefined)
+    clearConfigCache()
+    root.cleanup()
   })
 
-  it('returns nav items + home route resolved from the zone file', async () => {
+  it('returns nav items + home route resolved from the global config', async () => {
     vi.stubEnv('ZONE_CODE', 'test')
     const body = await (await GET()).json()
 

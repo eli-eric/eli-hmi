@@ -14,6 +14,8 @@ import type {
 import type {
   LabeledPv,
   MappedPv,
+  FormatConfig,
+  UnitsConfig,
 } from '@/app/(modules)/l4-opcpa/config/schema'
 import { OverviewBar } from './OverviewBar'
 import { makeCommandGate } from './commandGate'
@@ -27,7 +29,10 @@ interface GeneralSectionProps {
   shutterPv: string
   phdMeanPv: string
   /** Configured unit for the PHD readout (wins over PV metadata). */
-  phdMeanUnits?: string
+  /** Configured units per signal role; each wins over PV metadata. */
+  units?: UnitsConfig
+  /** Configured number format per signal role; each wins over the default. */
+  format?: FormatConfig
   /** MSS sub-indicators: display label + PV (counted in the Overview). */
   mss: readonly MappedPv[]
   /** Module-error indicators: label + PV. */
@@ -46,7 +51,8 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
   fullPowerPv,
   shutterPv,
   phdMeanPv,
-  phdMeanUnits,
+  units = {},
+  format = {},
   mss,
   moduleErrors,
   commands,
@@ -103,8 +109,8 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
           <FloatValue
             pvName={phdMeanPv}
             data={state[phdMeanPv]}
-            precision={3}
-            units={phdMeanUnits}
+            format={format.phdMean}
+            units={units.phdMean}
           />
         }
       />

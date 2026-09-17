@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "PORT=8082 next dev --turbopack",
+    "prebuild": "npm run validate:config",
     "build": "PORT=8082 next build",
     "start": "PORT=8082 next start",
     "lint": "eslint .",

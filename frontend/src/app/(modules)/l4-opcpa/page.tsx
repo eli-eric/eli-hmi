@@ -3,11 +3,12 @@ import { L4OpcpaView } from './components/l4-opcpa-view'
 
 /**
  * Server shell for the L4 OPCPA page. Reads + validates the per-laser config
- * referenced by the current zone (runtime-mounted config dir, see CSI-861)
- * and hands the resolved specs to the client view. `force-dynamic` so the
- * config is read from the running container, not baked in at `next build`;
- * an invalid config fails at container start (instrumentation.ts) or renders
- * error.tsx.
+ * for the current zone (`config/zones/<ZONE_CODE>.yaml`, see ADR-0012)
+ * and hands the resolved specs to the client view. `force-dynamic` because
+ * which file to read depends on `ZONE_CODE`, which is only known at run time —
+ * prerendering would pin one zone and break "one image for every station".
+ * Invalid config fails the build (`validate:config` runs as `prebuild`), so
+ * what reaches a container is already valid.
  */
 export const dynamic = 'force-dynamic'
 

@@ -8,20 +8,15 @@ vi.mock('next-auth/jwt', () => ({
   getToken,
 }))
 
-import { join } from 'node:path'
-
 import { NextRequest } from 'next/server'
 
-import { proxy } from './proxy'
-import { clearZoneCache } from './lib/settings/zone-config-loader'
+import { ConfigRoot, GLOBAL_TWO_ZONES } from '@/test/config-root'
 
-const FIXTURE_DIR = join(
-  __dirname,
-  'lib',
-  'settings',
-  '__fixtures__',
-  'config-dir',
-)
+import { proxy } from './proxy'
+import {
+  clearConfigCache,
+  setConfigRootForTests,
+} from './lib/settings/config-loader'
 
 function makeRequest(pathname: string): NextRequest {
   const url = `http://localhost:8082${pathname}`
@@ -29,15 +24,20 @@ function makeRequest(pathname: string): NextRequest {
 }
 
 describe('proxy', () => {
+  let root: ConfigRoot
+
   beforeEach(() => {
-    vi.stubEnv('CONFIG_DIR', FIXTURE_DIR)
+    root = new ConfigRoot().global(GLOBAL_TWO_ZONES)
+    setConfigRootForTests(root.path)
     vi.stubEnv('ZONE_CODE', 'test')
-    clearZoneCache()
+    clearConfigCache()
     getToken.mockResolvedValue(null)
   })
   afterEach(() => {
     vi.unstubAllEnvs()
-    clearZoneCache()
+    setConfigRootForTests(undefined)
+    clearConfigCache()
+    root.cleanup()
   })
 
   it('redirects unauthenticated users to /auth/signin', async () => {

@@ -45,27 +45,6 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
-# Config-validator CLI — the exact check the controls team's config repo runs
-# in CI, packaged so it needs nothing but Docker on the caller's side. Reuses
-# `deps`, which installs devDependencies (tsx) because NODE_ENV is not yet
-# production at that stage. No `next build` involved.
-#
-# BuildKit skips this stage for the default build: `runner` is the last stage
-# and does not depend on it. Build it explicitly with `--target validator`.
-#
-#   docker run --rm -v "$PWD:/config:ro" <image>:<app-release-tag> --all
-#
-# Runs as root deliberately, unlike `runner`: it only ever reads a read-only
-# bind mount, and root avoids uid mismatches with whoever owns the config
-# checkout on the host.
-FROM base AS validator
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-ENTRYPOINT ["/app/node_modules/.bin/tsx", "scripts/validate-config.ts", "--dir", "/config"]
-CMD ["--all"]
-
-
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
@@ -98,9 +77,10 @@ ENV PORT=8082
 # https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
 ENV HOSTNAME="0.0.0.0"
 
-# API_URL, API_SCHEME, ZONE_CODE, and CONFIG_DIR are intentionally left unset
-# here — they are supplied at container start by the deployment's Compose
-# configuration and read live by /api/runtime-config, Proxy, and config loaders.
+# API_URL, API_SCHEME and ZONE_CODE are intentionally left unset here — they
+# are supplied at container start by the deployment's Compose configuration and
+# read live by /api/runtime-config, Proxy, and the config loaders. The config
+# files themselves are baked in above, via next.config.ts file tracing.
 
 # LDAP Authentication Settings
 ENV LDAP_SERVER_URL=$LDAP_SERVER_URL

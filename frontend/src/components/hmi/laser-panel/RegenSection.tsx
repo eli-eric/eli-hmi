@@ -11,7 +11,10 @@ import {
   StringValue,
 } from '@/components/hmi/controls/Values'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import type { UnitsConfig } from '@/app/(modules)/l4-opcpa/config/schema'
+import type {
+  FormatConfig,
+  UnitsConfig,
+} from '@/app/(modules)/l4-opcpa/config/schema'
 
 interface RegenSectionProps {
   regenStatePv: string
@@ -20,6 +23,8 @@ interface RegenSectionProps {
   attenuatorPv: string
   /** Configured units per signal role; each wins over PV metadata. */
   units?: UnitsConfig
+  /** Configured number format per signal role; each wins over the default. */
+  format?: FormatConfig
 }
 
 /**
@@ -32,6 +37,7 @@ export const RegenSection: FC<RegenSectionProps> = ({
   phd2MeanPv,
   attenuatorPv,
   units = {},
+  format = {},
 }) => {
   const numericPvs = useMemo(
     () => [regenTempPv, phd2MeanPv, attenuatorPv],
@@ -70,7 +76,7 @@ export const RegenSection: FC<RegenSectionProps> = ({
           <FloatValue
             pvName={regenTempPv}
             data={state[regenTempPv]}
-            precision={3}
+            format={format.regenTemp}
             units={units.regenTemp}
             unitsFallback="°C"
           />
@@ -82,7 +88,7 @@ export const RegenSection: FC<RegenSectionProps> = ({
           <FloatValue
             pvName={phd2MeanPv}
             data={state[phd2MeanPv]}
-            precision={3}
+            format={format.phd2Mean}
             units={units.phd2Mean}
           />
         }
@@ -93,6 +99,7 @@ export const RegenSection: FC<RegenSectionProps> = ({
           <IntegerValue
             pvName={attenuatorPv}
             data={state[attenuatorPv]}
+            format={format.attenuator}
             units={units.attenuator}
           />
         }
