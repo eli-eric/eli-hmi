@@ -1,6 +1,11 @@
 """End-to-end: the page, the SSE stream, and the write path against a live
 server. Uses a real uvicorn socket because the point is the streaming response,
 and an in-process ASGI transport buffers it.
+
+Every screen is behind a sign-in, so the `client` fixture signs in first — with
+the built-in `test`/`test` account, which is what `dev=True` below turns on. The
+`anonymous` fixture is the same server without that step, for the tests that are
+*about* the gate.
 """
 
 from __future__ import annotations
@@ -34,6 +39,10 @@ def server():
             render_interval=0.05,
             heartbeat_seconds=0.5,
             log_level="WARNING",
+            # The built-in test account, and a fixed signing key so a cookie
+            # minted in one test is still valid in the next.
+            dev=True,
+            session_secret="test-only-secret",
         )
     )
     config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
@@ -52,10 +61,26 @@ def server():
 
 
 @pytest.fixture
-async def client(server):
+async def anonymous(server):
+    """A client that has not signed in."""
     import httpx
 
     async with httpx.AsyncClient(base_url=server, timeout=15) as client:
+        yield client
+
+
+@pytest.fixture
+async def client(server):
+    """A signed-in client — what every test below except TestAuthGate wants."""
+    import httpx
+
+    async with httpx.AsyncClient(base_url=server, timeout=15) as client:
+        response = await client.post(
+            "/login",
+            data={"username": "test", "password": "test"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303, "the built-in test account did not sign in"
         yield client
 
 
@@ -277,3 +302,109 @@ class TestWriteGuards:
             # (The arrow is escaped in the JSON payload, so match on the tail.)
             assert f"{text}" in response.text
             assert "Refused" not in response.text
+
+
+class TestAuthGate:
+    """Nothing is served to someone who has not signed in.
+
+    The gate is middleware rather than a per-route dependency precisely so that
+    these tests cover screens nobody has written yet: a screen is a folder, and
+    a folder cannot forget to declare a dependency.
+    """
+
+    async def test_a_screen_redirects_to_the_form_and_remembers_where(self, anonymous):
+        response = await anonymous.get("/chillers", follow_redirects=False)
+        assert response.status_code == 307
+        assert response.headers["location"] == "/login?next=/chillers"
+
+    async def test_the_stream_is_refused_rather_than_redirected(self, anonymous):
+        """A redirect to an HTML login page would have Datastar patch the form
+        into the screen. 401 is the honest answer to machinery."""
+        response = await anonymous.get("/l4-opcpa/stream", follow_redirects=False)
+        assert response.status_code == 401
+        assert response.json()["login"] == "/login"
+
+    async def test_a_write_is_refused(self, anonymous):
+        response = await anonymous.post(
+            "/api/write",
+            params={"pv": "L4-OPCPA-NL2:IO:15:RC1_pin31", "value": "1"},
+            json={},
+            headers={"Datastar-Request": "true"},
+        )
+        assert response.status_code == 401
+
+    async def test_health_stays_open_for_the_container_probe(self, anonymous):
+        """A probe has no browser and no credentials; a liveness check that
+        needed a session would restart a healthy container."""
+        assert (await anonymous.get("/health/live")).status_code == 200
+        assert (await anonymous.get("/health/ready")).status_code == 200
+
+    async def test_the_login_page_can_load_its_own_stylesheet(self, anonymous):
+        assert (await anonymous.get("/login")).status_code == 200
+        assert (await anonymous.get("/static/css/hmi.css")).status_code == 200
+
+    async def test_a_wrong_password_says_nothing_useful_to_a_stranger(self, anonymous):
+        response = await anonymous.post(
+            "/login", data={"username": "test", "password": "wrong"}, follow_redirects=False
+        )
+        assert response.status_code == 401
+        assert "Sign-in failed." in response.text
+        # Not "no such user", not "wrong password", not the directory's words.
+        assert "invalid" not in response.text.lower()
+
+    async def test_next_cannot_be_talked_into_leaving_the_site(self, anonymous):
+        """`?next=https://elsewhere/` would make the station's own login form a
+        step in a phishing chain."""
+        for hostile in ("https://evil.example/", "//evil.example/", "javascript:alert(1)"):
+            response = await anonymous.post(
+                "/login",
+                data={"username": "test", "password": "test", "next": hostile},
+                follow_redirects=False,
+            )
+            assert response.status_code == 303
+            assert response.headers["location"] == "/l4-opcpa"
+
+    async def test_signing_in_lands_on_the_screen_that_was_asked_for(self, anonymous):
+        response = await anonymous.post(
+            "/login",
+            data={"username": "test", "password": "test", "next": "/vacuum"},
+            follow_redirects=False,
+        )
+        assert response.headers["location"] == "/vacuum"
+
+    async def test_the_session_cookie_is_not_readable_by_script(self, anonymous):
+        response = await anonymous.post(
+            "/login", data={"username": "test", "password": "test"}, follow_redirects=False
+        )
+        cookie = response.headers["set-cookie"].lower()
+        assert "httponly" in cookie
+        assert "samesite=lax" in cookie
+
+    async def test_signing_out_ends_the_session(self, client):
+        assert (await client.get("/l4-opcpa")).status_code == 200
+        response = await client.post("/logout", follow_redirects=False)
+        assert response.status_code == 303
+        assert response.headers["location"] == "/login"
+        after = await client.get("/l4-opcpa", follow_redirects=False)
+        assert after.status_code == 307
+
+    async def test_a_forged_cookie_is_not_a_session(self, anonymous):
+        """The signature is the whole security of a stateless session."""
+        import base64
+        import json
+
+        payload = base64.urlsafe_b64encode(
+            json.dumps({"u": "root", "v": "ldap", "iat": 0, "exp": 9999999999}).encode()
+        ).decode().rstrip("=")
+        anonymous.cookies.set("eli_hmi_session", f"{payload}.not-a-real-signature")
+        response = await anonymous.get("/l4-opcpa", follow_redirects=False)
+        assert response.status_code == 307
+
+    async def test_the_signed_in_user_is_on_the_page(self, client):
+        """An operator should be able to see whose account is writing to the
+        machine — a shift handover where the previous person is still signed in
+        is exactly when a write gets attributed to the wrong name."""
+        body = (await client.get("/l4-opcpa")).text
+        assert 'class="nav-user"' in body
+        assert ">test<" in body
+        assert 'action="/logout"' in body

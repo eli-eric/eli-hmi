@@ -79,9 +79,20 @@ class Settings:
     #: goggles; see the tone layer in `core/static/css/hmi.css`.
     palette: str | None = None
 
-    #: Development: reload templates on every render and reparse the zone on
-    #: every request, so an edit shows up on refresh.
+    #: Development: reload templates on every render, and accept the built-in
+    #: `test`/`test` account (see `core.auth`). Never set on a station.
     dev: bool = False
+
+    #: Key the session cookie is signed with. Required in production: without
+    #: it every restart would sign every operator out. `DEV=1` generates one.
+    session_secret: str = ""
+    #: How long a sign-in lasts. 12h covers a shift, so an operator signs in
+    #: once; the React app's 36h outlived the person at the keyboard.
+    session_hours: float = 12.0
+    #: `Secure` on the session cookie. Default off because stations are served
+    #: over plain HTTP inside the zone network today; set it the moment there
+    #: is TLS in front, or the cookie travels in clear on the first request.
+    session_cookie_secure: bool = False
 
     @property
     def backend_label(self) -> str:
@@ -108,4 +119,9 @@ class Settings:
             prewarm=_env_bool("PREWARM", defaults.prewarm),
             palette=palette or None,
             dev=_env_bool("DEV", defaults.dev),
+            session_secret=os.getenv("SESSION_SECRET", defaults.session_secret).strip(),
+            session_hours=_env_float("SESSION_HOURS", defaults.session_hours),
+            session_cookie_secure=_env_bool(
+                "SESSION_COOKIE_SECURE", defaults.session_cookie_secure
+            ),
         )

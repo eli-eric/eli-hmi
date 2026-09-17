@@ -23,6 +23,12 @@ services:
       # simulator. A station sets `aioca` here and needs host networking for
       # Channel Access (see the commented block below).
       EPICS_BACKEND: sim
+      # DEV=1 turns on the built-in test/test account and generates a session
+      # key, so the quick start has nothing to configure. A station sets neither
+      # of these: it sets SESSION_SECRET and LDAP_SERVER_URL instead, and the
+      # app refuses to start without the secret rather than signing everyone out
+      # on the next deploy.
+      DEV: '1'
       LOG_LEVEL: INFO
     # Channel Access uses UDP broadcast for name resolution and does not survive
     # Docker's default bridge NAT. A real deployment therefore wants:
@@ -33,6 +39,11 @@ services:
     #   # ZONE_CODE unset: the hostname decides.
     #   EPICS_CA_ADDR_LIST: 10.78.0.255
     #   EPICS_CA_AUTO_ADDR_LIST: 'NO'
+    #   # Sign-in. DEV must be unset here, or the station accepts test/test.
+    #   SESSION_SECRET: ${SESSION_SECRET:?generate one, see README.md}
+    #   SESSION_COOKIE_SECURE: '1'      # with TLS in front
+    #   LDAP_SERVER_URL: ldap://10.78.0.11
+    #   LDAP_UPN_DOMAIN: lcs.local
     healthcheck:
       test:
         - CMD

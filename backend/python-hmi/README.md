@@ -37,9 +37,11 @@ pip install -r requirements.txt
 make run                  # ZONE_CODE=TESTZ, built-in simulator, :8082
 ```
 
-Open <http://localhost:8082>. Three screens in the menu: **L4 OPCPA** (the
-bespoke laser panel), **Chillers** and **Vacuum** (both pure YAML, no Python
-written for them). Values move, alarms appear, buttons write.
+Open <http://localhost:8082> and sign in as **test / test** (`make run` sets
+`DEV=1`, which is what turns that account on — see [Signing in](#signing-in)).
+Three screens in the menu: **L4 OPCPA** (the bespoke laser panel), **Chillers**
+and **Vacuum** (both pure YAML, no Python written for them). Values move, alarms
+appear, buttons write.
 
 Against a **real EPICS IOC on your own machine** — same Channel Access, same
 `aioca` code path as the hall, nothing simulated in Python:
@@ -54,10 +56,12 @@ make run-ioc              # the HMI against it
 Against the control system, on a station in a zone:
 
 ```bash
+export SESSION_SECRET=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')
+export LDAP_SERVER_URL=ldap://10.78.0.11
 python -m core            # zone from the hostname; see zones/README.md
 ```
 
-Tests: `make test` (246 tests, ~8 s — the end-to-end ones run a real uvicorn
+Tests: `make test` (293 tests, ~8 s — the end-to-end ones run a real uvicorn
 socket, because the thing under test is a streaming response).
 
 To *look* at a screen without a running IOC — for a layout review, a diff
@@ -66,6 +70,57 @@ against the React page, or to send someone a page to comment on:
 ```bash
 python tools/snapshot.py --zone TESTZ --out /tmp/snapshot   # frozen HTML, opens anywhere
 ```
+
+## Signing in
+
+Every screen, the live stream and every write are behind a session. There are
+two ways to get one:
+
+- **LDAP** — a simple bind as `<username>@$LDAP_UPN_DOMAIN` against
+  `$LDAP_SERVER_URL`. The same thing the React app does
+  (`frontend/src/lib/server/auth/ldap-auth.ts`), so the credentials an operator
+  uses on a station today work here unchanged, and this app needs no service
+  account of its own.
+- **the built-in `test` / `test` account** — only when `DEV=1`, and the startup
+  banner says so in as many words every time the process comes up.
+
+The session is a cookie signed with `SESSION_SECRET` (HMAC-SHA256) that carries
+its own expiry, so there is no session table: restarting a station mid-shift
+does not sign anyone out, and there is nothing to share between zones. It is
+`HttpOnly`, `SameSite=Lax`, and `Secure` as soon as you set
+`SESSION_COOKIE_SECURE=1` — do that the moment there is TLS in front.
+
+`SESSION_SECRET` is **required** outside `DEV=1`: a generated key works
+perfectly until the process restarts, which is the worst possible moment to find
+out. Generate one with `python -c 'import secrets; print(secrets.token_urlsafe(32))'`.
+
+What the console says, and it is the audit trail:
+
+```
+INFO    core.auth: authentication: LDAP ldap://10.78.0.11; sessions 12h, cookie secure=no
+WARNING core.auth: login failed user=jsvacha via=ldap ip=10.78.4.21 reason=invalid credentials (41ms)
+INFO    core.auth: login ok user=jsvacha via=ldap ip=10.78.4.21 (38ms)
+INFO    core.auth: session issued user=jsvacha via=ldap valid=12h -> /l4-opcpa
+INFO    core.routes: SSE stream opened for /l4-opcpa by user=jsvacha (48 PVs, 48 monitors, 1 streams)
+INFO    core.routes: write ok user=jsvacha pv=L4-OPCPA-NL2:IO:15:RC1_pin31 value=1
+WARNING core.auth: no session: POST /api/write refused (401)
+INFO    core.auth: logout user=jsvacha ip=10.78.4.21 (session had 11.7h left)
+```
+
+Every sign-in attempt leaves exactly one line, and a failed one is a WARNING —
+a handful is someone mistyping, a screenful is worth looking at. "Wrong
+password" and "the directory did not answer" are different lines in the console
+and deliberately the *same* sentence in the browser: the form is reachable by
+anyone who can reach the port. The password and the cookie are never logged at
+any level, and `core.auth`'s refusal helper does not even take the password as
+an argument, so it cannot end up in a line by accident.
+
+Where the gate is: `core/login.py`, as HTTP middleware rather than a dependency
+on each route. Routes here are generated from the zone's folders, and "the
+screen someone forgot to protect" has to be impossible rather than unlikely.
+`PUBLIC_PATHS` in that file is the complete list of what is reachable without
+signing in: the login form, the health endpoints (a container probe has no
+credentials) and `/static/`.
 
 ## Adding a screen
 
@@ -179,6 +234,13 @@ Two failures with two different operator responses, so two sentences:
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `ZONE_CODE` | *(from the hostname)* | Which `zones/<code>/` to serve |
+| `SESSION_SECRET` | — | Signs the session cookie. **Required** unless `DEV=1` |
+| `SESSION_HOURS` | `12` | How long a sign-in lasts — one shift |
+| `SESSION_COOKIE_SECURE` | `0` | `Secure` on the cookie. Set it when there is TLS in front |
+| `LDAP_SERVER_URL` | — | e.g. `ldap://10.78.0.11`. Unset means LDAP sign-in is off |
+| `LDAP_UPN_DOMAIN` | `lcs.local` | `<user>@<this>` is what gets bound |
+| `LDAP_USE_TLS` | `0` | LDAPS (port 636). Certificates are not verified yet — see the gaps |
+| `LDAP_TIMEOUT_SECONDS` | `5` | How long a sign-in waits for the directory |
 | `EPICS_BACKEND` | `sim` | `sim` (built-in simulator) or `aioca` (real network) |
 | `PORT` / `HOST` | `8082` / `0.0.0.0` | Same port the React app used |
 | `RENDER_INTERVAL` | `0.15` | Seconds a burst of updates is collected before one render |
@@ -188,7 +250,7 @@ Two failures with two different operator responses, so two sentences:
 | `SIM_TICK_SECONDS` | `1.0` | Simulator update rate |
 | `SIM_SEED` | `1` | Fixed seed keeps a demo reproducible; set empty for fresh noise |
 | `ZONES_ROOT` | `zones/` | Where the zone folders live |
-| `DEV` | `0` | Reload templates on every render |
+| `DEV` | `0` | Reload templates on every render, **and accept `test`/`test`** |
 | `LOG_LEVEL` | `INFO` | |
 
 Channel Access reads its own environment too (`EPICS_CA_ADDR_LIST`,
@@ -210,6 +272,8 @@ the zone was resolved).
 | `Values.tsx` readout primitives | `core/render/readouts.py` |
 | `pv-helpers.ts`, `format.ts`, `units.ts` | `core/render/formatting.py` |
 | `config/schema.ts` (zod) | each component's `Config` (pydantic) |
+| NextAuth + `ldap-authentication` + an HS256 JWT on the wire | `core/auth.py`: one LDAP bind, one signed cookie |
+| `proxy.ts` redirecting unauthenticated page routes | `core/login.py`'s middleware, covering pages, streams and writes |
 | `MODULES` registry + `src/proxy.ts` route enforcement | the zone's folder listing |
 | Go mock server (`l4_opcpa.go`) | `core/epics/sim_backend.py`, seeded from `pv_specs()` |
 | `backend/epics` hand-written IOC database | `ioc/` — generated from `pv_specs()` |
@@ -225,9 +289,18 @@ the zone was resolved).
   Roboto Condensed: on a machine without it, the longest device labels
   ("Regen SY3PL50M:32") truncate by a few pixels. They carry the full text as a
   tooltip, but vendoring the font beside `datastar.js` is the fix.
-- **No authentication.** The React app used NextAuth + LDAP and both backends
-  required a JWT on the WebSocket. Nothing here checks anything, so `/api/write`
-  is open to whoever can reach the port.
+- **No group or role check.** Authorisation is the zone, as ADR-0002 has it:
+  anyone the directory knows can sign in to a station and write to it. A
+  `LDAP_REQUIRE_GROUP` would need a bind-and-search instead of a simple bind.
+- **LDAPS does not verify the certificate** (`LDAP_USE_TLS=1` encrypts but
+  trusts anything), matching the React app's `rejectUnauthorized: false`. Fine
+  on a closed zone network, not fine over anything wider.
+- **Nothing rate-limits sign-in attempts.** The console shows a wave of them;
+  nothing slows one down.
+- **A session cannot be revoked.** A stateless cookie is valid until it expires
+  (`SESSION_HOURS`); signing out clears the browser's copy. Rotating
+  `SESSION_SECRET` and restarting invalidates every session at once, which is
+  the only lever.
 - **The vacuum modules from the React app** (`p3`, `l3bt`, `l4fbt`) are not
   ported. They would be `panel` + `value` + `group` screens, or a component of
   their own if the volume/connector layout is worth one.

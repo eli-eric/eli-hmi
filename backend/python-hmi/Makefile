@@ -23,6 +23,8 @@ install-ioc:
 
 # The development zone against the built-in simulator. Templates reload on
 # refresh, so editing a screen's YAML or a component's template is a reload.
+# DEV=1 also turns on the built-in test/test account and generates a session
+# key, so there is nothing to configure before signing in.
 run:
 	ZONE_CODE=$(ZONE_CODE) EPICS_BACKEND=sim DEV=1 PORT=$(PORT) python -m core
 
@@ -31,6 +33,8 @@ run-zone: run
 
 # The real control system. Needs requirements-epics.txt and a reachable
 # network; the zone comes from the hostname unless ZONE_CODE says otherwise.
+# No DEV here, so it wants SESSION_SECRET and LDAP_SERVER_URL — see the auth
+# section of README.md. It says which one is missing and stops.
 run-epics:
 	EPICS_BACKEND=aioca PORT=$(PORT) python -m core
 

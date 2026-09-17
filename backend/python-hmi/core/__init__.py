@@ -7,6 +7,8 @@ adding a new kind of thing a screen can show is a folder under `components/`.
     components.py   the component contract: Config, setup(), pv_specs()
     page.py         a screen: full render, and the patch for a change
     routes.py       page / stream / write endpoints
+    auth.py         an LDAP bind, and the signed cookie that remembers it
+    login.py        the sign-in page, and the gate in front of every route
     server.py       start-up: resolve the zone, seed the simulator, warm the cache
     epics/          monitors, cache, the simulator, aioca
     render/         severity -> tone, readouts, number formats

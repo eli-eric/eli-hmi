@@ -146,6 +146,7 @@ class Page:
         *,
         backend_label: str,
         palette: str | None = None,
+        user: str | None = None,
     ) -> str:
         # Components are rendered BEFORE the signal list is serialised, and the
         # order matters: a template may create a signal as it goes (the cog on a
@@ -167,6 +168,7 @@ class Page:
             backend_label=backend_label,
             toast_seconds=TOAST_SECONDS,
             palette=palette,
+            user=user,
         )
 
     def render_all_widgets(self, reader: PvReader) -> str:

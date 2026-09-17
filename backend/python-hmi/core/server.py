@@ -15,7 +15,10 @@ should stop the process rather than produce a plausible-looking screen:
    entry, and every component's YAML block is validated.
 3. Ask each component what its PVs are (`pv_specs`) and hand those to the
    simulator, so a screen written in YAML works with no IOC.
-4. Open the monitors and warm the cache, so the first page render has values.
+4. Work out who is allowed in (`core.auth`) — LDAP, and the built-in test
+   account when `DEV=1` — and refuse to start in production without a session
+   secret, because the alternative is signing every operator out on each deploy.
+5. Open the monitors and warm the cache, so the first page render has values.
 """
 
 from __future__ import annotations
@@ -28,8 +31,10 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
+from core.auth import Authenticator, SessionCodec, config_from_env, log_startup, session_secret
 from core.epics.hub import PvHub
 from core.jinja import STATIC_ROOT, create_environment
+from core.login import build_login_router, install_gate
 from core.page import build_pages
 from core.routes import build_router
 from core.settings import Settings, SettingsError
@@ -83,6 +88,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     pages = build_pages(zone, env)
     hub = PvHub(build_backend(settings, zone))
 
+    # Sign-in, before anything is served. `session_secret` raises rather than
+    # inventing a key outside development: a generated key works perfectly until
+    # the process restarts, which is the worst possible moment to discover it.
+    authenticator = Authenticator(config_from_env(), dev_account=settings.dev)
+    sessions = SessionCodec(
+        session_secret(settings.session_secret, dev=settings.dev),
+        hours=settings.session_hours,
+    )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         await hub.start()
@@ -97,6 +111,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # trade; set PREWARM=0 where it is not.
             pvs = set().union(*(page.all_pvs for page in pages.values())) if pages else set()
             app.state.warm = await hub.subscribe(pvs)
+        log_startup(
+            authenticator,
+            cookie_secure=settings.session_cookie_secure,
+            hours=settings.session_hours,
+        )
         logger.info(
             "%s ready — zone %s (%s, from %s), %s, %d screen(s): %s",
             settings.app_name,
@@ -127,9 +146,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.hub = hub
     app.state.jinja = env
     app.state.pages = pages
+    app.state.authenticator = authenticator
+    app.state.sessions = sessions
 
+    home = f"/{next(iter(pages))}" if pages else "/"
     app.mount("/static", StaticFiles(directory=STATIC_ROOT), name="static")
+    app.include_router(build_login_router(home=home))
     app.include_router(build_router(pages))
+    # Registered last, applied first: middleware runs outside the routes, so
+    # everything above is behind it.
+    install_gate(app, home=home)
 
     @app.get("/health/live", include_in_schema=False)
     async def health_live() -> PlainTextResponse:
@@ -156,6 +182,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "zone_title": zone.title,
                 "zone_resolved_by": zone.resolved_by,
                 "backend": settings.epics_backend,
+                "auth": authenticator.mode,
                 "screens": {
                     slug: {
                         "title": page.gui.title,

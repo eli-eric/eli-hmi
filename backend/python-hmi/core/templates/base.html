@@ -33,6 +33,18 @@
       {% endfor %}
       <span class="nav-spacer"></span>
       <span class="nav-meta">{{ zone.title }} · {{ backend_label }}</span>
+      {#
+        Who is signed in, and one way out. A plain form post, like the login
+        page: signing out must not depend on the live stream being healthy, and
+        POST is right for something that changes state — a link would let a
+        page prefetch sign the operator out.
+      #}
+      {% if user %}
+      <form class="nav-session" method="post" action="/logout">
+        <span class="nav-user" title="Signed in as {{ user }}">{{ user }}</span>
+        <button class="nav-logout" type="submit">Sign out</button>
+      </form>
+      {% endif %}
     </nav>
     <main class="page-container">
       {% block content %}{% endblock %}

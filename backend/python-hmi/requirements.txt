@@ -9,3 +9,12 @@ fastapi[standard]==0.135.2
 jinja2>=3.1,<4
 pyyaml>=6,<7
 datastar-py==1.0.2
+
+# LDAP sign-in (core/auth.py). Pure Python — no OpenLDAP headers to build
+# against, unlike python-ldap — and imported lazily, so a laptop without it can
+# still run the app with DEV=1 and the built-in test account.
+ldap3==2.9.1
+
+# python-multipart: FastAPI parses the login form's POST body with it. The one
+# form in the app, and the reason sign-in needs no JavaScript.
+python-multipart==0.0.20

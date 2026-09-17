@@ -5,6 +5,9 @@
     GET  /<gui>/stream       Datastar SSE — element patches as PVs report
     POST /api/write          one PV write, with the result patched back
 
+Every one of them requires a session; the gate is in `core.login`, not here, so
+a screen added tomorrow is protected without anyone remembering to protect it.
+
 Routes are registered from the zone's folders, so adding a screen is adding a
 folder — there is nothing here to edit. `/api/write` is deliberately the only
 write route: a command PV and a direct device PV are the same operation (write
@@ -25,6 +28,7 @@ from datastar_py.fastapi import DatastarResponse, ReadSignals
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from core.auth import Identity
 from core.components import PvReader
 from core.epics.hub import PvHub
 from core.page import TOAST_SECONDS, Page
@@ -36,6 +40,13 @@ logger = logging.getLogger(__name__)
 def state(request: Request) -> tuple[Settings, PvHub, dict[str, Page]]:
     app = request.app.state
     return app.settings, app.hub, app.pages
+
+
+def actor(request: Request) -> Identity | None:
+    """Who is asking. Put there by the gate (`core.login.install_gate`) and by
+    nothing else, so a write can never be attributed to a name the request
+    supplied for itself."""
+    return getattr(request.state, "identity", None)
 
 
 def build_router(pages: dict[str, Page]) -> APIRouter:
@@ -70,8 +81,14 @@ def _add_gui_routes(router: APIRouter, slug: str) -> None:
         settings, hub, pages = state(request)
         view = pages[slug]
         reader = PvReader(hub.snapshot(view.all_pvs), hub.link_ok)
+        who = actor(request)
         return HTMLResponse(
-            view.render(reader, backend_label=settings.backend_label, palette=settings.palette)
+            view.render(
+                reader,
+                backend_label=settings.backend_label,
+                palette=settings.palette,
+                user=who.user if who else None,
+            )
         )
 
     async def stream(request: Request) -> DatastarResponse:
@@ -105,10 +122,12 @@ async def _stream_events(request: Request, slug: str):
     """
     settings, hub, pages = state(request)
     view = pages[slug]
+    who = actor(request)
     subscription = await hub.subscribe(view.all_pvs)
     logger.info(
-        "SSE stream opened for /%s (%d PVs, %d monitors, %d streams)",
+        "SSE stream opened for /%s by user=%s (%d PVs, %d monitors, %d streams)",
         slug,
+        who.user if who else "-",
         len(view.all_pvs),
         hub.monitor_count,
         hub.subscriber_count,
@@ -144,7 +163,12 @@ async def _stream_events(request: Request, slug: str):
         raise
     finally:
         await subscription.close()
-        logger.info("SSE stream closed for /%s (%d left)", slug, hub.subscriber_count)
+        logger.info(
+            "SSE stream closed for /%s by user=%s (%d left)",
+            slug,
+            who.user if who else "-",
+            hub.subscriber_count,
+        )
 
 
 async def write(
@@ -162,17 +186,22 @@ async def write(
     request, so the second form needs no separate body contract.
     """
     _settings, hub, _pages = state(request)
+    who = actor(request)
+    user = who.user if who else "-"
     name = pv.strip()
     if not name or any(character.isspace() for character in name):
+        logger.warning("write refused user=%s pv=%r reason=unusable-pv-name", user, pv)
         return _toast(f"Refused: '{pv}' is not a usable PV name.")
 
     if signal is not None:
         raw: Any = (signals or {}).get(signal)
         if raw is None or (isinstance(raw, str) and not raw.strip()):
+            logger.info("write skipped user=%s pv=%s reason=empty-field", user, name)
             return _toast("Nothing to write — enter a value first.")
     elif value is None:
         # Neither form. Writing the string "None" — which is what falling
         # through would do — is worse than refusing: it reaches the device.
+        logger.warning("write refused user=%s pv=%s reason=no-value", user, name)
         return _toast(f"Refused: no value given for {name}.")
     else:
         raw = value
@@ -180,15 +209,20 @@ async def write(
     try:
         payload = _coerce(raw)
     except ValueError as exc:
+        logger.warning("write refused user=%s pv=%s reason=%s", user, name, exc)
         return _toast(f"Refused: {exc}")
 
     try:
         await hub.caput(name, payload)
     except Exception as exc:  # noqa: BLE001 - surfaced to the operator verbatim
-        logger.exception("Write to %s failed", name)
+        # `exception` for the traceback, and the actor on the same line: a write
+        # that failed is the first thing asked about after a shift handover.
+        logger.exception("write FAILED user=%s pv=%s value=%r", user, name, payload)
         return _toast(f"{name}: write failed — {exc}")
 
-    logger.info("Wrote %r to %s", payload, name)
+    # The audit line. One per write, with who, what and to where — the reason
+    # `/api/write` is the only write path in the app.
+    logger.info("write ok user=%s pv=%s value=%r", user, name, payload)
     return _toast(f"{name} ← {payload}", reset_age=True)
 
 

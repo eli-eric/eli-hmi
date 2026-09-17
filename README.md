@@ -108,8 +108,11 @@ make run-ioc              # the HMI against it
 This replaces `backend/epics/`, whose database was hand-written and had drifted
 from the config. See [backend/python-hmi/ioc/README.md](backend/python-hmi/ioc/README.md).
 
-Not a production target yet — no authentication, and the visuals have not been
-reviewed against the React page. See
+Sign-in is an LDAP bind (the same one the React app does) plus a signed session
+cookie, with a built-in `test`/`test` account when `DEV=1`; every screen, stream
+and write is behind it, and every sign-in and every write is one line in the
+console. Not a production target yet — the visuals have not been reviewed
+against the React page and there is no per-user authorisation. See
 [backend/python-hmi/README.md](backend/python-hmi/README.md) for the
 architecture, [zones/README.md](backend/python-hmi/zones/README.md) for adding a
 screen, and [components/README.md](backend/python-hmi/components/README.md) for
