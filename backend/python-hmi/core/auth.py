@@ -206,7 +206,7 @@ def ldap_bind(config: LdapConfig, username: str, password: str) -> None:
         from ldap3.core.exceptions import LDAPException
     except ImportError as exc:  # pragma: no cover - depends on the environment
         raise AuthError(
-            "ldap3 is not installed (pip install -r requirements.txt)",
+            "ldap3 is not installed (uv sync)",
             "Sign-in is unavailable on this station.",
         ) from exc
 

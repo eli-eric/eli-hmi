@@ -1,0 +1,80 @@
+[project]
+name = "eli-hmi"
+version = "0.1.0"
+description = "Server-rendered operator screens for ELI Beamlines control-system zones: Quart + Jinja + Datastar over SSE, talking to EPICS with aioca."
+readme = "README.md"
+requires-python = ">=3.11"
+
+# What a station needs to serve screens against the built-in simulator. The two
+# heavy, platform-specific pieces are extras below, because an engineer working
+# on a screen should not have to install EPICS to see it.
+dependencies = [
+    # The web framework. Flask's API on ASGI — routes, blueprints, `request`,
+    # `render_template` — with async views and streaming responses, which is
+    # what an SSE app is made of.
+    "quart==0.20.0",
+    # Quart's own ASGI server, by the same author. `quart run` uses it, and it
+    # does not buffer a streaming response.
+    "hypercorn==0.18.0",
+    "jinja2>=3.1,<4",
+    "pyyaml>=6,<7",
+    # Every component's Config is a pydantic model: it validates a screen's YAML
+    # and its field descriptions are the error messages a controls engineer
+    # reads (see components/README.md).
+    "pydantic>=2.9,<3",
+    # The SSE protocol the browser speaks. Pinned to the vendored
+    # core/static/vendor/datastar.js, which must be the same version.
+    "datastar-py==1.0.2",
+    # LDAP sign-in (core/auth.py). Pure Python — no OpenLDAP headers to build
+    # against, unlike python-ldap — and imported lazily, so a laptop without it
+    # can still run the app with DEV=1 and the built-in test account.
+    "ldap3==2.9.1",
+]
+
+[project.optional-dependencies]
+# The real control system: `EPICS_BACKEND=aioca`. Same pin as the gateway this
+# app replaces (backend/python-websocket-server), so a station that reached
+# Channel Access through the old service reaches it through this one with the
+# same client library. Kept out of the default install because `epicscorelibs`
+# is a large platform-specific wheel with no build for some developer machines.
+epics = ["aioca==2.0"]
+
+# A local EPICS IOC to develop against (ioc/README.md). pythonSoftIOC embeds
+# EPICS base's iocCore, so the generated .db is loaded by the same C code a
+# built IOC runs — with nothing to compile.
+ioc = ["softioc==4.5.0"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    # The end-to-end tests drive a real socket, because the thing under test is
+    # a streaming response and an in-process transport buffers it.
+    "httpx>=0.27",
+]
+
+[project.scripts]
+# `uv run eli-hmi` — the same entry point as `python -m core`.
+eli-hmi = "core.server:main"
+
+[tool.uv]
+# The lockfile is committed and a station installs from it exactly
+# (`uv sync --frozen`): two zones running "the same version" have to mean the
+# same dependency tree, not whatever PyPI resolved on deployment day.
+package = true
+
+[tool.hatch.build.targets.wheel]
+# `zones/` is deliberately not packaged: a zone is configuration a controls
+# engineer edits in place, and ZONES_ROOT points at it.
+packages = ["core", "components"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-q"

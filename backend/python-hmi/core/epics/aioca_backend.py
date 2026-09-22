@@ -30,7 +30,7 @@ def _import_aioca():
     except ImportError as exc:  # pragma: no cover - depends on the host
         raise RuntimeError(
             "EPICS_BACKEND=aioca needs the `aioca` package "
-            "(pip install -r requirements.txt). Use EPICS_BACKEND=sim to run "
+            "(uv sync --extra epics). Use EPICS_BACKEND=sim to run "
             "without a Channel Access network."
         ) from exc
     return aioca

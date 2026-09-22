@@ -56,3 +56,6 @@ backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.zip
 
 # Frozen page renders from backend/python-hmi/tools/snapshot.py (layout review)
 backend/python-hmi/snapshot/
+
+# uv creates the virtualenv here; never commit it (uv.lock is what is shared)
+backend/python-hmi/.venv/

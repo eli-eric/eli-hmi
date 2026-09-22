@@ -7,11 +7,11 @@ is one list that can be read at a glance:
     /logout         clears the cookie
     PUBLIC_PATHS    everything else requires a session
 
-The gate is HTTP middleware rather than a dependency on each route, because
-routes here are generated from the zone's folders: a dependency is something a
-new screen could be added without, and "the screen someone forgot to protect"
-is precisely the failure that must not be possible. Middleware cannot be
-forgotten.
+The gate is a `before_request` hook rather than a decorator on each view,
+because views here are generated from the zone's folders: a decorator is
+something a new screen could be added without, and "the screen someone forgot
+to protect" is precisely the failure that must not be possible. A hook cannot
+be forgotten.
 
 A browser asking for a page is redirected to the form; anything else (the SSE
 stream, `/api/write`) gets a status code, because redirecting a fetch to an HTML
@@ -22,8 +22,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from quart import Blueprint, Response, current_app, g, jsonify, redirect, request
 
 from core.auth import COOKIE_NAME, DEV_PASSWORD, DEV_USER, AuthError, Authenticator, SessionCodec
 
@@ -43,7 +42,7 @@ def is_public(path: str) -> bool:
     )
 
 
-def client_ip(request: Request) -> str:
+def client_ip() -> str:
     """Where a sign-in came from, for the console line.
 
     `X-Forwarded-For` is honoured because a station may sit behind a reverse
@@ -53,7 +52,7 @@ def client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for", "")
     if forwarded:
         return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "-"
+    return request.remote_addr or "-"
 
 
 def safe_next(target: str | None, fallback: str) -> str:
@@ -69,39 +68,36 @@ def safe_next(target: str | None, fallback: str) -> str:
     return target
 
 
-def build_login_router(*, home: str) -> APIRouter:
-    router = APIRouter()
+def build_login_blueprint(*, home: str) -> Blueprint:
+    auth = Blueprint("auth", __name__)
 
-    @router.get("/login", include_in_schema=False)
-    async def login_form(request: Request, next: str | None = None) -> Response:
-        state = request.app.state
-        identity = state.sessions.read(request.cookies.get(COOKIE_NAME))
-        destination = safe_next(next, home)
-        if identity is not None:
+    @auth.get("/login")
+    async def login_form() -> Response:
+        sessions: SessionCodec = current_app.hmi.sessions
+        destination = safe_next(request.args.get("next"), home)
+        if sessions.read(request.cookies.get(COOKIE_NAME)) is not None:
             # Already signed in — a bookmarked /login should not look like a
             # sign-out.
-            return RedirectResponse(destination, status_code=303)
-        return _render_form(request, next=destination)
+            return redirect(destination, code=303)
+        return await _render_form(next=destination)
 
-    @router.post("/login", include_in_schema=False)
-    async def login_submit(
-        request: Request,
-        username: str = Form(default=""),
-        password: str = Form(default=""),
-        next: str | None = Form(default=None),
-    ) -> Response:
-        state = request.app.state
-        authenticator: Authenticator = state.authenticator
-        sessions: SessionCodec = state.sessions
-        destination = safe_next(next, home)
+    @auth.post("/login")
+    async def login_submit() -> Response:
+        hmi = current_app.hmi
+        authenticator: Authenticator = hmi.authenticator
+        sessions: SessionCodec = hmi.sessions
+
+        form = await request.form
+        username = form.get("username", "")
+        password = form.get("password", "")
+        destination = safe_next(form.get("next"), home)
 
         try:
-            via = authenticator.check(username, password, client=client_ip(request))
+            via = authenticator.check(username, password, client=client_ip())
         except AuthError as exc:
             # 401, not 200: a monitoring system watching a station's logs and
             # status codes should be able to see a wave of failed sign-ins.
-            return _render_form(
-                request,
+            return await _render_form(
                 next=destination,
                 username=username,
                 error=exc.public,
@@ -109,14 +105,14 @@ def build_login_router(*, home: str) -> APIRouter:
             )
 
         cookie, identity = sessions.issue(username.strip(), via)
-        response = RedirectResponse(destination, status_code=303)
+        response = redirect(destination, code=303)
         response.set_cookie(
             COOKIE_NAME,
             cookie,
             max_age=identity.seconds_left,
             httponly=True,
-            samesite="lax",
-            secure=state.settings.session_cookie_secure,
+            samesite="Lax",
+            secure=hmi.settings.session_cookie_secure,
             path="/",
         )
         logger.info(
@@ -128,45 +124,44 @@ def build_login_router(*, home: str) -> APIRouter:
         )
         return response
 
-    @router.post("/logout", include_in_schema=False)
-    async def logout(request: Request) -> Response:
-        identity = request.app.state.sessions.read(request.cookies.get(COOKIE_NAME))
+    @auth.post("/logout")
+    async def logout() -> Response:
+        identity = current_app.hmi.sessions.read(request.cookies.get(COOKIE_NAME))
         if identity is not None:
             logger.info(
                 "logout user=%s ip=%s (session had %.1fh left)",
                 identity.user,
-                client_ip(request),
+                client_ip(),
                 identity.seconds_left / 3600,
             )
-        response = RedirectResponse("/login", status_code=303)
+        response = redirect("/login", code=303)
         response.delete_cookie(COOKIE_NAME, path="/")
         return response
 
-    return router
+    return auth
 
 
-def _render_form(
-    request: Request,
+async def _render_form(
     *,
     next: str,
     username: str = "",
     error: str | None = None,
     status_code: int = 200,
-) -> HTMLResponse:
-    state = request.app.state
-    authenticator: Authenticator = state.authenticator
-    template = state.jinja.get_template("login.html")
-    return HTMLResponse(
+) -> Response:
+    hmi = current_app.hmi
+    template = hmi.jinja.get_template("login.html")
+    return Response(
         template.render(
-            zone=state.zone,
-            backend_label=state.settings.backend_label,
-            palette=state.settings.palette,
+            zone=hmi.zone,
+            backend_label=hmi.settings.backend_label,
+            palette=hmi.settings.palette,
             next=next,
             username=username,
             error=error,
-            hint=_hint(authenticator),
+            hint=_hint(hmi.authenticator),
         ),
-        status_code=status_code,
+        status=status_code,
+        content_type="text/html; charset=utf-8",
     )
 
 
@@ -187,27 +182,28 @@ def _hint(authenticator: Authenticator) -> str:
 def install_gate(app, *, home: str) -> None:
     """Require a session for everything outside `PUBLIC_PATHS`.
 
-    Also the single place that puts the identity on the request, so a route that
-    wants to know who is asking — `/api/write`, which logs the actor of every
-    write — cannot accidentally read it from somewhere less trustworthy.
+    Also the single place that puts the identity on `g`, so a view that wants to
+    know who is asking — `/api/write`, which logs the actor of every write —
+    cannot accidentally read it from somewhere less trustworthy.
     """
 
-    @app.middleware("http")
-    async def require_session(request: Request, call_next):
-        path = request.url.path
-        request.state.identity = None
+    @app.before_request
+    async def require_session():
+        path = request.path
+        g.identity = None
         if is_public(path):
-            return await call_next(request)
+            return None
 
-        identity = app.state.sessions.read(request.cookies.get(COOKIE_NAME))
+        identity = current_app.hmi.sessions.read(request.cookies.get(COOKIE_NAME))
         if identity is None:
-            return _refuse(request, path, home=home)
+            return _refuse(path, home=home)
 
-        request.state.identity = identity
-        return await call_next(request)
+        g.identity = identity
+        # None lets the request through to its view.
+        return None
 
 
-def _refuse(request: Request, path: str, *, home: str):
+def _refuse(path: str, *, home: str):
     """Send the browser somewhere useful, and say so once in the log.
 
     A page request gets the form (with `?next=`, so signing in lands on the
@@ -226,10 +222,7 @@ def _refuse(request: Request, path: str, *, home: str):
     if request.method == "GET" and not (is_datastar or is_stream or wants_json):
         target = safe_next(path if path != "/" else home, home)
         logger.info("no session: %s %s -> /login?next=%s", request.method, path, target)
-        return RedirectResponse(f"/login?next={target}", status_code=307)
+        return redirect(f"/login?next={target}", code=307)
 
     logger.warning("no session: %s %s refused (401)", request.method, path)
-    return JSONResponse(
-        {"error": "not signed in", "login": "/login"},
-        status_code=401,
-    )
+    return jsonify({"error": "not signed in", "login": "/login"}), 401

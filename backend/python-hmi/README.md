@@ -6,6 +6,10 @@ the browser as HTML fragments over Server-Sent Events, using
 [Datastar](https://data-star.dev/). No Node, no bundler, no WebSocket protocol
 between halves.
 
+[Quart](https://quart.palletsprojects.com/) serves it — Flask's API on ASGI —
+behind [Hypercorn](https://hypercorn.readthedocs.io/), and
+[uv](https://docs.astral.sh/uv/) manages the dependencies and the virtualenv.
+
 **Status: draft.** Functionality is complete and tested; the visual result has
 not been reviewed against the React app side by side.
 
@@ -31,9 +35,13 @@ components declare, so a screen can be developed against real Channel Access.
 
 ## Quick start
 
+You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and
+nothing else — not even a Python: uv installs the interpreter this project
+pins (`.python-version`), creates `.venv` from `uv.lock`, and keeps both in
+step. No virtualenv to activate.
+
 ```bash
 cd backend/python-hmi
-pip install -r requirements.txt
 make run                  # ZONE_CODE=TESTZ, built-in simulator, :8082
 ```
 
@@ -47,10 +55,9 @@ Against a **real EPICS IOC on your own machine** — same Channel Access, same
 `aioca` code path as the hall, nothing simulated in Python:
 
 ```bash
-pip install -r requirements-epics.txt -r ioc/requirements.txt   # make install-ioc
-python ioc/generate.py    # db + the TESTZ-IOC zone, from the components
-make ioc                  # a real IOC on CA port 5064
-make run-ioc              # the HMI against it
+uv run python ioc/generate.py   # db + the TESTZ-IOC zone, from the components
+make ioc                        # a real IOC on CA port 5064 (installs the extras)
+make run-ioc                    # the HMI against it
 ```
 
 Against the control system, on a station in a zone:
@@ -58,18 +65,49 @@ Against the control system, on a station in a zone:
 ```bash
 export SESSION_SECRET=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')
 export LDAP_SERVER_URL=ldap://10.78.0.11
-python -m core            # zone from the hostname; see zones/README.md
+uv run --extra epics python -m core   # zone from the hostname; see zones/README.md
 ```
 
-Tests: `make test` (293 tests, ~8 s — the end-to-end ones run a real uvicorn
+Tests: `make test` (294 tests, ~8 s — the end-to-end ones run a real Hypercorn
 socket, because the thing under test is a streaming response).
 
 To *look* at a screen without a running IOC — for a layout review, a diff
 against the React page, or to send someone a page to comment on:
 
 ```bash
-python tools/snapshot.py --zone TESTZ --out /tmp/snapshot   # frozen HTML, opens anywhere
+make snapshot                  # or: uv run python tools/snapshot.py --zone TESTZ
 ```
+
+## Dependencies, with uv
+
+One `pyproject.toml` and one committed `uv.lock`. Nothing is installed globally
+and there is no virtualenv to activate: every `make` target runs through
+`uv run`, which creates or updates `.venv` from the lockfile first, so a
+half-installed environment is not a state you can be in.
+
+| | |
+| --- | --- |
+| `uv sync` | the UI and the simulator — enough to build and look at a screen |
+| `uv sync --extra epics` | plus `aioca`, for a real Channel Access network |
+| `uv sync --extra ioc` | plus `pythonSoftIOC`, for the local IOC in `ioc/` |
+| `uv sync --group dev` | plus pytest and httpx |
+| `make lock` / `make upgrade` | rewrite `uv.lock`; commit the diff |
+
+> **`uv.lock` is not committed yet.** It has to be generated on a machine with
+> a Python that satisfies `requires-python = ">=3.11"`, which the environment
+> this was written in did not have. `make run` (or any `uv run`) writes it on
+> first use, and `make lock` writes it on its own — **commit the result**, or
+> the Docker build's `uv sync --locked` has nothing to install from.
+
+The two heavy pieces are extras rather than dependencies on purpose:
+`epicscorelibs` is a large platform-specific wheel with no build for some
+developer machines, and an engineer working on a screen's layout does not need
+Channel Access to do it.
+
+The lockfile is committed and the image installs with `uv sync --locked`, which
+fails if the lock and `pyproject.toml` disagree rather than quietly resolving
+something newer. Two zones running "the same version" then means the same
+dependency tree, down to the patch.
 
 ## Signing in
 
@@ -167,7 +205,9 @@ EPICS ──camonitor──▶ PvHub ──invalidates──▶ render loop ─�
    either the whole screen, or just the widgets a change touched.
 4. **`core/routes.py`** runs the loop: wait for a change, let the burst settle
    for `RENDER_INTERVAL`, re-render the touched widgets, push one
-   `datastar-patch-elements` event.
+   `datastar-patch-elements` event. It is a Quart blueprint, and the loop is an
+   async generator handed straight to the response — a closed tab arrives as
+   `GeneratorExit`, which is what closes the subscription.
 
 One renderer serves both paths, so a cell pushed over SSE is byte-identical to
 the cell the page was rendered with. There is a test for exactly that
@@ -272,6 +312,7 @@ the zone was resolved).
 | `Values.tsx` readout primitives | `core/render/readouts.py` |
 | `pv-helpers.ts`, `format.ts`, `units.ts` | `core/render/formatting.py` |
 | `config/schema.ts` (zod) | each component's `Config` (pydantic) |
+| `npm ci` against `package-lock.json` | `uv sync --locked` against `uv.lock` |
 | NextAuth + `ldap-authentication` + an HS256 JWT on the wire | `core/auth.py`: one LDAP bind, one signed cookie |
 | `proxy.ts` redirecting unauthenticated page routes | `core/login.py`'s middleware, covering pages, streams and writes |
 | `MODULES` registry + `src/proxy.ts` route enforcement | the zone's folder listing |

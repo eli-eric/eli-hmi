@@ -150,7 +150,7 @@ def main() -> int:
     try:
         import aioca  # noqa: F401
     except ImportError:
-        print("This needs aioca: pip install -r requirements-epics.txt", file=sys.stderr)
+        print("This needs aioca: uv sync --extra epics", file=sys.stderr)
         return 2
     return asyncio.run(run(args.zone, args.timeout))
 

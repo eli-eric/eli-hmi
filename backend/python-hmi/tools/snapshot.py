@@ -16,12 +16,44 @@ the tones — is byte-for-byte what an operator's browser receives.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
 import re
 import shutil
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent
+
+
+async def render_all(out: Path) -> list[tuple[str, str]]:
+    """One frozen render of every screen, signed in as the built-in account.
+
+    Quart's test client drives the app in-process — no socket, no browser —
+    which is all a layout review needs. `app.test_app()` runs the startup and
+    shutdown hooks, so the hub is warm and the pages have real values on them.
+    """
+    from core.server import create_app
+
+    app = create_app()
+    pages: list[tuple[str, str]] = []
+    async with app.test_app():
+        client = app.test_client()
+        # DEV=1 is set below, so this account exists; without a session every
+        # screen would render as a redirect to the login form.
+        await client.post("/login", form={"username": "test", "password": "test"})
+        stats = await (await client.get("/stats")).get_json()
+        for slug, screen in stats["screens"].items():
+            response = await client.get(f"/{slug}")
+            html = (await response.get_data()).decode()
+            # No stream, no vendored JS: a frozen page, and one less thing that
+            # has to resolve for it to open from a file:// URL.
+            html = re.sub(r'\s*data-init="[^"]*"', "", html)
+            html = re.sub(r"\s*<script[^>]*></script>", "", html)
+            html = html.replace('href="/static/css/hmi.css"', 'href="css/hmi.css"')
+            (out / f"{slug}.html").write_text(html)
+            pages.append((slug, screen["title"]))
+            print(f"{out / (slug + '.html')}  ({len(html)} bytes)")
+    return pages
 
 
 def main() -> int:
@@ -32,30 +64,15 @@ def main() -> int:
 
     os.environ["ZONE_CODE"] = args.zone
     os.environ.setdefault("EPICS_BACKEND", "sim")
-
-    from fastapi.testclient import TestClient
-
-    from core.server import create_app
+    # The snapshot signs in with the built-in account, so it needs it.
+    os.environ.setdefault("DEV", "1")
 
     out: Path = args.out
     out.mkdir(parents=True, exist_ok=True)
     static = HERE / "core" / "static"
     shutil.copytree(static / "css", out / "css", dirs_exist_ok=True)
 
-    app = create_app()
-    pages: list[tuple[str, str]] = []
-    with TestClient(app) as client:
-        stats = client.get("/stats").json()
-        for slug, screen in stats["screens"].items():
-            html = client.get(f"/{slug}").text
-            # No stream, no vendored JS: a frozen page, and one less thing that
-            # has to resolve for it to open from a file:// URL.
-            html = re.sub(r'\s*data-init="[^"]*"', "", html)
-            html = re.sub(r'\s*<script[^>]*></script>', "", html)
-            html = html.replace('href="/static/css/hmi.css"', 'href="css/hmi.css"')
-            (out / f"{slug}.html").write_text(html)
-            pages.append((slug, screen["title"]))
-            print(f"{out / (slug + '.html')}  ({len(html)} bytes)")
+    pages = asyncio.run(render_all(out))
 
     index = out / "index.html"
     links = "\n".join(

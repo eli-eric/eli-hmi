@@ -1,6 +1,7 @@
 """End-to-end: the page, the SSE stream, and the write path against a live
-server. Uses a real uvicorn socket because the point is the streaming response,
-and an in-process ASGI transport buffers it.
+server — a real Hypercorn socket, the same server a station runs, because the
+thing under test is a streaming response and an in-process transport buffers
+it.
 
 Every screen is behind a sign-in, so the `client` fixture signs in first — with
 the built-in `test`/`test` account, which is what `dev=True` below turns on. The
@@ -16,9 +17,8 @@ import socket
 import threading
 
 import pytest
-import uvicorn
 
-from core.server import create_app
+from core.server import create_app, serve_config
 from core.settings import Settings
 
 
@@ -28,35 +28,61 @@ def free_port() -> int:
         return sock.getsockname()[1]
 
 
+def accepting(port: int, timeout: float = 15.0) -> bool:
+    """Wait until something answers on the port.
+
+    Hypercorn has no `started` flag to poll, and a test that raced the server
+    would fail on the first request for reasons that have nothing to do with
+    what it is testing.
+    """
+    deadline = threading.Event()
+    for _ in range(int(timeout * 20)):
+        with socket.socket() as probe:
+            probe.settimeout(0.2)
+            if probe.connect_ex(("127.0.0.1", port)) == 0:
+                return True
+        deadline.wait(0.05)
+    return False
+
+
 @pytest.fixture(scope="module")
 def server():
-    port = free_port()
-    app = create_app(
-        Settings(
-            zone_code="TESTZ",
-            epics_backend="sim",
-            sim_tick_seconds=0.2,
-            render_interval=0.05,
-            heartbeat_seconds=0.5,
-            log_level="WARNING",
-            # The built-in test account, and a fixed signing key so a cookie
-            # minted in one test is still valid in the next.
-            dev=True,
-            session_secret="test-only-secret",
-        )
+    settings = Settings(
+        host="127.0.0.1",
+        port=free_port(),
+        zone_code="TESTZ",
+        epics_backend="sim",
+        sim_tick_seconds=0.2,
+        render_interval=0.05,
+        heartbeat_seconds=0.5,
+        log_level="WARNING",
+        # The built-in test account, and a fixed signing key so a cookie
+        # minted in one test is still valid in the next.
+        dev=True,
+        session_secret="test-only-secret",
     )
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
-    server = uvicorn.Server(config)
-    thread = threading.Thread(target=server.run, daemon=True)
+    app = create_app(settings)
+    config = serve_config(settings)
+    config.accesslog = None
+    stop = threading.Event()
+
+    def run() -> None:
+        from hypercorn.asyncio import serve
+
+        async def shutdown() -> None:
+            # Hypercorn shuts down when this coroutine returns. Waiting on a
+            # threading.Event in an executor is how a fixture in another thread
+            # gets to ask it to.
+            await asyncio.get_running_loop().run_in_executor(None, stop.wait)
+
+        asyncio.run(serve(app, config, shutdown_trigger=shutdown))
+
+    thread = threading.Thread(target=run, daemon=True)
     thread.start()
-    for _ in range(100):
-        if server.started:
-            break
-        threading.Event().wait(0.1)
-    else:  # pragma: no cover
+    if not accepting(settings.port):  # pragma: no cover
         pytest.fail("server did not start")
-    yield f"http://127.0.0.1:{port}"
-    server.should_exit = True
+    yield f"http://127.0.0.1:{settings.port}"
+    stop.set()
     thread.join(timeout=10)
 
 

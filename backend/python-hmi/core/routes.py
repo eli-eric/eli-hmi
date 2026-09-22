@@ -24,88 +24,101 @@ import re
 from typing import Any
 
 from datastar_py import ServerSentEventGenerator as SSE
-from datastar_py.fastapi import DatastarResponse, ReadSignals
-from fastapi import APIRouter, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from datastar_py.quart import DatastarResponse, read_signals
+from quart import Blueprint, Response, current_app, g, redirect, request
 
 from core.auth import Identity
 from core.components import PvReader
 from core.epics.hub import PvHub
-from core.page import TOAST_SECONDS, Page
+from core.page import Page
 from core.settings import Settings
 
 logger = logging.getLogger(__name__)
 
 
-def state(request: Request) -> tuple[Settings, PvHub, dict[str, Page]]:
-    app = request.app.state
-    return app.settings, app.hub, app.pages
+def state() -> tuple[Settings, PvHub, dict[str, Page]]:
+    """Settings, hub and screens for the app handling this request.
+
+    Through `current_app` rather than a module global, so two apps in one
+    process — which is what the test suite is — never share a hub.
+    """
+    hmi = current_app.hmi
+    return hmi.settings, hmi.hub, hmi.pages
 
 
-def actor(request: Request) -> Identity | None:
-    """Who is asking. Put there by the gate (`core.login.install_gate`) and by
+def actor() -> Identity | None:
+    """Who is asking. Put on `g` by the gate (`core.login.install_gate`) and by
     nothing else, so a write can never be attributed to a name the request
     supplied for itself."""
-    return getattr(request.state, "identity", None)
+    return getattr(g, "identity", None)
 
 
-def build_router(pages: dict[str, Page]) -> APIRouter:
-    """A router carrying every screen in the zone plus the write endpoint."""
-    router = APIRouter()
-    home = f"/{next(iter(pages))}" if pages else "/"
+def build_blueprint(pages: dict[str, Page], *, home: str) -> Blueprint:
+    """A blueprint carrying every screen in the zone plus the write endpoint."""
+    screens = Blueprint("screens", __name__)
 
-    @router.get("/", include_in_schema=False)
-    async def index() -> RedirectResponse:
-        return RedirectResponse(home)
+    @screens.get("/")
+    async def index():
+        return redirect(home, code=307)
 
     for slug in pages:
-        _add_gui_routes(router, slug)
+        _add_gui_routes(screens, slug)
 
-    router.add_api_route("/api/write", write, methods=["POST"])
-    return router
+    screens.add_url_rule("/api/write", "write", write, methods=["POST"])
+    return screens
 
 
-def _add_gui_routes(router: APIRouter, slug: str) -> None:
+def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:
     """Register one screen. Bound per slug rather than matched by a path
     parameter, so an unknown path is a 404 from the router instead of a page
     that renders empty.
     """
 
-    async def page(request: Request) -> HTMLResponse:
+    async def page() -> Response:
         """Server-side render of the whole screen.
 
         Rendered from the hub's cache, so the first paint shows real values: in
         a control room a page that renders placeholders and fills them in after
         a round-trip reads as "the system is down" for the second it takes.
         """
-        settings, hub, pages = state(request)
+        settings, hub, pages = state()
         view = pages[slug]
         reader = PvReader(hub.snapshot(view.all_pvs), hub.link_ok)
-        who = actor(request)
-        return HTMLResponse(
-            view.render(
-                reader,
-                backend_label=settings.backend_label,
-                palette=settings.palette,
-                user=who.user if who else None,
+        who = actor()
+        html = view.render(
+            reader,
+            backend_label=settings.backend_label,
+            palette=settings.palette,
+            user=who.user if who else None,
+        )
+        return Response(html, content_type="text/html; charset=utf-8")
+
+    async def stream() -> DatastarResponse:
+        """Open the live stream.
+
+        Everything the generator needs is read here, inside the request, and
+        closed over. The generator outlives the request scope by design — it is
+        the response — so reaching for `request` from inside it would need
+        Quart's `stream_with_context` and tie a shift-long stream to machinery
+        it does not otherwise care about.
+        """
+        settings, hub, pages = state()
+        who = actor()
+        return DatastarResponse(
+            _stream_events(
+                slug,
+                pages[slug],
+                hub,
+                settings,
+                user=who.user if who else "-",
             )
         )
 
-    async def stream(request: Request) -> DatastarResponse:
-        """Open the live stream.
-
-        The generator is handed to `DatastarResponse` rather than returned from
-        the route: FastAPI treats an async-generator endpoint as a JSONL stream
-        of its own, which would wrap each SSE event in JSON and break the
-        protocol.
-        """
-        return DatastarResponse(_stream_events(request, slug))
-
-    router.add_api_route(f"/{slug}", page, methods=["GET"], response_class=HTMLResponse)
-    router.add_api_route(f"/{slug}/stream", stream, methods=["GET"])
+    blueprint.add_url_rule(f"/{slug}", f"page_{slug}", page, methods=["GET"])
+    blueprint.add_url_rule(f"/{slug}/stream", f"stream_{slug}", stream, methods=["GET"])
 
 
-async def _stream_events(request: Request, slug: str):
+async def _stream_events(slug: str, view: Page, hub: PvHub, settings: Settings, *, user: str):
     """The live half of a screen.
 
     One subscription per open tab, sharing the hub's monitors. The loop is the
@@ -119,15 +132,16 @@ async def _stream_events(request: Request, slug: str):
     The heartbeat resets `$_age`, the browser's staleness watchdog. That is what
     makes a dead stream visible: without it a frozen page looks exactly like a
     quiet machine.
+
+    A closed tab arrives here as `GeneratorExit` or `CancelledError` when the
+    server stops iterating the response, which is why the subscription is closed
+    in a `finally` rather than by polling for a disconnect.
     """
-    settings, hub, pages = state(request)
-    view = pages[slug]
-    who = actor(request)
     subscription = await hub.subscribe(view.all_pvs)
     logger.info(
         "SSE stream opened for /%s by user=%s (%d PVs, %d monitors, %d streams)",
         slug,
-        who.user if who else "-",
+        user,
         len(view.all_pvs),
         hub.monitor_count,
         hub.subscriber_count,
@@ -138,8 +152,6 @@ async def _stream_events(request: Request, slug: str):
         yield SSE.patch_elements(view.render_all_widgets(reader))
 
         while True:
-            if await request.is_disconnected():
-                break
             dirty = await subscription.wait(timeout=settings.heartbeat_seconds)
             if dirty:
                 # Collect the rest of the burst before rendering: IOCs report a
@@ -159,25 +171,17 @@ async def _stream_events(request: Request, slug: str):
             patch = view.render_patch(reader, dirty)
             if patch:
                 yield SSE.patch_elements(patch)
-    except asyncio.CancelledError:
-        raise
     finally:
         await subscription.close()
         logger.info(
             "SSE stream closed for /%s by user=%s (%d left)",
             slug,
-            who.user if who else "-",
+            user,
             hub.subscriber_count,
         )
 
 
-async def write(
-    request: Request,
-    signals: ReadSignals,
-    pv: str = Query(min_length=1, max_length=256),
-    value: str | None = Query(default=None),
-    signal: str | None = Query(default=None),
-) -> DatastarResponse:
+async def write() -> DatastarResponse:
     """Write one value to one PV.
 
     Two forms, matching the two kinds of control: `value` is fixed by the button
@@ -185,15 +189,20 @@ async def write(
     into (a delay in ns, a waveform name). Datastar sends every signal with the
     request, so the second form needs no separate body contract.
     """
-    _settings, hub, _pages = state(request)
-    who = actor(request)
+    _settings, hub, _pages = state()
+    who = actor()
     user = who.user if who else "-"
-    name = pv.strip()
-    if not name or any(character.isspace() for character in name):
-        logger.warning("write refused user=%s pv=%r reason=unusable-pv-name", user, pv)
-        return _toast(f"Refused: '{pv}' is not a usable PV name.")
+
+    name = (request.args.get("pv") or "").strip()
+    value = request.args.get("value")
+    signal = request.args.get("signal")
+
+    if not name or len(name) > 256 or any(character.isspace() for character in name):
+        logger.warning("write refused user=%s pv=%r reason=unusable-pv-name", user, name)
+        return _toast(f"Refused: '{name}' is not a usable PV name.")
 
     if signal is not None:
+        signals = await read_signals()
         raw: Any = (signals or {}).get(signal)
         if raw is None or (isinstance(raw, str) and not raw.strip()):
             logger.info("write skipped user=%s pv=%s reason=empty-field", user, name)

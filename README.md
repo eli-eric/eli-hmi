@@ -64,7 +64,7 @@ FastAPI + `aioca` gateway that talks to a real EPICS network. **Production targe
 
 ### Server-rendered HMI (`backend/python-hmi`) — draft
 
-An experiment in collapsing the three boxes above into one: FastAPI + Jinja
+An experiment in collapsing the three boxes above into one: Quart + Jinja
 render the operator page on the server, [Datastar](https://data-star.dev/)
 patches individual cells over Server-Sent Events as PVs report, and `aioca`
 talks to EPICS from the same process. No Node, no bundler, no WebSocket
@@ -87,8 +87,7 @@ serves two different sets of screens, and a station that matches nothing refuses
 to start rather than guessing.
 
 ```bash
-cd backend/python-hmi && pip install -r requirements.txt
-make run                  # ZONE_CODE=TESTZ, built-in PV simulator, :8082
+cd backend/python-hmi && make run   # uv installs everything; :8082
 ```
 
 Three screens: the bespoke **L4 OPCPA** laser panel (a port of the React
@@ -99,10 +98,9 @@ is generated from what the components declare, so the app can be run against
 real Channel Access on a laptop:
 
 ```bash
-pip install -r ioc/requirements.txt
-python ioc/generate.py    # db + the TESTZ-IOC zone, from the components
-make ioc                  # a real IOC: calc records scanning, real alarm limits
-make run-ioc              # the HMI against it
+uv run python ioc/generate.py  # db + the TESTZ-IOC zone, from the components
+make ioc                       # a real IOC: calc records scanning, real alarm limits
+make run-ioc                   # the HMI against it
 ```
 
 This replaces `backend/epics/`, whose database was hand-written and had drifted

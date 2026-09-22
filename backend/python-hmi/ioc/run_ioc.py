@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the generated database as a real EPICS IOC.
 
-    pip install -r ioc/requirements.txt
+    uv sync --extra epics --extra ioc      # make install-ioc
     python ioc/run_ioc.py
 
 This is a genuine IOC: EPICS base's iocCore, loaded from the `epicscorelibs`
@@ -64,7 +64,7 @@ def main() -> int:
         from softioc import asyncio_dispatcher, builder, softioc
     except ImportError:
         print(
-            "This needs pythonSoftIOC: pip install -r ioc/requirements.txt\n"
+            "This needs pythonSoftIOC: uv sync --extra ioc\n"
             "(it brings EPICS base along as a wheel — nothing to build).",
             file=sys.stderr,
         )

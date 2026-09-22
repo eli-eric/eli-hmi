@@ -16,8 +16,8 @@ over to real ones.
 
 ```bash
 cd backend/python-hmi
-pip install -r ioc/requirements.txt          # pythonSoftIOC: EPICS base as a wheel
-python ioc/generate.py                       # db + the TESTZ-IOC zone
+uv sync --extra epics --extra ioc            # pythonSoftIOC: EPICS base as a wheel
+uv run python ioc/generate.py                # db + the TESTZ-IOC zone
 make ioc                                     # the IOC, on CA port 5064
 ```
 
@@ -35,13 +35,13 @@ Check it without the HMI:
 
 ```bash
 make ioc-verify             # connects every PV, checks the alarms, presses a control
-python ioc/run_ioc.py --list    # every PV the IOC will serve
+uv run python ioc/run_ioc.py --list   # every PV the IOC will serve
 ```
 
 Another zone:
 
 ```bash
-python ioc/generate.py --zone 01
+uv run python ioc/generate.py --zone 01
 make ioc ZONE_CODE=01
 make run-ioc ZONE_CODE=01
 ```
@@ -132,7 +132,7 @@ alarm looks like without anyone having to break a chiller:
 
 ```
 generate.py       a zone -> db + the <ZONE>-IOC zone. Run after editing a screen.
-run_ioc.py        runs the db as an IOC from a pip install (no EPICS build)
+run_ioc.py        runs the db as an IOC from the `ioc` extra (no EPICS build)
 verify.py         CA smoke test: connections, alarms, a write, a command
 db/<zone>.db      generated; committed so it can be read and diffed
 st.cmd            for a stock `softIoc` binary
@@ -146,7 +146,7 @@ base-7.0.8.tar.gz         EPICS base source, for the Dockerfile
 ## After editing a screen
 
 ```bash
-python ioc/generate.py --zone TESTZ
+uv run python ioc/generate.py --zone TESTZ
 make test          # test_ioc_db.py fails if the committed db is stale
 ```
 

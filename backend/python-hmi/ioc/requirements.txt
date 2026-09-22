@@ -1,4 +1,0 @@
-# The local IOC. pythonSoftIOC embeds EPICS base's iocCore and pulls in
-# `epicscorelibs`, so there is nothing to build — the .db is loaded by the same
-# C code a built IOC runs.
-softioc==4.5.0

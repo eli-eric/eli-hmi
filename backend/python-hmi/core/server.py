@@ -2,8 +2,8 @@
 gateway.
 
     make run                                   # simulator, TESTZ
-    ZONE_CODE=01 EPICS_BACKEND=aioca python -m core
-    python -m core                             # zone from the hostname
+    ZONE_CODE=01 EPICS_BACKEND=aioca uv run python -m core
+    uv run python -m core                      # zone from the hostname
 
 What happens at start-up, in order, because each step can fail in a way that
 should stop the process rather than produce a plausible-looking screen:
@@ -19,28 +19,52 @@ should stop the process rather than produce a plausible-looking screen:
    account when `DEV=1` — and refuse to start in production without a session
    secret, because the alternative is signing every operator out on each deploy.
 5. Open the monitors and warm the cache, so the first page render has values.
+
+The framework is Quart: Flask's API — routes, blueprints, `request`, `g` — on
+ASGI, which is what an app whose main output is a long-lived SSE response
+needs. Hypercorn, by the same author, serves it.
 """
 
 from __future__ import annotations
 
 import logging
 import sys
-from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
+from typing import Any
 
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
+from quart import Quart, jsonify
 
 from core.auth import Authenticator, SessionCodec, config_from_env, log_startup, session_secret
 from core.epics.hub import PvHub
 from core.jinja import STATIC_ROOT, create_environment
-from core.login import build_login_router, install_gate
-from core.page import build_pages
-from core.routes import build_router
+from core.login import build_login_blueprint, install_gate
+from core.page import Page, build_pages
+from core.routes import build_blueprint
 from core.settings import Settings, SettingsError
 from core.zones import Zone, ZoneError, load_zone, resolve_zone_code
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Hmi:
+    """Everything a request needs, assembled once at start-up.
+
+    Quart has no `app.state`, and module-level globals would make two apps in
+    one process — which every test creates — share a hub. So this hangs off the
+    app as `app.hmi`, and a view reaches it through `current_app.hmi`.
+    """
+
+    settings: Settings
+    zone: Zone
+    hub: PvHub
+    jinja: Any
+    pages: dict[str, Page]
+    authenticator: Authenticator
+    sessions: SessionCodec
+    #: The screen `/` redirects to, and where signing in lands by default.
+    home: str = "/"
+    warm: Any = field(default=None, repr=False)
 
 
 def build_backend(settings: Settings, zone: Zone):
@@ -68,7 +92,7 @@ def build_backend(settings: Settings, zone: Zone):
     return backend
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None) -> Quart:
     settings = settings or Settings.from_env()
     logging.basicConfig(
         level=settings.log_level,
@@ -97,8 +121,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         hours=settings.session_hours,
     )
 
-    @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    app = Quart(
+        __name__,
+        static_folder=str(STATIC_ROOT),
+        static_url_path="/static",
+        # Pages are rendered through our own Jinja environment (`core.jinja`),
+        # which also searches `components/`, so Quart's own template loader is
+        # deliberately switched off rather than left to shadow it.
+        template_folder=None,
+    )
+    app.hmi = Hmi(
+        settings=settings,
+        zone=zone,
+        hub=hub,
+        jinja=env,
+        pages=pages,
+        authenticator=authenticator,
+        sessions=sessions,
+        home=f"/{next(iter(pages))}" if pages else "/",
+    )
+
+    @app.before_serving
+    async def start() -> None:
         await hub.start()
         if settings.prewarm:
             # Hold a subscription for every screen's PVs for the process
@@ -110,7 +154,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # whose whole job is to display these screens that is the right
             # trade; set PREWARM=0 where it is not.
             pvs = set().union(*(page.all_pvs for page in pages.values())) if pages else set()
-            app.state.warm = await hub.subscribe(pvs)
+            app.hmi.warm = await hub.subscribe(pvs)
         log_startup(
             authenticator,
             cookie_secure=settings.session_cookie_secure,
@@ -126,57 +170,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             len(zone.guis),
             ", ".join(f"/{gui.slug}" for gui in zone.guis),
         )
-        try:
-            yield
-        finally:
-            warm = getattr(app.state, "warm", None)
-            if warm is not None:
-                await warm.close()
-            await hub.stop()
 
-    app = FastAPI(
-        title=f"ELI HMI — zone {zone.code}",
-        version="0.1.0",
-        lifespan=lifespan,
-        docs_url=None,
-        redoc_url=None,
-    )
-    app.state.settings = settings
-    app.state.zone = zone
-    app.state.hub = hub
-    app.state.jinja = env
-    app.state.pages = pages
-    app.state.authenticator = authenticator
-    app.state.sessions = sessions
+    @app.after_serving
+    async def stop() -> None:
+        if app.hmi.warm is not None:
+            await app.hmi.warm.close()
+        await hub.stop()
 
-    home = f"/{next(iter(pages))}" if pages else "/"
-    app.mount("/static", StaticFiles(directory=STATIC_ROOT), name="static")
-    app.include_router(build_login_router(home=home))
-    app.include_router(build_router(pages))
-    # Registered last, applied first: middleware runs outside the routes, so
-    # everything above is behind it.
-    install_gate(app, home=home)
+    app.register_blueprint(build_login_blueprint(home=app.hmi.home))
+    app.register_blueprint(build_blueprint(pages, home=app.hmi.home))
+    # Registered after the blueprints but runs before every one of their views:
+    # `before_request` hooks run in registration order, and nothing above is
+    # reachable without passing this one.
+    install_gate(app, home=app.hmi.home)
 
-    @app.get("/health/live", include_in_schema=False)
-    async def health_live() -> PlainTextResponse:
-        return PlainTextResponse("live")
+    @app.get("/health/live")
+    async def health_live():
+        return "live", 200, {"content-type": "text/plain; charset=utf-8"}
 
-    @app.get("/health/ready", include_in_schema=False)
-    async def health_ready() -> JSONResponse:
+    @app.get("/health/ready")
+    async def health_ready():
         ready = hub.started
-        return JSONResponse(
-            {"status": "ready" if ready else "starting"},
-            status_code=200 if ready else 503,
-        )
+        return jsonify({"status": "ready" if ready else "starting"}), (200 if ready else 503)
 
-    @app.get("/stats", include_in_schema=False)
-    async def stats() -> JSONResponse:
+    @app.get("/stats")
+    async def stats():
         """What the old gateway's /stats answered, for the same reason: when a
         screen is showing `<>`, the first question is whether anyone is
         monitoring that PV at all. It also reports how the zone was chosen,
         which is the second question.
         """
-        return JSONResponse(
+        return jsonify(
             {
                 "zone": zone.code,
                 "zone_title": zone.title,
@@ -201,26 +225,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return app
 
 
+def serve_config(settings: Settings):
+    """Hypercorn's configuration, in one place so a test can serve the app the
+    way a station does."""
+    from hypercorn.config import Config
+
+    config = Config()
+    config.bind = [f"{settings.host}:{settings.port}"]
+    config.loglevel = settings.log_level
+    # An access line per request is noise on a station whose browser polls
+    # nothing and holds one stream open, and the app already logs what matters
+    # (sign-ins, writes, streams opening and closing). `DEV=1` turns it on for
+    # the times when the question is "did that request even arrive".
+    config.accesslog = "-" if settings.dev else None
+    # A screen's stream is meant to stay open for a shift. Hypercorn's default
+    # 60s keep-alive would close it between heartbeats.
+    config.keep_alive_timeout = 600.0
+    return config
+
+
 def main() -> int:
-    import uvicorn
+    import asyncio
+
+    from hypercorn.asyncio import serve
 
     try:
         settings = Settings.from_env()
         app = create_app(settings)
-    except (ZoneError, SettingsError) as exc:
+    except (ZoneError, SettingsError, ValueError) as exc:
         # Startup logs the failure and exits rather than serving a broken
         # screen: the zone *is* the page here, so there is nothing sensible to
-        # render without one.
+        # render without one. A missing SESSION_SECRET lands here too — better
+        # a station that will not start than one nobody can stay signed in to.
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 2
-    uvicorn.run(
-        app,
-        host=settings.host,
-        port=settings.port,
-        log_level=settings.log_level.lower(),
-        # SSE responses must not be buffered or compressed on the way out.
-        access_log=settings.dev,
-    )
+    asyncio.run(serve(app, serve_config(settings)))
     return 0
 
 
