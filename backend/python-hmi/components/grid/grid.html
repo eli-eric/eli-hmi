@@ -1,0 +1,21 @@
+{#- A table of readings. One CSS grid: a label column plus one per quantity.
+
+    `display: contents` on each row's wrapper puts the cells in the enclosing
+    grid's tracks, so the columns line up across rows while each row stays one
+    element in the markup. -#}
+<section class="card">
+  <div class="data-grid" style="--data-grid-columns: {{ c.columns | length }}">
+    <span></span>
+    {% for column in c.columns %}
+    <span class="col-header">{{ column.header }}</span>
+    {% endfor %}
+    {% for row in table %}
+    <div class="contents">
+      <span class="row-label">{{ row.label }}</span>
+      {% for cell in row.cells %}
+      {% if cell %}{{ w[cell] }}{% else %}<span class="num-cell-empty"></span>{% endif %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</section>

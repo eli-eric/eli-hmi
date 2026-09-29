@@ -1,0 +1,99 @@
+{#
+  Write controls: the cog, the buttons, the setpoint field, the drop-down.
+
+  A component template does not normally reach in here — `rows.write_controls`
+  builds all of it from the component's `actions:` and `setpoint:` config. These
+  macros are for a component that needs an arrangement of its own.
+
+  The whole write path is two Datastar expressions:
+
+      data-on:click="@post('/api/write?pv=…&value=1')"          fixed value
+      data-on:click="@post('/api/write?pv=…&signal=nl2_set')"   operator's value
+
+  `@post` sends every signal with the request, so the second form only has to
+  name which signal carries the value. The server answers with SSE events that
+  patch the status line.
+
+  Every control takes a `close` signal and clears it on click, so the cog panel
+  shuts behind the press: the result lands in the status line either way, and
+  leaving the panel open over the value it just changed hides the thing the
+  operator pressed the button to see.
+#}
+
+{#- `&amp;` rather than a bare `&`: this URL is built inside an HTML attribute,
+    and the parser decodes the entity back to `&` before Datastar sees the
+    expression. A raw ampersand happens to work in every browser, but it is
+    invalid markup, and one that starts a real entity name would not. -#}
+{%- macro write_url(pv, value=none, signal=none) -%}
+/api/write?pv={{ pv | urlencode }}
+{%- if value is not none %}&amp;value={{ value | string | urlencode }}{% endif -%}
+{%- if signal is not none %}&amp;signal={{ signal | urlencode }}{% endif -%}
+{%- endmacro -%}
+
+{#- A single write. `variant` is kept for semantics but every variant renders
+    identically — see `common.Action`. -#}
+{%- macro action_button(label, pv, value, variant='primary', close=none) -%}
+<button type="button" class="btn" data-variant="{{ variant }}" data-indicator="_busy"
+        data-on:click="@post('{{ write_url(pv, value=value) }}'){% if close %}; ${{ close }} = false{% endif %}">{{ label }}</button>
+{%- endmacro -%}
+
+{#- Cog-icon button revealing a panel of write actions.
+
+    Two modes: with an `inline_label` the panel expands in normal flow inside the
+    card (so the card grows and nothing escapes its border); without one it is a
+    dropdown anchored to the cog. -#}
+{%- macro cog(signal, aria_label, inline_label=none) -%}
+<span class="cog-wrapper" data-inline="{{ 'true' if inline_label else 'false' }}">
+<button type="button" class="cog-button" aria-label="{{ aria_label }}"
+        data-has-inline-label="{{ 'true' if inline_label else 'false' }}"
+        data-on:click="${{ signal }} = !${{ signal }}"
+        data-on:keydown__window="evt.key === 'Escape' && (${{ signal }} = false)"
+        data-attr="{'aria-expanded': ${{ signal }} ? 'true' : 'false'}">
+{% if inline_label %}<span class="cog-inline-label">{{ inline_label }}</span>{% endif %}
+<span class="cog-glyph" aria-hidden="true">&#9881;</span>
+</button>
+<span class="cog-panel" data-inline="{{ 'true' if inline_label else 'false' }}" data-show="${{ signal }}" style="display:none">
+{{ caller() }}
+</span>
+</span>
+{%- endmacro -%}
+
+{#- Preset chips plus a free-text field for anything not on the list. The
+    presets are the values operators actually use; the field is there because
+    the list is never complete. -#}
+{%- macro preset_input(label, presets, pv, signal, close=none, step=1) -%}
+<span class="preset-input">
+<span class="preset-label">{{ label }}</span>
+{% if presets %}
+<span class="preset-chips">
+{% for preset in presets %}
+<button type="button" class="preset-chip" data-indicator="_busy"
+        data-on:click="@post('{{ write_url(pv, value=preset) }}'){% if close %}; ${{ close }} = false{% endif %}">{{ preset }}</button>
+{% endfor %}
+</span>
+{% endif %}
+<span class="preset-custom">
+<span class="preset-custom-label">Custom</span>
+<input class="preset-field" type="number" step="{{ step }}" data-bind="{{ signal }}"
+       aria-label="{{ label }} custom value">
+<button type="button" class="preset-confirm" data-indicator="_busy"
+        data-on:click="@post('{{ write_url(pv, signal=signal) }}'){% if close %}; ${{ close }} = false{% endif %}">Confirm</button>
+</span>
+</span>
+{%- endmacro -%}
+
+{#- A drop-down of named choices: a waveform preset, an operating mode. The list
+    comes from config rather than a fetch, because it changes when the machine is
+    reconfigured, not while an operator is looking at it. -#}
+{%- macro choice_select(pv, signal, choices, label='Set', close=none) -%}
+<span class="waveform-select">
+<select class="waveform-field" data-bind="{{ signal }}" aria-label="{{ label }}">
+<option value="">{{ label }}…</option>
+{% for choice in choices %}
+<option value="{{ choice }}">{{ choice }}</option>
+{% endfor %}
+</select>
+<button type="button" class="preset-confirm" data-indicator="_busy"
+        data-on:click="@post('{{ write_url(pv, signal=signal) }}'){% if close %}; ${{ close }} = false{% endif %}">Confirm</button>
+</span>
+{%- endmacro -%}

@@ -1,6 +1,0 @@
-services:
-  laser-mockup-ioc:
-    image: ${LASER_IOC_IMAGE:-laser-mockup-ioc:ready}
-    container_name: laser-mockup-ioc
-    network_mode: host
-    restart: unless-stopped

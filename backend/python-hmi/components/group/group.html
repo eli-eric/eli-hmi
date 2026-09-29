@@ -1,0 +1,8 @@
+{#- A summary pill on a row, and the list it opens.
+
+    The list is always rendered and shown/hidden by a signal, so expanding costs
+    no round-trip and an arriving patch cannot collapse a list the operator just
+    opened. -#}
+{% import "rows.html" as rows with context %}
+{{ rows.expandable_row(c.label, w['pill'], open_signal) }}
+{{ w['list'] }}

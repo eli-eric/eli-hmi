@@ -1,0 +1,62 @@
+{#
+  The sign-in page.
+
+  A plain HTML form: method="post", two fields, one button. No Datastar, no
+  fetch, no JavaScript at all — this is the one page that has to work when
+  everything else is broken, and a form post is the oldest working thing on the
+  web. It also means the browser's own password manager behaves normally.
+
+  The zone code is as prominent here as in the nav bar, for the same reason: an
+  operator should know which zone they are signing in to before they type
+  anything.
+#}<!doctype html>
+<html lang="en"{% if palette %} data-palette="{{ palette }}"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in — zone {{ zone.code }}</title>
+  <link rel="stylesheet" href="{{ static('/css/hmi.css') }}">
+</head>
+<body>
+  <div class="layout">
+    <nav class="nav">
+      <span class="nav-zone" title="{{ zone.title }} — resolved from {{ zone.resolved_by }}">{{ zone.code }}</span>
+      <span class="nav-spacer"></span>
+      <span class="nav-meta">{{ zone.title }} · {{ backend_label }}</span>
+    </nav>
+    <main class="page-container">
+      <div class="login">
+        <form class="login-card" method="post" action="/login">
+          <header class="panel-header"><h1 class="panel-title">Sign in</h1></header>
+          <div class="login-body">
+            {% if error %}
+            {# One sentence, the same one for a wrong password and an unreachable
+               directory: this form is reachable by anyone who can reach the
+               port, so it must not help them tell those apart. The console has
+               the real reason. #}
+            <p class="login-error" role="alert">{{ error }}</p>
+            {% endif %}
+
+            <label class="login-field">
+              <span class="login-label">Username</span>
+              <input class="login-input" type="text" name="username" autocomplete="username"
+                     value="{{ username }}" autofocus required>
+            </label>
+            <label class="login-field">
+              <span class="login-label">Password</span>
+              <input class="login-input" type="password" name="password"
+                     autocomplete="current-password" required>
+            </label>
+            <input type="hidden" name="next" value="{{ next }}">
+            <button class="btn login-submit" type="submit">Sign in</button>
+
+            <p class="login-note">
+              {{ hint }}
+            </p>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

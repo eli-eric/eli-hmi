@@ -13,6 +13,8 @@ For architecture, runbooks, ADRs, and the canonical map of the codebase, start a
 - `frontend/` — Next.js 16 / React 19 / TypeScript app. App Router. Has its own `CLAUDE.md` and `AGENTS.md`.
 - `backend/mockup-websocket-server/` — Go (Echo + Gorilla) simulator that fakes EPICS PVs for local dev.
 - `backend/python-websocket-server/` — FastAPI + `aioca` gateway that talks to a real EPICS network. Production target.
+- `backend/python-hmi/` — **draft**: the whole HMI as one Python process (Quart + Hypercorn + Jinja server-side rendering + Datastar over SSE + `aioca`, with uv managing dependencies), replacing the frontend *and* the gateway. Its structure is its config: `zones/<CODE>/<screen>/gui.yaml` (a folder is a screen — route and menu entry come from the listing), `components/` (the reusable pieces, Python + Jinja, used from YAML), `core/` (zone resolution, EPICS hub, rendering, routes). Zone code from `ZONE_CODE` or the hostname against globs in each `zone.yaml`. Three READMEs, one per audience; own test suite (`make test`); built-in PV simulator (`EPICS_BACKEND=sim`) so it needs no IOC and no Node. Dependencies are one `pyproject.toml` plus a committed `uv.lock` — no requirements.txt — with the heavy optional pieces as extras (`--extra epics` for aioca, `--extra ioc` for pythonSoftIOC); every Makefile target runs through `uv run`, so there is no venv to activate. Sign-in lives in `core/auth.py` (LDAP simple bind as `<user>@LDAP_UPN_DOMAIN`, plus a `test`/`test` account when `DEV=1`) and `core/login.py` (the form, and the `before_request` hook that gates every route — `PUBLIC_PATHS` is the whole exception list). `SESSION_SECRET` is required unless `DEV=1`. Auth events and every write are logged with the actor; the password and the cookie never are.
+- `backend/python-hmi/ioc/` — a local EPICS IOC whose database is **generated** from what the components declare (`uv run python ioc/generate.py --zone TESTZ`), not from hand-written records. Runs from the `ioc` extra via pythonSoftIOC — no EPICS build — or as a stock `softIoc` in Docker. Replaced `backend/epics/`, whose hand-written db had drifted from the config; add a screen and regenerate, never edit `ioc/db/*.db`.
 
 The two backends speak the **same WebSocket protocol** (`/ws/pvs`); the frontend doesn't know which is on the other end.
 
@@ -26,6 +28,10 @@ Frontend (run from `frontend/`):
 Mockup backend: `cd backend/mockup-websocket-server && go run main.go` (port 8080).
 
 Python backend: `cd backend/python-websocket-server && fastapi dev server.py`.
+
+Server-rendered HMI: `cd backend/python-hmi && make run` (ZONE_CODE=TESTZ, simulator, port 8082 — same as the frontend, so run one or the other); `make run-zone ZONE=01` for another zone, `make components` lists the registry. `make test` runs its own suite; it shares no code with `frontend/` or the other backends, and deliberately re-implements the presentation rules from `frontend/src/lib/websocket/` in Python rather than importing anything.
+
+Local IOC for that app: `python ioc/generate.py`, then `make ioc` (a real EPICS IOC on CA 5064) and `make run-ioc` in another shell (the HMI against it). `make ioc-verify` is the CA smoke test. `generate.py` also writes a generated `zones/<ZONE>-IOC/` zone, identical to the real one except for PVs naming a *field* of a synApps record — no base-only IOC can serve a name with a dot in it — and answering to no hostname, so a station can never resolve to it.
 
 Mock server has REST helpers: `GET /pv/:name/:value` to set a value, `GET /mode/:prefix/:value` to switch a PV-prefix between auto-sim and manual.
 

@@ -1,0 +1,32 @@
+# Beamline motors — a screen split across files.
+#
+# `gui.yaml` holds the screen's settings and may hold components too. Any other
+# `*.yaml` in this folder is read for its `components:` as well, in filename
+# order. So one file per device keeps a twenty-motor screen reviewable, and
+# adding a device is adding a file rather than editing a long one.
+#
+#   gui.yaml        this file: title, order, and the first panel
+#   mirrors.yaml    the mirror motors
+#   slits.yaml      the slit motors
+title: Motors
+order: 20
+description: Mirror and slit movers on the L4 beamline.
+
+components:
+  - component: panel
+    title: Beam position
+    components:
+      - component: value
+        label: Beam X
+        pv: L4-DIAG-BPM1:X
+        units: mm
+        format: 3
+        range: [-2, 2]
+        alarm: { low: -1.5, high: 1.5 }
+      - component: value
+        label: Beam Y
+        pv: L4-DIAG-BPM1:Y
+        units: mm
+        format: 3
+        range: [-2, 2]
+        alarm: { low: -1.5, high: 1.5 }

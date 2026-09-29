@@ -8,11 +8,19 @@ Application for **control system operators** and **control system engineers** at
 frontend/                            Next.js 16 / React 19 / TS app (port 8082)
 backend/mockup-websocket-server/     Go simulator (Echo + Gorilla); port 8080
 backend/python-websocket-server/     FastAPI + aioca gateway to a real EPICS network
+backend/python-hmi/                  DRAFT: the same HMI as one Python process
+backend/python-hmi/zones/            one folder per CS zone, one folder per screen
+backend/python-hmi/components/       the reusable pieces a screen is built from
+backend/python-hmi/core/             zone resolution, EPICS hub, rendering, routes
+backend/python-hmi/ioc/              local EPICS IOC, generated from the components
 ```
 
 Configuration lives inside `frontend/`: `config/global.yaml` declares the zones,
 and each module keeps one config file per zone beside its own schema under
 `src/app/(modules)/<module>/config/zones/`.
+
+The draft Python HMI configures itself differently: its zones and screens *are*
+folders under `backend/python-hmi/zones/`.
 
 The two backends speak the **same WebSocket protocol** (`/ws/pvs`); the frontend doesn't know which is on the other end.
 
@@ -53,6 +61,60 @@ For development and testing only. Not a production target.
 ### Python WebSocket Server (`backend/python-websocket-server`)
 
 FastAPI + `aioca` gateway that talks to a real EPICS network. **Production target** — built and pushed to Harbor by `.gitlab-ci.yml`.
+
+### Server-rendered HMI (`backend/python-hmi`) — draft
+
+An experiment in collapsing the three boxes above into one: Quart + Jinja
+render the operator page on the server, [Datastar](https://data-star.dev/)
+patches individual cells over Server-Sent Events as PVs report, and `aioca`
+talks to EPICS from the same process. No Node, no bundler, no WebSocket
+protocol between halves.
+
+Its folder structure *is* its configuration, because each CS zone is a separate
+network and the app is deployed into each zone on its own:
+
+```
+zones/01/…  zones/TESTZ/…     one folder per zone, one folder per screen inside
+components/                   value, group, grid, tally, motor, valve, panel, laser-panel
+core/                         how any of it reaches a browser
+```
+
+A screen is a folder with a `gui.yaml` in it. Creating one adds a route and a
+menu entry; no Python, no registry, no menu to edit. The zone code comes from
+`ZONE_CODE` or, unset, from the server's hostname matched against glob patterns
+each zone declares in its own `zone.yaml` — so the same image in two zones
+serves two different sets of screens, and a station that matches nothing refuses
+to start rather than guessing.
+
+```bash
+cd backend/python-hmi && make run   # uv installs everything; :8082
+```
+
+Three screens: the bespoke **L4 OPCPA** laser panel (a port of the React
+module), plus **Chillers** and **Vacuum**, which are YAML only.
+
+It also ships a **local EPICS IOC** in `backend/python-hmi/ioc/`, whose database
+is generated from what the components declare, so the app can be run against
+real Channel Access on a laptop:
+
+```bash
+uv run python ioc/generate.py  # db + the TESTZ-IOC zone, from the components
+make ioc                       # a real IOC: calc records scanning, real alarm limits
+make run-ioc                   # the HMI against it
+```
+
+This replaces `backend/epics/`, whose database was hand-written and had drifted
+from the config. See [backend/python-hmi/ioc/README.md](backend/python-hmi/ioc/README.md).
+
+Sign-in is an LDAP bind (the same one the React app does) plus a signed session
+cookie, with a built-in `test`/`test` account when `DEV=1`; every screen, stream
+and write is behind it, and every sign-in and every write is one line in the
+console. Not a production target yet — the visuals have not been reviewed
+against the React page and there is no per-user authorisation. See
+[backend/python-hmi/README.md](backend/python-hmi/README.md) for the
+architecture, [zones/README.md](backend/python-hmi/zones/README.md) for adding a
+screen, and [components/README.md](backend/python-hmi/components/README.md) for
+adding a new kind of piece.
 
 ## Quick start
 

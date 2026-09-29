@@ -1,0 +1,16 @@
+# The zone every developer runs. Not a real control-system zone: it carries the
+# same PV names as the hall so a screen can be developed against the simulator
+# or the local IOC, and it is the zone the tests use.
+title: Test zone
+description: >
+  Development and CI. Same PV names as the L4 hall, no real network behind them.
+hostnames:
+  # No real host is this zone: a developer sets ZONE_CODE=TESTZ, and a station
+  # that matched this by accident would be showing an operator the wrong thing.
+  - "testz*"
+menu:
+  # Explicit order wins over each screen's own `order:`. Worth setting when the
+  # order matters to an operator rather than to whoever added the screen.
+  - l4-opcpa
+  - chillers
+  - vacuum

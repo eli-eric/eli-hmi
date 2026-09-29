@@ -1,0 +1,35 @@
+# The slit motors, named signal by signal rather than with `prefix:` — the form
+# that also runs against the local IOC.
+components:
+  - component: panel
+    title: Slits S1
+    components:
+      - component: motor
+        label: Horizontal gap
+        readback: L4-MOT-S1:HGAP:Position
+        setpoint: L4-MOT-S1:HGAP:Target
+        moving: L4-MOT-S1:HGAP:Moving
+        stop: L4-MOT-S1:HGAP:Stop
+        limits: [L4-MOT-S1:HGAP:LowLimit, L4-MOT-S1:HGAP:HighLimit]
+        units: mm
+        format: 3
+        range: [0, 20]
+        presets: [1, 5, 10, 20]
+        step: 0.1
+      - component: motor
+        label: Vertical gap
+        readback: L4-MOT-S1:VGAP:Position
+        setpoint: L4-MOT-S1:VGAP:Target
+        moving: L4-MOT-S1:VGAP:Moving
+        stop: L4-MOT-S1:VGAP:Stop
+        units: mm
+        format: 3
+        range: [0, 20]
+        presets: [1, 5, 10, 20]
+        step: 0.1
+      - component: valve
+        label: Beam shutter
+        pv: L4-DIAG-S1:Shutter:State
+        open_pv: L4-DIAG-S1:Shutter:Open
+        close_pv: L4-DIAG-S1:Shutter:Close
+        states: ["CLOSED", "OPEN", MOVING, FAULT]

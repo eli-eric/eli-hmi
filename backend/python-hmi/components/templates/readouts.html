@@ -1,0 +1,170 @@
+{#
+  The shared widget macros — every patchable element a component can emit.
+
+  A component declares a widget with `self.add(role, "<macro>", …)` and the
+  macro named here renders it. A component may define its own macros too (set
+  `macros = "…"` on the class); those are searched first, so a component can add
+  a shape the framework does not have without touching the framework.
+
+  Two rules hold throughout, and they are the reason this file exists rather
+  than every component writing its own markup:
+
+  * The element carries the `id` the SSE patch targets, so the markup rendered
+    into the page and the markup pushed later are byte-identical. There is one
+    renderer for both paths (`core/jinja.py`), and a test proves it.
+  * Colour is never chosen here. A macro emits `data-tone-surface` ("I am the
+    element that paints") and `data-tone` ("this is the tone"), and the tone
+    layer in `core/static/css/hmi.css` decides what that looks like. A template
+    that picked its own red would be a second, competing notion of "bad" —
+    which is the bug the tone layer exists to make impossible.
+
+  Every macro takes `id` and `show` (the Datastar expression for a region the
+  operator expands, or none) plus whatever its component's context builder
+  produced.
+#}
+
+{%- macro _tone(readout) -%}
+{%- if readout.tone %} data-tone="{{ readout.tone }}"{% endif -%}
+{%- if readout.title %} title="{{ readout.title }}"{% endif -%}
+{%- endmacro -%}
+
+{#- `data-show` plus an inline `display:none`.
+
+    The inline style is what the server can honestly assert: every expandable
+    region starts closed. Without it the list is visible for the moment between
+    the HTML parsing and Datastar initialising — with a 22-row error list per
+    device, that flash is worse than any cost of the style attribute.
+
+    On a later patch the element may in fact be open. Datastar's show plugin
+    watches the `style` attribute and re-evaluates when it changes, so the
+    incoming `display:none` is corrected on the same frame it lands. -#}
+{%- macro _show(show) -%}
+{%- if show %} data-show="{{ show }}" style="display:none"{% endif -%}
+{%- endmacro -%}
+
+{#- The text of one reading. A placeholder (`<>`, PV INV, PV DSC) keeps the
+    weight and ink of a real value — a value must not change weight because its
+    PV went bad — and never carries a unit, which would decorate a non-value. -#}
+{%- macro _inner(readout) -%}
+{%- if readout.placeholder -%}
+<span class="placeholder"{{ _tone(readout) }}>{{ readout.text }}</span>
+{%- elif readout.units -%}
+<span class="value-with-units"><span class="number"{{ _tone(readout) }}>{{ readout.text }}</span><span class="units">{{ readout.units }}</span></span>
+{%- elif readout.numeric -%}
+<span class="number"{{ _tone(readout) }}>{{ readout.text }}</span>
+{%- else -%}
+<span class="text"{{ _tone(readout) }}>{{ readout.text }}</span>
+{%- endif -%}
+{%- endmacro -%}
+
+
+{# -------------------------------------------------------------- page banners #}
+
+{#- The server's own report that it cannot reach EPICS, so every value on the
+    page is a last-known reading. The browser-side half (this stream is dead) is
+    the `$_age` watchdog in `core/templates/page.html` — two different failures,
+    two different sentences, because the operator's next action differs. -#}
+{%- macro link_banner(id, show, ok) -%}
+<div id="{{ id }}" class="banner" role="status"{{ _show(show) }}{% if ok %} hidden{% endif %}>
+EPICS link down — values shown are last-known and may be stale.
+</div>
+{%- endmacro -%}
+
+
+{# ------------------------------------------------------------------ readouts #}
+
+{#- The standard bordered value cell of a data row. The cell is the tone
+    surface, so an alarmed reading fills the whole cell rather than drawing a
+    box around its own text. -#}
+{%- macro value_cell(id, show, readout) -%}
+<span id="{{ id }}" class="value" data-tone-surface="cell"{{ _show(show) }}>{{ _inner(readout) }}</span>
+{%- endmacro -%}
+
+{#- A grid cell: same surface, centred geometry, ~3.9rem wide. For a table of
+    numbers where the column header carries the unit. -#}
+{%- macro num_cell(id, show, readout) -%}
+<span id="{{ id }}" class="num-cell" data-tone-surface="cell"{{ _show(show) }}>{{ _inner(readout) }}</span>
+{%- endmacro -%}
+
+{#- A standalone status chip that carries its own chrome. -#}
+{%- macro pill(id, show, readout) -%}
+<span id="{{ id }}" class="pill" data-tone-surface="chip"{{ _tone(readout) }}{{ _show(show) }}>{{ readout.text }}</span>
+{%- endmacro -%}
+
+{#- An expandable chip. The corner triangle marks it as expandable; `signal` is
+    the Datastar signal the enclosing static button toggles, so the triangle's
+    open state costs no round-trip. -#}
+{%- macro state_pill(id, show, readout, signal) -%}
+<span id="{{ id }}" class="state-pill" data-tone-surface="chip"{{ _tone(readout) }}{{ _show(show) }}>
+<span class="state-count">{{ readout.text }}</span>
+<span class="corner-triangle" data-class="{expanded: ${{ signal }}}" aria-hidden="true"></span>
+</span>
+{%- endmacro -%}
+
+
+{# --------------------------------------------------------------- detail lists #}
+
+{#- One expanded list: label + a single status chip per row. Rendered whether or
+    not it is open, and shown/hidden client-side, so a patch can never collapse
+    a list the operator just opened. -#}
+{%- macro detail_list(id, show, labels, items, note) -%}
+<ul id="{{ id }}" class="detail-list"{{ _show(show) }}>
+{% for item in items %}
+<li class="detail-item">
+<span class="detail-label">{{ labels[loop.index0] }}</span>
+<span class="detail-status" data-tone-surface="chip" data-tone-chip="status"{{ _tone(item) }}>{{ item.text }}</span>
+</li>
+{% endfor %}
+{% if note %}
+<li class="detail-note">{{ note }}</li>
+{% endif %}
+</ul>
+{%- endmacro -%}
+
+{#- A tighter list whose state chips are all one width, so IDLE / RUNNING / <>
+    do not render as three different sizes. -#}
+{%- macro state_list(id, show, labels, items, note) -%}
+<ul id="{{ id }}" class="sequence-list"{{ _show(show) }}>
+{% for item in items %}
+<li class="sequence-item">
+<span>{{ labels[loop.index0] }}</span>
+<span class="sequence-state" data-tone-surface="chip"{{ _tone(item) }}>{{ item.text }}</span>
+</li>
+{% endfor %}
+{%- if note %}<li class="detail-note">{{ note }}</li>{% endif %}
+</ul>
+{%- endmacro -%}
+
+
+{# ---------------------------------------------------------------- tally cells #}
+
+{#- A count per state. `display: contents` so the cells sit in the enclosing
+    grid's tracks while still being one patchable element — counting is not
+    judging, so the cells paint neutral unless a tone says otherwise. -#}
+{%- macro tally_cells(id, show, states, counts, title, tone) -%}
+<div id="{{ id }}" class="contents"{{ _show(show) }}>
+{% for state in states %}
+<span class="flashlamp-cell" data-tone-surface="cell"
+      {%- if tone %} data-tone="{{ tone }}"{% endif %}
+      {%- if title %} title="{{ title }}"{% endif %}>{{ counts[state] }}</span>
+{% endfor %}
+</div>
+{%- endmacro -%}
+
+
+{# -------------------------------------------------------------- paired values #}
+
+{#- Two or three small readouts sharing one row, each with its own short label
+    beside it. The label sits beside its readout rather than above it — the row
+    already has a label column, and a second stacked label would push the
+    numbers out of line with every other value on the screen. -#}
+{%- macro pair_row(id, show, pairs) -%}
+<span id="{{ id }}" class="mbc-row"{{ _show(show) }}>
+{% for pair in pairs %}
+<span class="mbc-pair">
+<span class="mbc-label">{{ pair.label }}</span>
+<span class="mbc-cell" data-tone-surface="cell">{{ _inner(pair.readout) }}</span>
+</span>
+{% endfor %}
+</span>
+{%- endmacro -%}

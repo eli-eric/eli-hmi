@@ -1,0 +1,10 @@
+{#- A valve: state pill, and a cog with Open and Close. -#}
+{% import "rows.html" as rows with context %}
+{% import "controls.html" as controls with context %}
+{% set actions %}
+{% call controls.cog(cog, c.label ~ ' actions') %}
+{{ controls.action_button('Open', open_target[0], open_target[1], 'primary', cog) }}
+{{ controls.action_button('Close', close_target[0], close_target[1], 'secondary', cog) }}
+{% endcall %}
+{% endset %}
+{{ rows.row(c.label, w['state'], actions, bare=true) }}

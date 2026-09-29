@@ -1,0 +1,55 @@
+# Standalone quick start for the server-rendered HMI.
+#
+#   docker compose -f backend/python-hmi/docker-compose.yml up --build
+#   open http://localhost:8082
+#
+# Kept separate from the repository's root `docker-compose.yml`, which brings up
+# the Next.js frontend and the Go mock backend: this app replaces both, so
+# running them together would only compete for ports.
+
+services:
+  python-hmi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '8082:8082'
+    environment:
+      # A container's hostname is not the station's, so the quick start names
+      # the zone explicitly. A real deployment leaves this out and lets the
+      # hostname decide.
+      ZONE_CODE: TESTZ
+      # The quick start has no EPICS network, so it runs the built-in
+      # simulator. A station sets `aioca` here and needs host networking for
+      # Channel Access (see the commented block below).
+      EPICS_BACKEND: sim
+      # DEV=1 turns on the built-in test/test account and generates a session
+      # key, so the quick start has nothing to configure. A station sets neither
+      # of these: it sets SESSION_SECRET and LDAP_SERVER_URL instead, and the
+      # app refuses to start without the secret rather than signing everyone out
+      # on the next deploy.
+      DEV: '1'
+      LOG_LEVEL: INFO
+    # Channel Access uses UDP broadcast for name resolution and does not survive
+    # Docker's default bridge NAT. A real deployment therefore wants:
+    #
+    # network_mode: host
+    # environment:
+    #   EPICS_BACKEND: aioca
+    #   # ZONE_CODE unset: the hostname decides.
+    #   EPICS_CA_ADDR_LIST: 10.78.0.255
+    #   EPICS_CA_AUTO_ADDR_LIST: 'NO'
+    #   # Sign-in. DEV must be unset here, or the station accepts test/test.
+    #   SESSION_SECRET: ${SESSION_SECRET:?generate one, see README.md}
+    #   SESSION_COOKIE_SECURE: '1'      # with TLS in front
+    #   LDAP_SERVER_URL: ldap://10.78.0.11
+    #   LDAP_UPN_DOMAIN: lcs.local
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8082/health/ready').status == 200 else 1)"
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
