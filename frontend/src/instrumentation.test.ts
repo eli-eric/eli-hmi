@@ -40,7 +40,9 @@ describe('instrumentation register (startup config check)', () => {
     // Deliberately not a fixture: this is the check that the config actually
     // in the image comes up, so it fails if someone breaks config/global.yaml.
     await register()
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('zone "test" OK'))
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('zone "test" OK'),
+    )
     expect(errorSpy).not.toHaveBeenCalled()
   })
 

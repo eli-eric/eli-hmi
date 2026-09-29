@@ -37,7 +37,8 @@ const ONE_MODULE = parseGlobalConfig(
   'config/global.yaml',
 ).zones.test
 
-const read = () => vi.fn((key: string, zone: string) => `contents of ${key}@${zone}`)
+const read = () =>
+  vi.fn((key: string, zone: string) => `contents of ${key}@${zone}`)
 
 describe('module-config-validation', () => {
   beforeEach(() => {

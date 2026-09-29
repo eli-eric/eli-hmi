@@ -86,12 +86,13 @@ const targetPv = (target: RawCommandTarget): string =>
 
 /**
  * Commands whose written value comes from the operator at press time — a
- * delay in ns, a waveform name — so a configured `value` would be silently
- * discarded. Rejected in validation rather than ignored.
+ * delay in ns, a waveform name, a YDFA current — so a configured `value`
+ * would be silently discarded. Rejected in validation rather than ignored.
  */
 const OPERATOR_VALUED_COMMANDS: readonly LaserCommand[] = [
   'SET_DELAY',
   'LOAD_WAVEFORM',
+  'SEND_YDFA_CURRENT',
 ]
 
 const chillerSchema = z.strictObject({
@@ -225,12 +226,20 @@ export const rawLaserSchema = z
       .describe(
         'Trigger-delay preset values (ns) offered by the Set Trigger Delay control.',
       ),
+    waveformsUrl: z
+      .url()
+      .optional()
+      .describe(
+        "Absolute URL of this laser's waveform catalog, e.g. https://modbox-nl2.lcs.local/api/waveforms. Served by the modbox itself, so it differs per laser; the browser fetches it directly and expects a JSON array of names. Omit to fall back to the gateway's own /waveforms (what the mock backend serves).",
+      ),
     units: unitsSchema
       .optional()
       .describe('Per-laser unit overrides, merged over the top-level `units`.'),
     format: formatSchema
       .optional()
-      .describe('Per-laser format overrides, merged over the top-level `format`.'),
+      .describe(
+        'Per-laser format overrides, merged over the top-level `format`.',
+      ),
     commands: z
       .partialRecord(z.enum(LASER_COMMANDS), commandTarget)
       .describe(

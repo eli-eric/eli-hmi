@@ -26,6 +26,7 @@ export const LASER_COMMANDS = [
   'FLASHLAMPS_STANDBY',
   'MODBOX_ON',
   'MODBOX_OFF',
+  'SEND_YDFA_CURRENT',
   'SET_DELAY',
   'LOAD_WAVEFORM',
 ] as const

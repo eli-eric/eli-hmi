@@ -77,9 +77,9 @@ describe('getFormattedValue', () => {
   })
 
   it('defaults fixed to three decimal places — the historical behaviour', () => {
-    expect(getFormattedValue({ value: 1.5, options: { format: 'fixed' } })).toBe(
-      '1.500',
-    )
+    expect(
+      getFormattedValue({ value: 1.5, options: { format: 'fixed' } }),
+    ).toBe('1.500')
   })
 
   it('formats fixed zero without turning it into N/A', () => {

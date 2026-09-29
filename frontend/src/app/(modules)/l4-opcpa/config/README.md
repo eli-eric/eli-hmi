@@ -34,32 +34,33 @@ edits. It names the file and the exact path inside it.
 
 ## Fields
 
-| Field | Type | What it is |
-|---|---|---|
-| `id` | string | Laser id, e.g. `NL2`. Panel title; also the `<LASER>` in command PVs. |
-| `pvs.connection` | PV name | Connection bool (Overview CONN). |
-| `pvs.fullPower` | PV name | At-full-power bool (Overview FULLP). |
-| `pvs.shutter` | PV name | Shutter position bool (read + direct write). |
-| `pvs.phdMean` | PV name | PHD mean intensity readout. |
-| `pvs.regenState` | PV name | Regen status string. |
-| `pvs.regenTemp` | PV name | Regen temperature readout. |
-| `pvs.phd2Mean` | PV name | Second PHD mean readout. |
-| `pvs.attenuator` | PV name | Attenuator value (read + direct write). |
-| `pvs.loadedWaveform` | PV name | Current waveform preset. |
-| `pvs.latestWaveform` | PV name | Previous waveform moved into Waveform Latest when a new preset is applied. Optional. |
-| `pvs.modboxMbc1` | PV name | Modbox MBC1 bias readout. Optional — omit and the MBC1 half of the Bias Value row is hidden. |
-| `pvs.modboxMbc2` | PV name | Modbox MBC2 bias readout. Optional — omit and the MBC2 half of the Bias Value row is hidden. |
-| `pvs.sequencerRunning` | PV name | Sequencer-busy flag. Optional — omit and the whole Sequencer section is hidden. |
-| `triggerDelay` | PV name[] | Trigger-delay readouts; all should read equal (mismatch is flagged). |
-| `mss` | `{label, pv, values?}`[] | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below). |
-| `moduleErrors` | `{label, pv}`[] | Error indicators: `label` shown in UI, `pv` is the indicator PV. |
-| `chillers` | `{label, flow, temp, level}`[] | One row each; `label` shown, three readout PVs. **`[]` hides the Chillers section.** |
-| `flashlamps` | `{label, pv}`[] | One channel each; `label` shown, `pv` is the state PV. **`[]` hides the Flashlamps section.** |
-| `modbox` | `{label, pv, values?}`[] | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below). **`[]` hides the Modbox section.** |
-| `delayPresets` | int[] | Trigger-delay preset buttons (ns). |
-| `commands` | map `SYMBOL: PV` or `SYMBOL: {pv, value}` | Which command buttons appear, which PV each writes and what it writes (see below). |
-| `units` | map `role: unit` | Optional. Engineering units for the numeric readouts (see below). |
-| `format` | map `role: decimals` | Optional. How each numeric readout is rounded (see below). |
+| Field                  | Type                                      | What it is                                                                                                                                                                     |
+| ---------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                   | string                                    | Laser id, e.g. `NL2`. Panel title; also the `<LASER>` in command PVs.                                                                                                          |
+| `pvs.connection`       | PV name                                   | Connection bool (Overview CONN).                                                                                                                                               |
+| `pvs.fullPower`        | PV name                                   | At-full-power bool (Overview FULLP).                                                                                                                                           |
+| `pvs.shutter`          | PV name                                   | Shutter position bool (read + direct write).                                                                                                                                   |
+| `pvs.phdMean`          | PV name                                   | PHD mean intensity readout.                                                                                                                                                    |
+| `pvs.regenState`       | PV name                                   | Regen status string.                                                                                                                                                           |
+| `pvs.regenTemp`        | PV name                                   | Regen temperature readout.                                                                                                                                                     |
+| `pvs.phd2Mean`         | PV name                                   | Second PHD mean readout.                                                                                                                                                       |
+| `pvs.attenuator`       | PV name                                   | Attenuator value (read + direct write).                                                                                                                                        |
+| `pvs.loadedWaveform`   | PV name                                   | Current waveform preset.                                                                                                                                                       |
+| `pvs.latestWaveform`   | PV name                                   | Previous waveform moved into Waveform Latest when a new preset is applied. Optional.                                                                                           |
+| `pvs.modboxMbc1`       | PV name                                   | Modbox MBC1 bias readout. Optional — omit and the MBC1 half of the Bias Value row is hidden.                                                                                   |
+| `pvs.modboxMbc2`       | PV name                                   | Modbox MBC2 bias readout. Optional — omit and the MBC2 half of the Bias Value row is hidden.                                                                                   |
+| `pvs.sequencerRunning` | PV name                                   | Sequencer-busy flag. Optional — omit and the whole Sequencer section is hidden.                                                                                                |
+| `triggerDelay`         | PV name[]                                 | Trigger-delay readouts; all should read equal (mismatch is flagged).                                                                                                           |
+| `mss`                  | `{label, pv, values?}`[]                  | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below).                 |
+| `moduleErrors`         | `{label, pv}`[]                           | Error indicators: `label` shown in UI, `pv` is the indicator PV.                                                                                                               |
+| `chillers`             | `{label, flow, temp, level}`[]            | One row each; `label` shown, three readout PVs. **`[]` hides the Chillers section.**                                                                                           |
+| `flashlamps`           | `{label, pv}`[]                           | One channel each; `label` shown, `pv` is the state PV. **`[]` hides the Flashlamps section.**                                                                                  |
+| `modbox`               | `{label, pv, values?}`[]                  | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below). **`[]` hides the Modbox section.** |
+| `delayPresets`         | int[]                                     | Trigger-delay preset buttons (ns).                                                                                                                                             |
+| `waveformsUrl`         | absolute URL                              | Where this laser's waveform catalog is fetched from, e.g. `https://modbox-nl2.lcs.local/api/waveforms`. Optional — see below.                                                  |
+| `commands`             | map `SYMBOL: PV` or `SYMBOL: {pv, value}` | Which command buttons appear, which PV each writes and what it writes (see below).                                                                                             |
+| `units`                | map `role: unit`                          | Optional. Engineering units for the numeric readouts (see below).                                                                                                              |
+| `format`               | map `role: decimals`                      | Optional. How each numeric readout is rounded (see below).                                                                                                                     |
 
 A "PV name" is any non-empty string — put the exact name the gateway exposes.
 
@@ -67,7 +68,12 @@ A "PV name" is any non-empty string — put the exact name the gateway exposes.
 
 ```yaml
 chillers:
-  - { label: 'PS1225:11', flow: AI_NL2_CHILLER_11_FLOW, temp: AI_NL2_CHILLER_11_TEMP, level: AI_NL2_CHILLER_11_LEVEL }
+  - {
+      label: 'PS1225:11',
+      flow: AI_NL2_CHILLER_11_FLOW,
+      temp: AI_NL2_CHILLER_11_TEMP,
+      level: AI_NL2_CHILLER_11_LEVEL,
+    }
 flashlamps:
   - { label: '22 Ch1', pv: SI_NL2_FL_22_CH1 }
 ```
@@ -77,23 +83,23 @@ flashlamps:
 Both banks are booleans, and the panel shows words rather than a column of bare
 1s and 0s. The defaults differ because the signals do:
 
-| bank | 1 | 0 | why |
-| --- | --- | --- | --- |
-| `mss` | `YES` | `NO` | a permission — the same words as the MSS summary pill |
-| `modbox` | `ON` | `OFF` | a subsystem that is running or not |
+| bank     | 1     | 0     | why                                                   |
+| -------- | ----- | ----- | ----------------------------------------------------- |
+| `mss`    | `YES` | `NO`  | a permission — the same words as the MSS summary pill |
+| `modbox` | `ON`  | `OFF` | a subsystem that is running or not                    |
 
 Where those words are wrong for a particular indicator, give your own with
 `values`:
 
 ```yaml
 mss:
-  - { label: "PSS permission", pv: L4-PSS:NP2_PERMISSION_TO_OPERATE_CH1 }
-  - label: "OPCPA MSS interlock"
+  - { label: 'PSS permission', pv: L4-PSS:NP2_PERMISSION_TO_OPERATE_CH1 }
+  - label: 'OPCPA MSS interlock'
     pv: L4-MSS:OPA_interlock
     values: { 0: OPEN, 1: CLOSED }
 modbox:
-  - { label: "AWG state", pv: L4-OPCPA-NL2:ModBox:AWG:State }
-  - label: "AWG software key"
+  - { label: 'AWG state', pv: L4-OPCPA-NL2:ModBox:AWG:State }
+  - label: 'AWG software key'
     pv: L4-OPCPA-NL2:ModBox:YDFA:SoftwareKey
     values: { 0: DISABLED, 1: ENABLED }
 ```
@@ -112,12 +118,12 @@ Optional. Units shown beside the numeric readouts, keyed by the signal they
 annotate — **not** by PV name, so the same block works for every laser:
 
 ```yaml
-units:               # top level: applies to every laser in the file
+units: # top level: applies to every laser in the file
   regenTemp: '°C'
   triggerDelay: ns
 lasers:
   - id: NL2
-    units:           # optional per-laser override, merged over the above
+    units: # optional per-laser override, merged over the above
       regenTemp: K
 ```
 
@@ -137,25 +143,25 @@ Optional. How many decimal places each numeric readout is rounded to, keyed by
 **the same signal roles as `units`** — the two blocks are deliberately parallel:
 
 ```yaml
-format:              # top level: applies to every laser in the file
-  regenTemp: 1       # one decimal place
+format: # top level: applies to every laser in the file
+  regenTemp: 1 # one decimal place
   chillerFlow: 2
 lasers:
   - id: NL2
-    format:          # optional per-laser override, merged over the above
+    format: # optional per-laser override, merged over the above
       regenTemp: 3
 ```
 
 A plain number is decimal places, which is what you want almost every time.
 When decimals are the wrong question, use the object form:
 
-| Written as | Shows `23.456` as | Use for |
-| --- | --- | --- |
-| `2` | `23.46` | the normal case — round to N decimals |
-| `{ format: fixed, toFixed: 2 }` | `23.46` | the same thing, spelled out |
-| `{ format: precision, toPrecision: 2 }` | `23` | N *significant digits*, not decimals |
-| `{ format: exponential, toExponential: 2 }` | `2.35e+1` | values spanning many orders of magnitude |
-| `{ format: raw }` | `23.456` | leave the number exactly as the PV sent it |
+| Written as                                  | Shows `23.456` as | Use for                                    |
+| ------------------------------------------- | ----------------- | ------------------------------------------ |
+| `2`                                         | `23.46`           | the normal case — round to N decimals      |
+| `{ format: fixed, toFixed: 2 }`             | `23.46`           | the same thing, spelled out                |
+| `{ format: precision, toPrecision: 2 }`     | `23`              | N _significant digits_, not decimals       |
+| `{ format: exponential, toExponential: 2 }` | `2.35e+1`         | values spanning many orders of magnitude   |
+| `{ format: raw }`                           | `23.456`          | leave the number exactly as the PV sent it |
 
 Keys are the same list as `units`: `phdMean`, `phd2Mean`, `regenTemp`,
 `attenuator`, `modboxMbc1`, `modboxMbc2`, `triggerDelay`, `chillerFlow`,
@@ -178,11 +184,11 @@ the device wants something other than the usual trigger, **the value written**:
 
 ```yaml
 commands:
-  START_LASER: START_LASER                                # placeholder — no real PV yet
-  ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode           # real PV — writes 1
+  START_LASER: START_LASER # placeholder — no real PV yet
+  ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode # real PV — writes 1
   SET_DELAY: L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay
-  MODBOX_ON:  { pv: L4-OPCPA-NL2:ModboxMode, value: Run }    # writes a word…
-  MODBOX_OFF: { pv: L4-OPCPA-NL2:ModboxMode, value: Sleep }  # …to the same record
+  MODBOX_ON: { pv: L4-OPCPA-NL2:ModboxMode, value: Run } # writes a word…
+  MODBOX_OFF: { pv: L4-OPCPA-NL2:ModboxMode, value: Sleep } # …to the same record
 ```
 
 The allowed keys are the closed vocabulary (wired to UI buttons):
@@ -205,7 +211,7 @@ Rules:
   allowed; omitting `value` means `1`, exactly like the shorthand.
 - Two commands **may** point at the same PV as long as their values differ —
   that is the normal way to drive one mode record from two buttons. Repeating
-  the same PV *and* value is rejected as a copy-paste typo.
+  the same PV _and_ value is rejected as a copy-paste typo.
 - `SET_DELAY` and `LOAD_WAVEFORM` take their value from the operator (the delay
   in ns, the waveform name), so setting `value` on them is rejected rather than
   silently ignored.
@@ -220,6 +226,29 @@ Rules:
 Adding a **brand-new** command still needs code changes in the app repo (the
 `LASER_COMMANDS` tuple + a button, and a mock `sequences` entry for the
 placeholder path).
+
+## `waveformsUrl` — the waveform catalog
+
+The waveform list in _Set Waveform to…_ is served by the modbox itself, so the
+address differs per laser:
+
+```yaml
+lasers:
+  - id: NL2
+    waveformsUrl: https://modbox-nl2.lcs.local/api/waveforms
+```
+
+- The **browser** fetches it directly, so that server must allow this origin
+  (CORS). Without it the browser blocks the response and the list is empty.
+- It must be an **absolute** URL. A relative path would resolve against the
+  panel's own origin, which is not where any modbox lives, so it is rejected.
+- The response is expected to be a **JSON array of names**
+  (`["std-100ps", "narrow-50ps"]`). Anything else yields an empty list rather
+  than an error, so a modbox answering oddly cannot take the panel down.
+- **No credentials are sent.** The endpoint belongs to the modbox, not to the
+  gateway, and forwarding the operator's token to another host would leak it.
+- **Omit it** and the gateway's own `/waveforms` is used instead — which is
+  what the mock backend serves, so local development needs no config.
 
 ## Empty banks hide sections
 

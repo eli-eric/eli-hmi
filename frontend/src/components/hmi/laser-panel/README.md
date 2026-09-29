@@ -39,7 +39,7 @@ action buttons render.
 | ----------------------- | ------------------------------------------------------------------------------ |
 | `LaserPanel.tsx`        | Compound shell — header + body, attaches `.General` etc. as static props.      |
 | `GeneralSection.tsx`    | Overview row (CONN/FULLP/MSS/ERR), shutter, PHD, Start/Stop/Alignment/Standby. |
-| `RegenSection.tsx`      | Regen state, temp, PHD2, attenuator (with `PresetIntegerInput`).               |
+| `RegenSection.tsx`      | Regen state, temp, PHD2, attenuator (with `PresetNumberInput`).                |
 | `ChillersSection.tsx`   | 4×3 grid of chiller flow/temp/water readouts.                                  |
 | `FlashlampsSection.tsx` | 14-channel SB/RUN/STOP/FAIL counts + trigger delay (with mismatch detection).  |
 | `ModboxSection.tsx`     | Merged modbox state + waveform select.                                         |
@@ -65,7 +65,7 @@ are written straight through.
 
 ### `usePvWrite` hook
 
-Every write control (`ActionButton`, `PresetIntegerInput`, `WaveformSelect`)
+Every write control (`ActionButton`, `PresetNumberInput`, `WaveformSelect`)
 consumes the shared `usePvWrite()` hook from
 `@/components/hmi/controls/usePvWrite` for the idle/pending/success/error
 lifecycle and `CogToggle` auto-close.

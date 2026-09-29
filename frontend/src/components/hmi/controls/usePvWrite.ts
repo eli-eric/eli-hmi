@@ -26,7 +26,7 @@ interface UsePvWriteResult {
 
 /**
  * Single source of truth for the PV-write lifecycle used by every write
- * control on the L4 OPCPA page (ActionButton, PresetIntegerInput, WaveformSelect).
+ * control on the L4 OPCPA page (ActionButton, PresetNumberInput, WaveformSelect).
  *
  * The hook owns: `pvWrite` invocation, idle/pending/success/error state,
  * success-flash auto-reset, CogToggle close-on-success, and unmount-safe

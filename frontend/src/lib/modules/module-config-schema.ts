@@ -24,8 +24,6 @@ const pvName = nonBlank.describe(
 )
 const cssSize = nonBlank.describe('CSS size used by the module-page layout.')
 
-
-
 export const interlockItemSchema = z.strictObject({
   pvname: pvName,
   title: displayText,

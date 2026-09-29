@@ -37,3 +37,16 @@
 .chevronIcon[data-expanded='true'] {
   transform: rotate(180deg);
 }
+
+/* Sits beside a label to explain it; muted so it reads as an affordance
+ * rather than as a status. */
+.infoIcon {
+  flex-shrink: 0;
+  color: var(--color-gray-800);
+  cursor: help;
+}
+
+.infoIcon:hover,
+.infoIcon:focus-visible {
+  color: var(--color-text);
+}

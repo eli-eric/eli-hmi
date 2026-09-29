@@ -6,8 +6,7 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { validateConfigAtStartup } =
-      await import('./instrumentation-node')
+    const { validateConfigAtStartup } = await import('./instrumentation-node')
     validateConfigAtStartup()
   }
 }

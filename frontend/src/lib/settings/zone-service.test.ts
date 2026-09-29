@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  ConfigRoot,
-  GLOBAL_BROKEN,
-  GLOBAL_TWO_ZONES,
-} from '@/test/config-root'
+import { ConfigRoot, GLOBAL_BROKEN, GLOBAL_TWO_ZONES } from '@/test/config-root'
 import { clearConfigCache, setConfigRootForTests } from './config-loader'
 import {
   DEFAULT_ZONE_TITLE,

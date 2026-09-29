@@ -4,7 +4,7 @@ import { FC, useMemo } from 'react'
 import { SectionCard } from '@/components/hmi/controls/SectionCard'
 import { DataRow } from '@/components/hmi/controls/DataRow'
 import { CogToggle } from '@/components/hmi/controls/CogToggle'
-import { PresetIntegerInput } from '@/components/hmi/controls/PresetIntegerInput'
+import { PresetNumberInput } from '@/components/hmi/controls/PresetNumberInput'
 import {
   FloatValue,
   IntegerValue,
@@ -105,7 +105,7 @@ export const RegenSection: FC<RegenSectionProps> = ({
         }
         action={
           <CogToggle ariaLabel="Set attenuator">
-            <PresetIntegerInput
+            <PresetNumberInput
               label="Set Attenuator"
               presets={[]}
               pvName={attenuatorPv}

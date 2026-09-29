@@ -22,12 +22,12 @@ All write controls consume the `usePvWrite()` hook for their lifecycle and
 co-operate with `CogToggle` via the `useCogToggleClose()` Context to dismiss
 the panel after a successful write.
 
-| Module                   | Purpose                                                                                                                                                                          |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `usePvWrite.ts`          | Single source of truth for the idle/pending/success/error state machine. Owns `pvWrite()` call, success-flash timer, CogToggle close-on-success, unmount-safe cleanup.           |
-| `ActionButton.tsx`       | One-click button that writes a fixed value (defaults to `1` for command triggers). Error appears in a dedicated `role=alert` row below the button (keeps the cog layout stable). |
-| `PresetIntegerInput.tsx` | Chip presets + custom integer field, "Confirm" pattern. Supports `min`/`max` bounds with explicit out-of-range messaging.                                                        |
-| `CogToggle.tsx`          | Cog-icon button that opens an inline panel of write controls. Auto-closes on Escape, outside-click, or successful descendant write (via `CogToggleContext`).                     |
+| Module                  | Purpose                                                                                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `usePvWrite.ts`         | Single source of truth for the idle/pending/success/error state machine. Owns `pvWrite()` call, success-flash timer, CogToggle close-on-success, unmount-safe cleanup.           |
+| `ActionButton.tsx`      | One-click button that writes a fixed value (defaults to `1` for command triggers). Error appears in a dedicated `role=alert` row below the button (keeps the cog layout stable). |
+| `PresetNumberInput.tsx` | Chip presets + custom integer field, "Confirm" pattern. Supports `min`/`max` bounds with explicit out-of-range messaging.                                                        |
+| `CogToggle.tsx`         | Cog-icon button that opens an inline panel of write controls. Auto-closes on Escape, outside-click, or successful descendant write (via `CogToggleContext`).                     |
 
 ### Readouts
 

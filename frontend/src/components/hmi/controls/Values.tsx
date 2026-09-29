@@ -157,9 +157,7 @@ function stringFault(data: Message<unknown> | undefined) {
 
 /** Float value (config-formatted) + optional units chip. */
 export const FloatValue: FC<
-  { data: NumMsg } & SeverityAwareProps &
-    UnitsAwareProps &
-    FormatAwareProps
+  { data: NumMsg } & SeverityAwareProps & UnitsAwareProps & FormatAwareProps
 > = ({
   data,
   pvName,
@@ -216,9 +214,7 @@ export const FloatValue: FC<
 
 /** Integer value; a config `format` overrides the default rounding. */
 export const IntegerValue: FC<
-  { data: NumMsg } & SeverityAwareProps &
-    UnitsAwareProps &
-    FormatAwareProps
+  { data: NumMsg } & SeverityAwareProps & UnitsAwareProps & FormatAwareProps
 > = ({
   data,
   pvName,
@@ -261,7 +257,7 @@ export const IntegerValue: FC<
   }
   return withUnits(
     <span className={styles.number} data-tone={tone} title={title}>
-      {format ?? formatFallback
+      {(format ?? formatFallback)
         ? getFormattedValue({
             value: data.value,
             options: resolveFormat({

@@ -142,10 +142,27 @@ async function readErrorDetail(res: Response): Promise<string | null> {
   }
 }
 
-export async function listWaveforms(): Promise<string[]> {
-  const auth = await authHeaders()
-  const res = await fetch(`${apiBase()}/waveforms`, { headers: auth })
+/**
+ * Waveform catalog.
+ *
+ * `url` is the laser's own catalog endpoint from the config (`waveformsUrl`) —
+ * every modbox serves its own list, so the address differs per laser. It is a
+ * third-party server, NOT our gateway, so the request carries no
+ * Authorization header: handing a bearer token for our backend to another
+ * host would leak a credential to it.
+ *
+ * With no URL configured the gateway's own `/waveforms` is used, which is
+ * what the mock backend serves — so local development needs no config.
+ *
+ * The response is expected to be a JSON array of waveform names. Anything
+ * else yields an empty list rather than an exception, because a modbox that
+ * answers oddly should not take the Modbox panel down with it.
+ */
+export async function listWaveforms(url?: string): Promise<string[]> {
+  const res = url
+    ? await fetch(url)
+    : await fetch(`${apiBase()}/waveforms`, { headers: await authHeaders() })
   if (!res.ok) throw new Error(`waveforms list HTTP ${res.status}`)
   const data = await res.json()
-  return Array.isArray(data) ? data : []
+  return Array.isArray(data) ? data.filter((n) => typeof n === 'string') : []
 }

@@ -64,7 +64,10 @@ describe('FloatValue', () => {
 
   it("uses a component's fallback when the config is silent", () => {
     render(
-      <FloatValue data={msg({ value: 790 })} formatFallback={{ format: 'raw' }} />,
+      <FloatValue
+        data={msg({ value: 790 })}
+        formatFallback={{ format: 'raw' }}
+      />,
     )
     expect(screen.getByText('790')).toBeInTheDocument()
   })

@@ -10,7 +10,7 @@ directory; the editable data lives in the runtime config directory under
 ## Files and ownership
 
 - `module-config-schema.ts` — strict Zod schema, YAML parser, and inferred
-  types. The YAML file *is* the `ModuleConfig` shape; there is no
+  types. The YAML file _is_ the `ModuleConfig` shape; there is no
   `schemaVersion`, because config and schema now ship in the same commit.
 - `types.ts` — compatibility type exports for components.
 - `module-config-loader.ts` — resolves the file for the current zone, parses it,
@@ -76,13 +76,13 @@ The YAML mirrors an older TypeScript shape, and that shape spelled the same
 concept differently in different places. These are the easiest mistakes to make,
 and the validator is the only thing that catches them:
 
-| Context | Correct key | **Not** |
-|---|---|---|
-| Interlock / safety-permission items | `pvname` | ~~`pvName`~~ |
-| Sensor entries (`sensorPVs`, `pressure`, `flow`) | `pvName` | ~~`pvname`~~ |
-| Locking | `pvName` | ~~`pvname`~~ |
-| Pump speed | `rpmPV` | ~~`rpmPv`~~ |
-| Pump valve | `valvePv` | ~~`valvePV`~~ |
+| Context                                          | Correct key | **Not**       |
+| ------------------------------------------------ | ----------- | ------------- |
+| Interlock / safety-permission items              | `pvname`    | ~~`pvName`~~  |
+| Sensor entries (`sensorPVs`, `pressure`, `flow`) | `pvName`    | ~~`pvname`~~  |
+| Locking                                          | `pvName`    | ~~`pvname`~~  |
+| Pump speed                                       | `rpmPV`     | ~~`rpmPv`~~   |
+| Pump valve                                       | `valvePv`   | ~~`valvePV`~~ |
 
 Unknown keys are rejected outright rather than ignored, so a typo fails the
 build instead of silently dropping a signal. `npm run validate:config` names the
@@ -101,93 +101,93 @@ file and the exact path inside it:
 Every top-level field is **required**; all three existing files set all of them.
 Every string is trimmed and must be non-empty.
 
-| Field | Type | What it is |
-|---|---|---|
-| `heading` | text | Heading rendered in the page's top section. |
-| `interlocks` | interlock group | Interlock indicator panel. |
+| Field              | Type            | What it is                                                   |
+| ------------------ | --------------- | ------------------------------------------------------------ |
+| `heading`          | text            | Heading rendered in the page's top section.                  |
+| `interlocks`       | interlock group | Interlock indicator panel.                                   |
 | `safetyPermission` | interlock group | Machine-safety-permission panel; same shape as `interlocks`. |
-| `cleanDryAir` | CDA block | Clean-dry-air section. |
-| `backing` | backing block | Backing pump + sensor section. |
-| `roughing` | roughing block | Roughing pump + sensor section. |
+| `cleanDryAir`      | CDA block       | Clean-dry-air section.                                       |
+| `backing`          | backing block   | Backing pump + sensor section.                               |
+| `roughing`         | roughing block  | Roughing pump + sensor section.                              |
 
 There is no `schemaVersion`: config and schema ship in the same commit, so they
 cannot disagree. A leftover one is rejected as an unknown key.
 
 ### Interlock group (`interlocks`, `safetyPermission`)
 
-| Field | Required | Type | What it is |
-|---|---|---|---|
-| `title` | yes | text | Panel title. |
-| `items` | yes | list | Indicators, in display order. |
-| `items[].pvname` | yes | PV name | Interlock PV. Note the lowercase `n`. |
-| `items[].title` | yes | text | Indicator label. |
-| `checkClearPv` | no | PV name | PV used to clear the whole group. |
-| `width` | no | CSS size | Panel width, e.g. `320px`. |
+| Field            | Required | Type     | What it is                            |
+| ---------------- | -------- | -------- | ------------------------------------- |
+| `title`          | yes      | text     | Panel title.                          |
+| `items`          | yes      | list     | Indicators, in display order.         |
+| `items[].pvname` | yes      | PV name  | Interlock PV. Note the lowercase `n`. |
+| `items[].title`  | yes      | text     | Indicator label.                      |
+| `checkClearPv`   | no       | PV name  | PV used to clear the whole group.     |
+| `width`          | no       | CSS size | Panel width, e.g. `320px`.            |
 
 ### Sensor entry
 
 Used by `sensorPVs` inside a sensor bar, and by CDA `pressure` / `flow`.
 
-| Field | Required | Type | What it is |
-|---|---|---|---|
-| `pvName` | yes | PV name | Readout PV. Note the capital `N`. |
-| `label` | yes | text | Displayed label. |
-| `options` | no | number or object | Numeric formatting — see [Number formatting](#number-formatting). |
+| Field     | Required | Type             | What it is                                                        |
+| --------- | -------- | ---------------- | ----------------------------------------------------------------- |
+| `pvName`  | yes      | PV name          | Readout PV. Note the capital `N`.                                 |
+| `label`   | yes      | text             | Displayed label.                                                  |
+| `options` | no       | number or object | Numeric formatting — see [Number formatting](#number-formatting). |
 
 ### Sensor bar (`sensorBar`)
 
-| Field | Required | Type | What it is |
-|---|---|---|---|
-| `title` | yes | text | Bar title. |
-| `label` | yes | text | Bar label. |
-| `sensorPVs` | yes | list | Sensor entries, in display order. |
-| `height` | no | CSS size | Bar height. |
+| Field       | Required | Type     | What it is                        |
+| ----------- | -------- | -------- | --------------------------------- |
+| `title`     | yes      | text     | Bar title.                        |
+| `label`     | yes      | text     | Bar label.                        |
+| `sensorPVs` | yes      | list     | Sensor entries, in display order. |
+| `height`    | no       | CSS size | Bar height.                       |
 
 ### Pump (`pump`)
 
 All four fields are required.
 
-| Field | Type | What it is |
-|---|---|---|
-| `title` | text | Pump title. |
-| `rpmPV` | PV name | Pump speed readout. Capital `PV`. |
-| `valvePv` | PV name | Associated valve PV. Lowercase `v`, capital `P`. |
-| `valveLabel` | text | Valve label. |
+| Field        | Type    | What it is                                       |
+| ------------ | ------- | ------------------------------------------------ |
+| `title`      | text    | Pump title.                                      |
+| `rpmPV`      | PV name | Pump speed readout. Capital `PV`.                |
+| `valvePv`    | PV name | Associated valve PV. Lowercase `v`, capital `P`. |
+| `valveLabel` | text    | Valve label.                                     |
 
 ### `backing`
 
-| Field | Required | Type |
-|---|---|---|
-| `title` | yes | text |
-| `sensorBar` | yes | sensor bar |
-| `pump` | yes | pump |
-| `width` | no | CSS size |
-| `containerWidth` | no | CSS size |
+| Field            | Required | Type       |
+| ---------------- | -------- | ---------- |
+| `title`          | yes      | text       |
+| `sensorBar`      | yes      | sensor bar |
+| `pump`           | yes      | pump       |
+| `width`          | no       | CSS size   |
+| `containerWidth` | no       | CSS size   |
 
 ### `roughing`
 
 Same as `backing`, plus an optional interlock-style locking readout:
 
-| Field | Required | Type |
-|---|---|---|
-| `title` | yes | text |
-| `sensorBar` | yes | sensor bar |
-| `pump` | yes | pump |
-| `locking` | no | object with required `label` (text) and `pvName` (PV name) |
-| `width` | no | CSS size |
-| `containerWidth` | no | CSS size |
+| Field            | Required | Type                                                       |
+| ---------------- | -------- | ---------------------------------------------------------- |
+| `title`          | yes      | text                                                       |
+| `sensorBar`      | yes      | sensor bar                                                 |
+| `pump`           | yes      | pump                                                       |
+| `locking`        | no       | object with required `label` (text) and `pvName` (PV name) |
+| `width`          | no       | CSS size                                                   |
+| `containerWidth` | no       | CSS size                                                   |
 
 ### `cleanDryAir`
 
-| Field | Required | Type | What it is |
-|---|---|---|---|
-| `title` | yes | text | Section title. |
-| `volumes` | yes | list | One entry per CDA volume, in display order. |
-| `volumes[].title` | yes | text | Volume title. |
-| `volumes[].pressure` | yes | sensor entry | Pressure readout. |
-| `volumes[].flow` | yes | sensor entry | Flow readout. |
-| `volumes[].width` | no | CSS size | Volume width. |
-| `width` | no | CSS size | Section width. |
+| Field                | Required | Type         | What it is                                  |
+| -------------------- | -------- | ------------ | ------------------------------------------- |
+| `title`              | yes      | text         | Section title.                              |
+| `volumes`            | yes      | list         | One entry per CDA volume, in display order. |
+| `volumes[].title`    | yes      | text         | Volume title.                               |
+| `volumes[].pressure` | yes      | sensor entry | Pressure readout.                           |
+| `volumes[].flow`     | yes      | sensor entry | Flow readout.                               |
+| `volumes[].width`    | no       | CSS size     | Volume width.                               |
+| `width`              | no       | CSS size     | Section width.                              |
 
 ## Number formatting
 
@@ -200,20 +200,20 @@ values and `getFormattedValue` is the only thing that renders numbers:
 pressure:
   pvName: E3-P3-PPS801:CDA_PRESSURE
   label: PPS801
-  options: 2                                  # 2 decimal places
+  options: 2 # 2 decimal places
 flow:
   pvName: E3-P3-PPS801:FLOW
   label: PPFS801
   options: { format: precision, toPrecision: 3 }
 ```
 
-| Written as | Shows `23.456` as |
-| --- | --- |
-| `2` | `23.46` (decimal places — the usual case) |
-| `{ format: fixed, toFixed: 2 }` | `23.46` |
-| `{ format: precision, toPrecision: 2 }` | `23` (significant digits) |
-| `{ format: exponential, toExponential: 2 }` | `2.35e+1` |
-| `{ format: raw }` | `23.456` |
+| Written as                                  | Shows `23.456` as                         |
+| ------------------------------------------- | ----------------------------------------- |
+| `2`                                         | `23.46` (decimal places — the usual case) |
+| `{ format: fixed, toFixed: 2 }`             | `23.46`                                   |
+| `{ format: precision, toPrecision: 2 }`     | `23` (significant digits)                 |
+| `{ format: exponential, toExponential: 2 }` | `2.35e+1`                                 |
+| `{ format: raw }`                           | `23.456`                                  |
 
 Omitted, a reading renders the way it always has.
 

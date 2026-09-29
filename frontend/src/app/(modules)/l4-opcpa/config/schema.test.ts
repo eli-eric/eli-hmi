@@ -211,6 +211,29 @@ describe('parseLaserSpecs', () => {
     ).toThrow(/duplicate PV name\(s\)[\s\S]*L4:MODE/)
   })
 
+  it('rejects a configured value on SEND_YDFA_CURRENT too', () => {
+    // The operator types the current into the panel, so a value here would
+    // never reach the PV.
+    expect(() =>
+      parseLaserSpecs(
+        doc([
+          laser({
+            commands: {
+              SEND_YDFA_CURRENT: { pv: 'L4:YDFA:Current', value: 1250 },
+            },
+          }),
+        ]),
+      ),
+    ).toThrow(/takes its value from the operator/)
+
+    // The PV on its own is fine — that is how it is configured.
+    expect(() =>
+      parseLaserSpecs(
+        doc([laser({ commands: { SEND_YDFA_CURRENT: 'L4:YDFA:Current' } })]),
+      ),
+    ).not.toThrow()
+  })
+
   it('rejects a value on a command whose value comes from the operator', () => {
     expect(() =>
       parseLaserSpecs(
@@ -374,5 +397,25 @@ describe('parseLaserSpecs', () => {
 
   it('rejects malformed YAML with a readable message', () => {
     expect(() => parseLaserSpecs('lasers: [unclosed')).toThrow(/not valid YAML/)
+  })
+
+  it('accepts an absolute waveformsUrl and rejects anything else', () => {
+    const spec = parseLaserSpecs(
+      doc([
+        laser({
+          waveformsUrl: 'https://modbox-nl9.lcs.local/api/waveforms',
+        }),
+      ]),
+    )[0]
+    expect(spec.waveformsUrl).toBe('https://modbox-nl9.lcs.local/api/waveforms')
+
+    // Omitted is fine — the gateway's own /waveforms is the fallback.
+    expect(parseLaserSpecs(doc([laser({})]))[0].waveformsUrl).toBeUndefined()
+
+    // A relative path would resolve against the panel's own origin, which is
+    // not where any modbox lives.
+    expect(() =>
+      parseLaserSpecs(doc([laser({ waveformsUrl: '/api/waveforms' })])),
+    ).toThrow(/Invalid URL/)
   })
 })

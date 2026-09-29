@@ -61,8 +61,7 @@ export function configRoot(): string {
 }
 
 type CacheEntry =
-  | { ok: true; config: GlobalConfig }
-  | { ok: false; error: ConfigError }
+  { ok: true; config: GlobalConfig } | { ok: false; error: ConfigError }
 
 // Keyed by root so tests loading fixture roots don't bleed into each other;
 // in production there is only ever one.

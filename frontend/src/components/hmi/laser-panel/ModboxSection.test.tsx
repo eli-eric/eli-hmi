@@ -193,6 +193,132 @@ describe('ModboxSection', () => {
     expect(JSON.parse(String(init?.body))).toMatchObject({ value: 'Sleep' })
   })
 
+  it('offers Send YDFA current behind the cog, and only when exposed', async () => {
+    const ws = renderModbox()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('BI_NL2_MODBOX_1')?.size).toBe(1),
+    )
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Modbox actions' }))
+    expect(
+      screen.getByRole('button', { name: /Send YDFA current/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('hides Send YDFA current for a laser that does not expose it', async () => {
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <ModboxSection
+          cmdPv={makeCommandPv('NL2', {})}
+          modbox={MODBOX_3}
+          loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+          commands={['MODBOX_ON']}
+        />
+      </TestWebSocketProvider>,
+    )
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Modbox actions' }))
+    expect(
+      screen.queryByRole('button', { name: /Send YDFA current/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('reveals a numeric entry and writes the typed value on Confirm', async () => {
+    const fetchMock = vi.fn<typeof fetch>(
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    )
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <ModboxSection
+          cmdPv={makeCommandPv('NL2', {
+            SEND_YDFA_CURRENT: {
+              pvName: 'L4-OPCPA-NL2:ModBox:YDFA:Current',
+              value: 1,
+            },
+          })}
+          modbox={MODBOX_3}
+          loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+          commands={LASER_COMMANDS}
+        />
+      </TestWebSocketProvider>,
+    )
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Modbox actions' }))
+
+    // The entry is behind the action, not beside it: the cog panel lists
+    // several actions and only this one needs a value.
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Send YDFA current/ }))
+
+    await user.type(screen.getByRole('spinbutton'), '2.5')
+    await user.click(screen.getByRole('button', { name: 'Confirm' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toContain(
+      `/pv/${encodeURIComponent('L4-OPCPA-NL2:ModBox:YDFA:Current')}`,
+    )
+    // The operator's number, at the device's 0.1 A resolution — not the
+    // trigger value from the config.
+    expect(JSON.parse(String(init?.body))).toMatchObject({ value: 2.5 })
+  })
+
+  it('explains on hover that the waveform preset is sent by Modbox ON', async () => {
+    renderModbox()
+
+    const hint = screen.getByRole('img', {
+      name: 'Waveform sent in ModBox ON sequence',
+    })
+    // Next to the label it explains, not floating loose in the row.
+    expect(screen.getByText('Waveform Preset').parentElement).toContainElement(
+      hint,
+    )
+
+    const user = userEvent.setup()
+    await user.hover(hint)
+    await waitFor(() =>
+      expect(
+        screen.getAllByText('Waveform sent in ModBox ON sequence').length,
+      ).toBeGreaterThan(0),
+    )
+  })
+
+  it('explains on hover what Waveform Latest shows', async () => {
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <ModboxSection
+          cmdPv={makeCommandPv('NL2', {})}
+          modbox={MODBOX_3}
+          loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+          latestWaveformPv="SI_NL2_LATEST_WAVEFORM"
+          commands={LASER_COMMANDS}
+        />
+      </TestWebSocketProvider>,
+    )
+
+    const hint = screen.getByRole('img', {
+      name: 'Last waveform sent to the laser',
+    })
+    expect(screen.getByText('Waveform Latest').parentElement).toContainElement(
+      hint,
+    )
+
+    const user = userEvent.setup()
+    await user.hover(hint)
+    await waitFor(() =>
+      expect(
+        screen.getAllByText('Last waveform sent to the laser').length,
+      ).toBeGreaterThan(0),
+    )
+  })
+
   it('expands the Modbox state detail list when the state pill is clicked', async () => {
     const ws = renderModbox()
     await waitFor(() =>

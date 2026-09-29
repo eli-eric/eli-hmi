@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  ConfigRoot,
-  GLOBAL_BROKEN,
-  GLOBAL_TWO_ZONES,
-} from '@/test/config-root'
+import { ConfigRoot, GLOBAL_BROKEN, GLOBAL_TWO_ZONES } from '@/test/config-root'
 import {
   clearConfigCache,
   ConfigError,
@@ -133,7 +129,9 @@ describe('config-loader', () => {
   describe('readModuleConfigText', () => {
     it('reads the file for one module and zone', () => {
       const root = makeRoot().module('p3', 'test', 'heading: P3\n')
-      expect(readModuleConfigText('p3', 'test', root.path)).toBe('heading: P3\n')
+      expect(readModuleConfigText('p3', 'test', root.path)).toBe(
+        'heading: P3\n',
+      )
     })
 
     it('throws for a missing file — there is deliberately no default fallback', () => {

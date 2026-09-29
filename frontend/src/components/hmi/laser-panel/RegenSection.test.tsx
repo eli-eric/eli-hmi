@@ -150,10 +150,15 @@ describe('RegenSection', () => {
     )
 
     const user = userEvent.setup()
-    expect(screen.queryByLabelText(/custom/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Set attenuator' }))
 
-    expect(screen.getByLabelText(/custom/i)).toBeInTheDocument()
+    // No presets here, so the field is not a "Custom" alternative to
+    // anything — it is simply the attenuator value, and says so.
+    expect(screen.queryByLabelText(/custom/i)).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('spinbutton', { name: 'Set Attenuator' }),
+    ).toBeInTheDocument()
   })
 })

@@ -75,6 +75,7 @@ export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => {
           modbox={spec.modbox}
           loadedWaveformPv={spec.pvs.loadedWaveform}
           latestWaveformPv={spec.pvs.latestWaveform}
+          waveformsUrl={spec.waveformsUrl}
           mbc1Pv={spec.pvs.modboxMbc1}
           mbc2Pv={spec.pvs.modboxMbc2}
           commands={spec.commands}

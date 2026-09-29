@@ -1,10 +1,11 @@
 'use client'
 
-import { FC, useMemo, useState } from 'react'
+import { FC, ReactNode, useMemo, useState } from 'react'
 import { SectionCard } from '@/components/hmi/controls/SectionCard'
 import { DataRow } from '@/components/hmi/controls/DataRow'
 import { CogToggle } from '@/components/hmi/controls/CogToggle'
 import { ActionButton } from '@/components/hmi/controls/ActionButton'
+import { PresetNumberInput } from '@/components/hmi/controls/PresetNumberInput'
 import {
   DetailList,
   DetailListItem,
@@ -24,6 +25,7 @@ import type {
   FormatConfig,
   MappedPv,
 } from '@/app/(modules)/l4-opcpa/config/schema'
+import { InfoIcon } from '@/components/ui/icons'
 import { WaveformSelect } from './WaveformSelect'
 import { makeCommandGate } from './commandGate'
 import { displayValue, ON_OFF_TEXT } from './value-text'
@@ -38,6 +40,11 @@ interface ModboxSectionProps {
   loadedWaveformPv: string
   /** Previous-waveform PV shown in Waveform Latest. Optional. */
   latestWaveformPv?: string
+  /**
+   * Where this laser's waveform catalog is served from. Each modbox has its
+   * own, so it comes from the laser's config rather than a shared constant.
+   */
+  waveformsUrl?: string
   /** Modbox MBC1 / MBC2 bias readout PVs (shown on the Bias Value row). Optional. */
   mbc1Pv?: string
   mbc2Pv?: string
@@ -47,7 +54,17 @@ interface ModboxSectionProps {
   format?: FormatConfig
 }
 
-const WaveformActionDisclosure: FC<{ pvName: string }> = ({ pvName }) => {
+/**
+ * An action inside the Modbox Actions panel that needs a value before it can
+ * be sent: the toggle names the action, and clicking it reveals the control
+ * that supplies the value. The panel lists several actions, so the ones
+ * needing input stay folded away until chosen rather than crowding the
+ * one-click commands beside them.
+ */
+const ActionDisclosure: FC<{
+  label: string
+  children: ReactNode
+}> = ({ label, children }) => {
   const [open, setOpen] = useState(false)
 
   return (
@@ -58,9 +75,9 @@ const WaveformActionDisclosure: FC<{ pvName: string }> = ({ pvName }) => {
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        Set Waveform to…
+        {label}
       </button>
-      {open && <WaveformSelect pvName={pvName} />}
+      {open && children}
     </div>
   )
 }
@@ -75,6 +92,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   modbox,
   loadedWaveformPv,
   latestWaveformPv,
+  waveformsUrl,
   mbc1Pv,
   mbc2Pv,
   commands,
@@ -84,7 +102,10 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   const can = makeCommandGate(commands)
   const hasWaveformAction = can('LOAD_WAVEFORM')
   const hasModboxActions =
-    can('MODBOX_ON') || can('MODBOX_OFF') || hasWaveformAction
+    can('MODBOX_ON') ||
+    can('MODBOX_OFF') ||
+    can('SEND_YDFA_CURRENT') ||
+    hasWaveformAction
 
   const modboxPvs = useMemo(() => modbox.map((m) => m.pv), [modbox])
   const allPvs = useMemo(
@@ -202,7 +223,12 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         />
       )}
       <DataRow
-        label="Waveform Preset"
+        label={
+          <span className={styles.labelWithInfo}>
+            Waveform Preset
+            <InfoIcon hint="Waveform sent in ModBox ON sequence" />
+          </span>
+        }
         value={
           <StringValue
             pvName={loadedWaveformPv}
@@ -212,14 +238,22 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         action={
           can('LOAD_WAVEFORM') ? (
             <CogToggle ariaLabel="Set waveform preset">
-              <WaveformSelect pvName={cmdPv('LOAD_WAVEFORM').pvName} />
+              <WaveformSelect
+                pvName={cmdPv('LOAD_WAVEFORM').pvName}
+                catalogUrl={waveformsUrl}
+              />
             </CogToggle>
           ) : undefined
         }
       />
       {latestWaveformPv && (
         <DataRow
-          label="Waveform Latest"
+          label={
+            <span className={styles.labelWithInfo}>
+              Waveform Latest
+              <InfoIcon hint="Last waveform sent to the laser" />
+            </span>
+          }
           value={
             <StringValue
               pvName={latestWaveformPv}
@@ -244,10 +278,25 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
                 variant="secondary"
               />
             )}
+            {can('SEND_YDFA_CURRENT') && (
+              <ActionDisclosure label="Send YDFA current…">
+                <PresetNumberInput
+                  label="YDFA current"
+                  presets={[]}
+                  pvName={cmdPv('SEND_YDFA_CURRENT').pvName}
+                  precision={1}
+                  min={0}
+                  max={6}
+                />
+              </ActionDisclosure>
+            )}
             {hasWaveformAction && (
-              <WaveformActionDisclosure
-                pvName={cmdPv('LOAD_WAVEFORM').pvName}
-              />
+              <ActionDisclosure label="Set Waveform to…">
+                <WaveformSelect
+                  pvName={cmdPv('LOAD_WAVEFORM').pvName}
+                  catalogUrl={waveformsUrl}
+                />
+              </ActionDisclosure>
             )}
           </CogToggle>
         </div>

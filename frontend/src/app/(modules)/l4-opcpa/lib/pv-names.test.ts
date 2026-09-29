@@ -12,6 +12,7 @@ describe('L4 OPCPA command vocabulary', () => {
       'FLASHLAMPS_STANDBY',
       'MODBOX_ON',
       'MODBOX_OFF',
+      'SEND_YDFA_CURRENT',
       'SET_DELAY',
       'LOAD_WAVEFORM',
     ])

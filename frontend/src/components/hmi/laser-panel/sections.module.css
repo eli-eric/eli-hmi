@@ -375,3 +375,14 @@
 .waveformActionToggle:hover {
   background: var(--color-surface);
 }
+
+/* A row label with an info icon after it. The icon keeps its size while the
+ * text truncates, so a narrow panel loses label text rather than the
+ * affordance that explains it. */
+.labelWithInfo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+}

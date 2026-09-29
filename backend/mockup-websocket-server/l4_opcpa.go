@@ -199,6 +199,17 @@ var sequences = map[string]sequenceFunc{
 		}
 		return out, nil
 	},
+	// The operator types the current, so the value is required — same contract
+	// as set_delay. No effect follows: the mock has no PV representing the
+	// YDFA current, and inventing one would be fiction. Registered anyway
+	// because an unknown command is rejected, which would make the button look
+	// broken rather than unsimulated.
+	"send_ydfa_current": func(_ string, value interface{}) ([]pvEffect, error) {
+		if value == nil {
+			return nil, fmt.Errorf("send_ydfa_current requires a numeric value")
+		}
+		return nil, nil
+	},
 	"set_delay": func(laser string, value interface{}) ([]pvEffect, error) {
 		if value == nil {
 			return nil, fmt.Errorf("set_delay requires a numeric value")

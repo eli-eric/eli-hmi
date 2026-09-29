@@ -5,7 +5,7 @@ import { SectionCard } from '@/components/hmi/controls/SectionCard'
 import { DataRow } from '@/components/hmi/controls/DataRow'
 import { CogToggle } from '@/components/hmi/controls/CogToggle'
 import { ActionButton } from '@/components/hmi/controls/ActionButton'
-import { PresetIntegerInput } from '@/components/hmi/controls/PresetIntegerInput'
+import { PresetNumberInput } from '@/components/hmi/controls/PresetNumberInput'
 import {
   DetailList,
   DetailListItem,
@@ -327,10 +327,12 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
         action={
           can('SET_DELAY') ? (
             <CogToggle ariaLabel="Set trigger delay">
-              <PresetIntegerInput
+              <PresetNumberInput
                 label="Set Trigger Delay"
                 presets={delayPresets}
                 pvName={cmdPv('SET_DELAY').pvName}
+                min={10}
+                max={60000}
               />
             </CogToggle>
           ) : undefined
