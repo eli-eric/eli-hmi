@@ -1,8 +1,27 @@
 """The `laser-panel` component's YAML block: one laser.
 
-Ported from the React app's zod schema (`config/schema.ts`), and the format is
-unchanged where it can be — the strings a controls engineer wrote for the React
-page paste straight in, under a `component: laser-panel` heading.
+Ported from the React app's zod schema (`config/schema.ts`), and the two are
+kept in step — the strings a controls engineer wrote for the React page paste
+straight in, under a `component: laser-panel` heading.
+
+One signal is configured in one place. A `pvs:` entry is either the PV on its
+own or the PV with what the panel should do with it::
+
+    pvs:
+      connection: L4-OPCPA-NL4:PortControl.CNCT   # shorthand: just the PV
+      phdMean:
+        pv: L4-OPCPA-NL4:PHD1K000:12:Mean
+        label: PHD1K000:12/Mean                   # what the row is called
+      modboxMbc1:
+        pv: L4-OPCPA-NL4::ModBox:MBC1:BiasValue
+        format: 0                                 # display rounding only
+
+There is no `units:`, `format:` or `labels:` block: they were three parallel
+maps keyed by role, which put one readout in four places and in two
+vocabularies — the bias row's PVs were `modboxMbc1/2` while its label was
+`biasValue`. What a reading is measured in, and the rounding that follows from
+the record rather than from local taste, are the component's (`UNIT_DEFAULTS`,
+`FORMAT_DEFAULTS`); a config written the old way is refused by name.
 
 What the schema still guarantees, because each rule caught a real edit mistake:
 
@@ -74,6 +93,26 @@ class MappedPv(LabeledPv):
     values: ValueText | None = None
 
 
+class SequenceSpec(Strict):
+    """One sequence the control system can run, as the Sequencer row lists it.
+
+    A real device needs only the name and the PV: its control system sets that
+    PV while the sequence runs, and the panel reads it. `command` is for the
+    deployments that have no control system — the simulator and the local IOC —
+    where nothing would otherwise move the PV; it names the button whose press
+    should hold this sequence at RUNNING. Omit it everywhere else.
+    """
+
+    label: Name = Field(description="Sequence name, e.g. 'Start Laser'.")
+    pv: Name = Field(description="This sequence's state PV (1 = RUNNING).")
+    command: Name | None = Field(
+        default=None,
+        description="Simulator and local IOC only: the command whose press "
+        "holds this sequence at RUNNING. A real control system does that "
+        "itself, so a real zone leaves this out.",
+    )
+
+
 class ChillerSpec(Strict):
     label: Name
     flow: Name
@@ -82,61 +121,142 @@ class ChillerSpec(Strict):
 
 
 class LaserPvs(Strict):
+    """The laser's single-signal PVs.
+
+    The optional ones are optional because a laser may not have the hardware:
+    omit `phd2Mean` on a laser with one photodiode and the row goes with it.
+    `loadedWaveform` belongs to the Modbox, so it is omitted only together
+    with `modbox` itself. A row naming a device that is not there is worse
+    than no row.
+    """
+
     connection: Name
     full_power: Name = Field(alias="fullPower")
     shutter: Name
     phd_mean: Name = Field(alias="phdMean")
     regen_state: Name = Field(alias="regenState")
     regen_temp: Name = Field(alias="regenTemp")
-    phd2_mean: Name = Field(alias="phd2Mean")
+    phd2_mean: Name | None = Field(default=None, alias="phd2Mean")
     attenuator: Name
-    loaded_waveform: Name = Field(alias="loadedWaveform")
+    loaded_waveform: Name | None = Field(default=None, alias="loadedWaveform")
     latest_waveform: Name | None = Field(default=None, alias="latestWaveform")
     modbox_mbc1: Name | None = Field(default=None, alias="modboxMbc1")
     modbox_mbc2: Name | None = Field(default=None, alias="modboxMbc2")
-    sequencer_running: Name | None = Field(default=None, alias="sequencerRunning")
+
 
     def all_names(self) -> list[str]:
         return [value for value in self.model_dump().values() if value]
 
 
-#: The signal roles `units:` and `format:` are keyed by. Roles rather than PV
-#: names: PV names are exactly what differs between stations, whereas a role
-#: means the same thing everywhere.
-SIGNAL_ROLES: tuple[str, ...] = (
-    "phdMean",
-    "phd2Mean",
-    "regenTemp",
-    "attenuator",
-    "modboxMbc1",
-    "modboxMbc2",
-    "triggerDelay",
-    "chillerFlow",
-    "chillerTemp",
-    "chillerLevel",
-)
+#: What each of the three blocks that used to sit beside `pvs:` is now written
+#: inside, so a config written the old way is told where its keys went rather
+#: than that they are not permitted.
+MOVED_BLOCKS: dict[str, str] = {"units": "units", "format": "format", "labels": "label"}
+
+#: Keys that no longer describe anything, with what replaced them. A screen
+#: that still carries one is told so rather than quietly losing a row.
+RETIRED_KEYS: dict[str, str] = {
+    "sequencerRunning": (
+        "the Sequencer row now reads RUNNING while any of the `sequences:` "
+        "below it does, so it needs no PV of its own"
+    ),
+}
 
 
-def _check_roles(raw: Mapping[str, Any] | None, block: str) -> dict[str, Any]:
-    if raw is None:
-        return {}
-    unknown = sorted(set(raw) - set(SIGNAL_ROLES))
-    if unknown:
-        raise ValueError(
-            f"{block}: unknown signal role(s) {', '.join(unknown)} "
-            f"(known: {', '.join(SIGNAL_ROLES)})"
-        )
-    return dict(raw)
+class SignalOptions(Strict):
+    """How one signal is presented, beside the PV it is presented from.
 
-
-def _check_unit_labels(raw: Mapping[str, str] | None) -> None:
-    """A whitespace-only unit is a slip, not an instruction to render a blank
-    one — `resolve_units` would silently fall through and the config author
-    would never learn their edit did nothing.
+    A reading is one thing, so it is configured in one place: the row's wording,
+    its rounding and its unit live in the same `pvs:` entry as the name they
+    describe. They used to be three parallel blocks keyed by role, which meant
+    four places to look for one readout and two vocabularies to keep in step.
     """
-    for role, unit in (raw or {}).items():
-        if not isinstance(unit, str) or not unit.strip():
-            raise ValueError(f"units.{role}: must be a non-empty label")
+
+    label: Name | None = Field(
+        default=None,
+        description="What this row is called. Defaults to the reference "
+        "laser's wording, which names NL2's hardware — set it on every laser "
+        "whose device ids differ.",
+    )
+    units: Name | None = Field(
+        default=None,
+        description="Engineering unit. Rarely needed: the component knows what "
+        "each reading is measured in and the record's own EGU wins over that. "
+        "This is the correction for a device reporting the wrong one.",
+    )
+    format: Any = Field(
+        default=None,
+        description="Display rounding: decimal places, or a {format: "
+        "exponential|precision|fixed|raw, …} block. Display only — it never "
+        "changes what is written.",
+    )
+
+
+#: What each row is called, and what it is called when a laser says nothing.
+#:
+#: NL2 was the reference while this panel was built, so its device ids ended up
+#: printed in the template — a second laser with different modules had no way
+#: to say so. Keyed by role for the same reason `units:` is: a role means the
+#: same thing at every station, while the name of the device does not.
+#: Keyed by the `pvs:` role whose entry can override it, because a row backed
+#: by one PV is named where that PV is named.
+LABEL_DEFAULTS: dict[str, str] = {
+    "shutter": "Shutter Position",
+    "phdMean": "PHD1K000:49/Mean",
+    "regenState": "Regen SY3PL50M:32",
+    "regenTemp": "Regen Temp TK6:44",
+    "phd2Mean": "PHD1K000:48/Mean",
+    "attenuator": "Atten. SM5:ATT1:51",
+    "loadedWaveform": "Waveform Preset",
+    "latestWaveform": "Waveform Latest",
+}
+
+#: What the template calls each nameable row, and the `pvs:` role whose entry
+#: renames it. They differ for three rows whose PV is named after the record
+#: rather than after what the row shows.
+ROW_LABELS: dict[str, str] = {
+    "shutter": "shutter",
+    "phdMean": "phdMean",
+    "regenState": "regenState",
+    "regenTemp": "regenTemp",
+    "phd2Mean": "phd2Mean",
+    "attenuator": "attenuator",
+    "waveformPreset": "loadedWaveform",
+    "waveformLatest": "latestWaveform",
+}
+
+#: Rows that name a cluster rather than a device: an overview of four cells, a
+#: tally of flashlamps, the Modbox's own state. No laser's hardware appears in
+#: them, so they are the component's words and not configuration.
+FIXED_LABELS: dict[str, str] = {
+    "sequencer": "Sequencer",
+    "overview": "Overview",
+    "flashlampsState": "Flashlamps State",
+    "triggerDelay": "Trigger Delay",
+    "modboxState": "Modbox State",
+    "biasValue": "Bias Value",
+}
+
+#: What each reading is measured in. Intrinsic to the signal, not to the
+#: station: every zone's config carried the same five lines before this.
+#: A record's own EGU still wins — this is what shows when it has none.
+UNIT_DEFAULTS: dict[str, str] = {
+    "regenTemp": "°C",
+    "triggerDelay": "ns",
+    "modboxMbc1": "mV",
+    "modboxMbc2": "mV",
+    "chillerFlow": "l/min",
+    "chillerTemp": "°C",
+    "chillerLevel": "%",
+}
+
+#: Rounding that follows from what the record is, rather than from local taste:
+#: a bias controller reports whole millivolts. Anything absent here renders at
+#: the shared default.
+FORMAT_DEFAULTS: dict[str, Any] = {
+    "modboxMbc1": 0,
+    "modboxMbc2": 0,
+}
 
 
 def _split_target(command: str, target: Any) -> tuple[str, Any]:
@@ -190,7 +310,9 @@ class Config(ComponentConfig):
     module_errors: list[LabeledPv] = Field(
         alias="moduleErrors",
         description="Module-error indicators (label + PV) counted in the overview. "
-        "Code 0000 means no error.",
+        "Numeric status codes; which of them is a fault is the IOC's to say, so "
+        "the overview counts the ones it has alarmed rather than reading the "
+        "codes itself.",
     )
     chillers: list[ChillerSpec] = Field(
         description="Chillers. An empty list hides the Chillers section."
@@ -199,29 +321,41 @@ class Config(ComponentConfig):
         description="Flashlamp channels (label + state PV). An empty list hides "
         "the Flashlamps section."
     )
+    sequences: list[SequenceSpec] = Field(
+        default_factory=list,
+        description="Sequences this laser can run (label + state PV). Omitted "
+        "or empty hides the Sequencer section. The row above them reads "
+        "RUNNING while any of them does.",
+    )
     modbox: list[MappedPv] = Field(
-        description="Modbox state indicators. An empty list hides the Modbox section."
+        default_factory=list,
+        description="Modbox state indicators. Omitted or empty hides the whole "
+        "Modbox section — a laser without one is not a laser with an empty box. "
+        "A laser that has one shows every Modbox row, so `pvs.loadedWaveform` "
+        "is required alongside it.",
     )
     delay_presets: list[int] = Field(
         alias="delayPresets",
         description="Trigger-delay presets (ns) offered by the Set Trigger Delay "
         "control.",
     )
-    units: dict[str, str] | None = Field(
-        default=None,
-        description="Engineering units per signal role (phdMean, regenTemp, "
-        "chillerFlow, …). The config wins over the PV's own EGU field.",
-    )
-    format: dict[str, Any] | None = Field(
-        default=None,
-        description="Display format per signal role: decimal places, or a "
-        "{format: exponential|precision|fixed|raw, …} block.",
+    signals: dict[str, SignalOptions] = Field(
+        default_factory=dict,
+        description="Not written directly: this is what each `pvs:` entry says "
+        "about itself once its PV name has been taken out of it.",
     )
     commands: dict[str, Any] = Field(
         description="Commands this laser exposes, as SYMBOL: <write PV> or "
         "SYMBOL: {pv, value}. A missing key hides the button — there is no "
         "fail-open default. A placeholder (the value equal to the key) falls "
         "back to CMD_<laser>_<SYMBOL>.",
+    )
+    waveforms_url: str | None = Field(
+        default=None,
+        description="Absolute URL of the Modbox's own waveform catalog, e.g. "
+        "https://modbox-nl2.lcs.local/api/waveforms. Served by the device, so it "
+        "differs per laser; the server fetches it and expects a JSON array of "
+        "names. Set it and `waveforms` below is ignored.",
     )
     waveforms: list[str] = Field(
         default_factory=lambda: [
@@ -236,14 +370,70 @@ class Config(ComponentConfig):
         "reconfigured, not while an operator is looking at it.",
     )
 
-    @field_validator("units")
+    @model_validator(mode="before")
     @classmethod
-    def _units_roles(cls, value: dict[str, str] | None) -> dict[str, str] | None:
-        if value is None:
-            return None
-        checked = _check_roles(value, "units")
-        _check_unit_labels(checked)
-        return checked
+    def _reject_the_old_blocks(cls, raw: Any) -> Any:
+        if not isinstance(raw, Mapping):
+            return raw
+        for retired, why in RETIRED_KEYS.items():
+            if retired in raw.get("pvs", {}):
+                raise ValueError(f"pvs.{retired}: {why}")
+        for block, key in MOVED_BLOCKS.items():
+            if block in raw:
+                raise ValueError(
+                    f"{block}: no longer a block of its own. Write `{key}:` "
+                    f"inside each `pvs:` entry, beside the PV it describes — "
+                    f"`pvs: {{regenTemp: {{pv: …, {key}: …}}}}`. Units and "
+                    f"rounding that follow from the signal itself are now the "
+                    f"component's, so most lasers need neither."
+                )
+        return raw
+
+    @model_validator(mode="before")
+    @classmethod
+    def _split_signals(cls, raw: Any) -> Any:
+        """`pvs: {role: name}` or `pvs: {role: {pv, label, units, format}}`.
+
+        The second form is the one that matters and the first is its shorthand,
+        for the signals a laser has nothing to say about. Everything but the
+        name is lifted out here, so the rest of the component still reads
+        `cfg.pvs.phd_mean` and gets a PV name.
+        """
+        if not isinstance(raw, Mapping) or not isinstance(raw.get("pvs"), Mapping):
+            return raw
+        names: dict[str, Any] = {}
+        options: dict[str, Any] = {}
+        for role, entry in raw["pvs"].items():
+            if isinstance(entry, Mapping):
+                entry = dict(entry)
+                pv = entry.pop("pv", None)
+                if pv is None:
+                    raise ValueError(f"pvs.{role}: missing 'pv'")
+                names[role] = pv
+                options[role] = entry
+            else:
+                names[role] = entry
+        if not options:
+            return raw
+        return {**raw, "pvs": names, "signals": options}
+
+    @field_validator("signals")
+    @classmethod
+    def _signal_roles(cls, value: dict[str, SignalOptions]) -> dict[str, SignalOptions]:
+        """A signal may only say something about a row the panel has.
+
+        `pvs:` itself rejects an unknown role, so this catches the subtler one:
+        a label on a reading that has no row of its own (a trigger-delay
+        channel, a command target), which would be written and never shown.
+        """
+        for role, options in value.items():
+            if options.label is not None and role not in LABEL_DEFAULTS:
+                raise ValueError(
+                    f"pvs.{role}: this row's name is the component's "
+                    f"({FIXED_LABELS.get(role, 'not a row of its own')}), not a "
+                    f"laser's. Nameable: {', '.join(sorted(LABEL_DEFAULTS))}"
+                )
+        return value
 
     # -- what the component asks of its config -----------------------------
 
@@ -259,11 +449,51 @@ class Config(ComponentConfig):
         """
         return command in self.commands
 
+    def label(self, role: str) -> str:
+        """What this laser calls the given row, falling back to the default.
+
+        `role` is the `pvs:` key for a row backed by one PV, and one of
+        `FIXED_LABELS` for a row that names a cluster instead.
+        """
+        configured = self.signals.get(role)
+        if configured is not None and configured.label:
+            return configured.label
+        return LABEL_DEFAULTS.get(role) or FIXED_LABELS[role]
+
+    def row_labels(self) -> dict[str, str]:
+        """Every row name the template asks for: the laser's where it said one,
+        the component's where it did not."""
+        return {
+            **FIXED_LABELS,
+            **{row: self.label(role) for row, role in ROW_LABELS.items()},
+        }
+
     def unit(self, role: str) -> str | None:
-        return (self.units or {}).get(role)
+        """The configured unit if a device reports the wrong one, else the
+        component's. The record's own EGU sits between the two and is applied
+        by `resolve_units` at the call site."""
+        configured = self.signals.get(role)
+        if configured is not None and configured.units:
+            return configured.units
+        return None
+
+    def default_unit(self, role: str) -> str | None:
+        """What the component says this reading is measured in."""
+        return UNIT_DEFAULTS.get(role)
+
+    def shown_unit(self, role: str) -> str | None:
+        """The unit for somewhere there is no reading to ask — a column header.
+        Beside a value, `resolve_units` slots the record's own EGU between
+        these two.
+        """
+        return self.unit(role) or self.default_unit(role)
 
     def value_format(self, role: str) -> ValueFormatOptions | None:
-        return parse_format((self.format or {}).get(role))
+        configured = self.signals.get(role)
+        raw = configured.format if configured is not None else None
+        if raw is None:
+            raw = FORMAT_DEFAULTS.get(role)
+        return parse_format(raw)
 
     def resolve_command(self, command: str) -> CommandTarget:
         """Where a command's write goes and what it writes.
@@ -283,18 +513,17 @@ class Config(ComponentConfig):
     def command_names(self) -> tuple[str, ...]:
         return tuple(self.commands or {})
 
-    @field_validator("format")
+    @field_validator("signals")
     @classmethod
-    def _format_roles(cls, value: dict[str, Any] | None) -> dict[str, Any] | None:
-        if value is None:
-            return None
-        checked = _check_roles(value, "format")
-        for role, raw in checked.items():
+    def _signal_formats(cls, value: dict[str, SignalOptions]) -> dict[str, SignalOptions]:
+        """A format that `parse_format` cannot read is a start-up failure, not
+        a `ValueError` raised inside a render while a control room watches."""
+        for role, options in value.items():
             try:
-                parse_format(raw)
+                parse_format(options.format)
             except ValueError as exc:
-                raise ValueError(f"format.{role}: {exc}") from exc
-        return checked
+                raise ValueError(f"pvs.{role}.format: {exc}") from exc
+        return value
 
     @field_validator("commands")
     @classmethod
@@ -318,6 +547,23 @@ class Config(ComponentConfig):
                     f'"value" here would never be written'
                 )
         return value
+
+    @model_validator(mode="after")
+    def _modbox_is_whole(self) -> "Config":
+        """A Modbox is one device, not a bag of optional rows.
+
+        Either the laser has one — and then it has everything a Modbox has,
+        including the waveform record the section always shows — or it has
+        none and the section is absent. A `modbox:` list with no waveform PV
+        is a half-configured screen, which would render a row reading `<>`
+        for a record nobody named.
+        """
+        if self.modbox and not self.pvs.loaded_waveform:
+            raise ValueError(
+                "pvs.loadedWaveform is required when the laser has a modbox "
+                "(omit `modbox` for a laser that has none)"
+            )
+        return self
 
     @model_validator(mode="after")
     def _no_duplicate_pvs(self) -> "Config":

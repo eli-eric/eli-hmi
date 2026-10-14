@@ -35,7 +35,6 @@ from core.render import (
     string_readout,
 )
 
-from .commands import sequence_state_pv
 from .config import Config
 
 MSS_NOTE = (
@@ -59,16 +58,7 @@ FLASHLAMP_ALIASES: Mapping[str, str] = {
     "FAILURE": "FAIL",
 }
 
-#: Default sequence set, mapped to the backend sequence commands. Matches
-#: `L4_OPCPA_SEQUENCES` in `SequencerSection.tsx`.
-SEQUENCES: tuple[tuple[str, str], ...] = (
-    ("Start Laser", "START_LASER"),
-    ("Stop Laser", "STOP_LASER"),
-    ("Set to Alignment Mode", "ALIGNMENT_MODE"),
-    ("Set to System Standby", "SYSTEM_STANDBY"),
-    ("Set All Flashlamps to Run", "FLASHLAMPS_RUN"),
-    ("Set All Flashlamps to Standby", "FLASHLAMPS_STANDBY"),
-)
+
 
 
 
@@ -120,15 +110,16 @@ def overview(read: PvReader, spec: Config, comp: Component) -> dict[str, Any]:
 
     err_samples = read.many(item.pv for item in spec.module_errors)
     err_total = len(spec.module_errors)
-    err_unknown = sum(1 for sample in err_samples if severity_tone(sample) == "unknown")
-    err_ok = sum(
+    # Counted by severity, never by the code itself. The codes are numeric PVs
+    # whose meaning belongs to the IOC: a screen deciding which values are
+    # healthy would be a second, private notion of "bad" — and the comparison
+    # that was here, against the string "0000", would call every numeric
+    # reading an error. A module is in trouble when the control system says so.
+    err_count = sum(
         1
         for sample in err_samples
-        if severity_tone(sample) == "none"
-        and sample is not None
-        and str(sample.value) in ("0000", "0")
+        if severity_tone(sample) not in ("none", "unknown")
     )
-    err_count = err_total - err_ok - err_unknown
     err = aggregate_readout(
         err_samples,
         fallback_text=f"{err_count}/{err_total}",
@@ -146,30 +137,46 @@ def overview(read: PvReader, spec: Config, comp: Component) -> dict[str, Any]:
     }
 
 
-def sequencer_pill(read: PvReader, running_pv: str, comp: Component) -> dict[str, Any]:
-    """RUNNING / IDLE. Both are normal operating states — neither is good news
-    or bad news on its own, so neither is coloured. Only the control system's
-    severity (or a dead link) tones this pill.
+def sequencer_pill(read: PvReader, spec: Config, comp: Component) -> dict[str, Any]:
+    """RUNNING while any sequence is, IDLE when none is.
+
+    Derived rather than read from a flag of its own: a second PV saying what
+    the rows below it already say is a second thing that can be wrong, and the
+    disagreement would show as a pill contradicting its own list.
+
+    Both states are normal operating states — neither is good news or bad news,
+    so neither is coloured. Only the control system's severity (or a dead link)
+    tones this pill.
     """
-    sample = read(running_pv)
-    running = None
-    if sample is not None and sample.ok and sample.value is not None:
-        running = sample.value == 1
-    fallback = UNKNOWN_TEXT if running is None else ("RUNNING" if running else "IDLE")
-    readout = single_readout(
-        sample,
-        pv_name=running_pv,
-        fallback_text=fallback,
-        is_connected=read.is_connected,
-    )
-    return {"readout": readout, "signal": comp.signal("seq")}
+    samples = read.many(item.pv for item in spec.sequences)
+    severity = present_aggregate(samples, is_connected=read.is_connected)
+    states = [
+        sample.value == 1
+        for sample in samples
+        if sample is not None and sample.ok and sample.value is not None
+    ]
+    if not states:
+        text = UNKNOWN_TEXT
+    else:
+        text = "RUNNING" if any(states) else "IDLE"
+    # 'unknown' here means no sequence has reported yet, which the text above
+    # already says as `<>`; anything worse is a real severity and is painted.
+    tone = None if severity.tone == "unknown" else severity.tone
+    return {
+        "readout": Readout(
+            text=severity.text if severity.text is not None else text,
+            tone=tone,
+            title=severity.title,
+        ),
+        "signal": comp.signal("seq"),
+    }
 
 
-def sequence_list(read: PvReader, laser: str) -> dict[str, Any]:
+def sequence_list(read: PvReader, spec: Config) -> dict[str, Any]:
     labels: list[str] = []
     items: list[Readout] = []
-    for label, command in SEQUENCES:
-        pv_name = sequence_state_pv(laser, command)
+    for item in spec.sequences:
+        label, pv_name = item.label, item.pv
         sample = read(pv_name)
         running = None
         if sample is not None and sample.ok and sample.value is not None:
@@ -279,7 +286,7 @@ def trigger_delay(read: PvReader, spec: Config) -> dict[str, Any]:
     unit = resolve_units(
         spec.unit("triggerDelay"),
         samples[0].units if samples and samples[0] is not None else None,
-        "ns",
+        spec.default_unit("triggerDelay"),
     )
     # Raw unless the config says otherwise: delays are whole nanoseconds, so the
     # shared 3-decimal default would turn 790 into 790.000 for everyone who
@@ -327,9 +334,14 @@ def bias_row(read: PvReader, spec: Config) -> dict[str, Any]:
                     read(pv_name),
                     pv_name=pv_name,
                     value_format=spec.value_format(role),
-                    # No unit in the cell: two of these share one row, and the
-                    # row's label carries the unit instead (see panel.html).
-                    units=None,
+                    # Beside the value, not in the row label: two channels
+                    # share this row and both carry the same unit, so it reads
+                    # as "2.15 mV / 2.20 mV" rather than a label that has to be
+                    # held in mind. `spec.unit` wins over the record's own EGU,
+                    # which is how a device reporting the wrong one is
+                    # corrected without touching the IOC.
+                    units=spec.unit(role),
+                    units_fallback=spec.default_unit(role),
                     is_connected=read.is_connected,
                 ),
             }

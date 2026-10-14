@@ -226,9 +226,12 @@ describe('PresetNumberInput', () => {
   })
 
   it('still refuses text that is not a number at all', async () => {
+    // Pasted, not typed: `e` no longer reaches the field from the keyboard,
+    // so paste is the remaining way unusable text gets in.
     render(<PresetNumberInput label="YDFA current" presets={[]} pvName="P" />)
     const user = userEvent.setup()
-    await user.type(screen.getByRole('spinbutton'), 'e5e')
+    await user.click(screen.getByRole('spinbutton'))
+    await user.paste('e5e')
 
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled()
   })
@@ -316,5 +319,38 @@ describe('PresetNumberInput', () => {
 
     expect(screen.getByText(/out of range \(0\.\.6\)/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled()
+  })
+
+  it('does not accept scientific notation unless asked to', async () => {
+    // `type="number"` takes "1e3", and reports the field as EMPTY while the
+    // exponent is half-typed — so pressing `e` after a value looks like it
+    // erased it. Nothing on this panel is set that way.
+    render(
+      <PresetNumberInput label="Set Trigger Delay" presets={[]} pvName="P" />,
+    )
+    const user = userEvent.setup()
+    const field = screen.getByRole('spinbutton')
+
+    await user.type(field, '1000')
+    await user.type(field, 'e')
+
+    expect(field).toHaveValue(1000)
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled()
+  })
+
+  it('takes it when a field is declared exponential', async () => {
+    // A pressure or a leak rate is genuinely written that way.
+    render(
+      <PresetNumberInput
+        label="Set Pressure"
+        presets={[]}
+        pvName="P"
+        exponential
+      />,
+    )
+    const user = userEvent.setup()
+    await user.type(screen.getByRole('spinbutton'), '5e-6')
+
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled()
   })
 })

@@ -18,6 +18,7 @@ from core.render.formatting import (
 from core.render.readouts import bool_readout, number_readout, string_readout
 from core.render.severity import (
     DISCONNECTED_TEXT,
+    describe_pv,
     INVALID_TEXT,
     UNKNOWN_TEXT,
     present,
@@ -235,3 +236,38 @@ class TestReadouts:
         )
         assert (on.text, on.tone) == ("YES", "positive-important")
         assert (off.text, off.tone) == ("NO", None)
+
+
+class TestTimestampZone:
+    """The last-known-value line is read by someone standing at the machine.
+
+    The React panel formats in the browser's zone; this renders on the server
+    and cannot ask. Server-local is the closest match — station and server
+    share a building — and it is what "at 12:03:44" is taken to mean.
+    """
+
+    @staticmethod
+    def described(sample, tz: str) -> str:
+        import os
+        import time
+
+        previous = os.environ.get("TZ")
+        os.environ["TZ"] = tz
+        time.tzset()
+        try:
+            return describe_pv(sample) or ""
+        finally:
+            if previous is None:
+                del os.environ["TZ"]
+            else:
+                os.environ["TZ"] = previous
+            time.tzset()
+
+    def test_the_time_is_the_one_on_the_wall_where_the_server_is(self):
+        # 2026-01-02 12:00:00 UTC — 13:00 in Prague, which is where a station
+        # reading this would be.
+        sample = PvSample(
+            name="AI_X", ok=False, value=None, severity=3, timestamp=1767355200.0
+        )
+        assert "13:00:00" in self.described(sample, "Europe/Prague")
+        assert "12:00:00" in self.described(sample, "UTC")

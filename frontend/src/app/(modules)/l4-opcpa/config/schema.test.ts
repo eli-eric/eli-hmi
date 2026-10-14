@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { stringify } from 'yaml'
 import { moduleConfigPath } from '@/lib/settings/zone-schema'
-import { parseLaserSpecs } from './schema'
+import { parseLaserSpecs, UNIT_DEFAULTS } from './schema'
 
 // Parse the file this repo actually ships for the `test` zone, so a config
 // edit that breaks the schema fails here as well as in `validate:config`.
@@ -40,12 +40,6 @@ function laser(overrides: Record<string, unknown> = {}) {
 }
 
 const doc = (lasers: unknown[]) => stringify({ lasers })
-const docWithUnits = (units: unknown, lasers: unknown[]) =>
-  stringify({ units, lasers })
-
-const docWithFormat = (format: unknown, lasers: unknown[]) =>
-  stringify({ format, lasers })
-
 describe('parseLaserSpecs', () => {
   it('parses the shipped zone config into a non-empty set of unique laser ids', () => {
     const specs = parseLaserSpecs(realYaml)
@@ -81,6 +75,44 @@ describe('parseLaserSpecs', () => {
     })
     expect(spec.mss[0]).toEqual({ label: 'MSS 1', pv: 'BI_NL9_MSS_1' })
     expect(spec.modbox[0]).toEqual({ label: 'Modbox 1', pv: 'BI_NL9_MODBOX_1' })
+  })
+
+  it('names a row from the signal it shows, and defaults the rest', () => {
+    const [spec] = parseLaserSpecs(
+      doc([
+        laser({
+          pvs: {
+            ...laser().pvs,
+            regenTemp: { pv: 'TK:1', label: 'Regen Temp TK1:02' },
+          },
+        }),
+      ]),
+    )
+    expect(spec.labels.regenTemp).toBe('Regen Temp TK1:02')
+    expect(spec.labels.shutter).toBe('Shutter Position')
+    expect(spec.labels.overview).toBe('Overview')
+  })
+
+  it('refuses a modbox whose waveform record nobody named', () => {
+    // All of it or none of it: half a Modbox would render a Waveform Preset
+    // row reading `<>` forever.
+    const { loadedWaveform, ...pvs } = laser().pvs
+    void loadedWaveform
+    expect(() => parseLaserSpecs(doc([laser({ pvs })]))).toThrow(
+      /loadedWaveform is required when the laser has a modbox/,
+    )
+  })
+
+  it('accepts a laser with no modbox, no second photodiode and no waveform', () => {
+    const { phd2Mean, loadedWaveform, ...pvs } = laser().pvs
+    void phd2Mean
+    void loadedWaveform
+    const bare = laser({ pvs })
+    delete (bare as Record<string, unknown>).modbox
+    const spec = parseLaserSpecs(doc([bare]))[0]
+    expect(spec.modbox).toEqual([])
+    expect(spec.pvs.phd2Mean).toBeUndefined()
+    expect(spec.pvs.loadedWaveform).toBeUndefined()
   })
 
   it('the shipped zone config is structurally valid for every laser', () => {
@@ -301,55 +333,59 @@ describe('parseLaserSpecs', () => {
     ).toThrow(/laser config is invalid/)
   })
 
-  it('defaults units to an empty map when the file specifies none', () => {
+  it('leaves units unset when no signal corrects one', () => {
+    // The component knows what each reading is measured in; `units` carries
+    // only the corrections, which most lasers have none of.
     expect(parseLaserSpecs(doc([laser()]))[0].units).toEqual({})
   })
 
-  it('merges per-laser unit overrides over the module-wide defaults', () => {
+  it('reads a unit correction from the signal that carries it', () => {
     const [spec] = parseLaserSpecs(
-      docWithUnits({ regenTemp: '°C', triggerDelay: 'ns' }, [
-        laser({ units: { regenTemp: 'K' } }),
+      doc([
+        laser({
+          pvs: { ...laser().pvs, regenTemp: { pv: 'TK:1', units: 'K' } },
+        }),
       ]),
     )
-    expect(spec.units).toEqual({ regenTemp: 'K', triggerDelay: 'ns' })
+    expect(spec.units.regenTemp).toBe('K')
   })
 
-  it('applies module-wide units to every laser', () => {
-    const specs = parseLaserSpecs(
-      docWithUnits({ attenuator: 'counts' }, [
-        laser({ id: 'NLA' }),
-        laser({ id: 'NLB' }),
-      ]),
-    )
-    expect(specs.map((s) => s.units.attenuator)).toEqual(['counts', 'counts'])
+  it('gives every component-known reading a unit of its own', () => {
+    expect(UNIT_DEFAULTS.regenTemp).toBe('°C')
+    expect(UNIT_DEFAULTS.triggerDelay).toBe('ns')
+    expect(UNIT_DEFAULTS.chillerFlow).toBe('l/min')
   })
 
-  it('rejects an unknown unit key', () => {
-    expect(() =>
-      parseLaserSpecs(docWithUnits({ regenTemperature: '°C' }, [laser()])),
-    ).toThrow(/laser config is invalid/)
-  })
-
-  it('defaults format to an empty map when the file specifies none', () => {
-    expect(parseLaserSpecs(doc([laser()]))[0].format).toEqual({})
+  it('rounds the bias to whole millivolts without being asked', () => {
+    // Rounding that follows from the record rather than from local taste.
+    const [spec] = parseLaserSpecs(doc([laser()]))
+    expect(spec.format.modboxMbc1).toEqual({ format: 'fixed', toFixed: 0 })
   })
 
   it('expands the bare-number shorthand into decimal places', () => {
     const [spec] = parseLaserSpecs(
-      docWithFormat({ regenTemp: 1, chillerFlow: 2 }, [laser()]),
+      doc([
+        laser({
+          pvs: { ...laser().pvs, regenTemp: { pv: 'TK:1', format: 1 } },
+        }),
+      ]),
     )
-    expect(spec.format).toEqual({
-      regenTemp: { format: 'fixed', toFixed: 1 },
-      chillerFlow: { format: 'fixed', toFixed: 2 },
-    })
+    expect(spec.format.regenTemp).toEqual({ format: 'fixed', toFixed: 1 })
   })
 
   it('accepts the full object form alongside the shorthand', () => {
     const [spec] = parseLaserSpecs(
-      docWithFormat(
-        { regenTemp: 1, phdMean: { format: 'exponential', toExponential: 2 } },
-        [laser()],
-      ),
+      doc([
+        laser({
+          pvs: {
+            ...laser().pvs,
+            phdMean: {
+              pv: 'PHD:1',
+              format: { format: 'exponential', toExponential: 2 },
+            },
+          },
+        }),
+      ]),
     )
     expect(spec.format.phdMean).toEqual({
       format: 'exponential',
@@ -357,42 +393,43 @@ describe('parseLaserSpecs', () => {
     })
   })
 
-  it('merges per-laser format overrides over the module-wide defaults', () => {
-    // Same precedence as `units:`, deliberately — one rule for both blocks.
-    const [spec] = parseLaserSpecs(
-      docWithFormat({ regenTemp: 1, chillerFlow: 2 }, [
-        laser({ format: { regenTemp: 3 } }),
-      ]),
-    )
-    expect(spec.format).toEqual({
-      regenTemp: { format: 'fixed', toFixed: 3 },
-      chillerFlow: { format: 'fixed', toFixed: 2 },
-    })
-  })
-
-  it('applies module-wide format to every laser', () => {
-    const specs = parseLaserSpecs(
-      docWithFormat({ attenuator: 0 }, [
-        laser({ id: 'NLA' }),
-        laser({ id: 'NLB' }),
-      ]),
-    )
-    expect(specs.map((s) => s.format.attenuator)).toEqual([
-      { format: 'fixed', toFixed: 0 },
-      { format: 'fixed', toFixed: 0 },
-    ])
-  })
-
-  it('rejects an unknown format key', () => {
-    expect(() =>
-      parseLaserSpecs(docWithFormat({ regenTemperature: 1 }, [laser()])),
-    ).toThrow(/laser config is invalid/)
-  })
-
   it('rejects an invalid format value', () => {
     expect(() =>
-      parseLaserSpecs(docWithFormat({ regenTemp: 'one' }, [laser()])),
+      parseLaserSpecs(
+        doc([
+          laser({
+            pvs: { ...laser().pvs, regenTemp: { pv: 'TK:1', format: 'one' } },
+          }),
+        ]),
+      ),
     ).toThrow(/laser config is invalid/)
+  })
+
+  it('rejects an unknown key inside a signal', () => {
+    expect(() =>
+      parseLaserSpecs(
+        doc([
+          laser({
+            pvs: { ...laser().pvs, regenTemp: { pv: 'TK:1', colour: 'red' } },
+          }),
+        ]),
+      ),
+    ).toThrow(/laser config is invalid/)
+  })
+
+  it('says where each block that was split up now lives', () => {
+    for (const [block, moved] of [
+      ['units', 'units'],
+      ['format', 'format'],
+      ['labels', 'label'],
+    ]) {
+      expect(() =>
+        parseLaserSpecs(doc([laser({ [block]: { regenTemp: 'x' } })])),
+      ).toThrow(new RegExp(`\\\`${block}:\\\`.*inside each .\\\`?pvs`))
+      expect(() =>
+        parseLaserSpecs(doc([laser({ [block]: { regenTemp: 'x' } })])),
+      ).toThrow(new RegExp(`\\\`${moved}:\\\``))
+    }
   })
 
   it('rejects malformed YAML with a readable message', () => {

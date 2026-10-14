@@ -15,6 +15,8 @@ Production target. Runs as a Docker container pushed to the ELI Harbor registry.
 
 The production frontend image is published by `docker-build-job-frontend` and follows the same `${CI_COMMIT_REF_SLUG}` plus `latest` tag flow.
 
+`docker-build-job-python-hmi` publishes `eli-hmi-ssr` from `backend/python-hmi` on the same flow. That image is the server-rendered HMI: one process that is both the operator interface and the EPICS gateway, so a station running it needs neither of the two images above. Its build resolves packages through the internal PyPI mirror (`pypi-mirror.eli-beams.eu`) rather than from the committed lockfile verbatim — see the comments in that Dockerfile.
+
 ## What the container expects
 
 | Var                                                            | Effect                                                                                                   |

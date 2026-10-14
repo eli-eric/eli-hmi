@@ -20,37 +20,23 @@ from markupsafe import Markup
 
 from core.components import Component, PvReader, Widget
 from core.epics import PvId
+from core.palette import DEFAULT_PALETTE, PALETTES
 from core.jinja import WidgetRenderer
 from core.zones import Gui, Zone
-
-#: Status legend strip above the screen.
-#:
-#: The swatches are painted by the same tone layer as the components, so the
-#: legend can never drift from what a screen actually shows: changing a tone
-#: changes both.
-LEGEND: tuple[dict[str, str | None], ...] = (
-    {"tone": None, "label": "NEUTRAL", "meaning": "normal reading — no alarm"},
-    {"tone": "positive-important", "label": "GOOD", "meaning": "connected / healthy"},
-    {"tone": "warning", "label": "MINOR", "meaning": "EPICS MINOR alarm"},
-    {"tone": "error", "label": "MAJOR", "meaning": "EPICS MAJOR alarm"},
-    {
-        "tone": "invalid",
-        "label": "INVALID",
-        "meaning": "reading cannot be trusted (INVALID severity or PV disconnected)",
-    },
-    {
-        "tone": "unknown",
-        "label": "NO DATA",
-        "meaning": "nothing received yet, or the link to EPICS is down",
-    },
-)
 
 LINK_BANNER_ID = "link-banner"
 
 #: Page-level signals. `_age` is the staleness watchdog (seconds since the last
 #: heartbeat), `_busy` is Datastar's indicator for an in-flight write, `_toast`
-#: is the write-result line and `_toast_age` ages it out.
-PAGE_SIGNALS: dict[str, Any] = {"_age": 0, "_busy": False, "_toast": "", "_toast_age": 0}
+#: is the write-result line, `_toast_age` ages it out, and `_palette` is the
+#: colour palette the header's selector is bound to.
+PAGE_SIGNALS: dict[str, Any] = {
+    "_age": 0,
+    "_busy": False,
+    "_toast": "",
+    "_toast_age": 0,
+    "_palette": DEFAULT_PALETTE,
+}
 
 #: Seconds a write result stays on screen, counted down by the page's own tick.
 TOAST_SECONDS = 5
@@ -98,8 +84,18 @@ class Page:
     def widget_count(self) -> int:
         return sum(len(widgets) for widgets in self._by_pv.values())
 
-    def signals(self) -> dict[str, Any]:
-        return {**PAGE_SIGNALS, **self.gui.signals()}
+    def signals(self, palette: str | None = None) -> dict[str, Any]:
+        """Every signal the page declares, up front.
+
+        `palette` seeds the header selector so it opens on the palette the
+        page was actually rendered in, rather than snapping to the default
+        after the first paint.
+        """
+        return {
+            **PAGE_SIGNALS,
+            "_palette": palette or DEFAULT_PALETTE,
+            **self.gui.signals(),
+        }
 
     def widgets_for(self, dirty: Iterable[PvId]) -> list[Widget]:
         """Widgets touched by a set of changed PVs, each at most once.
@@ -161,13 +157,13 @@ class Page:
             gui=self.gui,
             menu=self.zone.menu(),
             components=rendered,
-            legend=LEGEND,
             link_banner=self.render_widget(self.link_banner, reader),
-            signals_json=json.dumps(self.signals(), separators=(",", ":")),
+            signals_json=json.dumps(self.signals(palette), separators=(",", ":")),
             stream_url=self.gui.stream_url,
             backend_label=backend_label,
             toast_seconds=TOAST_SECONDS,
             palette=palette,
+            palettes=PALETTES,
             user=user,
         )
 

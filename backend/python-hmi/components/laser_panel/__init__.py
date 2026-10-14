@@ -11,10 +11,14 @@ of YAML per laser to say something a component can say in one.
       id: NL2
       pvs:
         connection: L4-OPCPA-NL2:PortControl.CNCT
+        phdMean: {pv: L4-OPCPA-NL2:PHD1K000:49:Mean, label: PHD1K000:49/Mean}
         …
       chillers: [ … ]
       flashlamps: [ … ]
       commands: { START_LASER: START_LASER, … }
+
+Everything about one signal — its PV, what its row is called, how it is
+rounded — is written in that signal's own entry; see `config.py`.
 
 Use it as the model for the *next* bespoke screen: the shape is
 `config.py` (schema) + `readings.py` (readings -> context) + this file (widget
@@ -29,14 +33,33 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
-from core.components import Component, Datatype, PvId, PvReader, PvSpec, register
+from core.components import (
+    Component,
+    Datatype,
+    PvId,
+    PvReader,
+    PvSpec,
+    WriteLimits,
+    register,
+)
 from core.render import ON_OFF_TEXT, YES_NO_TEXT, mapped_readout, number_readout, string_readout
 
+from .catalog import fetch_catalog
 from . import readings
-from .commands import sequence_state_pv
 from .config import Config
-from .readings import ERR_NOTE, FLASHLAMP_STATES, MSS_NOTE, SEQUENCES
+from .readings import ERR_NOTE, FLASHLAMP_STATES, MSS_NOTE
 from .simulate import laser_pv_specs
+
+_NO_LIMITS = WriteLimits()
+
+#: Trigger delay the flashlamp power supplies accept, in nanoseconds.
+DELAY_MIN = 10
+DELAY_MAX = 60_000
+
+#: YDFA amplifier current, in amps, at the resolution the amplifier takes.
+YDFA_MIN = 0
+YDFA_MAX = 6
+YDFA_PRECISION = 1
 
 
 @register
@@ -50,6 +73,13 @@ class LaserPanel(Component):
     macros = "laser_panel/widgets.html"
 
     config: Config
+    #: What the Modbox last told us it can load. Empty until `warm` runs, and
+    #: after a Modbox that would not answer.
+    catalog: list[str]
+
+    async def warm(self) -> None:
+        if self.config.waveforms_url:
+            self.catalog = await fetch_catalog(self.config.waveforms_url)
 
     def setup(self) -> None:
         """Declare every live part of one laser.
@@ -60,22 +90,27 @@ class LaserPanel(Component):
         """
         cfg = self.config
         pvs = cfg.pvs
+        self.catalog = []
 
         # -- Sequencer ------------------------------------------------------
-        if pvs.sequencer_running:
-            running = pvs.sequencer_running
+        #
+        # Which sequences a laser has is the laser's business, and the pill
+        # above them is derived from them: both read the same PVs, so the
+        # summary cannot contradict the list it summarises.
+        if cfg.sequences:
+            sequence_pvs = [PvId(item.pv) for item in cfg.sequences]
             self.seq_signal = self.signal("seq")
             self.add(
                 "sequencer_pill",
                 "state_pill",
-                [PvId(running)],
-                lambda read: readings.sequencer_pill(read, running, self),
+                sequence_pvs,
+                lambda read: readings.sequencer_pill(read, cfg, self),
             )
             self.add(
                 "sequencer_list",
                 "state_list",
-                [PvId(sequence_state_pv(cfg.laser, command)) for _, command in SEQUENCES],
-                lambda read: readings.sequence_list(read, cfg.laser),
+                sequence_pvs,
+                lambda read: readings.sequence_list(read, cfg),
                 show=f"${self.seq_signal}",
             )
 
@@ -123,11 +158,15 @@ class LaserPanel(Component):
             "regen_temp",
             "value_cell",
             [PvId(pvs.regen_temp)],
-            self._number(pvs.regen_temp, "regenTemp", units_fallback="°C"),
+            self._number(pvs.regen_temp, "regenTemp"),
         )
-        self.add(
-            "phd2_mean", "value_cell", [PvId(pvs.phd2_mean)], self._number(pvs.phd2_mean, "phd2Mean")
-        )
+        if pvs.phd2_mean:
+            self.add(
+                "phd2_mean",
+                "value_cell",
+                [PvId(pvs.phd2_mean)],
+                self._number(pvs.phd2_mean, "phd2Mean"),
+            )
         self.add(
             "attenuator",
             "value_cell",
@@ -175,8 +214,23 @@ class LaserPanel(Component):
                 [PvId(name) for name in cfg.trigger_delay],
                 lambda read: readings.trigger_delay(read, cfg),
             )
+            if cfg.can("SET_DELAY"):
+                # The spec's range for the trigger delay. Declared here, next
+                # to the control it belongs to, and enforced by the write
+                # endpoint for every route to the PV.
+                self.writable(
+                    cfg.resolve_command("SET_DELAY").pv_name,
+                    min=DELAY_MIN,
+                    max=DELAY_MAX,
+                    precision=0,
+                )
 
         # -- Modbox ---------------------------------------------------------
+        #
+        # All of it or none of it. A Modbox is one device: a laser that has one
+        # has every part of it, and a laser without one has no section at all —
+        # so `modbox` is the single gate, here and in `panel.html`, rather than
+        # each row appearing on its own PV.
         if cfg.modbox:
             self.modbox_signal = self.signal("modbox")
             modbox_pvs = [PvId(item.pv) for item in cfg.modbox]
@@ -199,6 +253,13 @@ class LaserPanel(Component):
                     "pair_row",
                     [PvId(name) for name in (pvs.modbox_mbc1, pvs.modbox_mbc2) if name],
                     lambda read: readings.bias_row(read, cfg),
+                )
+            if cfg.can("SEND_YDFA_CURRENT"):
+                self.writable(
+                    cfg.resolve_command("SEND_YDFA_CURRENT").pv_name,
+                    min=YDFA_MIN,
+                    max=YDFA_MAX,
+                    precision=YDFA_PRECISION,
                 )
             self.add(
                 "waveform_preset",
@@ -245,7 +306,9 @@ class LaserPanel(Component):
                 pv_name=pv,
                 value_format=cfg.value_format(role),
                 units=cfg.unit(role) if with_units else None,
-                units_fallback=units_fallback if with_units else None,
+                units_fallback=(
+                    units_fallback or cfg.default_unit(role) if with_units else None
+                ),
                 integer=integer,
                 is_connected=read.is_connected,
             )
@@ -307,7 +370,16 @@ class LaserPanel(Component):
         cfg = self.config
         return {
             "states": FLASHLAMP_STATES,
-            "waveforms": cfg.waveforms,
+            # What this laser calls each row; see `LABEL_DEFAULTS`.
+            "labels": cfg.row_labels(),
+            # Where the waveform options live in the DOM, and what to ask when
+            # the control is opened — the Modbox's list changes while the
+            # machine runs, so one fetch at start-up is not enough.
+            "waveform_select_id": f"{self.key}-waveforms",
+            "waveforms_url": f"/api/waveforms?component={self.key}",
+            # What the Modbox serves, when it is configured to serve one;
+            # otherwise the list in the config.
+            "waveforms": self.catalog if cfg.waveforms_url else cfg.waveforms,
             "signals": {
                 "seq": getattr(self, "seq_signal", None),
                 "mss": self.mss_signal,
@@ -315,10 +387,17 @@ class LaserPanel(Component):
                 "fl": getattr(self, "fl_signal", None),
                 "modbox": getattr(self, "modbox_signal", None),
             },
+            # A command's write target and the bounds declared for it, so the
+            # template never re-derives either.
             "cmd": {
                 command: {
                     "pv": cfg.resolve_command(command).pv_name,
                     "value": cfg.resolve_command(command).value,
+                    "min": self.limits.get(cfg.resolve_command(command).pv_name, _NO_LIMITS).min,
+                    "max": self.limits.get(cfg.resolve_command(command).pv_name, _NO_LIMITS).max,
+                    "precision": self.limits.get(
+                        cfg.resolve_command(command).pv_name, _NO_LIMITS
+                    ).precision,
                 }
                 for command in cfg.command_names
             },

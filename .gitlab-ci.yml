@@ -130,6 +130,25 @@ docker-build-job-python:
     - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest
     - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-python:latest
 
+# The server-rendered HMI: one image that is both the operator interface and
+# the EPICS gateway, so it replaces the frontend *and* the python backend
+# images above wherever a station runs it. Built from `backend/python-hmi`,
+# whose Dockerfile resolves dependencies through the internal PyPI mirror —
+# the runner has no route to pypi.org.
+docker-build-job-python-hmi:
+  stage: build
+  image: harbor.eli-beams.eu/proxy-dockerhub/docker:27.1.2
+  tags:
+    - docker-in-docker
+  script:
+    - docker info
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/python:3.12-slim
+    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:${CI_COMMIT_REF_SLUG} backend/python-hmi
+    - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:${CI_COMMIT_REF_SLUG}
+    - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:latest
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:latest
+
 deploy-czol-ap08:
   variables:
     DEPLOY_HOST: "czol-ap08.eli-laser.eu"

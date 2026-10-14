@@ -114,6 +114,19 @@ class TestRecordChoices:
             for field, value in re.findall(r'field\((HOPR|LOPR|HIHI|HIGH|LOW|LOLO), "([^"]+)"\)', match.group(1)):
                 assert "." not in value, f"{field} = {value} is not an integer"
 
+    def test_a_declared_drift_moves_on_the_ioc_too(self, records, db_text):
+        """`PvSpec.step` means the signal wanders, whichever backend serves it.
+
+        An integer readout that holds still on the IOC while the simulator
+        walks it is the one thing the generator exists to prevent: a screen
+        developed against the simulator and demonstrated against the IOC must
+        not disagree about whether a record is alive.
+        """
+        bias = "L4-OPCPA-NL2::ModBox:MBC1:BiasValue"
+        assert records[bias] == "calc", "a drifting integer became a static record"
+        record = re.search(rf'record\(calc, "{re.escape(bias)}"\) \{{(.*?)\n\}}', db_text, re.S)
+        assert record and 'field(PREC, "0")' in record.group(1), "bias is whole millivolts"
+
     def test_a_command_becomes_a_trigger_plus_a_sequence(self, records, db_text):
         sequences = [name for name, rtype in records.items() if rtype == "seq"]
         assert sequences, "no seq records — a command would write nothing"

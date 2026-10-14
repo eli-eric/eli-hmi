@@ -130,25 +130,83 @@ class TestDuplicates:
             )
 
 
-class TestUnitsAndFormat:
-    def test_an_unknown_signal_role_is_rejected(self):
-        with pytest.raises(ValidationError, match="unknown signal role"):
-            parse(MINIMAL + "    units:\n      thermalMass: kg\n")
+class TestTheBlocksThatWereSplitUp:
+    """`units:`, `format:` and `labels:` were three parallel blocks keyed by
+    role, which put one readout in four places and two vocabularies. A config
+    still written that way is refused by name, because silently ignoring it
+    would leave a screen rendering something nobody asked for.
+    """
+
+    def test_a_units_block_says_where_units_live_now(self):
+        with pytest.raises(ValidationError, match="units:.*inside each `pvs:` entry"):
+            parse(MINIMAL + "    units:\n      regenTemp: degC\n")
+
+    def test_a_format_block_says_where_format_lives_now(self):
+        with pytest.raises(ValidationError, match="format:.*inside each `pvs:` entry"):
+            parse(MINIMAL + "    format:\n      regenTemp: 1\n")
+
+    def test_a_labels_block_says_where_labels_live_now(self):
+        with pytest.raises(ValidationError, match="labels:.*inside each `pvs:` entry"):
+            parse(MINIMAL + "    labels:\n      regenTemp: Regen Temp\n")
+
+
+def with_signal(role: str, **options) -> str:
+    """MINIMAL with one `pvs:` entry written in its long form."""
+    body = "\n".join(f"        {key}: {value}" for key, value in options.items())
+    return MINIMAL.replace(
+        f"      {role}: L4:NL2:REGEN:T" if role == "regenTemp" else f"      {role}:",
+        f"      {role}:\n        pv: L4:NL2:REGEN:T\n{body}",
+    )
+
+
+class TestWhatOneSignalSays:
+    """Everything about a reading is written where its PV is."""
+
+    def test_a_signal_names_its_own_row(self):
+        laser = parse(with_signal("regenTemp", label="Regen Temp TK3:21"))
+        assert laser.label("regenTemp") == "Regen Temp TK3:21"
+
+    def test_a_signal_that_says_nothing_keeps_the_defaults(self):
+        laser = parse(MINIMAL)
+        assert laser.label("regenTemp") == "Regen Temp TK6:44"
+        assert laser.unit("regenTemp") is None, "nothing to override"
+        assert laser.default_unit("regenTemp") == "°C", "the component knows"
+
+    def test_units_and_format_are_read_back_from_the_signal(self):
+        laser = parse(with_signal("regenTemp", units="degC", format=1))
+        assert laser.unit("regenTemp") == "degC"
+        assert laser.value_format("regenTemp").to_fixed == 1
 
     def test_a_blank_unit_is_a_slip_not_an_empty_unit(self):
-        with pytest.raises(ValidationError, match="non-empty label"):
-            parse(MINIMAL + "    units:\n      regenTemp: '   '\n")
+        with pytest.raises(ValidationError):
+            parse(with_signal("regenTemp", units="'   '"))
 
     def test_an_out_of_range_format_is_rejected_at_load(self):
         with pytest.raises(ValidationError, match="between 0 and 100"):
-            parse(MINIMAL + "    format:\n      regenTemp: {format: fixed, toFixed: -1}\n")
+            parse(with_signal("regenTemp", format="{format: fixed, toFixed: -1}"))
 
-    def test_units_and_format_are_read_back_by_role(self):
-        laser = parse(
-            MINIMAL + "    units:\n      regenTemp: degC\n    format:\n      regenTemp: 1\n"
+    def test_an_unknown_key_in_a_signal_is_rejected(self):
+        with pytest.raises(ValidationError):
+            parse(with_signal("regenTemp", colour="red"))
+
+    def test_a_signal_missing_its_pv_says_so(self):
+        text = MINIMAL.replace(
+            "      regenTemp: L4:NL2:REGEN:T", "      regenTemp:\n        label: Regen"
         )
-        assert laser.unit("regenTemp") == "degC"
-        assert laser.value_format("regenTemp").to_fixed == 1
+        with pytest.raises(ValidationError, match="missing 'pv'"):
+            parse(text)
+
+    def test_naming_a_row_the_component_owns_is_refused(self):
+        """The trigger-delay channels share one row whose name is fixed, so a
+        label here would be written and never shown."""
+        text = MINIMAL.replace(
+            "triggerDelay: [L4:NL2:DELAY1]", "triggerDelay: [L4:NL2:DELAY1]"
+        ).replace(
+            "      connection: L4:NL2:CONN",
+            "      connection:\n        pv: L4:NL2:CONN\n        label: Link",
+        )
+        with pytest.raises(ValidationError, match="the component's"):
+            parse(text)
 
 
 class TestStrictness:

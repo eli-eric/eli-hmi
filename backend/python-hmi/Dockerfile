@@ -7,14 +7,30 @@
 # the machine's hostname against each zone's `hostnames:` patterns. So one image
 # serves every zone, and a deployment needs no per-zone configuration at all.
 #
-# Dependencies come from uv.lock, installed with `--locked`: the build fails if
-# the lockfile and pyproject.toml disagree, rather than quietly resolving
-# something else. Two zones running "the same version" then means the same
-# dependency tree, down to the patch.
-FROM python:3.12-slim
+# Dependencies are resolved against the internal mirror (see below), so this
+# build does not install the committed lockfile verbatim: a `default` index
+# changes the resolution, and `uv sync` runs without `--locked`. Versions
+# already pinned are kept wherever the mirror offers them, but "the same
+# version of the image" no longer guarantees the lockfile's dependency tree.
 
-# uv itself, from its own published image — no pip bootstrap, no version drift.
-COPY --from=ghcr.io/astral-sh/uv:0.9.29 /uv /usr/local/bin/uv
+# Through Harbor's pull-through proxy, like every other image in this repo: a
+# build runner has no route to docker.io.
+FROM harbor.eli-beams.eu/proxy-dockerhub/python:3.12-slim
+
+# uv itself, from the internal PyPI mirror rather than from uv's own published
+# image: `ghcr.io` is a registry this network does not proxy, and the mirror is
+# already the only route to packages here.
+#
+# Unpinned on purpose — a pinned version is only as good as the mirror's copy
+# of it, and a build that fails because the mirror never cached 0.9.29 is worse
+# than one that resolves dependencies with a newer uv. The cost is that two
+# builds of the same commit can use different uv versions; with `uv sync`
+# running unlocked below, the image's dependency tree already depends on when
+# it was built.
+RUN pip install --no-cache-dir \
+    --index-url https://pypi-mirror.eli-beams.eu/root/pypi/+simple/ \
+    --trusted-host pypi-mirror.eli-beams.eu \
+    uv
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -42,15 +58,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # than a screen does, so editing a zone's YAML does not reinstall EPICS.
 # `--no-install-project` because the project itself is copied in below.
 COPY pyproject.toml uv.lock ./
+
+# Packages come from the internal devpi mirror: a build runner has no route to
+# pypi.org. Appended here rather than committed to pyproject.toml, so a
+# checkout still resolves from PyPI — which is what a developer has, and what
+# `make test` uses.
+#
+# `[tool.uv]` is declared here and nowhere else — TOML cannot reopen a table,
+# so a second one in pyproject.toml would make the file unparseable. Nothing is
+# lost by its absence there: `package` defaults to true for a project that has
+# a `[build-system]`, which this one does.
+RUN cat >> pyproject.toml <<'EOF'
+[tool.uv]
+allow-insecure-host = ["pypi-mirror.eli-beams.eu"]
+
+[[tool.uv.index]]
+name = "devpi"
+url = "https://pypi-mirror.eli-beams.eu/root/pypi/+simple/"
+default = true
+EOF
+
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-install-project --extra epics
+    uv sync --no-dev --no-install-project --extra epics
 
 COPY core ./core
 COPY components ./components
 COPY zones ./zones
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --extra epics
+    uv sync --no-dev --extra epics
 
 # No ZONE_CODE: a station works out which zone it is from its hostname, so one
 # image serves every zone and nothing has to be set per deployment. Set it

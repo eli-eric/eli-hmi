@@ -24,11 +24,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.components import PvSpec
+from core.components import PvKind, PvSpec
 
-from .commands import LASER_COMMANDS, OPERATOR_VALUED_COMMANDS, sequence_state_pv
+from .commands import LASER_COMMANDS, OPERATOR_VALUED_COMMANDS
 from .config import Config
-from .readings import SEQUENCES
 
 #: Flashlamp channel states, in the order the enum record publishes them.
 FLASHLAMP_ENUM = ("STANDBY", "RUN", "STOP", "FAILURE", "IGNITION", "BUSY", "OFF")
@@ -49,7 +48,10 @@ BANDS: dict[str, dict[str, Any]] = {
                     "high_alarm": 25.5, "hihi": 26.5},
     "chillerLevel": {"low": 80.0, "high": 98.0, "prec": 3, "egu": "%",
                      "low_alarm": 75.0, "lolo": 70.0},
-    "modboxMbc": {"low": 1.80, "high": 2.40, "prec": 2, "egu": "V"},
+    # Whole millivolts across the controller's full swing: the record is an
+    # integer, so a band of 1.80-2.40 (these numbers as volts, before the unit
+    # was corrected) would have held still at 2 for ever.
+    "modboxMbc": {"low": -10_000, "high": 10_000, "prec": 0, "egu": "mV"},
 }
 
 #: Faults every simulated laser starts with. Each is a different *kind* of bad
@@ -75,7 +77,18 @@ def laser_pv_specs(cfg: Config) -> list[PvSpec]:
     pvs = cfg.pvs
     laser = cfg.laser
 
-    def analog(name: str, role: str, *, shift: float = 0.0, undefined: bool = False) -> None:
+    def analog(
+        name: str | None,
+        role: str,
+        *,
+        shift: float = 0.0,
+        undefined: bool = False,
+        kind: PvKind = "float",
+    ) -> None:
+        # A laser that has no such device has no PV to simulate. Skipped here
+        # rather than at each call site: every optional reading passes through.
+        if not name:
+            return
         band = dict(BANDS[role])
         low = band.pop("low") + shift
         high = band.pop("high") + shift
@@ -83,7 +96,7 @@ def laser_pv_specs(cfg: Config) -> list[PvSpec]:
         specs.append(
             PvSpec(
                 name=name,
-                kind="float",
+                kind=kind,
                 low=low,
                 high=high,
                 # A fortieth of the band per tick: visibly alive, not noise.
@@ -124,16 +137,6 @@ def laser_pv_specs(cfg: Config) -> list[PvSpec]:
     analog(pvs.phd_mean, "phdMean")
     analog(pvs.phd2_mean, "phd2Mean")
     analog(pvs.regen_temp, "regenTemp")
-    if pvs.sequencer_running:
-        specs.append(
-            PvSpec(
-                name=pvs.sequencer_running,
-                kind="bool",
-                value=0,
-                states=("IDLE", "RUNNING"),
-                desc=f"{laser} sequencer busy",
-            )
-        )
 
     # The attenuator is written directly by the panel, not by a command.
     specs.append(
@@ -163,9 +166,12 @@ def laser_pv_specs(cfg: Config) -> list[PvSpec]:
     for index, item in enumerate(cfg.module_errors):
         specs.append(
             PvSpec(
+                # A numeric status code, not a string: the control system
+                # reports these as numbers, and which of them is a fault is
+                # its business — the screen counts what it has alarmed.
                 name=item.pv,
-                kind="string",
-                value="0021" if index == FAULTS["module_error"] else "0000",
+                kind="int",
+                value=21 if index == FAULTS["module_error"] else 0,
                 desc=f"{item.label} error code",
             )
         )
@@ -205,7 +211,7 @@ def laser_pv_specs(cfg: Config) -> list[PvSpec]:
     # -- Modbox ------------------------------------------------------------
     for item in cfg.modbox:
         specs.append(PvSpec(name=item.pv, kind="bool", value=1, desc=item.label))
-    if cfg.modbox:
+    if pvs.loaded_waveform:
         specs.append(
             PvSpec(
                 name=pvs.loaded_waveform,
@@ -214,32 +220,27 @@ def laser_pv_specs(cfg: Config) -> list[PvSpec]:
                 desc=f"{laser} loaded waveform",
             )
         )
-        if pvs.latest_waveform:
-            specs.append(
-                PvSpec(
-                    name=pvs.latest_waveform,
-                    kind="string",
-                    value="narrow-50ps",
-                    desc=f"{laser} previous waveform",
-                )
-            )
-        for name, role in ((pvs.modbox_mbc1, "MBC1"), (pvs.modbox_mbc2, "MBC2")):
-            if name:
-                analog(name, "modboxMbc")
-
-    # -- per-sequence state PVs --------------------------------------------
-    #
-    # PROOF OF CONCEPT, carried over from the React app: the real control system
-    # does not expose a state PV per sequence yet, and the Sequencer row is
-    # specified to show them.
-    for _label, command in SEQUENCES:
+    if pvs.latest_waveform:
         specs.append(
             PvSpec(
-                name=sequence_state_pv(laser, command),
+                name=pvs.latest_waveform,
+                kind="string",
+                value="narrow-50ps",
+                desc=f"{laser} previous waveform",
+            )
+        )
+    analog(pvs.modbox_mbc1, "modboxMbc", kind="int")
+    analog(pvs.modbox_mbc2, "modboxMbc", kind="int")
+
+    # -- per-sequence state PVs --------------------------------------------
+    for item in cfg.sequences:
+        specs.append(
+            PvSpec(
+                name=item.pv,
                 kind="bool",
                 value=0,
                 states=("IDLE", "RUNNING"),
-                desc=f"{command} state",
+                desc=f"{item.label} state",
             )
         )
 
@@ -290,29 +291,33 @@ def _command_specs(cfg: Config) -> list[PvSpec]:
         "FLASHLAMPS_STANDBY": flashlamps("STANDBY"),
         "MODBOX_ON": [(pv, 1) for pv in modbox_pvs],
         "MODBOX_OFF": [(pv, 0) for pv in modbox_pvs],
+        # Declared with no effects: no PV here represents the YDFA current, and
+        # inventing one would be fiction. Without the entry the command has no
+        # simulated PV at all and the button would look broken.
+        "SEND_YDFA_CURRENT": [],
         # `None` as the value means "write whatever the operator sent".
         "SET_DELAY": [(name, None) for name in cfg.trigger_delay],
-        "LOAD_WAVEFORM": [(pvs.loaded_waveform, None)],
+        "LOAD_WAVEFORM": [(pvs.loaded_waveform, None)] if pvs.loaded_waveform else [],
     }
-    sequenced = {command for _label, command in SEQUENCES}
+    # Which state PV each command holds at 1 while it runs, as the laser's own
+    # `sequences:` say. A command no sequence claims is instantaneous.
+    sequenced = {
+        item.command: item.pv for item in cfg.sequences if item.command
+    }
 
     specs: list[PvSpec] = []
     for command in LASER_COMMANDS:
         if not cfg.can(command):
             continue
         effects = chains.get(command)
-        if not effects:
-            continue
+        if effects is None:
+            continue  # not simulated at all
         target = cfg.resolve_command(command)
         # A sequenced command shows RUNNING while it runs: its own state PV, and
         # the laser's sequencer flag. The rest are instantaneous.
         busy: tuple[str, ...] = ()
         if command in sequenced:
-            busy = tuple(
-                pv
-                for pv in (sequence_state_pv(laser, command), pvs.sequencer_running)
-                if pv
-            )
+            busy = (sequenced[command],)
         specs.append(
             PvSpec(
                 name=target.pv_name,

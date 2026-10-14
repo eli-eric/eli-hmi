@@ -15,7 +15,7 @@ an alarm cannot look live once the link that delivered it is gone.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Iterable, Literal, Sequence
 
 from core.epics.types import PvSample
@@ -165,11 +165,17 @@ def _format_value(value: Any) -> str:
 
 
 def _format_reading(value: Any, timestamp: float) -> str:
-    """`"24.810 (at 12:03:44)"`, or just the value when the timestamp is unusable."""
+    """`"24.810 (at 12:03:44)"`, or just the value when the timestamp is unusable.
+
+    In the server's own timezone, deliberately. The React panel formats in the
+    browser's, which a server-rendered page cannot ask for — and station and
+    server share a building, so local time is both the closest match and what
+    "at 12:03:44" is taken to mean by whoever is standing at the machine.
+    """
     at = None
     if timestamp:
         try:
-            at = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%H:%M:%S")
+            at = datetime.fromtimestamp(timestamp).strftime("%H:%M:%S")
         except (OverflowError, OSError, ValueError):
             at = None
     return f"{_format_value(value)}{f' (at {at})' if at else ''}"

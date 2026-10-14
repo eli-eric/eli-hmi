@@ -27,6 +27,8 @@ interface OverviewBarProps {
   mss: readonly MappedPv[]
   /** Module-error indicators: display label + full PV name. */
   moduleErrors: readonly LabeledPv[]
+  /** What this row is called. */
+  label?: string
 }
 
 const MSS_NOTE =
@@ -45,6 +47,7 @@ export const OverviewBar: FC<OverviewBarProps> = ({
   fullPowerPv,
   mss,
   moduleErrors,
+  label = 'Overview',
 }) => {
   // One flag per list rather than one "which is open" selector: diagnosing a
   // failed MSS permission means reading it against the module-error codes, so
@@ -66,9 +69,9 @@ export const OverviewBar: FC<OverviewBarProps> = ({
     pvs: boolPvs,
     raw: true,
   })
-  // Module-error PVs report a string status code, not a boolean: "0000"
-  // means OK, any other value is an active error.
-  const { state: errState } = useWebSocketData<string | null>({
+  // Module-error PVs report a numeric status code, not a boolean. The code
+  // is shown as it arrives; whether it is a problem is the IOC's to say.
+  const { state: errState } = useWebSocketData<number | null>({
     pvs: moduleErrorPvs,
     raw: true,
   })
@@ -99,15 +102,15 @@ export const OverviewBar: FC<OverviewBarProps> = ({
     moduleErrors.map(({ pv: name }) => errState[name]),
     { isConnected },
   )
-  const errUnknown = moduleErrors.filter(
-    ({ pv: name }) => severityTone(errState[name]) === 'unknown',
-  ).length
-  const errOk = moduleErrors.filter(
-    ({ pv: name }) =>
-      severityTone(errState[name]) === 'none' &&
-      errState[name]?.value === '0000',
-  ).length
-  const errCount = errTotal - errOk - errUnknown
+  // Counted by severity, never by the code itself. The codes are numeric PVs
+  // whose meaning belongs to the IOC: a panel deciding which values are
+  // healthy would be a second, private notion of "bad" — and the one that was
+  // here, comparing against the string "0000", would call every numeric
+  // reading an error. A module is in trouble when the control system says so.
+  const errCount = moduleErrors.filter(({ pv: name }) => {
+    const tone = severityTone(errState[name])
+    return tone !== 'none' && tone !== 'unknown'
+  }).length
 
   // Neither list colours by its own value (e.g. "is the bit 1" / "is the code
   // 0000") — tone and any replacement text come from the shared
@@ -139,8 +142,8 @@ export const OverviewBar: FC<OverviewBarProps> = ({
     detailItem(label, name, state[name], values, YES_NO_TEXT),
   )
 
-  // Module errors are status codes ("0000" = no error), not booleans: there is
-  // no vocabulary to translate them into, so they are shown as they arrive.
+  // Module errors are status codes, not booleans: there is no vocabulary to
+  // translate them into, so they are shown as they arrive.
   const errItems: DetailListItem[] = moduleErrors.map(({ label, pv: name }) =>
     detailItem(label, name, errState[name]),
   )
@@ -161,7 +164,7 @@ export const OverviewBar: FC<OverviewBarProps> = ({
   return (
     <div className={styles.wrapper}>
       <div className={styles.row}>
-        <span className={styles.rowLabel}>Overview</span>
+        <span className={styles.rowLabel}>{label}</span>
         <div className={styles.grid}>
           <Cell label="CONN">
             <OverviewBoolCell

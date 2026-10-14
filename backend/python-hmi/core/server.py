@@ -27,7 +27,9 @@ needs. Hypercorn, by the same author, serves it.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import signal
 import sys
 from dataclasses import dataclass, field
 from typing import Any
@@ -65,6 +67,13 @@ class Hmi:
     #: The screen `/` redirects to, and where signing in lands by default.
     home: str = "/"
     warm: Any = field(default=None, repr=False)
+    #: Set when the process is stopping, so open SSE streams end themselves.
+    #: Without it Ctrl-C hangs: see `_shutdown_trigger`.
+    shutting_down: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
+    #: Bounds each component accepts for the PVs it writes, keyed by PV, built
+    #: once from what the components declared. The write endpoint consults it
+    #: for every write, whatever posted it.
+    write_limits: dict[str, Any] = field(default_factory=dict, repr=False)
 
 
 def build_backend(settings: Settings, zone: Zone):
@@ -139,6 +148,12 @@ def create_app(settings: Settings | None = None) -> Quart:
         authenticator=authenticator,
         sessions=sessions,
         home=f"/{next(iter(pages))}" if pages else "/",
+        write_limits={
+            pv: limits
+            for page in pages.values()
+            for component in page.gui.walk()
+            for pv, limits in component.limits.items()
+        },
     )
 
     @app.before_serving
@@ -155,6 +170,11 @@ def create_app(settings: Settings | None = None) -> Quart:
             # trade; set PREWARM=0 where it is not.
             pvs = set().union(*(page.all_pvs for page in pages.values())) if pages else set()
             app.hmi.warm = await hub.subscribe(pvs)
+        # Anything a component fetches for itself — a device's own catalog —
+        # for the same reason: the first render should already know.
+        for page in pages.values():
+            for component in page.gui.walk():
+                await component.warm()
         log_startup(
             authenticator,
             cookie_secure=settings.session_cookie_secure,
@@ -244,9 +264,45 @@ def serve_config(settings: Settings):
     return config
 
 
-def main() -> int:
-    import asyncio
+def _shutdown_trigger(app: Quart):
+    """What Hypercorn waits on to begin a graceful shutdown.
 
+    Hypercorn installs its own SIGINT/SIGTERM handler when given no trigger,
+    and that handler is enough to *start* the shutdown — but not to finish it.
+    Its shutdown does `await server.wait_closed()` with no timeout, and since
+    Python 3.12.1 that waits for every active connection to be dropped. A
+    screen's SSE stream is a connection that never ends on its own, so the
+    process waits for the browser and the browser waits for the process: Ctrl-C
+    appears to do nothing, and pressing it again cannot help, because the
+    handler only sets an event.
+
+    Nothing delivers `terminated` to a response already in flight, so the
+    streams have to be told. This trigger owns the same signals and sets
+    `hmi.shutting_down` before returning, which ends every open stream; the
+    responses then complete, the connections close and Hypercorn's own
+    sequence proceeds as it does with no stream open at all.
+    """
+
+    async def trigger() -> None:
+        loop = asyncio.get_running_loop()
+        stop = asyncio.Event()
+        for name in ("SIGINT", "SIGTERM", "SIGBREAK"):
+            sig = getattr(signal, name, None)
+            if sig is None:
+                continue
+            try:
+                loop.add_signal_handler(sig, stop.set)
+            except NotImplementedError:
+                # Windows: no loop-level handlers, but the C-level one works.
+                signal.signal(sig, lambda *_: stop.set())
+        await stop.wait()
+        logger.info("shutting down — closing %d open stream(s)", app.hmi.hub.subscriber_count)
+        app.hmi.shutting_down.set()
+
+    return trigger
+
+
+def main() -> int:
     from hypercorn.asyncio import serve
 
     try:
@@ -259,7 +315,7 @@ def main() -> int:
         # a station that will not start than one nobody can stay signed in to.
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 2
-    asyncio.run(serve(app, serve_config(settings)))
+    asyncio.run(serve(app, serve_config(settings), shutdown_trigger=_shutdown_trigger(app)))
     return 0
 
 

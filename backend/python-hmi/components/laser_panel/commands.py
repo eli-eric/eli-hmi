@@ -22,13 +22,16 @@ LASER_COMMANDS: tuple[str, ...] = (
     "FLASHLAMPS_STANDBY",
     "MODBOX_ON",
     "MODBOX_OFF",
+    "SEND_YDFA_CURRENT",
     "SET_DELAY",
     "LOAD_WAVEFORM",
 )
 
 #: Commands whose written value comes from the operator at press time, so a
 #: configured `value` would be silently discarded.
-OPERATOR_VALUED_COMMANDS: frozenset[str] = frozenset({"SET_DELAY", "LOAD_WAVEFORM"})
+OPERATOR_VALUED_COMMANDS: frozenset[str] = frozenset(
+    {"SET_DELAY", "LOAD_WAVEFORM", "SEND_YDFA_CURRENT"}
+)
 
 
 @dataclass(frozen=True)
@@ -44,16 +47,6 @@ class CommandTarget:
 def command_pv(laser: str, command: str) -> str:
     """`CMD_<laser>_<NAME>` — the backend-sequence trigger."""
     return f"CMD_{laser}_{command}"
-
-
-def sequence_state_pv(laser: str, command: str) -> str:
-    """Per-sequence state PV (1 = RUNNING, 0 = IDLE).
-
-    PROOF OF CONCEPT, carried over verbatim from the React app: the real control
-    system does not expose a state PV per sequence yet. The wire name reuses the
-    command id so firing `CMD_<laser>_<id>` flips the matching SEQ state PV.
-    """
-    return f"BI_{laser}_SEQ_{command}"
 
 
 @dataclass(frozen=True, eq=False)

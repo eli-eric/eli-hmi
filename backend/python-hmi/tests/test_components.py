@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from core.components import Component, PvReader, PvSpec, registry, slug
+from core.components import WriteLimits, Component, PvReader, PvSpec, registry, slug
 from core.epics import Datatype, PvId, PvSample
 from core.jinja import create_environment
 
@@ -408,41 +408,46 @@ class TestValve:
 class TestRowLayout:
     """How wide a value is, is a design decision — and one worth a test.
 
-    A reading occupies a fixed field; it does not stretch to the end of its row.
-    Stretching made a one-word state ("YES") a box the width of the panel, which
-    read as emphasis nobody meant, and it left every reading in a card a
-    different width, so a column could not be scanned down. Two rules enforce
-    it, one in the stylesheet and one in the row macro, and each of them is easy
-    to undo by accident.
+    The React panel is the reference, and there a value takes the rest of its
+    row. This app briefly gave every reading a fixed 7.5rem field instead, on
+    the argument that a stretched one-word state ("YES") reads as emphasis
+    nobody meant. It bought that at the cost of alignment: rows stopped short
+    of the chiller grid and the flashlamp tally above them, and with three
+    different label widths in one card (7rem, 7.5rem, 8.5rem) neither the left
+    nor the right edges lined up. The panel read as irregular however neatly
+    the values themselves agreed.
+
+    So: one label width per card, and one right edge for every row and grid in
+    it.
     """
 
     @staticmethod
     def stylesheet() -> str:
         return (ROOT / "core" / "static" / "css" / "hmi.css").read_text()
 
-    def test_a_card_declares_a_fixed_value_field(self):
-        assert "--hmi-value-width:" in self.stylesheet()
-
-    def test_a_row_has_no_stretching_track(self):
-        """The row's tracks must add up to LESS than the row: no `1fr` on the
-        value column, or the value fills whatever is left again."""
+    def test_a_value_takes_the_rest_of_its_row(self):
         css = self.stylesheet()
         rule = css[css.index("\n.row {") : css.index("\n.row[data-has-action")]
-        assert "minmax(0, var(--hmi-value-width, 1fr))" in rule
-        assert "minmax(0, 1fr)" not in rule
+        assert "minmax(0, 1fr)" in rule
 
-    def test_a_row_can_ask_for_the_rest_of_the_card(self):
-        """The escape hatch for a cell that carries more than one reading."""
+    def test_no_row_asks_for_a_width_of_its_own(self):
+        """A per-row escape hatch is what let the edges drift apart."""
         css = self.stylesheet()
-        assert ".row[data-value='wide']" in css
+        assert "--hmi-value-width" not in css
+        assert "data-value='wide'" not in css
         rows = (ROOT / "components" / "templates" / "rows.html").read_text()
-        assert 'data-value="wide"' in rows
+        assert 'data-value="wide"' not in rows
 
-    def test_a_value_component_passes_the_flag_through(self):
-        """`wide: true` in a zone's YAML has to reach the markup, or the screen
-        author's only recourse is editing the stylesheet."""
-        component = build("value", label="V", pv="X:V", wide=True)
-        assert component.config.wide is True
+    def test_every_grid_in_a_card_shares_the_label_column(self):
+        """The left edges have to line up too: a grid that narrows the label
+        column to win cell width moves its own left edge off the rows'."""
+        css = self.stylesheet()
+        for selector in (".tally-grid", ".data-grid"):
+            start = css.index(f"\n{selector} {{")
+            rule = css[start : start + css[start:].index("}")]
+            assert "--hmi-label-width:" not in rule, selector
+        panel = (ROOT / "components" / "laser_panel" / "panel.html").read_text()
+        assert "--hmi-label-width" not in panel
 
     def test_a_column_header_wraps_rather_than_colliding(self):
         """A header wider than its column used to overflow its grid track and
@@ -452,3 +457,52 @@ class TestRowLayout:
         rule = css[css.index("\n.col-header {") :][: css[css.index("\n.col-header {") :].index("}")]
         assert "white-space: nowrap" not in rule
         assert "overflow-wrap: normal" in rule
+
+
+class TestWriteLimits:
+    """What a component will accept being written to one of its PVs."""
+
+    def test_scientific_notation_is_refused_unless_asked_for(self):
+        assert WriteLimits().rejects_notation("1e3") is not None
+        assert WriteLimits().rejects_notation("1000") is None
+
+    def test_a_setpoint_can_ask_for_it(self):
+        """Some readings are genuinely set that way — a pressure, a leak rate
+        — and the field that sets them should take the notation they are
+        written in."""
+        assert WriteLimits(exponential=True).rejects_notation("5.05e-6") is None
+
+    def test_the_check_is_about_notation_not_value(self):
+        """1e3 and 1000 are the same number; only one of them is refused."""
+        limits = WriteLimits(min=0, max=2000)
+        assert limits.rejects(1000) is None
+        assert limits.rejects_notation("1000") is None
+
+
+class TestDisabledControls:
+    """A control that cannot be pressed has to look like one.
+
+    Confirm greys out for a value the device will not take (see
+    `Component.writable`), but a button that is merely inert still invites the
+    press — and on a panel where pressing things moves a laser, an operator
+    who cannot tell should not have to find out by clicking.
+    """
+
+    @staticmethod
+    def stylesheet() -> str:
+        return (ROOT / "core" / "static" / "css" / "hmi.css").read_text()
+
+    def test_a_disabled_button_reads_as_disabled(self):
+        css = self.stylesheet()
+        start = css.index("button:disabled")
+        rule = css[start : start + css[start:].index("}")]
+        assert "not-allowed" in rule, "the cursor still invites the press"
+        assert "opacity" in rule, "the button still looks live"
+
+    def test_hover_does_not_light_up_a_button_that_cannot_be_pressed(self):
+        """Without `:not(:disabled)` the hover state fires on a dead button,
+        which reads as "this works" at the exact moment it does not."""
+        css = self.stylesheet()
+        for selector in (".preset-confirm:hover", ".btn:hover", ".preset-chip:hover"):
+            if selector in css:
+                assert f"{selector}:not(:disabled)" in css, selector

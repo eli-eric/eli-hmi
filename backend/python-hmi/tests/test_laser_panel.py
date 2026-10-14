@@ -11,6 +11,7 @@ import pytest
 
 from core.epics.types import Datatype, PvId, PvSample
 from components.laser_panel import LaserPanel
+from components.laser_panel.config import SignalOptions
 from core.components import PvReader
 from core.jinja import create_environment
 from core.page import Page
@@ -35,6 +36,13 @@ def spec(panel):
     return panel.config
 
 
+def build_panel(zone, **overrides) -> LaserPanel:
+    """The zone's NL2 panel, rebuilt with a few config fields changed."""
+    template = zone.gui("l4-opcpa").components[0]
+    config = template.config.model_copy(update=overrides)
+    return LaserPanel(key="test", config=config)
+
+
 def reader(samples: dict[PvId, PvSample | None], connected: bool = True) -> PvReader:
     return PvReader(samples, connected)
 
@@ -54,6 +62,90 @@ def all_good(spec) -> dict[PvId, PvSample]:
         samples[PvId(item.pv)] = ok(item.pv, "0000")
     return samples
 
+
+class TestTheSequencerPill:
+    """The row above the sequences says what they say.
+
+    Derived rather than read from a flag of its own: a second PV repeating
+    what the rows below already say is a second thing that can be wrong, and
+    the disagreement would show as a pill contradicting its own list.
+    """
+
+    def read_pill(self, spec, running: dict[str, int]):
+        from components.laser_panel import readings
+
+        samples = {
+            PvId(item.pv): ok(item.pv, running.get(item.pv, 0))
+            for item in spec.sequences
+            if item.pv in running or running
+        }
+        panel = LaserPanel(key="test", config=spec)
+        return readings.sequencer_pill(reader(samples), spec, panel)["readout"]
+
+    def test_running_while_any_sequence_is(self, spec):
+        one = spec.sequences[2].pv
+        assert self.read_pill(spec, {one: 1}).text == "RUNNING"
+
+    def test_idle_when_none_is(self, spec):
+        assert self.read_pill(spec, {item.pv: 0 for item in spec.sequences}).text == "IDLE"
+
+    def test_unknown_until_one_reports(self, spec):
+        from components.laser_panel import readings
+
+        panel = LaserPanel(key="test", config=spec)
+        readout = readings.sequencer_pill(reader({}), spec, panel)["readout"]
+        assert readout.text == "<>"
+
+
+class TestUnits:
+    """What a reading is measured in is the component's to know. Every zone's
+    file used to repeat the same five lines, which is five chances to disagree
+    with the hardware."""
+
+    def test_a_reading_carries_the_component_s_unit(self, spec):
+        from components.laser_panel import readings
+
+        row = readings.bias_row(
+            reader({PvId(spec.pvs.modbox_mbc1): ok(spec.pvs.modbox_mbc1, 2100)}),
+            spec,
+        )
+        assert row["pairs"][0]["readout"].units == "mV"
+        assert row["pairs"][0]["readout"].text == "2100", "whole millivolts"
+
+    def test_the_record_s_own_egu_wins_over_the_component(self, spec):
+        from components.laser_panel import readings
+
+        sample = PvSample(
+            name=spec.pvs.modbox_mbc1,
+            ok=True,
+            value=2.1,
+            severity=0,
+            timestamp=1.0,
+            units="V",
+        )
+        row = readings.bias_row(reader({PvId(spec.pvs.modbox_mbc1): sample}), spec)
+        assert row["pairs"][0]["readout"].units == "V"
+
+    def test_a_laser_can_correct_a_device_that_reports_the_wrong_one(self, zone, spec):
+        """The one reason a unit is still writable: it is written in the
+        signal's own entry, beside the PV it belongs to."""
+        from components.laser_panel import readings
+
+        signals = {**spec.signals}
+        signals["modboxMbc1"] = signals["modboxMbc1"].model_copy(
+            update={"units": "mV"}
+        ) if "modboxMbc1" in signals else SignalOptions(units="mV")
+        corrected = build_panel(zone, signals=signals).config
+        sample = PvSample(
+            name=spec.pvs.modbox_mbc1,
+            ok=True,
+            value=2100,
+            severity=0,
+            timestamp=1.0,
+            units="V",
+        )
+        row = readings.bias_row(reader({PvId(spec.pvs.modbox_mbc1): sample}), corrected)
+        assert row["pairs"][0]["readout"].units == "mV"
 
 class TestOverview:
     def test_all_good_reads_yes_and_zero_errors(self, spec, panel):
@@ -78,12 +170,14 @@ class TestOverview:
         context = panel.widgets["overview"].build(reader(samples))
         assert context["mss"].tone == "error"
 
-    def test_error_codes_are_counted_not_coloured_by_value(self, spec, panel):
+    def test_an_error_code_is_never_coloured_by_its_value(self, spec, panel):
+        """21 is not "worse" than 0 to a screen that cannot know what either
+        means. Counting lives in `TestModuleErrorCodes`; this is only about
+        the panel refusing to read significance into the number."""
         samples = all_good(spec)
-        samples[PvId(spec.module_errors[0].pv)] = ok(spec.module_errors[0].pv, "0021")
+        samples[PvId(spec.module_errors[0].pv)] = ok(spec.module_errors[0].pv, 21)
         context = panel.widgets["overview"].build(reader(samples))
-        assert context["err"].text == f"1/{len(spec.module_errors)}"
-        assert context["err"].tone is None
+        assert context["err"].tone == "positive-important"  # nothing alarmed
 
 
 class TestFlashlamps:
@@ -217,18 +311,140 @@ class TestOverviewStrictBooleans:
 
 
 class TestSequencerTooltips:
-    def test_the_pill_names_its_pv(self, spec, panel):
-        # It used to route through the aggregate presentation, which says
-        # nothing at severity 0 — leaving the row with no hover text at all.
-        running = spec.pvs.sequencer_running
-        samples = {PvId(running): ok(running, 0)}
+    def test_an_idle_sequencer_says_so(self, spec, panel):
+        samples = {PvId(item.pv): ok(item.pv, 0) for item in spec.sequences}
         context = panel.widgets["sequencer_pill"].build(reader(samples))
         assert context["readout"].text == "IDLE"
-        assert context["readout"].title == running
 
-    def test_a_bad_reading_reads_as_one_pv_not_as_a_tally(self, spec, panel):
-        running = spec.pvs.sequencer_running
-        samples = {PvId(running): PvSample(name=running, ok=False, error="dead")}
+    def test_a_bad_reading_is_reported_rather_than_counted_as_idle(self, spec, panel):
+        """One unreadable sequence must not read as "nothing is running"."""
+        samples = {PvId(item.pv): ok(item.pv, 0) for item in spec.sequences}
+        dead = spec.sequences[0].pv
+        samples[PvId(dead)] = PvSample(name=dead, ok=False, error="dead")
         context = panel.widgets["sequencer_pill"].build(reader(samples))
         assert context["readout"].text == "PV DSC"
-        assert "readings unusable" not in (context["readout"].title or "")
+
+
+class TestWaveformCatalog:
+    """The Modbox serves its own waveform list, and it changes while the
+    machine is running — a list baked into config is wrong by the second
+    shift. The React panel fetches it from the browser; here the server does,
+    which needs no CORS on the device and puts the list in the first paint.
+    """
+
+    @staticmethod
+    def stub(payload, calls=None):
+        """A tiny HTTP server standing in for a Modbox."""
+        import json
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        from threading import Thread
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802 - http.server's interface
+                if calls is not None:
+                    calls.append(self.path)
+                body = json.dumps(payload() if callable(payload) else payload)
+                self.send_response(200)
+                self.send_header("content-type", "application/json")
+                self.send_header("content-length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body.encode())
+
+            def log_message(self, *_):  # keep the test output clean
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        Thread(target=server.serve_forever, daemon=True).start()
+        return server, f"http://127.0.0.1:{server.server_port}/waveforms"
+
+    async def test_the_list_comes_from_the_lasers_own_endpoint(self, zone):
+        server, url = self.stub(["alpha", "beta"])
+        try:
+            panel = build_panel(zone, waveforms_url=url)
+            await panel.warm()
+            assert panel.context()["waveforms"] == ["alpha", "beta"]
+        finally:
+            server.shutdown()
+
+    async def test_an_unreachable_modbox_leaves_the_screen_usable(self, zone):
+        """A device that does not answer must not take the page with it."""
+        panel = build_panel(zone, waveforms_url="http://127.0.0.1:9/waveforms")
+        await panel.warm()
+        assert panel.context()["waveforms"] == []
+
+    async def test_reopening_the_cog_picks_up_a_changed_catalog(self, zone):
+        """The catalog changes while the machine runs, so a list fetched once
+        at start-up is wrong by the second shift."""
+        served = [["alpha"]]
+        server, url = self.stub(lambda: served[0])
+        try:
+            panel = build_panel(zone, waveforms_url=url)
+            await panel.warm()
+            assert panel.context()["waveforms"] == ["alpha"]
+
+            served[0] = ["alpha", "gamma"]
+            await panel.warm()
+            assert panel.context()["waveforms"] == ["alpha", "gamma"]
+        finally:
+            server.shutdown()
+
+
+class TestModuleErrorCodes:
+    """The codes are numeric PVs, and what counts as a fault is the IOC's to
+    say. A panel deciding that 0 is healthy would be a second, private notion
+    of "bad" living in the screen — and the comparison that was here, against
+    the string "0000", would have called every numeric reading an error.
+    """
+
+    def _overview(self, spec, panel, codes):
+        samples = all_good(spec)
+        for item, (value, severity) in zip(spec.module_errors, codes):
+            samples[PvId(item.pv)] = ok(item.pv, value, severity)
+        return panel.widgets["overview"].build(reader(samples))
+
+    def test_an_alarmed_code_is_counted(self, spec, panel):
+        codes = [(1024, 2)] + [(0, 0)] * (len(spec.module_errors) - 1)
+        context = self._overview(spec, panel, codes)
+        assert context["err"].text == f"1/{len(spec.module_errors)}"
+
+    def test_a_code_nobody_alarmed_is_not(self, spec, panel):
+        """Non-zero and unflagged: shown as it arrives, counted as nothing."""
+        codes = [(33, 0)] * len(spec.module_errors)
+        context = self._overview(spec, panel, codes)
+        assert context["err"].text == f"0/{len(spec.module_errors)}"
+        assert context["err"].tone == "positive-important"
+
+
+class TestYdfaCurrent:
+    """The laser under test has no YDFA current to set, so the shipped zone
+    does not list the command and the screen has no control for it (see
+    `TestOptionalCommands` in test_app.py).
+
+    The component still supports it for a laser that does — this is what that
+    support is. If no laser ever asks for it, this and the `SEND_YDFA_CURRENT`
+    entry in `commands.py` are what comes out.
+    """
+
+    COMMANDS = {
+        "SEND_YDFA_CURRENT": "SEND_YDFA_CURRENT",
+        "MODBOX_ON": "MODBOX_ON",
+    }
+
+    def test_a_laser_that_lists_it_gets_the_command(self, zone):
+        panel = build_panel(zone, commands=self.COMMANDS)
+        assert panel.config.can("SEND_YDFA_CURRENT")
+        assert panel.context()["cmd"]["SEND_YDFA_CURRENT"]["pv"] == (
+            "CMD_NL2_SEND_YDFA_CURRENT"
+        )
+
+    def test_the_amplifier_s_range_is_declared_with_it(self, zone):
+        """The bounds travel with the command, not with the screen: the write
+        endpoint reads them from here for every route to the PV."""
+        panel = build_panel(zone, commands=self.COMMANDS)
+        limits = panel.limits["CMD_NL2_SEND_YDFA_CURRENT"]
+        assert (limits.min, limits.max, limits.precision) == (0, 6, 1)
+
+    def test_a_laser_that_does_not_declares_nothing(self, zone):
+        panel = build_panel(zone, commands={"MODBOX_ON": "MODBOX_ON"})
+        assert not panel.config.can("SEND_YDFA_CURRENT")
+        assert "CMD_NL2_SEND_YDFA_CURRENT" not in panel.limits

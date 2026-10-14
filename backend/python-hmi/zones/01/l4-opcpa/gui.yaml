@@ -25,7 +25,22 @@ components:
     latestWaveform: SI_NL1_LATEST_WAVEFORM
     modboxMbc1: L4-OPCPA-NL1::ModBox:MBC1:BiasValue
     modboxMbc2: L4-OPCPA-NL1::ModBox:MBC2:BiasValue
-    sequencerRunning: L4-OPCPA-NL1:SetAlignmentMode.BUSY
+  sequences:
+  # Placeholder names until controls publishes a state record per sequence.
+  # No `command:` here: the control system sets these itself. That key exists
+  # for the simulator and the local IOC, which have no control system to do it.
+  - label: Start Laser
+    pv: L4-OPCPA-NL1:SEQ:StartLaser
+  - label: Stop Laser
+    pv: L4-OPCPA-NL1:SEQ:StopLaser
+  - label: Set to Alignment Mode
+    pv: L4-OPCPA-NL1:SEQ:AlignmentMode
+  - label: Set to System Standby
+    pv: L4-OPCPA-NL1:SEQ:SystemStandby
+  - label: Set All Flashlamps to Run
+    pv: L4-OPCPA-NL1:SEQ:FlashlampsRun
+  - label: Set All Flashlamps to Standby
+    pv: L4-OPCPA-NL1:SEQ:FlashlampsStandby
   triggerDelay:
   - L4-OPCPA-NL1:PS5059:22:Ch1TriggeringDelay
   - L4-OPCPA-NL1:PS5059:22:Ch2TriggeringDelay
@@ -170,15 +185,6 @@ components:
       value: Sleep
     SET_DELAY: L4-OPCPA-NL1:PS5059:22:SetBothChannelsTrigDelay
     LOAD_WAVEFORM: LOAD_WAVEFORM
-  units:
-    regenTemp: °C
-    triggerDelay: ns
-    chillerFlow: l/min
-    chillerTemp: °C
-    chillerLevel: '%'
-  format:
-    modboxMbc1: 2
-    modboxMbc2: 2
 - component: laser-panel
   id: NL2
   pvs:
@@ -194,7 +200,22 @@ components:
     latestWaveform: SI_NL2_LATEST_WAVEFORM
     modboxMbc1: L4-OPCPA-NL2::ModBox:MBC1:BiasValue
     modboxMbc2: L4-OPCPA-NL2::ModBox:MBC2:BiasValue
-    sequencerRunning: L4-OPCPA-NL2:SetAlignmentMode.BUSY
+  sequences:
+  # Placeholder names until controls publishes a state record per sequence.
+  # No `command:` here: the control system sets these itself. That key exists
+  # for the simulator and the local IOC, which have no control system to do it.
+  - label: Start Laser
+    pv: L4-OPCPA-NL2:SEQ:StartLaser
+  - label: Stop Laser
+    pv: L4-OPCPA-NL2:SEQ:StopLaser
+  - label: Set to Alignment Mode
+    pv: L4-OPCPA-NL2:SEQ:AlignmentMode
+  - label: Set to System Standby
+    pv: L4-OPCPA-NL2:SEQ:SystemStandby
+  - label: Set All Flashlamps to Run
+    pv: L4-OPCPA-NL2:SEQ:FlashlampsRun
+  - label: Set All Flashlamps to Standby
+    pv: L4-OPCPA-NL2:SEQ:FlashlampsStandby
   triggerDelay:
   - L4-OPCPA-NL2:PS5059:22:Ch1TriggeringDelay
   - L4-OPCPA-NL2:PS5059:22:Ch2TriggeringDelay
@@ -339,15 +360,6 @@ components:
       value: Sleep
     SET_DELAY: L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay
     LOAD_WAVEFORM: LOAD_WAVEFORM
-  units:
-    regenTemp: °C
-    triggerDelay: ns
-    chillerFlow: l/min
-    chillerTemp: °C
-    chillerLevel: '%'
-  format:
-    modboxMbc1: 2
-    modboxMbc2: 2
 - component: laser-panel
   id: NL3
   pvs:
@@ -363,7 +375,22 @@ components:
     latestWaveform: SI_NL3_LATEST_WAVEFORM
     modboxMbc1: L4-OPCPA-NL3::ModBox:MBC1:BiasValue
     modboxMbc2: L4-OPCPA-NL3::ModBox:MBC2:BiasValue
-    sequencerRunning: L4-OPCPA-NL3:SetAlignmentMode.BUSY
+  sequences:
+  # Placeholder names until controls publishes a state record per sequence.
+  # No `command:` here: the control system sets these itself. That key exists
+  # for the simulator and the local IOC, which have no control system to do it.
+  - label: Start Laser
+    pv: L4-OPCPA-NL3:SEQ:StartLaser
+  - label: Stop Laser
+    pv: L4-OPCPA-NL3:SEQ:StopLaser
+  - label: Set to Alignment Mode
+    pv: L4-OPCPA-NL3:SEQ:AlignmentMode
+  - label: Set to System Standby
+    pv: L4-OPCPA-NL3:SEQ:SystemStandby
+  - label: Set All Flashlamps to Run
+    pv: L4-OPCPA-NL3:SEQ:FlashlampsRun
+  - label: Set All Flashlamps to Standby
+    pv: L4-OPCPA-NL3:SEQ:FlashlampsStandby
   triggerDelay:
   - L4-OPCPA-NL3:PS5059:22:Ch1TriggeringDelay
   - L4-OPCPA-NL3:PS5059:22:Ch2TriggeringDelay
@@ -508,12 +535,3 @@ components:
       value: Sleep
     SET_DELAY: L4-OPCPA-NL3:PS5059:22:SetBothChannelsTrigDelay
     LOAD_WAVEFORM: LOAD_WAVEFORM
-  units:
-    regenTemp: °C
-    triggerDelay: ns
-    chillerFlow: l/min
-    chillerTemp: °C
-    chillerLevel: '%'
-  format:
-    modboxMbc1: 2
-    modboxMbc2: 2

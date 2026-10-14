@@ -89,7 +89,7 @@ describe('ChillersSection', () => {
     expect(screen.getByText('24.810')).toBeInTheDocument()
   })
 
-  it('leaves headers unlabelled when no unit is configured or published', async () => {
+  it("falls back to the component's unit when nothing is configured or published", async () => {
     const ws = makeFakeWebSocketContext()
     render(
       <TestWebSocketProvider value={ws.context}>
@@ -109,8 +109,11 @@ describe('ChillersSection', () => {
       expect(ws.subscriptions.get('AI_NL2_CHILLER_11_FLOW')?.size).toBe(1),
     )
 
-    expect(screen.getByText('Flow')).toBeInTheDocument()
-    expect(screen.getByText('Temp')).toBeInTheDocument()
-    expect(screen.getByText('Water')).toBeInTheDocument()
+    // A chiller's flow is in l/min wherever it is installed, so the component
+    // knows it and no zone file has to say so. Config and the record's own EGU
+    // still win over this, in that order.
+    expect(screen.getByText('Flow (l/min)')).toBeInTheDocument()
+    expect(screen.getByText('Temp (°C)')).toBeInTheDocument()
+    expect(screen.getByText('Water (%)')).toBeInTheDocument()
   })
 })

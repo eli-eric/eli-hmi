@@ -99,6 +99,30 @@ describe('ModboxSection', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows the bias values in the unit the amplifier reports', async () => {
+    // The amplifier reports millivolts; the row showed a bare number, so the
+    // only place an operator reads it had no unit at all.
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <ModboxSection
+          cmdPv={makeCommandPv('NL2', {})}
+          modbox={MODBOX_3}
+          loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+          mbc1Pv="AI_NL2_MBC1"
+          commands={LASER_COMMANDS}
+          units={{ modboxMbc1: 'mV' }}
+        />
+      </TestWebSocketProvider>,
+    )
+    await waitFor(() =>
+      expect(ws.subscriptions.get('AI_NL2_MBC1')?.size).toBe(1),
+    )
+    act(() => ws.push('AI_NL2_MBC1', 2.15))
+
+    expect(screen.getByText('Bias Value').parentElement).toHaveTextContent('mV')
+  })
+
   it('shows boolean states as words, not bare 1 / 0', async () => {
     const ws = renderModbox()
     await waitFor(() =>

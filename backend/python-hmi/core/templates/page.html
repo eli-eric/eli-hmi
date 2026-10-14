@@ -36,18 +36,22 @@
       <span class="write-status" data-show="$_toast != '' && $_toast_age < {{ toast_seconds }}"
             style="display:none" data-text="$_toast"></span>
       <span class="write-busy" data-show="$_busy" style="display:none">writing…</span>
+      {#- Which palette this workstation is in. The server re-renders the
+          screen with it, so there is no client-side state to keep in step. -#}
+      <label class="palette-select">
+        <span>Color palette</span>
+        <select data-bind="_palette"
+                data-on:change="@post('/api/palette?value=' + $_palette)"
+                aria-label="Color palette">
+          {% for value, label in palettes.items() %}
+          <option value="{{ value }}"{% if value == (palette or 'default') %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
     </header>
     {{ link_banner }}
     <div class="banner" role="status" data-show="$_age > 6" style="display:none">
       Live updates have stopped — this page is frozen at its last update. Reload if it persists.
-    </div>
-    <div class="legend" aria-label="Status legend">
-      {% for item in legend %}
-      <div class="legend-item">
-        <span class="legend-swatch" data-tone-surface="chip"
-              {%- if item.tone %} data-tone="{{ item.tone }}"{% endif %} title="{{ item.meaning }}">{{ item.label }}</span>
-      </div>
-      {% endfor %}
     </div>
   </div>
 

@@ -86,7 +86,13 @@ export const WaveformSelect: FC<WaveformSelectProps> = ({
         onChange={(e) => setSelected(e.target.value)}
         aria-label="Waveform"
       >
-        <option value="">Select Waveform</option>
+        {/* `hidden` keeps the prompt out of the list: it names what the
+            control is for, and it is not a waveform anyone can load. It stays
+            the shown value until a choice is made, and `disabled` stops it
+            being chosen again. */}
+        <option value="" disabled hidden>
+          Select Waveform
+        </option>
         {catalog.map((name) => (
           <option key={name} value={name}>
             {name}

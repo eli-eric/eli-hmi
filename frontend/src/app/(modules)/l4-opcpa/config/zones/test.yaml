@@ -1,25 +1,7 @@
-# Engineering units for the numeric readouts, applied to every laser below.
-# A laser may override any of these with its own `units:` block. The config
-# value wins over the PV's own EGU metadata and over the component default.
-units:
-  regenTemp: '°C'
-  triggerDelay: ns
-  chillerFlow: l/min
-  chillerTemp: '°C'
-  chillerLevel: '%'
-
-# How each numeric readout is rounded, keyed by the same signal roles as
-# `units:` above. A plain number is decimal places; the object form
-# ({format: exponential, toExponential: 2}, {format: precision, toPrecision: 4})
-# is there when decimals are the wrong question. A laser may override any of
-# these with its own `format:` block.
-#
-# Roles left out fall back to three decimal places, which is what every readout
-# did before this block existed — so only the two that differed are listed.
-format:
-  modboxMbc1: 2
-  modboxMbc2: 2
-
+# One laser per block. Everything about a signal — its PV, what the row is
+# called, how it is rounded — is written in that signal's own `pvs:` entry.
+# Units and rounding that follow from the signal itself (°C, ns, mV, whole
+# millivolts of bias) are the component's, so most lasers say neither.
 lasers:
   - id: NL2
     pvs:
@@ -35,7 +17,38 @@ lasers:
       latestWaveform: SI_NL2_LATEST_WAVEFORM
       modboxMbc1: L4-OPCPA-NL2::ModBox:MBC1:BiasValue
       modboxMbc2: L4-OPCPA-NL2::ModBox:MBC2:BiasValue
-      sequencerRunning: L4-OPCPA-NL2:SetAlignmentMode.BUSY
+    sequences:
+      # The state PV says whether the control system is running this sequence,
+      # and `command` names the button that starts it. These are the names the
+      # mock backend pulses when a command PV is fired (`BI_<laser>_SEQ_<ID>`
+      # in l4_opcpa.go), so a press still animates the row in dev; a real zone
+      # names whatever records controls publishes.
+      - {
+          label: 'Start Laser',
+          pv: BI_NL2_SEQ_START_LASER,
+          command: START_LASER,
+        }
+      - { label: 'Stop Laser', pv: BI_NL2_SEQ_STOP_LASER, command: STOP_LASER }
+      - {
+          label: 'Set to Alignment Mode',
+          pv: BI_NL2_SEQ_ALIGNMENT_MODE,
+          command: ALIGNMENT_MODE,
+        }
+      - {
+          label: 'Set to System Standby',
+          pv: BI_NL2_SEQ_SYSTEM_STANDBY,
+          command: SYSTEM_STANDBY,
+        }
+      - {
+          label: 'Set All Flashlamps to Run',
+          pv: BI_NL2_SEQ_FLASHLAMPS_RUN,
+          command: FLASHLAMPS_RUN,
+        }
+      - {
+          label: 'Set All Flashlamps to Standby',
+          pv: BI_NL2_SEQ_FLASHLAMPS_STANDBY,
+          command: FLASHLAMPS_STANDBY,
+        }
     triggerDelay:
       [
         L4-OPCPA-NL2:PS5059:22:Ch1TriggeringDelay,
@@ -140,6 +153,94 @@ lasers:
       FLASHLAMPS_STANDBY: FLASHLAMPS_STANDBY
       MODBOX_ON: MODBOX_ON
       MODBOX_OFF: { pv: L4-OPCPA-NL2:ModBox:Awake, value: Sleep }
-      SEND_YDFA_CURRENT: SEND_YDFA_CURRENT
       SET_DELAY: L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay
       LOAD_WAVEFORM: LOAD_WAVEFORM
+
+  # A laser that is not NL2: no Modbox at all, a different set of modules, and
+  # its own device ids on the rows. Here to be looked at beside NL2 while the
+  # screen is taken to real lasers — the panel must not assume the reference
+  # laser's hardware.
+  - id: NL4
+    pvs:
+      connection: L4-OPCPA-NL4:PortControl.CNCT
+      fullPower: L4-OPCPA-NL4:FullPower
+      shutter: L4-OPCPA-NL4:IO:08:RC1_pin31
+      # Each row's name sits with the PV it names. Left unset they would
+      # print the reference laser's hardware, which looks deliberate and is
+      # wrong.
+      phdMean: { pv: L4-OPCPA-NL4:PHD1K000:12:Mean, label: 'PHD1K000:12/Mean' }
+      regenState:
+        { pv: L4-OPCPA-NL4:SY9PL20M:07:State, label: 'Regen SY9PL20M:07' }
+      regenTemp:
+        {
+          pv: L4-OPCPA-NL4:TK3:21:DisplayTemperature,
+          label: 'Regen Temp TK3:21',
+        }
+      phd2Mean: { pv: L4-OPCPA-NL4:PHD1K000:13:Mean, label: 'PHD1K000:13/Mean' }
+      attenuator:
+        {
+          pv: L4-OPCPA-NL4:SM1-ATT3:22:CurrentPosition,
+          label: 'Atten. SM1:ATT3:22',
+        }
+      # No waveform or bias PVs: this laser has no Modbox, so the whole section
+      # is absent rather than present and empty.
+    sequences:
+      - {
+          label: 'Start Laser',
+          pv: BI_NL4_SEQ_START_LASER,
+          command: START_LASER,
+        }
+      - { label: 'Stop Laser', pv: BI_NL4_SEQ_STOP_LASER, command: STOP_LASER }
+      - {
+          label: 'Set All Flashlamps to Run',
+          pv: BI_NL4_SEQ_FLASHLAMPS_RUN,
+          command: FLASHLAMPS_RUN,
+        }
+      - {
+          label: 'Set All Flashlamps to Standby',
+          pv: BI_NL4_SEQ_FLASHLAMPS_STANDBY,
+          command: FLASHLAMPS_STANDBY,
+        }
+    triggerDelay:
+      [
+        L4-OPCPA-NL4:PS5059:41:Ch1TriggeringDelay,
+        L4-OPCPA-NL4:PS5059:41:Ch2TriggeringDelay,
+      ]
+    mss:
+      - { label: 'PSS permission', pv: L4-PSS:NP4_PERMISSION_TO_OPERATE_CH1 }
+      - { label: 'MSS permission', pv: L4-MSS:NP4_PERMISSION_TO_OPERATE_CH1 }
+      - { label: 'NL4 vacuum good', pv: L4-VCS-NL4:ReadyToFire }
+    moduleErrors:
+      - { label: 'PS1225:31', pv: L4-OPCPA-NL4:PS1225:31:ErrorCode }
+      - { label: 'IO:08', pv: L4-OPCPA-NL4:IO:08:ErrorCode }
+      - { label: 'SY9PL20M:07', pv: L4-OPCPA-NL4:SY9PL20M:07:ErrorCode }
+      - { label: 'PHD1K000:12', pv: L4-OPCPA-NL4:PHD1K000:12:ErrorCode }
+    chillers:
+      - {
+          label: 'PS1225:31',
+          flow: L4-OPCPA-NL4:PS1225:31:MeasuredFlow,
+          temp: L4-OPCPA-NL4:PS1225:31:T_out,
+          level: L4-OPCPA-NL4:PS1225:31:MeasuredLevel,
+        }
+      - {
+          label: 'PS1225:32',
+          flow: L4-OPCPA-NL4:PS1225:32:MeasuredFlow,
+          temp: L4-OPCPA-NL4:PS1225:32:T_out,
+          level: L4-OPCPA-NL4:PS1225:32:MeasuredLevel,
+        }
+    flashlamps:
+      - { label: 'PS5059:41 Ch1', pv: L4-OPCPA-NL4:PS5059:41:Ch1_State }
+      - { label: 'PS5059:41 Ch2', pv: L4-OPCPA-NL4:PS5059:41:Ch2_State }
+      - { label: 'PS5059:42 Ch1', pv: L4-OPCPA-NL4:PS5059:42:Ch1_State }
+      - { label: 'PS5059:42 Ch2', pv: L4-OPCPA-NL4:PS5059:42:Ch2_State }
+    delayPresets: [50, 500, 790]
+    commands:
+      # No MODBOX_ON / MODBOX_OFF / LOAD_WAVEFORM / SEND_YDFA_CURRENT: there is
+      # no Modbox to send them to, and a missing key hides the button.
+      START_LASER: START_LASER
+      STOP_LASER: STOP_LASER
+      ALIGNMENT_MODE: L4-OPCPA-NL4:SetAlignmentMode
+      SYSTEM_STANDBY: SYSTEM_STANDBY
+      FLASHLAMPS_RUN: FLASHLAMPS_RUN
+      FLASHLAMPS_STANDBY: FLASHLAMPS_STANDBY
+      SET_DELAY: L4-OPCPA-NL4:PS5059:41:SetBothChannelsTrigDelay

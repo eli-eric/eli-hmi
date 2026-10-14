@@ -6,7 +6,7 @@
 # against a base-only IOC.
 #
 #   L4-OPCPA-NL2:PortControl.CNCT  ->  L4-OPCPA-NL2:PortControl:CNCT
-#   L4-OPCPA-NL2:SetAlignmentMode.BUSY  ->  L4-OPCPA-NL2:SetAlignmentMode:BUSY
+#   L4-OPCPA-NL4:PortControl.CNCT  ->  L4-OPCPA-NL4:PortControl:CNCT
 #
 # Everything else is identical, so what the panel renders here is what it
 # renders against `TESTZ` in the hall.

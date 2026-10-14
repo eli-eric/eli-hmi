@@ -4,6 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}ELI HMI{% endblock %}</title>
+  {#- Ahead of the stylesheet that asks for them: the face is what every
+      column width in the panel was measured against, so fetching it late
+      means a visible reflow of the whole screen. -#}
+  <link rel="preload" href="{{ static('/fonts/RobotoCondensed-Regular.ttf') }}"
+        as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="{{ static('/fonts/RobotoCondensed-Bold.ttf') }}"
+        as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="{{ static('/css/hmi.css') }}">
   {#
     Datastar is the only JavaScript this application ships. It is vendored

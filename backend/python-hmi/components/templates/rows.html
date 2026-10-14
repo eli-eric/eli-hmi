@@ -31,25 +31,37 @@
     its own chrome (a pill), where a bordered cell around it would be a box
     inside a box.
 
-    `wide` widens the value field for a row that carries more than a reading —
-    two channels in one cell, a long waveform name. Values are otherwise all
-    one width, which is what lets a card be scanned down its column rather than
-    read line by line, so reach for this only when the content needs it. -#}
-{%- macro row(label, value, action=none, bare=false, wide=false) -%}
-<div class="row" data-has-action="{{ 'true' if action else 'false' }}"
-     {%- if wide %} data-value="wide"{% endif %}>
-<span class="label" title="{{ label }}">{{ label }}</span>
+    The value column takes the rest of the row, so every row in a card ends at
+    the same edge — there is no per-row width to choose. -#}
+{#- Explains the row it sits in. The hint is the icon's accessible name as
+    well as its hover text: a hover-only explanation does not exist for anyone
+    on a keyboard or a screen reader, and an unlabelled icon is decoration. -#}
+{%- macro info_icon(hint) -%}
+<svg class="info-icon" xmlns="http://www.w3.org/2000/svg" width="10" height="10"
+     viewBox="0 0 24 24" fill="none" role="img" tabindex="0"
+     aria-label="{{ hint }}"><title>{{ hint }}</title>
+<path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v2h-2V7zm0 4h2v6h-2v-6z"/>
+</svg>
+{%- endmacro -%}
+
+{%- macro row(label, value, action=none, bare=false, hint=none) -%}
+<div class="row" data-has-action="{{ 'true' if action else 'false' }}">
+<span class="label" title="{{ hint or label }}">{{ label }}{% if hint %} {{ info_icon(hint) }}{% endif %}</span>
 {% if bare %}<span class="value value-bare">{{ value }}</span>{% else %}{{ value }}{% endif %}
 {% if action %}<span class="action">{{ action }}</span>{% endif %}
 </div>
 {%- endmacro -%}
 
 {#- A row whose label is a button that expands a detail list. -#}
-{%- macro expandable_row(label, value, signal, action=none, wide=false) -%}
-<div class="row" data-has-action="{{ 'true' if action else 'false' }}"
-     {%- if wide %} data-value="wide"{% endif %}>
+{%- macro expandable_row(label, value, signal, action=none) -%}
+<div class="row" data-has-action="{{ 'true' if action else 'false' }}">
 <span class="label" title="{{ label }}">{{ label }}</span>
 <span class="value value-bare">
+{#- Closes when this button is pressed again, and at no other time. Closing
+    on a click anywhere lost the comparison the list was opened to make — one
+    glance away and it had shut — so any number of them may stay open. A cog
+    panel is the exception (see `controls.cog`): it covers the screen, where a
+    list sits in the flow of it. -#}
 <button type="button" class="state-button" aria-label="Toggle {{ label }} detail"
         data-on:click="${{ signal }} = !${{ signal }}"
         data-attr="{'aria-expanded': ${{ signal }} ? 'true' : 'false'}">
@@ -77,7 +89,8 @@
                           cfg.setpoint.choices, cfg.setpoint.label, signal) }}
 {% else %}
 {{ controls.preset_input(cfg.setpoint.label, cfg.setpoint.presets, cfg.setpoint.pv or cfg.pv,
-                         comp.signal('set_' ~ (cfg.id or cfg.label), ''), signal, cfg.setpoint.step) }}
+                         comp.signal('set_' ~ (cfg.id or cfg.label), ''), signal, cfg.setpoint.step,
+                         exponential=cfg.setpoint.exponential) }}
 {% endif %}
 {% endif %}
 {% endcall %}

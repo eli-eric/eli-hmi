@@ -21,6 +21,13 @@ interface PresetNumberInputProps {
    * as `FloatValue`'s `precision`, applied to input rather than display.
    */
   precision?: number
+  /**
+   * Accept scientific notation (`1e3`) in the field. Off by default: nothing
+   * on this panel is set that way, and `type="number"` reports the field as
+   * EMPTY while an exponent is half-typed — so pressing `e` after a value
+   * looks like it erased it.
+   */
+  exponential?: boolean
 }
 
 /**
@@ -53,6 +60,7 @@ export const PresetNumberInput: FC<PresetNumberInputProps> = ({
   min,
   max,
   precision = 0,
+  exponential = false,
 }) => {
   const inputId = useId()
   const [staged, setStaged] = useState<number | null>(null)
@@ -105,10 +113,16 @@ export const PresetNumberInput: FC<PresetNumberInputProps> = ({
         setParseError(`Invalid number: "${v}"`)
         return
       }
+      // The keydown guard stops this being typed; a paste still gets through.
+      if (!exponential && /e/i.test(trimmed)) {
+        setStaged(null)
+        setParseError('Scientific notation is not accepted here')
+        return
+      }
       setParseError(null)
       setStaged(Number(truncate(trimmed, precision)))
     },
-    [reset, precision],
+    [reset, precision, exponential],
   )
 
   // Leaving the field replaces what was typed with what would be written.
@@ -177,6 +191,14 @@ export const PresetNumberInput: FC<PresetNumberInputProps> = ({
           min={min}
           max={max}
           onChange={(e) => onCustomChange(e.target.value)}
+          onKeyDown={(e) => {
+            // Refused at the key rather than on parse: by the time an `e` is
+            // in a number field the browser has already blanked the value,
+            // and the digits are gone from under the operator.
+            if (!exponential && (e.key === 'e' || e.key === 'E')) {
+              e.preventDefault()
+            }
+          }}
           onBlur={onBlur}
         />
         <button

@@ -1,0 +1,90 @@
+# Short-pulse frontend: control of APL laser
+
+title: SPFE
+description: Control of APL laser
+components:
+  - component: laser-panel
+    id: APL
+    pvs:
+      connection: L4-SPFE-APL:PortControl.CNCT
+      fullPower: L4-SPFE-APL:FullPower
+      shutter: L4-SPFE-APL:IO:15:RC1_pin31
+      phdMean:
+        pv: L4-SPFE-APL:PHD1K000:48:Mean
+        label: PHD1K000:48/Mean
+      regenState: L4-SPFE-APL:SY3PL50M:32:State
+      regenTemp: L4-SPFE-APL:TK6:44:DisplayTemperature
+      attenuator:
+        pv: L4-SPFE-APL:SM5-ATT2:52:CurrentPosition
+        label: Atten. SM5-ATT52:52
+      sequencerRunning: L4-SPFE-APL:Busy
+    trigger_delay:
+      - L4-SPFE-APL:PS5059:22:Ch1TriggeringDelay
+      - L4-SPFE-APL:PS5059:22:Ch2TriggeringDelay
+    mss:
+    - label: PSS permission
+      pv: L4-PSS:APL_PERMISSION_TO_OPERATE_CH1
+    - label: MSS permission
+      pv: L4-MSS:APL_PERMISSION_TO_OPERATE_CH1
+    - label: SPFE MSS interlock
+      pv: L4-MSS:SPFE_interlock
+    - label: SPFE vacuum good
+      pv: L4-MSS:SPFE_VACUUM_READY_TO_FIRE
+    - label: Beamdump chiller alarm
+      pv: L4-MSS:BEAMDUMP_CHILLER_ALARM
+    - label: Beamdump chiller warning
+      pv: L4-MSS:BEAMDUMP_CHILLER_WARNING
+    moduleErrors:
+    - label: PS1225:10
+      pv: L4-SPFE-APL:PS1225:10:ErrorCode
+    - label: PS1225:11
+      pv: L4-SPFE-APL:PS1225:11:ErrorCode
+    - label: IO:15
+      pv: L4-SPFE-APL:IO:15:ErrorCode
+    - label: LDM150A:17
+      pv: L4-SPFE-APL:LDM150A:17:ErrorCode
+    - label: PS5059:22
+      pv: L4-SPFE-APL:PS5059:22:ErrorCode
+    - label: PS5059:23
+      pv: L4-SPFE-APL:PS5059:23:ErrorCode
+    - label: PS5059:24
+      pv: L4-SPFE-APL:PS5059:24:ErrorCode
+    - label: SY3PL50M:32
+      pv: L4-SPFE-APL:SY3PL50M:32:ErrorCode
+    - label: HV40W:40
+      pv: L4-SPFE-APL:HV40W:40:ErrorCode
+    - label: HV40W:42
+      pv: L4-SPFE-APL:HV40W:42:ErrorCode
+    - label: TK6:44
+      pv: L4-SPFE-APL:TK6:44:ErrorCode
+    - label: PHD1K000:48
+      pv: L4-SPFE-APL:PHD1K000:48:ErrorCode
+    - label: SM5-SH:50
+      pv: L4-SPFE-APL:SM5-SH:50:ErrorCode
+    - label: SM5-ATT2:52
+      pv: L4-SPFE-APL:SM5-ATT2:52:ErrorCode
+    chillers:
+    - label: PS1225:10
+      flow: L4-SPFE-APL:PS1225:10:MeasuredFlow
+      temp: L4-SPFE-APL:PS1225:10:T_out
+      level: L4-SPFE-APL:PS1225:10:MeasuredLevel
+    - label: PS1225:11
+      flow: L4-SPFE-APL:PS1225:11:MeasuredFlow
+      temp: L4-SPFE-APL:PS1225:11:T_out
+      level: L4-SPFE-APL:PS1225:11:MeasuredLevel
+    flashlamps:
+    - label: PS5059:22 Ch1
+      pv: L4-SPFE-APL:PS5059:22:Ch1_State
+    - label: PS5059:22 Ch2
+      pv: L4-SPFE-APL:PS5059:22:Ch2_State
+    - label: PS5059:23 Ch1
+      pv: L4-SPFE-APL:PS5059:23:Ch1_State
+    - label: PS5059:23 Ch2
+      pv: L4-SPFE-APL:PS5059:23:Ch2_State
+    - label: PS5059:24 Ch1
+      pv: L4-SPFE-APL:PS5059:24:Ch1_State
+    - label: PS5059:24 Ch2
+      pv: L4-SPFE-APL:PS5059:24:Ch2_State
+    delayPresets: [50, 500, 700, 790]
+    commands:
+      START_LASER: L4-SPFE-APL:Start

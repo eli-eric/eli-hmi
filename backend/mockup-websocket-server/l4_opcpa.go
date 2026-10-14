@@ -512,9 +512,11 @@ func seedLaserPVs() {
 		for i := 1; i <= mssCount; i++ {
 			setSeed(fmt.Sprintf("BI_%s_MSS_%d", laser, i), 1)
 		}
-		// Module Errors ("0000" = no error, any other status code = error)
+		// Module Errors: numeric status codes. Which of them is a fault is the
+		// control system's to say, so the panel counts what it has alarmed
+		// rather than reading the codes itself.
 		for _, m := range moduleErrors {
-			setSeed(fmt.Sprintf("BI_%s_ERR_%s", laser, m), "0000")
+			setSeed(fmt.Sprintf("BI_%s_ERR_%s", laser, m), 0)
 		}
 		// Regen ("OFF" / "ON" / "Failure")
 		setSeed(fmt.Sprintf("BI_%s_REGEN_STATE", laser), "OFF")

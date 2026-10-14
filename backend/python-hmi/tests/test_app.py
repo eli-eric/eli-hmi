@@ -313,6 +313,46 @@ class TestOps:
 
 
 class TestWriteGuards:
+    DELAY = "L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay"
+
+    async def _set(self, client, pv: str, text: str):
+        return await client.post(
+            "/api/write",
+            params={"pv": pv, "signal": "v"},
+            json={"v": text},
+            headers={"Datastar-Request": "true"},
+        )
+
+    async def test_a_value_outside_the_devices_range_is_refused(self, client):
+        """The limits are the component's, not the field's: a value that reaches
+        this endpoint by any route is checked, because the field that usually
+        stops it is a convenience the browser can be talked out of."""
+        response = await self._set(client, self.DELAY, "60001")
+        assert "60000" in response.text, "the refusal does not say what the range is"
+        assert "Refused" in response.text
+
+    async def test_a_value_inside_the_range_is_written(self, client):
+        """The guard has to let the machine be operated."""
+        response = await self._set(client, self.DELAY, "500")
+        assert "Refused" not in response.text
+        assert "500" in response.text
+
+    async def test_the_field_refuses_it_before_the_operator_presses(self, client):
+        """The endpoint is the guarantee; this is the courtesy. An operator
+        should see that 60001 is not acceptable, not press Confirm and be told."""
+        page = (await client.get("/l4-opcpa")).text
+        binding = re.search(r'data-attr="\{disabled:[^"]*"', page)
+        assert binding, "Confirm has no disabled binding"
+        assert "60000" in binding.group() and "10" in binding.group()
+
+    async def test_digits_the_device_cannot_resolve_are_dropped(self, client):
+        """Truncated, never rounded: 500.7 is 500. An operator watching a value
+        they did not type reach the machine is worse than a refused keystroke,
+        and rounding invents one."""
+        response = await self._set(client, self.DELAY, "500.7")
+        assert "Refused" not in response.text
+        assert "500" in response.text and "500.7" not in response.text
+
     async def test_a_request_with_no_value_at_all_is_refused(self, client):
         # Falling through used to write the string "None" to the device.
         response = await client.post("/api/write", params={"pv": "L4-OPCPA-NL2:ATT"}, json={})
@@ -328,6 +368,401 @@ class TestWriteGuards:
             # (The arrow is escaped in the JSON payload, so match on the tail.)
             assert f"{text}" in response.text
             assert "Refused" not in response.text
+
+
+class TestModboxActionLayout:
+    """The Modbox panel offers the same four things in the same shape as the
+    React one: two one-press buttons, then two actions that need a value and
+    stay folded away until chosen."""
+
+    @staticmethod
+    def panel(page: str) -> str:
+        start = page.index('aria-label="Modbox actions"')
+        return page[start : page.index("</section>", start)]
+
+    async def test_an_action_needing_a_value_is_folded_away(self, client):
+        """A field sitting open in the panel reads as something to fill in;
+        behind its own button it reads as one of the things you can do."""
+        panel = self.panel((await client.get("/l4-opcpa")).text)
+        toggle = panel[panel.index("Set Waveform to") - 300 :]
+        assert "disclosure-toggle" in toggle[:400]
+
+    async def test_confirm_sits_beneath_the_waveform_list(self, client):
+        """Side by side, the select was squeezed to a few characters — the
+        names it holds are what the operator is choosing between."""
+        css = (await client.get("/static/css/hmi.css")).text
+        rule = css[css.index(".waveform-select {") :][: css[css.index(".waveform-select {") :].index("}")]
+        assert "column" in rule
+
+
+class TestWaveformSelect:
+    """Nothing selected is not a value. The control must not offer to send it."""
+
+    @staticmethod
+    def control(page: str) -> str:
+        start = page.index('class="waveform-select"')
+        return page[start : page.index("</span>", page.index("Confirm", start))]
+
+    async def test_confirm_is_dead_until_a_waveform_is_chosen(self, client):
+        control = self.control((await client.get("/l4-opcpa")).text)
+        assert "disabled:" in control, "Confirm offers to send nothing at all"
+
+    async def test_the_prompt_is_not_one_of_the_choices(self, client):
+        """It names what the control is for; it is not a waveform anyone can
+        load, so it does not belong in the list of waveforms."""
+        control = self.control((await client.get("/l4-opcpa")).text)
+        prompt = control[control.index("<option value=\"\"") :][:120]
+        assert "hidden" in prompt and "disabled" in prompt
+
+    async def test_the_prompt_reads_the_same_as_the_react_panel(self, client):
+        control = self.control((await client.get("/l4-opcpa")).text)
+        assert "Select Waveform" in control
+
+    async def test_the_panel_closes_only_once_the_write_lands(self, client):
+        """This control kept closing itself on the press, so a refusal was
+        patched into a panel that had just been hidden."""
+        control = self.control((await client.get("/l4-opcpa")).text)
+        assert "close=" in control
+        assert "= false" not in control.split("@post")[1][:200]
+
+
+class TestTruncationIsVisible:
+    """The server drops digits the device cannot resolve. The field has to
+    agree with it, or the operator reads 2.55 and the amplifier gets 2.5 —
+    which is the one thing truncation must not cost.
+    """
+
+    async def test_an_integer_field_drops_the_decimals_too(self, client):
+        """The delay resolves whole nanoseconds, so 500.7 is sent as 500 — the
+        field has to say so before the press, not after."""
+        page = (await client.get("/l4-opcpa")).text
+        field = page[page.index('aria-label="Set Trigger Delay custom value"') - 800 :][:800]
+        assert "data-on:blur" in field
+        assert "{0,0}" in field
+
+    async def test_a_field_with_no_precision_is_left_alone(self, client):
+        """Nothing to reconcile where every typed digit is sent."""
+        page = (await client.get("/l4-opcpa")).text
+        field = page[page.index('aria-label="Set Attenuator"') - 700 :][:700]
+        assert "data-on:blur" not in field
+
+
+class TestExponentialInput:
+    """`<input type="number">` accepts "1e3", and while the exponent is
+    half-typed the browser reports the field as empty — so typing `e` after a
+    value wipes it on screen. Nothing on this panel is set in scientific
+    notation, so the field does not accept one unless a setpoint says it may.
+    """
+
+    DELAY = "L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay"
+
+    async def _write(self, client, text: str):
+        return await client.post(
+            "/api/write",
+            params={"pv": self.DELAY, "signal": "v", "status": "s"},
+            json={"v": text},
+            headers={"Datastar-Request": "true"},
+        )
+
+    async def test_an_exponential_is_refused(self, client):
+        response = await self._write(client, "1e3")
+        assert "Refused" in response.text
+
+    async def test_the_same_number_written_plainly_is_accepted(self, client):
+        """The guard is about notation, not about the value."""
+        response = await self._write(client, "1000")
+        assert "Refused" not in response.text
+
+    async def test_the_field_will_not_accept_the_key(self, client):
+        """Refusing the write is not enough: the browser blanks the field as
+        soon as `e` is typed, so the digits vanish before anything is sent."""
+        page = (await client.get("/l4-opcpa")).text
+        assert "preventDefault" in page, "nothing stops `e` reaching the field"
+
+
+class TestTypography:
+    """The panel is laid out in rem against a condensed face.
+
+    Without the font the browser falls back to whatever narrow sans it has,
+    every string measures differently, and the fixed label column that the
+    whole grid hangs off starts truncating. The React app ships it; so does
+    this one, or the two do not look alike at any size.
+    """
+
+    FACES = ("RobotoCondensed-Regular.ttf", "RobotoCondensed-Bold.ttf")
+
+    async def test_the_font_is_declared(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        css = (await client.get("/static/css/hmi.css")).text
+        assert "@font-face" in css
+        assert "Roboto Condensed" in css
+        for face in self.FACES:
+            assert face in css, f"{face} is never declared"
+        assert "preload" in page, "the face is fetched only after the first paint"
+
+    async def test_the_font_is_actually_served(self, client):
+        """A declaration pointing at a 404 is worse than none: the browser
+        waits for it before painting the text it applies to."""
+        for face in self.FACES:
+            response = await client.get(f"/static/fonts/{face}")
+            assert response.status_code == 200, f"{face} is declared but not shipped"
+            assert len(response.content) > 10_000
+
+
+class TestCogPanels:
+    async def test_a_cog_panel_closes_on_a_click_outside_it(self, client):
+        """An operator who opens a cog, decides against it and clicks away
+        should not have to find the cog again to put it back. React closes on
+        an outside click; so does this."""
+        page = (await client.get("/l4-opcpa")).text
+        cog = page[page.index('aria-label="Modbox actions"') :][:900]
+        assert "click__window" in cog, "nothing closes the panel from outside"
+        assert "cog-wrapper" in cog, "the handler cannot tell inside from outside"
+
+
+class TestModboxActions:
+    async def test_the_actions_panel_offers_the_waveform_too(self, client):
+        """React lists it among the Modbox actions as well as on the Waveform
+        Preset row: loading a waveform is part of setting the Modbox up, and an
+        operator working through that panel should not have to find the row."""
+        page = (await client.get("/l4-opcpa")).text
+        actions = page[page.index('aria-label="Modbox actions"') :]
+        actions = actions[: actions.index("</section>")]
+        assert "Set Waveform to" in actions
+
+
+class TestPalette:
+    """An operator who puts goggles on mid-shift has to be able to say so.
+
+    The React panel keeps the choice in localStorage; this app renders on the
+    server, so the choice is a cookie it can read while rendering. PALETTE
+    stays the station default for a room that is always in goggles.
+    """
+
+    async def test_the_header_offers_the_palettes(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        assert "Color palette" in page
+        assert "No goggles" in page and "L4 goggles" in page
+
+    async def test_choosing_one_sticks_for_the_next_page(self, client):
+        chosen = await client.post("/api/palette", params={"value": "l4-goggles"}, json={})
+        assert chosen.status_code == 200
+
+        page = (await client.get("/l4-opcpa")).text
+        assert 'data-palette="l4-goggles"' in page
+
+        await client.post("/api/palette", params={"value": "default"}, json={})
+        page = (await client.get("/l4-opcpa")).text
+        assert "data-palette" not in page, "the default palette is the absence of one"
+
+    async def test_a_palette_nobody_defined_is_ignored(self, client):
+        """A hand-edited cookie must not put an unknown value on <html>, where
+        it would silently paint nothing."""
+        await client.post("/api/palette", params={"value": "l9-goggles"}, json={})
+        page = (await client.get("/l4-opcpa")).text
+        assert "l9-goggles" not in page
+
+
+class TestLabelsAndUnits:
+    async def test_the_bias_values_are_in_millivolts(self, client):
+        """The amplifier reports millivolts. The simulator's EGU said volts and
+        no config overrode it, so the panel was off by a factor of a thousand
+        in the only place an operator would read it."""
+        page = (await client.get("/l4-opcpa")).text
+        assert "mV" in page
+        assert "Bias Value (" not in page, "the unit belongs beside the value, not in the label"
+
+    async def test_a_chiller_row_says_what_it_is(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        assert "Chiller PS1225:11" in page
+
+
+class TestCollapse:
+    """An expanded list closes when its own trigger is pressed again, and at no
+    other time.
+
+    It used to close on a click anywhere, which is what the original spec
+    asked for. In use that lost the comparison an operator had opened it to
+    make: reading a failed MSS permission against the module error codes meant
+    opening one list, looking away, and finding it shut. Any number may now be
+    open at once, and a cog panel is the one thing that still closes itself
+    (see `TestCogPanels`) — it covers the screen, where a list sits in the
+    flow of it.
+    """
+
+    TOGGLES = (
+        "Toggle MSS detail",
+        "Toggle ERR detail",
+        "Toggle Modbox State detail",
+        "Toggle Flashlamps channel detail",
+    )
+
+    async def test_no_list_closes_itself_on_a_click_elsewhere(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        for label in self.TOGGLES:
+            element = page[page.index(f'aria-label="{label}"') - 400 :][:600]
+            assert "click__window" not in element, f"{label} still closes on an outside click"
+
+    async def test_the_rule_is_not_repeated_per_control(self, client):
+        """Whatever closes a panel is declared once. Three copies of the rule
+        is how the lists and the cogs drifted apart in the first place."""
+        page = (await client.get("/l4-opcpa")).text
+        # The only outside-click handler left is the cog's, from one macro.
+        assert page.count("click__window") == page.count("cog-wrapper') === el")
+
+
+class TestRowHints:
+    """Two Modbox rows need explaining, and the explanation has to reach
+    someone who is not hovering a mouse over it."""
+
+    HINTS = (
+        "Waveform sent in ModBox ON sequence",
+        "Last waveform sent to the laser",
+    )
+
+    async def test_the_waveform_rows_explain_themselves(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        for hint in self.HINTS:
+            assert f'aria-label="{hint}"' in page, f"{hint!r} is not readable without a mouse"
+            assert f'title="{hint}"' in page, f"{hint!r} does not appear on hover"
+
+
+class TestSetpointField:
+    async def test_custom_appears_only_next_to_presets(self, client):
+        """"Custom" means "not one of these" — with no chips beside it there is
+        nothing for it to contrast with, and it labels the only field there is."""
+        page = (await client.get("/l4-opcpa")).text
+        assert page.count("preset-custom-label") == page.count("preset-chips")
+
+    async def test_a_field_without_presets_is_named_after_its_control(self, client):
+        """Dropping the visible label must not leave the field unnamed."""
+        page = (await client.get("/l4-opcpa")).text
+        assert 'aria-label="Set Attenuator"' in page
+
+
+class TestInlineWriteStatus:
+    """A failure belongs beside the control that caused it.
+
+    The header toast is nowhere near the button on a 22rem panel, and it ages
+    out on its own — an operator who looked away has no way to find out what
+    happened. React reports under the button; so does this.
+    """
+
+    async def _write(self, text: str):
+        return await self.client.post(
+            "/api/write",
+            params={
+                "pv": "L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay",
+                "signal": "v",
+                "status": "nl2-delay-status",
+                "close": "cog_delay",
+            },
+            json={"v": text},
+            headers={"Datastar-Request": "true"},
+        )
+
+    @pytest.fixture(autouse=True)
+    def _bind(self, client):
+        self.client = client
+
+    async def test_a_refusal_lands_on_the_control_that_caused_it(self, client):
+        response = await self._write("60001")
+        assert "patch-elements" in response.text
+        assert "nl2-delay-status" in response.text
+        assert "out of range" in response.text
+
+    async def test_a_successful_write_clears_the_message(self, client):
+        """Stale errors are worse than none: the next attempt has to wipe the
+        last one, or a fixed problem still reads as broken."""
+        response = await self._write("500")
+        assert "nl2-delay-status" in response.text
+        assert "out of range" not in response.text
+
+    async def test_a_refusal_leaves_the_panel_open_to_show_it(self, client):
+        """The message lives inside the cog panel. Closing the panel on the
+        press meant a refusal was only seen the *next* time the panel was
+        opened, attached to an attempt the operator had forgotten about."""
+        response = await self._write("60001")
+        assert "patch-signals" not in response.text or '"cog_delay":false' not in response.text
+
+    async def test_a_successful_write_closes_the_panel(self, client):
+        """Nothing to read on success — the value itself has changed on screen
+        — so the panel gets out of the way."""
+        response = await self._write("500")
+        assert '"cog_delay":false' in response.text
+
+    async def test_the_message_does_not_repeat_the_pv_name(self, client):
+        """It sits under the control that caused it, in a 14rem panel: the
+        name is redundant there and overflowed the box."""
+        response = await self._write("60001")
+        status = response.text[response.text.index("nl2-delay-status") :]
+        assert "L4-OPCPA-NL2" not in status[: status.index("</span>")]
+
+    async def test_every_control_carries_a_status_target(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        assert "status=" in page, "no control names where its failures should go"
+
+
+class TestWaveformRefresh:
+    """The Modbox's list changes while the machine runs, so the control asks
+    the device again each time it is opened."""
+
+    @staticmethod
+    def refresh_url(page: str) -> str:
+        match = re.search(r"@get\('(/api/waveforms[^']*)'\)", page)
+        assert match, "opening the cog never re-reads the catalog"
+        return match.group(1).replace("&amp;", "&")
+
+    async def test_opening_the_cog_re_reads_the_catalog(self, client):
+        """The patch lands INSIDE the select, so the element, its binding and
+        anything typed beside it survive; only the options change."""
+        url = self.refresh_url((await client.get("/l4-opcpa")).text)
+
+        response = await client.get(url)
+        assert response.status_code == 200
+        assert "datastar-patch-elements" in response.text
+        assert "std-100ps" in response.text, "the current catalog is not in the patch"
+        assert "mode inner" in response.text, "replacing the <select> would drop its binding"
+
+    async def test_the_refreshed_options_look_like_the_rendered_ones(self, client):
+        """The patch replaces the whole option list, so it has to carry the
+        same prompt the template does — otherwise opening the control quietly
+        reverts it, which is how one of the two waveform selectors ended up
+        with the old wording."""
+        url = self.refresh_url((await client.get("/l4-opcpa")).text)
+        patch = (await client.get(url)).text
+        assert "Select Waveform" in patch
+        assert "hidden" in patch and "disabled" in patch
+
+    async def test_an_unknown_component_patches_nothing(self, client):
+        """204, not an error page: a refresh for something that is not there
+        changes nothing, and nothing is what the browser should apply."""
+        response = await client.get("/api/waveforms", params={"component": "nope"})
+        assert response.status_code == 204
+        assert "patch-elements" not in response.text
+
+
+class TestOptionalCommands:
+    """A command the laser under test does not have is simply not configured.
+
+    `commands:` is the whole gate — no fail-open default — so a laser that
+    never lists SEND_YDFA_CURRENT has no YDFA control anywhere on its screen,
+    while the component keeps supporting it for one that does (see
+    `TestYdfaCurrent` in test_laser_panel.py).
+    """
+
+    async def test_an_unlisted_command_has_no_control(self, client):
+        # Not "YDFA": the Modbox state list has a `YDFA state` *readout*, which
+        # is a different thing and stays.
+        page = (await client.get("/l4-opcpa")).text
+        assert "Send YDFA current" not in page
+        assert "YDFA current" not in page
+
+    async def test_and_no_pv_is_monitored_for_it(self, client):
+        stats = (await client.get("/stats")).json()
+        assert stats["monitored_pvs"] > 0
+        page = (await client.get("/l4-opcpa")).text
+        assert "SEND_YDFA_CURRENT" not in page
 
 
 class TestAuthGate:

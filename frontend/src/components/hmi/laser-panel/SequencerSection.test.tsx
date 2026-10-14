@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, act, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { SequencerSection, L4_OPCPA_SEQUENCES } from './SequencerSection'
+import { SequencerSection } from './SequencerSection'
 import {
   makeFakeWebSocketContext,
   TestWebSocketProvider,
@@ -11,60 +11,65 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-// Build the same labeled descriptors the instance builds for NL2.
-const SEQUENCES = L4_OPCPA_SEQUENCES.map((s) => ({
-  label: s.label,
-  statePv: `BI_NL2_SEQ_${s.id}`,
-}))
+// What a laser's `sequences:` resolve to: a name and the PV carrying its state.
+const SEQUENCES = [
+  { label: 'Start Laser', statePv: 'NL2:SEQ:StartLaser' },
+  { label: 'Stop Laser', statePv: 'NL2:SEQ:StopLaser' },
+  { label: 'Set All Flashlamps to Run', statePv: 'NL2:SEQ:FlashlampsRun' },
+]
 
 function renderSequencer() {
   const ws = makeFakeWebSocketContext()
   render(
     <TestWebSocketProvider value={ws.context}>
-      <SequencerSection
-        sequencerRunningPv="BI_NL2_SEQUENCER_RUNNING"
-        sequences={SEQUENCES}
-      />
+      <SequencerSection sequences={SEQUENCES} />
     </TestWebSocketProvider>,
   )
   return ws
 }
 
 describe('SequencerSection', () => {
-  it('shows IDLE / RUNNING from the running PV', async () => {
+  it('reads RUNNING while any sequence does, and IDLE when none does', async () => {
+    // Derived from the list rather than from a flag of its own: a second PV
+    // repeating what the rows below already say is a second thing that can be
+    // wrong, and it would show as a pill contradicting its own list.
     const ws = renderSequencer()
     await waitFor(() =>
-      expect(ws.subscriptions.get('BI_NL2_SEQUENCER_RUNNING')?.size).toBe(1),
+      expect(ws.subscriptions.get('NL2:SEQ:StartLaser')?.size).toBe(1),
     )
 
     expect(screen.getByText('Sequencer')).toBeInTheDocument()
 
-    act(() => ws.push('BI_NL2_SEQUENCER_RUNNING', 0))
+    act(() => {
+      ws.push('NL2:SEQ:StartLaser', 0)
+      ws.push('NL2:SEQ:StopLaser', 0)
+      ws.push('NL2:SEQ:FlashlampsRun', 0)
+    })
     expect(screen.getByText('IDLE')).toBeInTheDocument()
 
-    act(() => ws.push('BI_NL2_SEQUENCER_RUNNING', 1))
+    act(() => ws.push('NL2:SEQ:FlashlampsRun', 1))
     expect(screen.getByText('RUNNING')).toBeInTheDocument()
   })
 
-  it('subscribes to a per-sequence state PV for every sequence', async () => {
+  it('subscribes to a state PV for every sequence', async () => {
     const ws = renderSequencer()
     await waitFor(() =>
-      expect(ws.subscriptions.get('BI_NL2_SEQ_START_LASER')?.size).toBe(1),
+      expect(ws.subscriptions.get('NL2:SEQ:StartLaser')?.size).toBe(1),
     )
-    expect(ws.subscriptions.get('BI_NL2_SEQ_FLASHLAMPS_RUN')?.size).toBe(1)
+    expect(ws.subscriptions.get('NL2:SEQ:FlashlampsRun')?.size).toBe(1)
   })
 
   it('expands to list each sequence with its individual IDLE/RUNNING state', async () => {
     const ws = renderSequencer()
     await waitFor(() =>
-      expect(ws.subscriptions.get('BI_NL2_SEQUENCER_RUNNING')?.size).toBe(1),
+      expect(ws.subscriptions.get('NL2:SEQ:StartLaser')?.size).toBe(1),
     )
     const user = userEvent.setup()
 
     // Per-sequence states: Start Laser RUNNING, the rest IDLE.
     act(() => {
-      ws.push('BI_NL2_SEQ_START_LASER', 1)
-      ws.push('BI_NL2_SEQ_STOP_LASER', 0)
+      ws.push('NL2:SEQ:StartLaser', 1)
+      ws.push('NL2:SEQ:StopLaser', 0)
     })
 
     expect(screen.queryByText('Start Laser')).not.toBeInTheDocument()

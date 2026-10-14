@@ -25,6 +25,9 @@ dependencies = [
     # The SSE protocol the browser speaks. Pinned to the vendored
     # core/static/vendor/datastar.js, which must be the same version.
     "datastar-py==1.0.2",
+    # One GET per Modbox, for the waveform catalog it serves. Async, because it
+    # happens on the event loop alongside everything else.
+    "httpx>=0.27",
     # LDAP sign-in (core/auth.py). Pure Python — no OpenLDAP headers to build
     # against, unlike python-ldap — and imported lazily, so a laptop without it
     # can still run the app with DEV=1 and the built-in test account.
@@ -56,12 +59,6 @@ dev = [
 [project.scripts]
 # `uv run eli-hmi` — the same entry point as `python -m core`.
 eli-hmi = "core.server:main"
-
-[tool.uv]
-# The lockfile is committed and a station installs from it exactly
-# (`uv sync --frozen`): two zones running "the same version" have to mean the
-# same dependency tree, not whatever PyPI resolved on deployment day.
-package = true
 
 [tool.hatch.build.targets.wheel]
 # `zones/` is deliberately not packaged: a zone is configuration a controls

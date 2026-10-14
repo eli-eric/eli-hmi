@@ -21,9 +21,13 @@ import type {
   CommandPvResolver,
   LaserCommand,
 } from '@/app/(modules)/l4-opcpa/lib/pv-names'
-import type {
-  FormatConfig,
-  MappedPv,
+import {
+  LABEL_DEFAULTS,
+  UNIT_DEFAULTS,
+  type FormatConfig,
+  type MappedPv,
+  type ResolvedLabels,
+  type UnitsConfig,
 } from '@/app/(modules)/l4-opcpa/config/schema'
 import { InfoIcon } from '@/components/ui/icons'
 import { WaveformSelect } from './WaveformSelect'
@@ -52,6 +56,14 @@ interface ModboxSectionProps {
   commands: readonly LaserCommand[]
   /** Configured number format per signal role; each wins over the default. */
   format?: FormatConfig
+  /**
+   * Configured units per signal role. The bias channels carry one: the
+   * amplifier reports millivolts, and a bare number is the one thing an
+   * operator cannot sanity-check.
+   */
+  units?: UnitsConfig
+  /** What each row is called; see `LABEL_DEFAULTS`. */
+  labels?: ResolvedLabels
 }
 
 /**
@@ -97,6 +109,8 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   mbc2Pv,
   commands,
   format = {},
+  units = {},
+  labels = LABEL_DEFAULTS,
 }) => {
   const [expanded, setExpanded] = useState(false)
   const can = makeCommandGate(commands)
@@ -157,7 +171,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
   return (
     <SectionCard>
       <DataRow
-        label="Modbox State"
+        label={labels.modboxState}
         valueVariant="bare"
         value={
           <button
@@ -190,7 +204,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
       {expanded && <DetailList items={items} />}
       {(mbc1Pv || mbc2Pv) && (
         <DataRow
-          label="Bias Value"
+          label={labels.biasValue}
           valueVariant="bare"
           value={
             <div className={styles.mbcRow}>
@@ -202,6 +216,8 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
                       pvName={mbc1Pv}
                       data={state[mbc1Pv] as Message<number | null> | undefined}
                       format={format.modboxMbc1}
+                      units={units.modboxMbc1}
+                      unitsFallback={UNIT_DEFAULTS.modboxMbc1}
                     />
                   </span>
                 </span>
@@ -214,6 +230,8 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
                       pvName={mbc2Pv}
                       data={state[mbc2Pv] as Message<number | null> | undefined}
                       format={format.modboxMbc2}
+                      units={units.modboxMbc2}
+                      unitsFallback={UNIT_DEFAULTS.modboxMbc2}
                     />
                   </span>
                 </span>
@@ -225,7 +243,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
       <DataRow
         label={
           <span className={styles.labelWithInfo}>
-            Waveform Preset
+            {labels.waveformPreset}
             <InfoIcon hint="Waveform sent in ModBox ON sequence" />
           </span>
         }
@@ -250,7 +268,7 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         <DataRow
           label={
             <span className={styles.labelWithInfo}>
-              Waveform Latest
+              {labels.waveformLatest}
               <InfoIcon hint="Last waveform sent to the laser" />
             </span>
           }

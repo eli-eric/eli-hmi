@@ -4,10 +4,11 @@ import { FC, useMemo } from 'react'
 import { SectionCard } from '@/components/hmi/controls/SectionCard'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
 import { resolveUnits } from '@/lib/websocket/units'
-import type {
-  ChillerSpec,
-  FormatConfig,
-  UnitsConfig,
+import {
+  UNIT_DEFAULTS,
+  type ChillerSpec,
+  type FormatConfig,
+  type UnitsConfig,
 } from '@/app/(modules)/l4-opcpa/config/schema'
 import { FloatValue } from '@/components/hmi/controls/Values'
 import styles from './sections.module.css'
@@ -53,10 +54,12 @@ export const ChillersSection: FC<ChillersSectionProps> = ({
     label: string,
     configured: string | undefined,
     pvName: string | undefined,
+    fallbackUnit: string | undefined,
   ) => {
     const unit = resolveUnits({
       config: configured,
       metadata: pvName ? state[pvName]?.units : undefined,
+      fallback: fallbackUnit,
     })
     return unit ? `${label} (${unit})` : label
   }
@@ -66,13 +69,28 @@ export const ChillersSection: FC<ChillersSectionProps> = ({
       <div className={styles.chillerGrid}>
         <span />
         <span className={styles.colHeader}>
-          {header('Flow', units.chillerFlow, first?.flow)}
+          {header(
+            'Flow',
+            units.chillerFlow,
+            first?.flow,
+            UNIT_DEFAULTS.chillerFlow,
+          )}
         </span>
         <span className={styles.colHeader}>
-          {header('Temp', units.chillerTemp, first?.temp)}
+          {header(
+            'Temp',
+            units.chillerTemp,
+            first?.temp,
+            UNIT_DEFAULTS.chillerTemp,
+          )}
         </span>
         <span className={styles.colHeader}>
-          {header('Water', units.chillerLevel, first?.level)}
+          {header(
+            'Water',
+            units.chillerLevel,
+            first?.level,
+            UNIT_DEFAULTS.chillerLevel,
+          )}
         </span>
 
         {chillers.map((c) => (

@@ -34,35 +34,77 @@ edits. It names the file and the exact path inside it.
 
 ## Fields
 
-| Field                  | Type                                      | What it is                                                                                                                                                                     |
-| ---------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `id`                   | string                                    | Laser id, e.g. `NL2`. Panel title; also the `<LASER>` in command PVs.                                                                                                          |
-| `pvs.connection`       | PV name                                   | Connection bool (Overview CONN).                                                                                                                                               |
-| `pvs.fullPower`        | PV name                                   | At-full-power bool (Overview FULLP).                                                                                                                                           |
-| `pvs.shutter`          | PV name                                   | Shutter position bool (read + direct write).                                                                                                                                   |
-| `pvs.phdMean`          | PV name                                   | PHD mean intensity readout.                                                                                                                                                    |
-| `pvs.regenState`       | PV name                                   | Regen status string.                                                                                                                                                           |
-| `pvs.regenTemp`        | PV name                                   | Regen temperature readout.                                                                                                                                                     |
-| `pvs.phd2Mean`         | PV name                                   | Second PHD mean readout.                                                                                                                                                       |
-| `pvs.attenuator`       | PV name                                   | Attenuator value (read + direct write).                                                                                                                                        |
-| `pvs.loadedWaveform`   | PV name                                   | Current waveform preset.                                                                                                                                                       |
-| `pvs.latestWaveform`   | PV name                                   | Previous waveform moved into Waveform Latest when a new preset is applied. Optional.                                                                                           |
-| `pvs.modboxMbc1`       | PV name                                   | Modbox MBC1 bias readout. Optional — omit and the MBC1 half of the Bias Value row is hidden.                                                                                   |
-| `pvs.modboxMbc2`       | PV name                                   | Modbox MBC2 bias readout. Optional — omit and the MBC2 half of the Bias Value row is hidden.                                                                                   |
-| `pvs.sequencerRunning` | PV name                                   | Sequencer-busy flag. Optional — omit and the whole Sequencer section is hidden.                                                                                                |
-| `triggerDelay`         | PV name[]                                 | Trigger-delay readouts; all should read equal (mismatch is flagged).                                                                                                           |
-| `mss`                  | `{label, pv, values?}`[]                  | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below).                 |
-| `moduleErrors`         | `{label, pv}`[]                           | Error indicators: `label` shown in UI, `pv` is the indicator PV.                                                                                                               |
-| `chillers`             | `{label, flow, temp, level}`[]            | One row each; `label` shown, three readout PVs. **`[]` hides the Chillers section.**                                                                                           |
-| `flashlamps`           | `{label, pv}`[]                           | One channel each; `label` shown, `pv` is the state PV. **`[]` hides the Flashlamps section.**                                                                                  |
-| `modbox`               | `{label, pv, values?}`[]                  | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below). **`[]` hides the Modbox section.** |
-| `delayPresets`         | int[]                                     | Trigger-delay preset buttons (ns).                                                                                                                                             |
-| `waveformsUrl`         | absolute URL                              | Where this laser's waveform catalog is fetched from, e.g. `https://modbox-nl2.lcs.local/api/waveforms`. Optional — see below.                                                  |
-| `commands`             | map `SYMBOL: PV` or `SYMBOL: {pv, value}` | Which command buttons appear, which PV each writes and what it writes (see below).                                                                                             |
-| `units`                | map `role: unit`                          | Optional. Engineering units for the numeric readouts (see below).                                                                                                              |
-| `format`               | map `role: decimals`                      | Optional. How each numeric readout is rounded (see below).                                                                                                                     |
+| Field                | Type                                      | What it is                                                                                                                                                                                                                                                                 |
+| -------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                 | string                                    | Laser id, e.g. `NL2`. Panel title; also the `<LASER>` in command PVs.                                                                                                                                                                                                      |
+| `pvs.connection`     | PV name                                   | Connection bool (Overview CONN).                                                                                                                                                                                                                                           |
+| `pvs.fullPower`      | PV name                                   | At-full-power bool (Overview FULLP).                                                                                                                                                                                                                                       |
+| `pvs.shutter`        | PV name                                   | Shutter position bool (read + direct write).                                                                                                                                                                                                                               |
+| `pvs.phdMean`        | PV name                                   | PHD mean intensity readout.                                                                                                                                                                                                                                                |
+| `pvs.regenState`     | PV name                                   | Regen status string.                                                                                                                                                                                                                                                       |
+| `pvs.regenTemp`      | PV name                                   | Regen temperature readout.                                                                                                                                                                                                                                                 |
+| `pvs.phd2Mean`       | PV name                                   | Second PHD mean readout. Optional — omit on a laser with one photodiode and the row goes with it.                                                                                                                                                                          |
+| `pvs.attenuator`     | PV name                                   | Attenuator value (read + direct write).                                                                                                                                                                                                                                    |
+| `pvs.loadedWaveform` | PV name                                   | Current waveform preset. Optional — omit and the Waveform Preset row and its control are hidden.                                                                                                                                                                           |
+| `pvs.latestWaveform` | PV name                                   | Previous waveform moved into Waveform Latest when a new preset is applied. Optional.                                                                                                                                                                                       |
+| `pvs.modboxMbc1`     | PV name                                   | Modbox MBC1 bias readout. Optional — omit and the MBC1 half of the Bias Value row is hidden.                                                                                                                                                                               |
+| `pvs.modboxMbc2`     | PV name                                   | Modbox MBC2 bias readout. Optional — omit and the MBC2 half of the Bias Value row is hidden.                                                                                                                                                                               |
+| `triggerDelay`       | PV name[]                                 | Trigger-delay readouts; all should read equal (mismatch is flagged).                                                                                                                                                                                                       |
+| `mss`                | `{label, pv, values?}`[]                  | MSS sub-indicators counted in the Overview: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below).                                                                                                             |
+| `moduleErrors`       | `{label, pv}`[]                           | Error indicators: `label` shown in UI, `pv` is the indicator PV.                                                                                                                                                                                                           |
+| `chillers`           | `{label, flow, temp, level}`[]            | One row each; `label` shown, three readout PVs. **`[]` hides the Chillers section.**                                                                                                                                                                                       |
+| `flashlamps`         | `{label, pv}`[]                           | One channel each; `label` shown, `pv` is the state PV. **`[]` hides the Flashlamps section.**                                                                                                                                                                              |
+| `sequences`          | `{label, pv, command?}`[]                 | Sequences this laser can run: `label` shown in the expanded list, `pv` carries that sequence's state (1 = RUNNING), optional `command` is simulator-only (see below). **Omitted or `[]` hides the Sequencer section**; the row above reads RUNNING while any of them does. |
+| `modbox`             | `{label, pv, values?}`[]                  | Modbox state indicators: `label` shown in UI, `pv` is the indicator PV, optional `values` gives the display text per raw value (see below). Optional — **omitted or `[]` hides the whole Modbox section** (see below).                                                     |
+| `delayPresets`       | int[]                                     | Trigger-delay preset buttons (ns).                                                                                                                                                                                                                                         |
+| `waveformsUrl`       | absolute URL                              | Where this laser's waveform catalog is fetched from, e.g. `https://modbox-nl2.lcs.local/api/waveforms`. Optional — see below.                                                                                                                                              |
+| `commands`           | map `SYMBOL: PV` or `SYMBOL: {pv, value}` | Which command buttons appear, which PV each writes and what it writes (see below).                                                                                                                                                                                         |
 
 A "PV name" is any non-empty string — put the exact name the gateway exposes.
+
+### One signal, one place
+
+Every `pvs:` entry is either the PV on its own, or the PV plus what the panel
+should do with it:
+
+```yaml
+pvs:
+  connection: L4-OPCPA-NL4:PortControl.CNCT # shorthand: just the PV
+  phdMean:
+    pv: L4-OPCPA-NL4:PHD1K000:12:Mean
+    label: PHD1K000:12/Mean # what this row is called
+  modboxMbc1:
+    pv: L4-OPCPA-NL4::ModBox:MBC1:BiasValue
+    format: 0 # decimal places; display only
+  regenTemp:
+    pv: L4-OPCPA-NL4:TK3:21:DisplayTemperature
+    units: K # only to correct a device that reports the wrong one
+```
+
+| Key      | What it does                                                                                                                                    |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pv`     | The full EPICS PV name.                                                                                                                         |
+| `label`  | What the row is called. Defaults to the reference laser's wording, which names NL2's hardware — **set it on every laser whose devices differ**. |
+| `format` | Display rounding: decimal places, or `{format: exponential\|precision\|fixed\|raw, …}`. Never affects what is written.                          |
+| `units`  | Engineering unit. Rarely needed — see below.                                                                                                    |
+
+`label` may only be set on a row backed by one PV: `shutter`, `phdMean`,
+`regenState`, `regenTemp`, `phd2Mean`, `attenuator`, `loadedWaveform`,
+`latestWaveform`, `sequencerRunning`. The other rows — Overview, Flashlamps
+State, Trigger Delay, Modbox State, Bias Value — name a cluster rather than a
+device, so their wording is the component's and setting a label there is
+rejected.
+
+### Units belong to the signal, not the station
+
+The component knows what each reading is measured in: `°C` for the regen
+temperature, `ns` for the trigger delay, `mV` for the bias, `l/min` / `°C` /
+`%` for the chiller columns. Every zone's file used to repeat those same lines.
+
+Three tiers, in order: the `units:` written inside a signal's entry, then the
+record's own EGU, then the component's. So a device reporting volts where it
+means millivolts is corrected in one place, beside its PV, and nothing else
+needs a unit at all.
 
 ### Example (one chiller, one flashlamp channel)
 
@@ -111,71 +153,6 @@ must stay visible.
 
 `moduleErrors` takes no `values`: those are status codes (`"0000"` = no error),
 not booleans, so there is nothing to translate them into.
-
-### `units`
-
-Optional. Units shown beside the numeric readouts, keyed by the signal they
-annotate — **not** by PV name, so the same block works for every laser:
-
-```yaml
-units: # top level: applies to every laser in the file
-  regenTemp: '°C'
-  triggerDelay: ns
-lasers:
-  - id: NL2
-    units: # optional per-laser override, merged over the above
-      regenTemp: K
-```
-
-Keys (all optional): `phdMean`, `phd2Mean`, `regenTemp`, `attenuator`,
-`modboxMbc1`, `modboxMbc2`, `triggerDelay`, `chillerFlow`, `chillerTemp`,
-`chillerLevel`. Anything else is rejected as a typo. Booleans, status strings
-and bit indicators take no unit, so they have no key.
-
-A unit set here **wins** over the PV's own EGU metadata and over the default
-built into the component, so this is the place to correct a wrong or missing
-unit without a code change. Chiller units appear once in the column header
-(`Temp (°C)`) rather than on every cell, which is far too narrow for them.
-
-### `format`
-
-Optional. How many decimal places each numeric readout is rounded to, keyed by
-**the same signal roles as `units`** — the two blocks are deliberately parallel:
-
-```yaml
-format: # top level: applies to every laser in the file
-  regenTemp: 1 # one decimal place
-  chillerFlow: 2
-lasers:
-  - id: NL2
-    format: # optional per-laser override, merged over the above
-      regenTemp: 3
-```
-
-A plain number is decimal places, which is what you want almost every time.
-When decimals are the wrong question, use the object form:
-
-| Written as                                  | Shows `23.456` as | Use for                                    |
-| ------------------------------------------- | ----------------- | ------------------------------------------ |
-| `2`                                         | `23.46`           | the normal case — round to N decimals      |
-| `{ format: fixed, toFixed: 2 }`             | `23.46`           | the same thing, spelled out                |
-| `{ format: precision, toPrecision: 2 }`     | `23`              | N _significant digits_, not decimals       |
-| `{ format: exponential, toExponential: 2 }` | `2.35e+1`         | values spanning many orders of magnitude   |
-| `{ format: raw }`                           | `23.456`          | leave the number exactly as the PV sent it |
-
-Keys are the same list as `units`: `phdMean`, `phd2Mean`, `regenTemp`,
-`attenuator`, `modboxMbc1`, `modboxMbc2`, `triggerDelay`, `chillerFlow`,
-`chillerTemp`, `chillerLevel`. Anything else is rejected as a typo.
-
-**Roles, not PV names** — same reason as `units`. PV names are exactly what
-differs between stations, so a per-PV map would have to be rewritten in every
-zone's file; a role means the same thing everywhere. To target one laser's PV,
-use that laser's `format:` override.
-
-A role left out falls back to **three decimal places**, which is what every
-readout did before this block existed. `triggerDelay` is the one exception: it
-falls back to `raw`, because delays are whole nanoseconds and `790.000` helps
-nobody.
 
 ### `commands`
 
@@ -250,11 +227,28 @@ lasers:
 - **Omit it** and the gateway's own `/waveforms` is used instead — which is
   what the mock backend serves, so local development needs no config.
 
-## Empty banks hide sections
+## Hardware a laser doesn't have
 
-`chillers: []`, `flashlamps: []` or `modbox: []` hide the whole Chillers /
-Flashlamps / Modbox section for that laser (it simply doesn't have that
-subsystem). General and Regen always render.
+`chillers: []`, `flashlamps: []`, and `modbox: []` (or the key left out
+entirely) hide the whole Chillers / Flashlamps / Modbox section for that laser:
+it simply doesn't have that subsystem.
+
+The Modbox is all of it or none of it: a laser that has one has every part of
+one, so `pvs.loadedWaveform` is required alongside `modbox` and rejected as
+half-configured without it. A laser that has none omits both.
+
+A sequence needs only a `label` and a `pv`: the control system sets that PV
+while the sequence runs. `command` exists for the deployments that have no
+control system — the mock backend and the local IOC — where nothing would
+otherwise move it; a zone pointed at real hardware leaves it out.
+
+`sequences: []` (or the key left out) hides the Sequencer the same way. The
+row above the list is derived from it — RUNNING while any sequence is, IDLE
+when none is — so there is no separate flag to configure and no way for the
+summary to contradict the list it summarises.
+
+General and Regen always render, minus any row whose PV the laser does not
+have: no `pvs.phd2Mean`, no second-photodiode row.
 
 ## Validation
 

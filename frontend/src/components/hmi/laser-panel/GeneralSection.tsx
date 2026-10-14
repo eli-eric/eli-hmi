@@ -11,11 +11,13 @@ import type {
   CommandPvResolver,
   LaserCommand,
 } from '@/app/(modules)/l4-opcpa/lib/pv-names'
-import type {
-  LabeledPv,
-  MappedPv,
-  FormatConfig,
-  UnitsConfig,
+import {
+  LABEL_DEFAULTS,
+  type LabeledPv,
+  type MappedPv,
+  type FormatConfig,
+  type ResolvedLabels,
+  type UnitsConfig,
 } from '@/app/(modules)/l4-opcpa/config/schema'
 import { OverviewBar } from './OverviewBar'
 import { makeCommandGate } from './commandGate'
@@ -39,6 +41,8 @@ interface GeneralSectionProps {
   moduleErrors: readonly LabeledPv[]
   /** Commands this laser exposes. Buttons for commands not listed are hidden. */
   commands: readonly LaserCommand[]
+  /** What each row is called; see `LABEL_DEFAULTS`. */
+  labels?: ResolvedLabels
 }
 
 /**
@@ -56,6 +60,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
   mss,
   moduleErrors,
   commands,
+  labels = LABEL_DEFAULTS,
 }) => {
   const can = makeCommandGate(commands)
   const hasGeneralActions = (
@@ -72,10 +77,11 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
         fullPowerPv={fullPowerPv}
         mss={mss}
         moduleErrors={moduleErrors}
+        label={labels.overview}
       />
 
       <DataRow
-        label="Shutter Position"
+        label={labels.shutter}
         valueVariant="bare"
         value={
           <BoolPill
@@ -104,7 +110,7 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
       />
 
       <DataRow
-        label="PHD1K000:49/Mean"
+        label={labels.phdMean}
         value={
           <FloatValue
             pvName={phdMeanPv}

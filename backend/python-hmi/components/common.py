@@ -98,6 +98,13 @@ class Setpoint(Strict):
         description="Offer a drop-down of these instead of a number field.",
     )
     step: float = Field(default=1, description="Step of the number field.")
+    exponential: bool = Field(
+        default=False,
+        description="Accept scientific notation (1e3) in the number field. Off "
+        "by default: nothing on these screens is set that way, and the browser "
+        "blanks a number field while an exponent is half-typed, so pressing `e` "
+        "looks like it erased the value.",
+    )
 
     @model_validator(mode="after")
     def _one_kind(self) -> "Setpoint":
@@ -180,12 +187,6 @@ class Readable(ComponentConfig):
     )
     setpoint: Setpoint | None = Field(
         default=None, description="A value the operator types or picks."
-    )
-    wide: bool = Field(
-        default=False,
-        description="Widen this row's value field, for a string that does not fit "
-        "the standard one (a long recipe or state name). Readings are otherwise "
-        "all one width, which is what lets a column be scanned down.",
     )
 
     @property

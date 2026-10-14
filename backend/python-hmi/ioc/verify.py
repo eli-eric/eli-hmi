@@ -102,14 +102,17 @@ async def run(zone: str, timeout: float) -> int:
         await asyncio.sleep(0.5)
         state = await aioca.caget(channel, datatype=aioca.DBR_ENUM_STR, throw=False)
         running = None
-        if spec.pvs.sequencer_running:
+        started = next(
+            (item for item in spec.sequences if item.command == "START_LASER"), None
+        )
+        if started:
             running = await aioca.caget(
-                spec.pvs.sequencer_running, datatype=aioca.DBR_ENUM_STR, throw=False
+                started.pv, datatype=aioca.DBR_ENUM_STR, throw=False
             )
         if str(state) == "RUN":
             print(f"{PASS} {target.pv_name} -> {channel} reads {state!r}")
             if running is not None:
-                print(f"{PASS} sequencer reads {running!r} while the seq record runs")
+                print(f"{PASS} {started.label} reads {running!r} while the seq record runs")
         else:
             failures += 1
             print(f"{FAIL} {channel} reads {state!r}, expected RUN")

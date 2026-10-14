@@ -180,8 +180,12 @@ def emit(db: Db, spec: PvSpec) -> None:
         emit_string(db, spec)
 
 
-def emit_analog(db: Db, spec: PvSpec) -> None:
+def emit_analog(db: Db, spec: PvSpec, *, whole: bool = False) -> None:
     """A `calc` record: a random walk inside its band, with real alarm limits.
+
+    `whole` rounds each step to an integer, for a signal that is counted rather
+    than measured — the record still carries doubles, but every value a client
+    reads is a whole number, which is what the device reports.
 
     ``INPA`` reads the record's own VAL, so each scan moves from where the last
     one left off — a drifting readout looks like a machine, while uniform noise
@@ -206,7 +210,12 @@ def emit_analog(db: Db, spec: PvSpec) -> None:
             ("B", spec.step * 2),
             ("C", spec.low),
             ("D", spec.high),
-            ("CALC", "MIN(D,MAX(C,A+(RNDM-0.5)*B))"),
+            (
+                "CALC",
+                "FLOOR(MIN(D,MAX(C,A+(RNDM-0.5)*B))+0.5)"
+                if whole
+                else "MIN(D,MAX(C,A+(RNDM-0.5)*B))",
+            ),
         ]
         note = None
     else:
@@ -235,7 +244,16 @@ def emit_integer(db: Db, spec: PvSpec) -> None:
 
     Input records with no INP keep whatever is written to VAL, which is how a
     simulation drives a readback without pretending to be device support.
+
+    Unless the component declared a drift, which a `longin` cannot do. Then it
+    is the analogue walk rounded to whole units: a readout that moves in the
+    simulator and holds still on the IOC would have the two backends disagree
+    about whether the record is alive, which is the one thing generating this
+    database from the same declarations is meant to prevent.
     """
+    if spec.step > 0 and not spec.writable:
+        emit_analog(db, spec, whole=True)
+        return
     # Every numeric field of a `longin` is a LONG: EPICS rejects "40000.0" for
     # HOPR with "Extraneous characters", which is a puzzling way to be told that
     # a float reached an integer field.
@@ -363,7 +381,16 @@ def emit_command(db: Db, spec: PvSpec) -> None:
         steps.append((spec.busy_seconds, 0, name))
 
     if not steps:
-        db.skipped[spec.name] = "a command with no effects has nothing to write"
+        # A command with nothing to simulate still needs somewhere to land: the
+        # UI writes to this record, and a button whose PV does not exist fails
+        # at the press. So the record exists and nothing follows it.
+        db.record(
+            "stringout" if spec.kind == "string" else "bo",
+            spec.name,
+            [("DESC", spec.desc[:40])]
+            + ([] if spec.kind == "string" else [("ZNAM", "IDLE"), ("ONAM", "GO")]),
+            note="Written by the UI; the device it reaches is not simulated.",
+        )
         return
     if len(steps) > len(SEQ_STEPS):
         # Chaining a second seq record would work; nothing needs it yet, and a

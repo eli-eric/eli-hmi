@@ -22,10 +22,13 @@ import type {
   CommandPvResolver,
   LaserCommand,
 } from '@/app/(modules)/l4-opcpa/lib/pv-names'
-import type {
-  FormatConfig,
-  LabeledPv,
-  UnitsConfig,
+import {
+  LABEL_DEFAULTS,
+  UNIT_DEFAULTS,
+  type FormatConfig,
+  type LabeledPv,
+  type ResolvedLabels,
+  type UnitsConfig,
 } from '@/app/(modules)/l4-opcpa/config/schema'
 import { getFormattedValue } from '@/lib/utils/pv-helpers'
 import { resolveFormat } from '@/lib/websocket/format'
@@ -47,6 +50,8 @@ interface FlashlampsSectionProps {
   delayPresets: readonly number[]
   /** Commands this laser exposes. Buttons for commands not listed are hidden. */
   commands: readonly LaserCommand[]
+  /** What each row is called; see `LABEL_DEFAULTS`. */
+  labels?: ResolvedLabels
 }
 
 /**
@@ -92,6 +97,7 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
   format = {},
   delayPresets,
   commands,
+  labels = LABEL_DEFAULTS,
 }) => {
   const [expanded, setExpanded] = useState(false)
   const can = makeCommandGate(commands)
@@ -227,7 +233,7 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
     const unit = resolveUnits({
       config: units.triggerDelay,
       metadata: delayState[triggerDelay[0]]?.units,
-      fallback: 'ns',
+      fallback: UNIT_DEFAULTS.triggerDelay,
     })
     delayDisplay = (
       // Carries the tone even when there is a perfectly good reading: with the
@@ -278,7 +284,7 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
           aria-label="Toggle Flashlamps channel detail"
           onClick={() => setExpanded((v) => !v)}
         >
-          <span>Flashlamps State</span>
+          <span>{labels.flashlampsState}</span>
           <span
             className={styles.cornerTriangle}
             data-expanded={expanded || undefined}
@@ -322,7 +328,7 @@ export const FlashlampsSection: FC<FlashlampsSectionProps> = ({
       {expanded && <DetailList items={channelItems} />}
 
       <DataRow
-        label="Trigger Delay"
+        label={labels.triggerDelay}
         value={delayDisplay}
         action={
           can('SET_DELAY') ? (

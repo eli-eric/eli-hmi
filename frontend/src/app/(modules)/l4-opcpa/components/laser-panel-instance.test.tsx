@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { LaserPanelInstance } from './laser-panel-instance'
+import { LABEL_DEFAULTS } from '../config/schema'
 import type { LaserSpec } from '../config/schema'
 import { LASER_COMMANDS } from '../lib/pv-names'
 import {
@@ -42,10 +43,14 @@ const NL2: LaserSpec = {
     { label: '22 Ch2', pv: 'SI_NL2_FL_22_CH2' },
   ],
   modbox: [{ label: 'Modbox 1', pv: 'BI_NL2_MODBOX_1' }],
+  sequences: [
+    { label: 'Start Laser', pv: 'NL2:SEQ:StartLaser', command: 'START_LASER' },
+  ],
   delayPresets: [50, 500, 700, 790],
   commands: LASER_COMMANDS,
   commandTargets: {},
   format: {},
+  labels: LABEL_DEFAULTS,
   units: { regenTemp: '°C', chillerFlow: 'L/min' },
 }
 
@@ -85,7 +90,16 @@ describe('LaserPanelInstance', () => {
   })
 
   it('hides sections whose device bank is empty', () => {
-    renderSpec({ ...NL2, chillers: [], flashlamps: [], modbox: [] })
+    // The Modbox section's bank is its indicators *and* the waveform and bias
+    // records it shows beside them — a laser with none of them has no section,
+    // while one with only a waveform keeps that row.
+    renderSpec({
+      ...NL2,
+      chillers: [],
+      flashlamps: [],
+      modbox: [],
+      pvs: { ...NL2.pvs, loadedWaveform: undefined },
+    })
     // General + Regen always render…
     expect(screen.getByText('Shutter Position')).toBeInTheDocument()
     expect(screen.getByText('Regen SY3PL50M:32')).toBeInTheDocument()

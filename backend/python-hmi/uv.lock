@@ -102,6 +102,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "datastar-py" },
+    { name = "httpx" },
     { name = "hypercorn" },
     { name = "jinja2" },
     { name = "ldap3" },
@@ -129,6 +130,7 @@ dev = [
 requires-dist = [
     { name = "aioca", marker = "extra == 'epics'", specifier = "==2.0" },
     { name = "datastar-py", specifier = "==1.0.2" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "hypercorn", specifier = "==0.18.0" },
     { name = "jinja2", specifier = ">=3.1,<4" },
     { name = "ldap3", specifier = "==2.9.1" },

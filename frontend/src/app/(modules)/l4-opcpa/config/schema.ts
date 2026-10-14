@@ -95,6 +95,151 @@ const OPERATOR_VALUED_COMMANDS: readonly LaserCommand[] = [
   'SEND_YDFA_CURRENT',
 ]
 
+/**
+ * One signal: the PV, and what the panel should do with it.
+ *
+ * A reading is one thing, so it is configured in one place — the row's
+ * wording, its rounding and its unit live in the same `pvs:` entry as the name
+ * they describe. They used to be three parallel blocks keyed by role, which
+ * meant four places to look for one readout and two vocabularies to keep in
+ * step (the bias row's PVs were `modboxMbc1/2` while its label was
+ * `biasValue`).
+ *
+ * A bare string is the shorthand for `{pv}`, which is what most signals are.
+ */
+const signal = z.union([
+  pvName,
+  z.strictObject({
+    pv: pvName.describe('Full EPICS PV name (from controls).'),
+    label: label
+      .optional()
+      .describe(
+        "What this row is called. Defaults to the reference laser's wording, which names NL2's hardware — set it on every laser whose device ids differ.",
+      ),
+    units: label
+      .optional()
+      .describe(
+        "Engineering unit. Rarely needed: the component knows what each reading is measured in and the record's own EGU wins over that. This is the correction for a device reporting the wrong one.",
+      ),
+    format: valueFormatSchema
+      .optional()
+      .describe(
+        'Display rounding: decimal places, or a {format, toFixed|toPrecision|toExponential} block. Display only — it never changes what is written.',
+      ),
+  }),
+])
+
+type RawSignal = z.infer<typeof signal>
+type SignalOptions = {
+  label?: string
+  units?: string
+  format?: FormatConfig[FormatRole]
+}
+
+/** The PV half of either form. */
+const signalPv = (entry: RawSignal): string =>
+  typeof entry === 'string' ? entry : entry.pv
+
+/** The presentation half, empty for the shorthand. */
+const signalOptions = (entry: RawSignal): SignalOptions =>
+  typeof entry === 'string' ? {} : entry
+
+/**
+ * What each row on the panel is called, keyed by the role the row plays.
+ *
+ * Several of these default to NL2's own device ids (`PHD1K000:49/Mean`,
+ * `Regen SY3PL50M:32`) because that is what the reference laser's operators
+ * read them by — but the next laser along has different hardware with
+ * different ids, and a row labelled with another laser's device is worse than
+ * no label at all. A role means the same thing on every laser; the words do
+ * not, so they are config.
+ */
+export const LABEL_DEFAULTS = {
+  sequencer: 'Sequencer',
+  overview: 'Overview',
+  shutter: 'Shutter Position',
+  phdMean: 'PHD1K000:49/Mean',
+  regenState: 'Regen SY3PL50M:32',
+  regenTemp: 'Regen Temp TK6:44',
+  phd2Mean: 'PHD1K000:48/Mean',
+  attenuator: 'Atten. SM5:ATT1:51',
+  flashlampsState: 'Flashlamps State',
+  triggerDelay: 'Trigger Delay',
+  modboxState: 'Modbox State',
+  biasValue: 'Bias Value',
+  waveformPreset: 'Waveform Preset',
+  waveformLatest: 'Waveform Latest',
+} as const
+
+/**
+ * Which row each `pvs:` entry may rename. A row backed by one PV is named
+ * where that PV is named; the three that differ are named after the record
+ * rather than after what the row shows.
+ *
+ * The rows left out — Overview, Flashlamps State, Trigger Delay, Modbox State,
+ * Bias Value — name a cluster rather than a device. No laser's hardware
+ * appears in them, so they are the component's words and not configuration.
+ */
+const NAMEABLE_ROWS = {
+  shutter: 'shutter',
+  phdMean: 'phdMean',
+  regenState: 'regenState',
+  regenTemp: 'regenTemp',
+  phd2Mean: 'phd2Mean',
+  attenuator: 'attenuator',
+  loadedWaveform: 'waveformPreset',
+  latestWaveform: 'waveformLatest',
+} as const satisfies Record<string, LabelRole>
+
+/**
+ * What each reading is measured in. Intrinsic to the signal, not to the
+ * station: every zone's config carried the same seven lines before this. A
+ * record's own EGU still wins — this is what shows when it has none.
+ */
+export const UNIT_DEFAULTS: Readonly<UnitsConfig> = {
+  regenTemp: '°C',
+  triggerDelay: 'ns',
+  modboxMbc1: 'mV',
+  modboxMbc2: 'mV',
+  chillerFlow: 'l/min',
+  chillerTemp: '°C',
+  chillerLevel: '%',
+}
+
+/**
+ * Rounding that follows from what the record is rather than from local taste:
+ * a bias controller reports whole millivolts.
+ */
+export const FORMAT_DEFAULTS: Readonly<FormatConfig> = {
+  modboxMbc1: { format: 'fixed', toFixed: 0 },
+  modboxMbc2: { format: 'fixed', toFixed: 0 },
+}
+
+/** The unit for somewhere there is no reading to ask — a column header. */
+export const shownUnit = (
+  units: Readonly<UnitsConfig>,
+  role: UnitRole,
+): string | undefined => units[role] ?? UNIT_DEFAULTS[role]
+
+/**
+ * One sequence the control system can run, as the Sequencer row lists it.
+ *
+ * A real device needs only the name and the PV: its control system sets that
+ * PV while the sequence runs, and the panel reads it. `command` is for the
+ * deployments that have no control system — the mock backend — where nothing
+ * would otherwise move the PV. Omit it everywhere else.
+ */
+const sequenceSchema = z.strictObject({
+  label: label.describe('Sequence name, e.g. "Start Laser".'),
+  pv: pvName.describe("This sequence's state PV (1 = RUNNING, 0 = IDLE)."),
+  command: z
+    .enum(LASER_COMMANDS)
+    .optional()
+    .describe(
+      'Mock backend only: the command whose press holds this sequence at RUNNING. A real control system does that itself, so a real zone leaves this out.',
+    ),
+})
+
 const chillerSchema = z.strictObject({
   label: label.describe('Chiller display label, e.g. PS1225:11.'),
   flow: pvName.describe('Flow readout PV.'),
@@ -109,7 +254,7 @@ const chillerSchema = z.strictObject({
  * then to the component's default (see `lib/websocket/units.ts`). Booleans,
  * status strings and bit indicators take no unit, so they have no key here.
  */
-const unitsSchema = z
+export const unitsSchema = z
   .strictObject({
     phdMean: label.optional(),
     phd2Mean: label.optional(),
@@ -139,7 +284,7 @@ const unitsSchema = z
  * Values are decimal places (`regenTemp: 1`) or a full
  * `{format, toFixed|toPrecision|toExponential}` object.
  */
-const formatSchema = z
+export const formatSchema = z
   .strictObject({
     phdMean: valueFormatSchema.optional(),
     phd2Mean: valueFormatSchema.optional(),
@@ -163,33 +308,36 @@ export const rawLaserSchema = z
     ),
     pvs: z
       .strictObject({
-        connection: pvName.describe('Connection bool (Overview CONN).'),
-        fullPower: pvName.describe('At-full-power bool (Overview FULLP).'),
-        shutter: pvName.describe(
+        connection: signal.describe('Connection bool (Overview CONN).'),
+        fullPower: signal.describe('At-full-power bool (Overview FULLP).'),
+        shutter: signal.describe(
           'Shutter position bool (read + direct write).',
         ),
-        phdMean: pvName.describe('PHD mean intensity readout.'),
-        regenState: pvName.describe('Regen status string.'),
-        regenTemp: pvName.describe('Regen temperature readout.'),
-        phd2Mean: pvName.describe('Second PHD mean readout.'),
-        attenuator: pvName.describe('Attenuator value (read + direct write).'),
-        loadedWaveform: pvName.describe('Current waveform preset.'),
-        latestWaveform: pvName
+        phdMean: signal.describe('PHD mean intensity readout.'),
+        regenState: signal.describe('Regen status string.'),
+        regenTemp: signal.describe('Regen temperature readout.'),
+        phd2Mean: signal
+          .optional()
+          .describe(
+            'Second PHD mean readout. Omit on a laser that has one photodiode: the row goes with it.',
+          ),
+        attenuator: signal.describe('Attenuator value (read + direct write).'),
+        loadedWaveform: signal
+          .optional()
+          .describe(
+            'Current waveform preset. Belongs to the Modbox, so it is required alongside `modbox` and omitted only together with it.',
+          ),
+        latestWaveform: signal
           .optional()
           .describe(
             'Previous waveform name shown in Waveform Latest after a new preset is applied.',
           ),
-        modboxMbc1: pvName
+        modboxMbc1: signal
           .optional()
           .describe('Modbox MBC1 bias readout (Bias Value row).'),
-        modboxMbc2: pvName
+        modboxMbc2: signal
           .optional()
           .describe('Modbox MBC2 bias readout (Bias Value row).'),
-        sequencerRunning: pvName
-          .optional()
-          .describe(
-            'Sequencer running bool (Sequencer row: 1=RUNNING, 0=IDLE).',
-          ),
       })
       .describe('Single-signal read/write PVs.'),
     triggerDelay: z
@@ -216,10 +364,17 @@ export const rawLaserSchema = z
       .describe(
         'Flashlamp channels (label + PV). Empty array hides the Flashlamps section.',
       ),
+    sequences: z
+      .array(sequenceSchema)
+      .default([])
+      .describe(
+        'Sequences this laser can run. Omitted or empty hides the Sequencer section; the row above them reads RUNNING while any of them does.',
+      ),
     modbox: z
       .array(mappedPv)
+      .default([])
       .describe(
-        'Modbox state indicators (label + PV, optional per-value display text). Empty array hides the Modbox section.',
+        'Modbox state indicators (label + PV, optional per-value display text). Omitted or empty on a laser with no Modbox, which hides the whole section; a laser that has one shows every Modbox row, so `pvs.loadedWaveform` is required alongside it.',
       ),
     delayPresets: z
       .array(z.number().int())
@@ -231,14 +386,6 @@ export const rawLaserSchema = z
       .optional()
       .describe(
         "Absolute URL of this laser's waveform catalog, e.g. https://modbox-nl2.lcs.local/api/waveforms. Served by the modbox itself, so it differs per laser; the browser fetches it directly and expects a JSON array of names. Omit to fall back to the gateway's own /waveforms (what the mock backend serves).",
-      ),
-    units: unitsSchema
-      .optional()
-      .describe('Per-laser unit overrides, merged over the top-level `units`.'),
-    format: formatSchema
-      .optional()
-      .describe(
-        'Per-laser format overrides, merged over the top-level `format`.',
       ),
     commands: z
       .partialRecord(z.enum(LASER_COMMANDS), commandTarget)
@@ -276,13 +423,30 @@ export const rawLaserSchema = z
     }
   })
   .superRefine((laser, ctx) => {
+    // A Modbox is one device, not a bag of optional rows: either the laser
+    // has one — and then it has everything a Modbox has, including the
+    // waveform record the section always shows — or it has none and the
+    // section is absent. A `modbox` list with no waveform PV is a
+    // half-configured screen that would render a row reading `<>` for a
+    // record nobody named.
+    if (laser.modbox.length > 0 && !laser.pvs.loadedWaveform) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `laser ${laser.id}: pvs.loadedWaveform is required when the laser has a modbox (omit "modbox" for a laser that has none)`,
+        path: ['pvs', 'loadedWaveform'],
+      })
+    }
+  })
+  .superRefine((laser, ctx) => {
     // Catch the most common edit mistake: two signals pointing at the same PV
     // (copy a block, forget to change the name). Real PV names are unique per
     // signal, so a duplicate is almost certainly a typo. This is design-aligned
     // (does not assume any naming convention) — it cannot catch a *wrong but
     // unique* name, which only the live system / mock can reveal as `<>`.
     const all = [
-      ...Object.values(laser.pvs),
+      ...Object.values(laser.pvs).map((entry) =>
+        entry === undefined ? undefined : signalPv(entry),
+      ),
       // Command PV overrides only — placeholders (value == key) are not PVs.
       // Two commands may legitimately share one PV when they write different
       // values (MODBOX_ON/OFF on a single mode record), so a command target is
@@ -300,10 +464,12 @@ export const rawLaserSchema = z
       ...laser.chillers.flatMap((c) => [c.flow, c.temp, c.level]),
       ...laser.flashlamps.map((f) => f.pv),
       ...laser.modbox.map((m) => m.pv),
+      ...laser.sequences.map((s) => s.pv),
     ]
     const seen = new Set<string>()
     const dupes = new Set<string>()
     for (const name of all) {
+      if (name === undefined) continue
       if (seen.has(name)) dupes.add(name)
       seen.add(name)
     }
@@ -318,12 +484,6 @@ export const rawLaserSchema = z
 
 export const configSchema = z
   .strictObject({
-    units: unitsSchema
-      .optional()
-      .describe('Module-wide unit defaults for every laser in this file.'),
-    format: formatSchema
-      .optional()
-      .describe('Module-wide format defaults for every laser in this file.'),
     lasers: z.array(rawLaserSchema).min(1),
   })
   .superRefine((cfg, ctx) => {
@@ -351,6 +511,9 @@ export type UnitRole = keyof UnitsConfig
 /** Numeric display format by signal role; every role optional. */
 export type FormatConfig = z.infer<typeof formatSchema>
 export type FormatRole = keyof FormatConfig
+export type LabelRole = keyof typeof LABEL_DEFAULTS
+/** Row labels after defaults are filled in: every role has a word. */
+export type ResolvedLabels = Readonly<Record<LabelRole, string>>
 
 /**
  * Resolved per-laser config consumed by the UI (`id` renamed to `laser`).
@@ -359,10 +522,16 @@ export type FormatRole = keyof FormatConfig
  * overrides as `{pvName, value}`; placeholder entries are dropped so
  * `makeCommandPv` falls back to `CMD_<laser>_<NAME>` for them).
  */
-export type LaserSpec = Omit<
-  RawLaserConfig,
-  'id' | 'commands' | 'units' | 'format'
-> & {
+/** Each signal as the UI consumes it: the PV name, with its presentation
+ * already lifted out into the resolved `units` / `format` / `labels` below. */
+type PvNames = {
+  readonly [
+    R in keyof RawLaserConfig['pvs']
+  ]: undefined extends RawLaserConfig['pvs'][R] ? string | undefined : string
+}
+
+export type LaserSpec = Omit<RawLaserConfig, 'id' | 'commands' | 'pvs'> & {
+  readonly pvs: PvNames
   readonly laser: string
   readonly commands: readonly LaserCommand[]
   readonly commandTargets: Readonly<
@@ -372,6 +541,8 @@ export type LaserSpec = Omit<
   readonly units: Readonly<UnitsConfig>
   /** Module-wide formats with this laser's overrides merged over them. */
   readonly format: Readonly<FormatConfig>
+  /** Every row label, defaults filled in — the UI never falls back itself. */
+  readonly labels: ResolvedLabels
 }
 
 /**
@@ -389,14 +560,36 @@ export function parseLaserSpecs(
     throw new Error(`${name} is not valid YAML: ${(e as Error).message}`)
   }
 
+  rejectTheBlocksThatWereSplitUp(data, name)
+
   const result = configSchema.safeParse(data)
   if (!result.success) {
     throw new Error(`${name} is invalid:\n${z.prettifyError(result.error)}`)
   }
 
-  const moduleUnits = result.data.units ?? {}
-  const moduleFormat = result.data.format ?? {}
-  return result.data.lasers.map(({ id, commands, units, format, ...rest }) => {
+  return result.data.lasers.map(({ id, commands, pvs: rawPvs, ...rest }) => {
+    // The PV names on one side, what each signal says about itself on the
+    // other, so the panel keeps reading `spec.pvs.phdMean` as a name.
+    const pvs = Object.fromEntries(
+      Object.entries(rawPvs).map(([role, entry]) => [
+        role,
+        entry === undefined ? undefined : signalPv(entry),
+      ]),
+    ) as { [R in keyof typeof rawPvs]: string }
+    const options = Object.entries(rawPvs).flatMap(([role, entry]) =>
+      entry === undefined
+        ? []
+        : ([[role, signalOptions(entry)]] as [string, SignalOptions][]),
+    )
+    const pick = <T>(
+      read: (o: SignalOptions) => T | undefined,
+    ): Record<string, T> =>
+      Object.fromEntries(
+        options.flatMap(([role, o]) => {
+          const value = read(o)
+          return value === undefined ? [] : [[role, value]]
+        }),
+      )
     const entries = Object.entries(commands) as [
       LaserCommand,
       RawCommandTarget,
@@ -411,14 +604,83 @@ export function parseLaserSpecs(
             : { pvName: target.pv, value: target.value ?? 1 },
         ]),
     ) as Partial<Record<LaserCommand, CommandTarget>>
+    // A row backed by one PV is named where that PV is named; the rest are
+    // the component's words. Resolved here rather than in each row, so the
+    // panel can simply print what it is given.
+    const labels: Record<LabelRole, string> = { ...LABEL_DEFAULTS }
+    for (const [role, row] of Object.entries(NAMEABLE_ROWS) as [
+      string,
+      LabelRole,
+    ][]) {
+      const named = options.find(([r]) => r === role)?.[1].label
+      if (named) labels[row] = named
+    }
+
     return {
       laser: id,
       ...rest,
+      pvs,
       commands: entries.map(([command]) => command),
       commandTargets,
-      // Per-laser overrides win over the module-wide defaults.
-      units: { ...moduleUnits, ...units },
-      format: { ...moduleFormat, ...format },
+      // Configured units only: the record's own EGU sits between these and
+      // `UNIT_DEFAULTS`, and is applied where the reading is.
+      units: pick((o) => o.units) as UnitsConfig,
+      format: { ...FORMAT_DEFAULTS, ...pick((o) => o.format) } as FormatConfig,
+      labels,
     }
   })
 }
+
+/**
+ * `units:`, `format:` and `labels:` were three parallel blocks keyed by role,
+ * which put one readout in four places and two vocabularies. A config still
+ * written that way is refused by name, because silently ignoring it would
+ * leave a screen rendering something nobody asked for.
+ */
+const MOVED_BLOCKS: Record<string, string> = {
+  units: 'units',
+  format: 'format',
+  labels: 'label',
+}
+
+/**
+ * Keys that no longer describe anything, with what replaced them. A screen
+ * that still carries one is told so rather than quietly losing a row.
+ */
+const RETIRED_PVS: Record<string, string> = {
+  sequencerRunning:
+    'the Sequencer row now reads RUNNING while any of the `sequences:` below it does, so it needs no PV of its own',
+}
+
+function rejectTheBlocksThatWereSplitUp(data: unknown, name: string): void {
+  const places: [string, unknown][] = [['', data]]
+  if (data && typeof data === 'object' && Array.isArray((data as A).lasers)) {
+    for (const laser of (data as A).lasers as unknown[]) {
+      places.push([` of laser ${(laser as A)?.id ?? '?'}`, laser])
+    }
+  }
+  for (const [where, block] of places) {
+    if (!block || typeof block !== 'object') continue
+    const pvs = (block as A).pvs
+    if (pvs && typeof pvs === 'object') {
+      for (const [retired, why] of Object.entries(RETIRED_PVS)) {
+        if (retired in (pvs as A)) {
+          throw new Error(`${name}: \`pvs.${retired}\`${where}: ${why}`)
+        }
+      }
+    }
+    for (const [key, moved] of Object.entries(MOVED_BLOCKS)) {
+      if (key in (block as A)) {
+        throw new Error(
+          `${name}: \`${key}:\`${where} is no longer a block of its own. ` +
+            `Write \`${moved}:\` inside each \`pvs:\` entry, beside the PV it ` +
+            `describes — \`pvs: {regenTemp: {pv: …, ${moved}: …}}\`. Units and ` +
+            `rounding that follow from the signal itself are now the ` +
+            `component's, so most lasers need neither.`,
+        )
+      }
+    }
+  }
+}
+
+type A = Record<string, unknown>

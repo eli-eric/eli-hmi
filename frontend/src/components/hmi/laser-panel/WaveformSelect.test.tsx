@@ -169,4 +169,40 @@ describe('WaveformSelect', () => {
     )
     expect(screen.queryByRole('option', { name: 'nl2-only' })).toBeNull()
   })
+
+  it('keeps the prompt out of the list of waveforms', async () => {
+    // It names what the control is for; it is not a waveform anyone can load.
+    mockFetch()
+    render(<WaveformSelect pvName="CMD_NL2_LOAD_WAVEFORM" />)
+    await waitFor(() =>
+      expect(
+        screen.getByRole('option', { name: 'std-100ps' }),
+      ).toBeInTheDocument(),
+    )
+
+    // Queried from the DOM, not by role: `hidden` is precisely what takes it
+    // out of the list the browser offers, and out of the a11y tree with it.
+    const select = screen.getByRole('combobox')
+    const prompt = select.querySelector('option[value=""]')
+    expect(prompt).toHaveTextContent('Select Waveform')
+    expect(prompt).toBeDisabled()
+    expect(prompt).toHaveAttribute('hidden')
+  })
+
+  it('will not confirm until a waveform is chosen', async () => {
+    mockFetch()
+    render(<WaveformSelect pvName="CMD_NL2_LOAD_WAVEFORM" />)
+    await waitFor(() =>
+      expect(
+        screen.getByRole('option', { name: 'std-100ps' }),
+      ).toBeInTheDocument(),
+    )
+
+    expect(screen.getByRole('button', { name: 'CONFIRM' })).toBeDisabled()
+
+    await userEvent
+      .setup()
+      .selectOptions(screen.getByRole('combobox'), 'std-100ps')
+    expect(screen.getByRole('button', { name: 'CONFIRM' })).toBeEnabled()
+  })
 })

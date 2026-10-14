@@ -75,8 +75,8 @@ describe('GeneralSection', () => {
       ws.push('BI_NL2_MSS_1', 1)
       ws.push('BI_NL2_MSS_2', 1)
       ws.push('BI_NL2_MSS_3', 1)
-      ws.push('BI_NL2_ERR_REGEN', '0000')
-      ws.push('BI_NL2_ERR_CHILLER_11', '1000')
+      ws.push('BI_NL2_ERR_REGEN', 0)
+      ws.push('BI_NL2_ERR_CHILLER_11', { value: 1000, severity: 2 })
     })
 
     expect(screen.getByText('Overview')).toBeInTheDocument()
@@ -89,7 +89,7 @@ describe('GeneralSection', () => {
     expect(screen.getByText('NO')).toBeInTheDocument()
     // MSS overall must be YES/NO, never a numeric count (spec).
     expect(screen.queryByText('3/3')).not.toBeInTheDocument()
-    // ERR remains a numeric count: 1 module in error out of 2 total.
+    // ERR remains a numeric count: 1 module alarmed out of 2 total.
     expect(screen.getByText('1/2')).toBeInTheDocument()
   })
 
@@ -179,8 +179,8 @@ describe('GeneralSection', () => {
   it('expands the Module Errors detail list and labels items by error name', async () => {
     const ws = await setup()
     act(() => {
-      ws.push('BI_NL2_ERR_REGEN', '0000')
-      ws.push('BI_NL2_ERR_CHILLER_11', '1000')
+      ws.push('BI_NL2_ERR_REGEN', 0)
+      ws.push('BI_NL2_ERR_CHILLER_11', { value: 1000, severity: 2 })
     })
     const user = userEvent.setup()
     await user.click(
@@ -198,7 +198,7 @@ describe('GeneralSection', () => {
     const ws = await setup()
     act(() => {
       ws.push('BI_NL2_MSS_1', 1)
-      ws.push('BI_NL2_ERR_REGEN', '0000')
+      ws.push('BI_NL2_ERR_REGEN', 0)
     })
     const user = userEvent.setup()
 
@@ -223,8 +223,10 @@ describe('GeneralSection', () => {
       ws.push('BI_NL2_MSS_1', 1)
       ws.push('BI_NL2_MSS_2', 0)
       ws.push('BI_NL2_MSS_3', 1)
-      ws.push('BI_NL2_ERR_REGEN', '0000')
-      ws.push('BI_NL2_ERR_CHILLER_11', '1000')
+      // Both codes unalarmed — a non-zero code the IOC has not flagged is
+      // shown as it arrives, and styled no differently from a zero.
+      ws.push('BI_NL2_ERR_REGEN', 0)
+      ws.push('BI_NL2_ERR_CHILLER_11', 1000)
     })
 
     await user.click(screen.getByRole('button', { name: 'Toggle MSS detail' }))
@@ -250,11 +252,44 @@ describe('GeneralSection', () => {
     expect(regen?.querySelector('[data-tone-surface]')).not.toHaveAttribute(
       'data-tone',
     )
-    expect(regen).toHaveTextContent('0000')
+    expect(regen).toHaveTextContent('0')
     expect(chiller?.querySelector('[data-tone-surface]')).not.toHaveAttribute(
       'data-tone',
     )
     expect(chiller).toHaveTextContent('1000')
+  })
+
+  it('counts module errors by severity, not by the code they report', async () => {
+    // The codes are numeric PVs whose meaning is the IOC's to know: a panel
+    // deciding that 0 is healthy would be a second, private notion of "bad"
+    // living in the frontend — the same one that was there when it compared
+    // against the string "0000" and would have called every numeric reading
+    // an error.
+    const ws = await setup()
+    act(() => {
+      ws.push('BI_NL2_ERR_REGEN', { value: 1024, severity: 2 })
+      ws.push('BI_NL2_ERR_CHILLER_11', { value: 33, severity: 0 })
+    })
+
+    const errPill = screen
+      .getByRole('button', { name: 'Toggle module errors detail' })
+      .querySelector('[data-tone]')
+    // One alarmed of two — the unalarmed non-zero code is the IOC's business.
+    expect(errPill).toHaveTextContent('1/2')
+  })
+
+  it('reads zero errors when nothing is alarmed, whatever the codes say', async () => {
+    const ws = await setup()
+    act(() => {
+      ws.push('BI_NL2_ERR_REGEN', 0)
+      ws.push('BI_NL2_ERR_CHILLER_11', 0)
+    })
+
+    const errPill = screen
+      .getByRole('button', { name: 'Toggle module errors detail' })
+      .querySelector('[data-tone]')
+    expect(errPill).toHaveTextContent('0/2')
+    expect(errPill).toHaveAttribute('data-tone', 'positive-important')
   })
 
   it('lets the config choose the MSS wording per indicator', async () => {
@@ -289,11 +324,11 @@ describe('GeneralSection', () => {
       ws.push('BI_NL2_MSS_3', 1)
       // Disconnected (ok:false) despite an "0000" ("no error") code.
       ws.push('BI_NL2_ERR_REGEN', {
-        value: '0000',
+        value: 0,
         ok: false,
         error: 'CA disconnected',
       })
-      ws.push('BI_NL2_ERR_CHILLER_11', '0000')
+      ws.push('BI_NL2_ERR_CHILLER_11', 0)
     })
 
     // Aggregate pills reflect the worst child severity, not just the raw
@@ -336,10 +371,8 @@ describe('GeneralSection', () => {
     // showing "no error" for a disconnected PV would be misleading. The
     // unaffected CHILLER_11 row still shows its real "0000" code.
     expect(regen).toHaveTextContent('PV DSC')
-    expect(regen).not.toHaveTextContent('0000')
-    expect(screen.getByText('CHILLER_11').closest('li')).toHaveTextContent(
-      '0000',
-    )
+    expect(regen).not.toHaveTextContent('0')
+    expect(screen.getByText('CHILLER_11').closest('li')).toHaveTextContent('0')
   })
 
   it('MSS overall pill shows the invalid tone as soon as one child is disconnected, even while the others are still unknown', async () => {

@@ -191,6 +191,66 @@ class ComponentConfig(BaseModel):
     title: str | None = Field(default=None, description="Heading, where the component shows one.")
 
 
+@dataclass(frozen=True)
+class WriteLimits:
+    """What a component will accept being written to one of its PVs.
+
+    Declared by the component that owns the control, and enforced by the write
+    endpoint rather than by the field the operator types into: a disabled
+    button is a convenience the browser can be talked out of, and the endpoint
+    is the only place every route to the device passes through.
+    """
+
+    min: float | None = None
+    max: float | None = None
+    #: Decimal places the device resolves. `None` accepts whatever was typed;
+    #: `0` means integers. Extra digits are dropped, never rounded.
+    precision: int | None = None
+    #: Whether "1e3" is a way of writing 1000 here. Off unless a setpoint asks
+    #: for it: no reading on these screens is set in scientific notation, and
+    #: allowing it costs more than it gives — `<input type="number">` reports
+    #: an empty value while an exponent is half-typed, so pressing `e` appears
+    #: to erase whatever was in the field.
+    exponential: bool = False
+
+    def truncate(self, text: str) -> str:
+        """Drop digits the device cannot resolve.
+
+        Works on the text rather than the number: `int(2.55 * 100)` is at the
+        mercy of binary floating point, while slicing the string is exact.
+        Truncates rather than rounds — 2.59 is 2.5, never 2.6 — because
+        ignoring extra digits is what this claims to do, and rounding would
+        send a value the operator never typed.
+        """
+        if self.precision is None or "." not in text:
+            return text
+        whole, fraction = text.split(".", 1)
+        if self.precision == 0:
+            return whole or "0"
+        return f"{whole}.{fraction[: self.precision]}"
+
+    def rejects_notation(self, text: str) -> str | None:
+        """The reason this *text* is not an acceptable way to write a number."""
+        if self.exponential or "e" not in text.lower():
+            return None
+        return "written in scientific notation, which this field does not take"
+
+    def rejects(self, value: Any) -> str | None:
+        """The reason this value is not acceptable, or `None`."""
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            return None  # a string setpoint (a waveform name) has no range
+        if self.min is not None and value < self.min:
+            return self.describe()
+        if self.max is not None and value > self.max:
+            return self.describe()
+        return None
+
+    def describe(self) -> str:
+        low = "−∞" if self.min is None else f"{self.min:g}"
+        high = "∞" if self.max is None else f"{self.max:g}"
+        return f"out of range ({low}..{high})"
+
+
 class Component:
     """Base class. See the module docstring for what a subclass fills in."""
 
@@ -227,6 +287,8 @@ class Component:
         self.source = source
         self.widgets: dict[str, Widget] = {}
         self.signals: dict[str, Any] = {}
+        #: PVs this component writes, and the bounds it accepts. See `writable`.
+        self.limits: dict[str, WriteLimits] = {}
         self.setup()
 
     # -- what a subclass implements -----------------------------------------
@@ -248,6 +310,15 @@ class Component:
         `s` (signals) and `children`.
         """
         return {}
+
+    async def warm(self) -> None:
+        """Fetch anything this component needs before its first render.
+
+        Called once at start-up, for the same reason the PV cache is warmed
+        there: server-side rendering only buys anything if the server already
+        knows. A component that reaches a device must not let it fail the
+        start-up — catch, log, and render without it.
+        """
 
     # -- helpers for a subclass ---------------------------------------------
 
@@ -288,6 +359,26 @@ class Component:
         self.signals[full] = default
         return full
 
+    def writable(
+        self,
+        pv: str,
+        *,
+        min: float | None = None,
+        max: float | None = None,
+        precision: int | None = None,
+        exponential: bool = False,
+    ) -> str:
+        """Declare a PV this component writes, and the bounds it accepts.
+
+        Returns the PV name, so a `setup()` can declare and use it in one line.
+        Bounds are optional: declaring a PV with none simply records that this
+        component writes it.
+        """
+        self.limits[pv] = WriteLimits(
+            min=min, max=max, precision=precision, exponential=exponential
+        )
+        return pv
+
     # -- what the framework uses -------------------------------------------
 
     @property
@@ -309,6 +400,12 @@ class Component:
         for component in self.walk():
             signals.update(component.signals)
         return signals
+
+    def all_limits(self) -> dict[str, WriteLimits]:
+        limits: dict[str, WriteLimits] = {}
+        for component in self.walk():
+            limits.update(component.limits)
+        return limits
 
     def all_pv_specs(self) -> list[PvSpec]:
         specs: list[PvSpec] = []

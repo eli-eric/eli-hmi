@@ -11,16 +11,22 @@ import {
   StringValue,
 } from '@/components/hmi/controls/Values'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import type {
-  FormatConfig,
-  UnitsConfig,
+import {
+  LABEL_DEFAULTS,
+  UNIT_DEFAULTS,
+  type FormatConfig,
+  type ResolvedLabels,
+  type UnitsConfig,
 } from '@/app/(modules)/l4-opcpa/config/schema'
 
 interface RegenSectionProps {
   regenStatePv: string
   regenTempPv: string
-  phd2MeanPv: string
+  /** Second photodiode. Omitted on a laser that has only one: no row. */
+  phd2MeanPv?: string
   attenuatorPv: string
+  /** What each row is called; see `LABEL_DEFAULTS`. */
+  labels?: ResolvedLabels
   /** Configured units per signal role; each wins over PV metadata. */
   units?: UnitsConfig
   /** Configured number format per signal role; each wins over the default. */
@@ -38,9 +44,13 @@ export const RegenSection: FC<RegenSectionProps> = ({
   attenuatorPv,
   units = {},
   format = {},
+  labels = LABEL_DEFAULTS,
 }) => {
   const numericPvs = useMemo(
-    () => [regenTempPv, phd2MeanPv, attenuatorPv],
+    () =>
+      [regenTempPv, phd2MeanPv, attenuatorPv].filter((name): name is string =>
+        Boolean(name),
+      ),
     [regenTempPv, phd2MeanPv, attenuatorPv],
   )
   const { state } = useWebSocketData<number | null>({
@@ -62,7 +72,7 @@ export const RegenSection: FC<RegenSectionProps> = ({
   return (
     <SectionCard>
       <DataRow
-        label="Regen SY3PL50M:32"
+        label={labels.regenState}
         value={
           <StringValue
             pvName={regenStatePv}
@@ -71,30 +81,32 @@ export const RegenSection: FC<RegenSectionProps> = ({
         }
       />
       <DataRow
-        label="Regen Temp TK6:44"
+        label={labels.regenTemp}
         value={
           <FloatValue
             pvName={regenTempPv}
             data={state[regenTempPv]}
             format={format.regenTemp}
             units={units.regenTemp}
-            unitsFallback="°C"
+            unitsFallback={UNIT_DEFAULTS.regenTemp}
           />
         }
       />
+      {phd2MeanPv && (
+        <DataRow
+          label={labels.phd2Mean}
+          value={
+            <FloatValue
+              pvName={phd2MeanPv}
+              data={state[phd2MeanPv]}
+              format={format.phd2Mean}
+              units={units.phd2Mean}
+            />
+          }
+        />
+      )}
       <DataRow
-        label="PHD1K000:48/Mean"
-        value={
-          <FloatValue
-            pvName={phd2MeanPv}
-            data={state[phd2MeanPv]}
-            format={format.phd2Mean}
-            units={units.phd2Mean}
-          />
-        }
-      />
-      <DataRow
-        label="Atten. SM5:ATT1:51"
+        label={labels.attenuator}
         value={
           <IntegerValue
             pvName={attenuatorPv}
