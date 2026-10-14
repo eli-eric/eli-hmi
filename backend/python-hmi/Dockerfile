@@ -7,24 +7,37 @@
 # the machine's hostname against each zone's `hostnames:` patterns. So one image
 # serves every zone, and a deployment needs no per-zone configuration at all.
 #
+# Two stages, for one reason: a build runner can reach neither the Debian
+# repositories nor pypi.org, so the toolchain cannot be installed with apt and
+# has to come from an image that already has it. The full `python` image does;
+# `python:*-slim` does not. Dependencies are built there and the finished
+# environment is copied into the slim image, which keeps the toolchain out of
+# what a station runs.
+#
 # Dependencies are resolved against the internal mirror (see below), so this
 # build does not install the committed lockfile verbatim: a `default` index
 # changes the resolution, and `uv sync` runs without `--locked`. Versions
 # already pinned are kept wherever the mirror offers them, but "the same
 # version of the image" no longer guarantees the lockfile's dependency tree.
 
+# Both stages from one declaration: the interpreter a virtualenv is built
+# against has to be the one that runs it.
+ARG PYTHON_VERSION=3.12
+
+# ---------------------------------------------------------------- build stage
+#
 # Through Harbor's pull-through proxy, like every other image in this repo: a
 # build runner has no route to docker.io.
-FROM harbor.eli-beams.eu/proxy-dockerhub/python:3.12-slim
+FROM harbor.eli-beams.eu/proxy-dockerhub/python:${PYTHON_VERSION} AS build
 
 # uv itself, from the internal PyPI mirror rather than from uv's own published
 # image: `ghcr.io` is a registry this network does not proxy, and the mirror is
 # already the only route to packages here.
 #
 # Unpinned on purpose — a pinned version is only as good as the mirror's copy
-# of it, and a build that fails because the mirror never cached 0.9.29 is worse
-# than one that resolves dependencies with a newer uv. The cost is that two
-# builds of the same commit can use different uv versions; with `uv sync`
+# of it, and a build that fails because the mirror never cached that version is
+# worse than one that resolves dependencies with a newer uv. The cost is that
+# two builds of the same commit can use different uv versions; with `uv sync`
 # running unlocked below, the image's dependency tree already depends on when
 # it was built.
 RUN pip install --no-cache-dir \
@@ -32,27 +45,15 @@ RUN pip install --no-cache-dir \
     --trusted-host pypi-mirror.eli-beams.eu \
     uv
 
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    # Copy packages into the image rather than symlinking them into uv's cache,
-    # which does not exist at runtime.
-    UV_LINK_MODE=copy \
+ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     # The interpreter is the one in this image; uv must not fetch another.
     UV_PYTHON_DOWNLOADS=never \
-    UV_PROJECT_ENVIRONMENT=/app/.venv \
-    PATH="/app/.venv/bin:$PATH"
+    # Where the runtime stage expects to find it. A virtualenv records the
+    # path it was built at, so both stages have to agree on it.
+    UV_PROJECT_ENVIRONMENT=/app/.venv
 
 WORKDIR /app
-
-# `aioca` (the `epics` extra) brings `epicscorelibs`, which has wheels for
-# linux/amd64 — the compilers are here for the architectures where it does not.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    make \
-    libc-dev \
-    && rm -rf /var/lib/apt/lists/*
 
 # Dependencies first, as their own layer: the lockfile changes far less often
 # than a screen does, so editing a zone's YAML does not reinstall EPICS.
@@ -78,6 +79,8 @@ url = "https://pypi-mirror.eli-beams.eu/root/pypi/+simple/"
 default = true
 EOF
 
+# `aioca` (the `epics` extra) brings `epicscorelibs`, which has wheels for
+# linux/amd64 — this stage's compilers are what build it everywhere else.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --no-install-project --extra epics
 
@@ -87,6 +90,26 @@ COPY zones ./zones
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --extra epics
+
+# -------------------------------------------------------------- runtime stage
+#
+# The same interpreter without the toolchain. `/app` is copied whole and lands
+# at the same path, because the virtualenv built above records where it lives
+# and the project is installed into it from there.
+FROM harbor.eli-beams.eu/proxy-dockerhub/python:${PYTHON_VERSION}-slim
+
+WORKDIR /app
+COPY --from=build /app /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+# Whether an extension compiled in the full image can load here is a property
+# of this image's shared libraries, not something a build may assume — so it is
+# checked while there is still a build to fail. Otherwise a missing `libstdc++`
+# surfaces as a station that cannot reach Channel Access.
+RUN python -c "import aioca; print('EPICS bindings load')"
 
 # No ZONE_CODE: a station works out which zone it is from its hostname, so one
 # image serves every zone and nothing has to be set per deployment. Set it
