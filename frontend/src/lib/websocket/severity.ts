@@ -1,6 +1,19 @@
 import type { Message } from '@/app/providers/types'
 
 /** EPICS alarm severities (epicsAlarm.h). */
+/**
+ * `epicsAlarm.h` status for a record that has never been processed. The one
+ * INVALID reading that can be expected rather than wrong: a record nobody has
+ * run yet has no value to report.
+ */
+export const STATUS_UDF = 17
+
+/** That status as a gateway may send it instead of the code. */
+export const isUdf = (status: number | string | null | undefined): boolean =>
+  typeof status === 'string'
+    ? status.trim().toUpperCase() === 'UDF'
+    : status === STATUS_UDF
+
 export const EPICS_SEVERITY = {
   NONE: 0,
   MINOR: 1,

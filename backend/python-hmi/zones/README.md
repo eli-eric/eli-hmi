@@ -5,7 +5,7 @@ is deployed once per zone, so the repository is laid out the way the facility is
 
 ```
 zones/
-├── 01/                     a zone
+├── 04/                     a zone
 │   ├── zone.yaml           which hostnames are this zone
 │   ├── l4-opcpa/gui.yaml   a screen  ->  /l4-opcpa  ->  a menu entry
 │   └── motors/gui.yaml     another   ->  /motors

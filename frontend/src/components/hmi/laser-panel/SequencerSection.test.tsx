@@ -51,6 +51,57 @@ describe('SequencerSection', () => {
     expect(screen.getByText('RUNNING')).toBeInTheDocument()
   })
 
+  it('shows the value of a sequence that has never been run', async () => {
+    // A sequence record is UDF — EPICS severity INVALID — until the control
+    // system runs it for the first time, which on a cold IOC is every one of
+    // them. `PV INV` across the whole list every morning teaches an operator
+    // to ignore the one indicator that means a reading cannot be trusted.
+    const ws = renderSequencer()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('NL2:SEQ:StartLaser')?.size).toBe(1),
+    )
+    const user = userEvent.setup()
+
+    act(() => {
+      // INVALID *because UDF*: an unprocessed record, not a broken one.
+      ws.push('NL2:SEQ:StartLaser', { value: 1, severity: 3, status: 'UDF' })
+      ws.push('NL2:SEQ:StopLaser', { value: 0, severity: 3, status: 17 })
+      ws.push('NL2:SEQ:FlashlampsRun', { value: 0, severity: 3, status: 'UDF' })
+    })
+    expect(screen.getByText('RUNNING')).toBeInTheDocument()
+    expect(screen.queryByText('PV INV')).toBeNull()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Toggle Sequencer detail' }),
+    )
+    const startRow = screen.getByText('Start Laser').closest('li')!
+    expect(within(startRow).getByText('RUNNING')).toBeInTheDocument()
+  })
+
+  it('still reports a sequence that is invalid for any other reason', async () => {
+    // Only "never run" is forgiven. A record that went INVALID while scanning
+    // has something wrong with it, and the row must say so.
+    const ws = renderSequencer()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('NL2:SEQ:StartLaser')?.size).toBe(1),
+    )
+    act(() =>
+      ws.push('NL2:SEQ:StartLaser', { value: 0, severity: 3, status: 'SCAN' }),
+    )
+    expect(screen.getByText('PV INV')).toBeInTheDocument()
+  })
+
+  it('still reports a sequence whose channel is gone', async () => {
+    // Only the severity is forgiven: a channel that is not there is a
+    // different fact, and the one an operator can act on.
+    const ws = renderSequencer()
+    await waitFor(() =>
+      expect(ws.subscriptions.get('NL2:SEQ:StartLaser')?.size).toBe(1),
+    )
+    act(() => ws.push('NL2:SEQ:StartLaser', { value: null, ok: false }))
+    expect(screen.getByText('PV DSC')).toBeInTheDocument()
+  })
+
   it('subscribes to a state PV for every sequence', async () => {
     const ws = renderSequencer()
     await waitFor(() =>

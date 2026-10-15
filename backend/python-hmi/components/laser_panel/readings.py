@@ -11,9 +11,11 @@ delay should say.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any, Mapping
 
 from core.components import Component, Datatype, PvReader
+from core.epics.types import PvSample
 from core.render import (
     ON_OFF_TEXT,
     RAW_FORMAT,
@@ -30,6 +32,8 @@ from core.render import (
     present_aggregate,
     resolve_format,
     resolve_units,
+    SEVERITY_INVALID,
+    STATUS_UDF,
     severity_tone,
     single_readout,
     string_readout,
@@ -137,6 +141,38 @@ def overview(read: PvReader, spec: Config, comp: Component) -> dict[str, Any]:
     }
 
 
+def _as_run_at_least_once(sample: PvSample | None) -> PvSample | None:
+    """The same reading with "never run" forgiven.
+
+    A sequence record is undefined — severity INVALID, status UDF — until the
+    control system runs it for the first time, so on a cold IOC every row
+    would read `PV INV` while nothing whatever is wrong. An indicator that
+    cries wolf every morning is worse than no indicator: it teaches an
+    operator to look past the one thing that means a reading cannot be
+    trusted.
+
+    Narrow on purpose: *why* the record is INVALID is what decides. UDF is the
+    expected state of a sequence nobody has run; INVALID for any other reason
+    — a failed scan, a broken link — is a real fault and passes through, as
+    does `ok=False`, a channel that is not there at all.
+    """
+    if (
+        sample is None
+        or not sample.ok
+        or sample.severity != SEVERITY_INVALID
+        or not _is_udf(sample.status)
+    ):
+        return sample
+    return replace(sample, severity=0)
+
+
+def _is_udf(status: int | str | None) -> bool:
+    """`epicsAlarm.h` code 17, or the name a gateway may send instead."""
+    if isinstance(status, str):
+        return status.strip().upper() == "UDF"
+    return status == STATUS_UDF
+
+
 def sequencer_pill(read: PvReader, spec: Config, comp: Component) -> dict[str, Any]:
     """RUNNING while any sequence is, IDLE when none is.
 
@@ -148,7 +184,7 @@ def sequencer_pill(read: PvReader, spec: Config, comp: Component) -> dict[str, A
     so neither is coloured. Only the control system's severity (or a dead link)
     tones this pill.
     """
-    samples = read.many(item.pv for item in spec.sequences)
+    samples = [_as_run_at_least_once(s) for s in read.many(item.pv for item in spec.sequences)]
     severity = present_aggregate(samples, is_connected=read.is_connected)
     states = [
         sample.value == 1
@@ -177,7 +213,7 @@ def sequence_list(read: PvReader, spec: Config) -> dict[str, Any]:
     items: list[Readout] = []
     for item in spec.sequences:
         label, pv_name = item.label, item.pv
-        sample = read(pv_name)
+        sample = _as_run_at_least_once(read(pv_name))
         running = None
         if sample is not None and sample.ok and sample.value is not None:
             running = sample.value == 1
@@ -320,16 +356,22 @@ def modbox_pill(read: PvReader, spec: Config, comp: Component) -> dict[str, Any]
 
 
 def bias_row(read: PvReader, spec: Config) -> dict[str, Any]:
+    """The two bias channels, side by side and unlabelled.
+
+    Which cell is which is in the row's own label (`biasValue`), because two
+    names repeated on every row of every laser cost more width than they buy —
+    and width here is what the numbers need. The PV name is still in each
+    cell's hover text, so "which one is this" is always answerable.
+    """
     pairs: list[dict[str, Any]] = []
-    for label, pv_name, role in (
-        ("MBC1", spec.pvs.modbox_mbc1, "modboxMbc1"),
-        ("MBC2", spec.pvs.modbox_mbc2, "modboxMbc2"),
+    for pv_name, role in (
+        (spec.pvs.modbox_mbc1, "modboxMbc1"),
+        (spec.pvs.modbox_mbc2, "modboxMbc2"),
     ):
         if not pv_name:
             continue
         pairs.append(
             {
-                "label": label,
                 "readout": number_readout(
                     read(pv_name),
                     pv_name=pv_name,

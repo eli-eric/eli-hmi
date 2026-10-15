@@ -26,6 +26,11 @@ SEVERITY_MINOR = 1
 SEVERITY_MAJOR = 2
 SEVERITY_INVALID = 3
 
+#: `epicsAlarm.h` status for a record that has never been processed. The one
+#: INVALID reading that can be expected rather than wrong: a record nobody has
+#: run yet has no value to report.
+STATUS_UDF = 17
+
 SEVERITY_NAMES = ("NO_ALARM", "MINOR", "MAJOR", "INVALID")
 
 #: EPICS alarm status names, indexed by code (`epicsAlarm.h`

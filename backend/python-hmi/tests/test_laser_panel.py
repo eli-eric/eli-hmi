@@ -112,6 +112,31 @@ class TestUnits:
         assert row["pairs"][0]["readout"].units == "mV"
         assert row["pairs"][0]["readout"].text == "2100", "whole millivolts"
 
+    def test_a_photodiode_shows_every_digit_it_was_given(self, spec, panel):
+        """A photodiode mean is the reading an operator compares shot to shot,
+        and the shared three decimals throw away the end of it. Nothing here
+        rounds: what the record sent is what the cell shows."""
+        pv = spec.pvs.phd_mean
+        context = panel.widgets["phd_mean"].build(reader({PvId(pv): ok(pv, 0.123456)}))
+        assert context["readout"].text == "0.123456"
+
+    def test_a_photodiode_reading_that_is_not_a_number_is_a_fault(self, spec, panel):
+        """Channel Access delivers a record at its native type, so a string
+        here means the screen is pointed at something that is not an `ai` —
+        which must read as broken, not as a value."""
+        pv = spec.pvs.phd_mean
+        context = panel.widgets["phd_mean"].build(reader({PvId(pv): ok(pv, "0.123")}))
+        assert context["readout"].text == "PV INV"
+        assert "expected a number, got str" in (context["readout"].title or "")
+
+    def test_a_temperature_reads_to_two_decimals(self, spec, panel):
+        """Three was the shared default and is more than a regen loop's sensor
+        can mean; a station reading 22.456 invites a conclusion about the
+        third digit."""
+        pv = spec.pvs.regen_temp
+        context = panel.widgets["regen_temp"].build(reader({PvId(pv): ok(pv, 22.456)}))
+        assert context["readout"].text == "22.46"
+
     def test_the_record_s_own_egu_wins_over_the_component(self, spec):
         from components.laser_panel import readings
 
@@ -308,6 +333,70 @@ class TestOverviewStrictBooleans:
         samples[PvId(spec.pvs.connection)] = ok(spec.pvs.connection, 2)
         context = panel.widgets["overview"].build(reader(samples))
         assert context["conn"].text == "<>"
+
+
+class TestASequenceNeverRun:
+    """A sequence record is UDF — EPICS severity INVALID — until the control
+    system runs it for the first time, which on a cold IOC is every one of
+    them. `PV INV` across the whole list every morning teaches an operator to
+    ignore the one indicator that means a reading cannot be trusted, so here
+    the value is shown and the severity is not.
+    """
+
+    @staticmethod
+    def undefined(name: str, value: int) -> PvSample:
+        """What an unprocessed record reads as: INVALID, because UDF."""
+        return PvSample(
+            name=name, ok=True, value=value, severity=3, status="UDF", timestamp=1.0
+        )
+
+    def test_the_row_reads_its_value(self, spec, panel):
+        pv = spec.sequences[0].pv
+        samples = {PvId(item.pv): ok(item.pv, 0) for item in spec.sequences}
+        samples[PvId(pv)] = self.undefined(pv, 0)
+        context = panel.widgets["sequencer_list"].build(reader(samples))
+        assert context["items"][0].text == "IDLE"
+        assert context["items"][0].tone is None
+
+    def test_the_pill_reads_its_value(self, spec, panel):
+        samples = {
+            PvId(item.pv): self.undefined(item.pv, 0) for item in spec.sequences
+        }
+        running = spec.sequences[1].pv
+        samples[PvId(running)] = self.undefined(running, 1)
+        context = panel.widgets["sequencer_pill"].build(reader(samples))
+        assert context["readout"].text == "RUNNING"
+        assert context["readout"].tone is None
+
+    def test_the_numeric_status_code_counts_too(self, spec, panel):
+        """A gateway may send `epicsAlarm.h` codes rather than their names."""
+        pv = spec.sequences[0].pv
+        samples = {PvId(item.pv): ok(item.pv, 0) for item in spec.sequences}
+        samples[PvId(pv)] = PvSample(
+            name=pv, ok=True, value=0, severity=3, status=17, timestamp=1.0
+        )
+        context = panel.widgets["sequencer_list"].build(reader(samples))
+        assert context["items"][0].text == "IDLE"
+
+    def test_invalid_for_any_other_reason_is_still_reported(self, spec, panel):
+        """Only "never run" is forgiven. A record that went INVALID while
+        scanning has something wrong with it, and the row must say so."""
+        pv = spec.sequences[0].pv
+        samples = {PvId(item.pv): ok(item.pv, 0) for item in spec.sequences}
+        samples[PvId(pv)] = PvSample(
+            name=pv, ok=True, value=0, severity=3, status="SCAN", timestamp=1.0
+        )
+        context = panel.widgets["sequencer_list"].build(reader(samples))
+        assert context["items"][0].text == "PV INV"
+
+    def test_a_disconnected_sequence_still_says_so(self, spec, panel):
+        """Only the severity is forgiven. A channel that is not there is a
+        different fact, and the one an operator can act on."""
+        samples = {PvId(item.pv): ok(item.pv, 0) for item in spec.sequences}
+        dead = spec.sequences[0].pv
+        samples[PvId(dead)] = PvSample(name=dead, ok=False, error="dead")
+        context = panel.widgets["sequencer_list"].build(reader(samples))
+        assert context["items"][0].text == "PV DSC"
 
 
 class TestSequencerTooltips:

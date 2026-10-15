@@ -61,6 +61,10 @@ class SimSpec:
     #: EPICS alarm severity this PV reports (0..3), regardless of its value —
     #: for a signal with no limit to trip, like a denied permission.
     severity: int = 0
+    #: EPICS alarm status this PV reports, when it is not a limit that tripped.
+    #: `UDF` is the one that matters: a screen can only treat "never run"
+    #: differently from "broken" if the reading says which it is.
+    status: str | None = None
     #: Alarm limits, evaluated on every read exactly as an IOC would. A
     #: drifting temperature therefore crosses into MINOR and then MAJOR by
     #: itself, and the panel sees the same severity it would see from the hall.
@@ -267,7 +271,7 @@ class SimBackend:
             ok=True,
             value=value,
             severity=spec.severity or _limit_severity(spec, value),
-            status=_limit_status(spec, value),
+            status=spec.status or _limit_status(spec, value),
             units=spec.units,
             timestamp=time.time(),
         )
@@ -403,13 +407,15 @@ def _sim_spec(spec: Any) -> SimSpec:
     """
     if spec.undefined:
         # Never initialised, so it reads INVALID/UDF — the same thing an
-        # unprocessed record does in a real IOC.
+        # unprocessed record does in a real IOC, status included: that is what
+        # tells a screen "never run" apart from "broken".
         return SimSpec(
             name=spec.name,
             kind=spec.kind,
             value=None,
             drifts=False,
             severity=3,
+            status="UDF",
             units=spec.egu,
         )
     value = spec.value

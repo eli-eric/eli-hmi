@@ -331,21 +331,6 @@
   min-width: 0;
 }
 
-.mbcPair {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 0;
-}
-
-.mbcLabel {
-  flex: none;
-  font-size: var(--hmi-font-size);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--color-text);
-}
-
 /* "Set Waveform to…" disclosure inside the Modbox Actions cog panel.
  * The toggle button matches the uniform ActionButton chrome (no green/red);
  * pressing it reveals the same waveform selectbox + CONFIRM used next to the

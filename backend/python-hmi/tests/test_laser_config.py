@@ -132,22 +132,26 @@ class TestDuplicates:
 
 class TestTheBlocksThatWereSplitUp:
     """`units:`, `format:` and `labels:` were three parallel blocks keyed by
-    role, which put one readout in four places and two vocabularies. A config
-    still written that way is refused by name, because silently ignoring it
-    would leave a screen rendering something nobody asked for.
+    role, which put one readout in four places and two vocabularies. They are
+    written inside each `pvs:` entry now, and a config still carrying one is
+    refused — silently ignoring it would leave a screen rendering something
+    nobody asked for.
     """
 
-    def test_a_units_block_says_where_units_live_now(self):
-        with pytest.raises(ValidationError, match="units:.*inside each `pvs:` entry"):
-            parse(MINIMAL + "    units:\n      regenTemp: degC\n")
+    @pytest.mark.parametrize("block", ["units", "format", "labels"])
+    def test_a_block_that_moved_is_refused(self, block):
+        with pytest.raises(ValidationError):
+            parse(MINIMAL + f"    {block}:\n      regenTemp: degC\n")
 
-    def test_a_format_block_says_where_format_lives_now(self):
-        with pytest.raises(ValidationError, match="format:.*inside each `pvs:` entry"):
-            parse(MINIMAL + "    format:\n      regenTemp: 1\n")
-
-    def test_a_labels_block_says_where_labels_live_now(self):
-        with pytest.raises(ValidationError, match="labels:.*inside each `pvs:` entry"):
-            parse(MINIMAL + "    labels:\n      regenTemp: Regen Temp\n")
+    def test_the_pv_the_sequencer_used_is_refused(self):
+        """Its row reads RUNNING while any of `sequences:` does, so a laser
+        still naming a flag of its own is configuring nothing."""
+        text = MINIMAL.replace(
+            "      regenTemp: L4:NL2:REGEN:T",
+            "      regenTemp: L4:NL2:REGEN:T\n      sequencerRunning: L4:NL2:BUSY",
+        )
+        with pytest.raises(ValidationError):
+            parse(text)
 
 
 def with_signal(role: str, **options) -> str:

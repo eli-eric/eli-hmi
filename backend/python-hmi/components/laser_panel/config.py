@@ -148,21 +148,6 @@ class LaserPvs(Strict):
         return [value for value in self.model_dump().values() if value]
 
 
-#: What each of the three blocks that used to sit beside `pvs:` is now written
-#: inside, so a config written the old way is told where its keys went rather
-#: than that they are not permitted.
-MOVED_BLOCKS: dict[str, str] = {"units": "units", "format": "format", "labels": "label"}
-
-#: Keys that no longer describe anything, with what replaced them. A screen
-#: that still carries one is told so rather than quietly losing a row.
-RETIRED_KEYS: dict[str, str] = {
-    "sequencerRunning": (
-        "the Sequencer row now reads RUNNING while any of the `sequences:` "
-        "below it does, so it needs no PV of its own"
-    ),
-}
-
-
 class SignalOptions(Strict):
     """How one signal is presented, beside the PV it is presented from.
 
@@ -234,7 +219,7 @@ FIXED_LABELS: dict[str, str] = {
     "flashlampsState": "Flashlamps State",
     "triggerDelay": "Trigger Delay",
     "modboxState": "Modbox State",
-    "biasValue": "Bias Value",
+    "biasValue": "Bias Value MBC1 | MBC2",
 }
 
 #: What each reading is measured in. Intrinsic to the signal, not to the
@@ -256,6 +241,15 @@ UNIT_DEFAULTS: dict[str, str] = {
 FORMAT_DEFAULTS: dict[str, Any] = {
     "modboxMbc1": 0,
     "modboxMbc2": 0,
+    # Unrounded: a photodiode mean is the reading an operator compares shot to
+    # shot, so the cell shows exactly what the record sent rather than a
+    # three-decimal view of it.
+    "phdMean": {"format": "raw"},
+    "phd2Mean": {"format": "raw"},
+    # Two decimals, not the shared three: more digits than a regen loop's
+    # sensor can mean, and a station reading 22.456 invites a conclusion about
+    # the third one.
+    "regenTemp": 2,
 }
 
 
@@ -369,25 +363,6 @@ class Config(ComponentConfig):
         "page rather than fetched: the list changes when the machine is "
         "reconfigured, not while an operator is looking at it.",
     )
-
-    @model_validator(mode="before")
-    @classmethod
-    def _reject_the_old_blocks(cls, raw: Any) -> Any:
-        if not isinstance(raw, Mapping):
-            return raw
-        for retired, why in RETIRED_KEYS.items():
-            if retired in raw.get("pvs", {}):
-                raise ValueError(f"pvs.{retired}: {why}")
-        for block, key in MOVED_BLOCKS.items():
-            if block in raw:
-                raise ValueError(
-                    f"{block}: no longer a block of its own. Write `{key}:` "
-                    f"inside each `pvs:` entry, beside the PV it describes — "
-                    f"`pvs: {{regenTemp: {{pv: …, {key}: …}}}}`. Units and "
-                    f"rounding that follow from the signal itself are now the "
-                    f"component's, so most lasers need neither."
-                )
-        return raw
 
     @model_validator(mode="before")
     @classmethod

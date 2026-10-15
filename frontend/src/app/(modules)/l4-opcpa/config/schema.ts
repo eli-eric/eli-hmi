@@ -166,7 +166,7 @@ export const LABEL_DEFAULTS = {
   flashlampsState: 'Flashlamps State',
   triggerDelay: 'Trigger Delay',
   modboxState: 'Modbox State',
-  biasValue: 'Bias Value',
+  biasValue: 'Bias Value MBC1 | MBC2',
   waveformPreset: 'Waveform Preset',
   waveformLatest: 'Waveform Latest',
 } as const
@@ -213,6 +213,15 @@ export const UNIT_DEFAULTS: Readonly<UnitsConfig> = {
 export const FORMAT_DEFAULTS: Readonly<FormatConfig> = {
   modboxMbc1: { format: 'fixed', toFixed: 0 },
   modboxMbc2: { format: 'fixed', toFixed: 0 },
+  // Unrounded: a photodiode mean is the reading an operator compares shot to
+  // shot, so the cell shows exactly what the record sent rather than a
+  // three-decimal view of it.
+  phdMean: { format: 'raw' },
+  phd2Mean: { format: 'raw' },
+  // Two decimals, not the shared three: more digits than a regen loop's sensor
+  // can mean, and a station reading 22.456 invites a conclusion about the
+  // third one.
+  regenTemp: { format: 'fixed', toFixed: 2 },
 }
 
 /** The unit for somewhere there is no reading to ask — a column header. */

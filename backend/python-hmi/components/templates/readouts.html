@@ -161,10 +161,7 @@ EPICS link down — values shown are last-known and may be stale.
 {%- macro pair_row(id, show, pairs) -%}
 <span id="{{ id }}" class="mbc-row"{{ _show(show) }}>
 {% for pair in pairs %}
-<span class="mbc-pair">
-<span class="mbc-label">{{ pair.label }}</span>
 <span class="mbc-cell" data-tone-surface="cell">{{ _inner(pair.readout) }}</span>
-</span>
 {% endfor %}
 </span>
 {%- endmacro -%}

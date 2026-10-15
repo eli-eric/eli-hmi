@@ -17,7 +17,6 @@ components:
       attenuator:
         pv: L4-SPFE-APL:SM5-ATT2:52:CurrentPosition
         label: Atten. SM5-ATT52:52
-      sequencerRunning: L4-SPFE-APL:Busy
     trigger_delay:
       - L4-SPFE-APL:PS5059:22:Ch1TriggeringDelay
       - L4-SPFE-APL:PS5059:22:Ch2TriggeringDelay

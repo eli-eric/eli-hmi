@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ModboxSection } from './ModboxSection'
-import type { LabeledPv } from '@/app/(modules)/l4-opcpa/config/schema'
+import {
+  LABEL_DEFAULTS,
+  type LabeledPv,
+} from '@/app/(modules)/l4-opcpa/config/schema'
 import {
   LASER_COMMANDS,
   makeCommandPv,
@@ -120,7 +123,9 @@ describe('ModboxSection', () => {
     )
     act(() => ws.push('AI_NL2_MBC1', 2.15))
 
-    expect(screen.getByText('Bias Value').parentElement).toHaveTextContent('mV')
+    expect(
+      screen.getByText(LABEL_DEFAULTS.biasValue).parentElement,
+    ).toHaveTextContent('mV')
   })
 
   it('shows boolean states as words, not bare 1 / 0', async () => {
@@ -529,11 +534,10 @@ describe('ModboxSection', () => {
       ws.push('SI_NL2_LATEST_WAVEFORM', 'narrow-50ps')
     })
 
-    // The bias readouts live on their own row, labelled beside each value.
-    const biasRow = screen.getByText('Bias Value').parentElement
-    expect(biasRow).toHaveTextContent('MBC1')
+    // The bias readouts live on their own row, which names both channels once
+    // so each cell can give its width to the number instead of to a label.
+    const biasRow = screen.getByText(LABEL_DEFAULTS.biasValue).parentElement
     expect(biasRow).toHaveTextContent('12.34')
-    expect(biasRow).toHaveTextContent('MBC2')
     expect(biasRow).toHaveTextContent('56.78')
 
     // The Modbox State row carries the aggregate and nothing else — no BOOL

@@ -145,6 +145,27 @@ class TestSimulator:
         finally:
             await hub.stop()
 
+    async def test_a_never_processed_record_reads_invalid_because_udf(self):
+        """What an unprocessed record does in a real IOC, including *why*:
+        a screen that treats "never run" differently from "broken" can only
+        do so if the simulator says which this is."""
+        from core.components import PvSpec
+        from core.epics.sim_backend import seed_from_specs
+
+        backend = SimBackend(tick_seconds=10, seed=1)
+        seed_from_specs(backend, [PvSpec(name="PV:U", kind="bool", undefined=True)])
+        hub = PvHub(backend)
+        await hub.start()
+        try:
+            pv = PvId("PV:U")
+            await hub.subscribe([pv])
+            await asyncio.sleep(0.02)
+            sample = hub.get(pv)
+            assert sample.severity == 3
+            assert sample.status == "UDF"
+        finally:
+            await hub.stop()
+
     async def test_an_enum_reads_as_its_name_or_its_index_by_datatype(self):
         backend = SimBackend(tick_seconds=10, seed=1)
         backend.declare(SimSpec("PV:S", "enum", value=1, enums=("OFF", "ON")))

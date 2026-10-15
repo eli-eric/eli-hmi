@@ -202,6 +202,10 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         }
       />
       {expanded && <DetailList items={items} />}
+      {/* The bias cells carry no MBC1/MBC2 of their own: which is which is in
+          the row's label, because two names repeated on every row of every
+          laser cost more width than they buy — and width here is what the
+          numbers need. Each cell's hover text still names its PV. */}
       {(mbc1Pv || mbc2Pv) && (
         <DataRow
           label={labels.biasValue}
@@ -209,31 +213,25 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
           value={
             <div className={styles.mbcRow}>
               {mbc1Pv && (
-                <span className={styles.mbcPair}>
-                  <span className={styles.mbcLabel}>MBC1</span>
-                  <span className={styles.mbcCell} data-tone-surface="cell">
-                    <FloatValue
-                      pvName={mbc1Pv}
-                      data={state[mbc1Pv] as Message<number | null> | undefined}
-                      format={format.modboxMbc1}
-                      units={units.modboxMbc1}
-                      unitsFallback={UNIT_DEFAULTS.modboxMbc1}
-                    />
-                  </span>
+                <span className={styles.mbcCell} data-tone-surface="cell">
+                  <FloatValue
+                    pvName={mbc1Pv}
+                    data={state[mbc1Pv] as Message<number | null> | undefined}
+                    format={format.modboxMbc1}
+                    units={units.modboxMbc1}
+                    unitsFallback={UNIT_DEFAULTS.modboxMbc1}
+                  />
                 </span>
               )}
               {mbc2Pv && (
-                <span className={styles.mbcPair}>
-                  <span className={styles.mbcLabel}>MBC2</span>
-                  <span className={styles.mbcCell} data-tone-surface="cell">
-                    <FloatValue
-                      pvName={mbc2Pv}
-                      data={state[mbc2Pv] as Message<number | null> | undefined}
-                      format={format.modboxMbc2}
-                      units={units.modboxMbc2}
-                      unitsFallback={UNIT_DEFAULTS.modboxMbc2}
-                    />
-                  </span>
+                <span className={styles.mbcCell} data-tone-surface="cell">
+                  <FloatValue
+                    pvName={mbc2Pv}
+                    data={state[mbc2Pv] as Message<number | null> | undefined}
+                    format={format.modboxMbc2}
+                    units={units.modboxMbc2}
+                    unitsFallback={UNIT_DEFAULTS.modboxMbc2}
+                  />
                 </span>
               )}
             </div>

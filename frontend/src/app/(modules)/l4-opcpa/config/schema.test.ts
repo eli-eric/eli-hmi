@@ -362,6 +362,21 @@ describe('parseLaserSpecs', () => {
     expect(spec.format.modboxMbc1).toEqual({ format: 'fixed', toFixed: 0 })
   })
 
+  it('leaves a photodiode mean unrounded', () => {
+    // The reading an operator compares shot to shot: the shared three decimals
+    // throw away the end of it, so the cell shows what the record sent.
+    const [spec] = parseLaserSpecs(doc([laser()]))
+    expect(spec.format.phdMean).toEqual({ format: 'raw' })
+    expect(spec.format.phd2Mean).toEqual({ format: 'raw' })
+  })
+
+  it('reads a temperature to two decimals without being asked', () => {
+    // Three was the shared default and is more than a regen loop's sensor can
+    // mean; a station reading 22.456 invites a conclusion about the third digit.
+    const [spec] = parseLaserSpecs(doc([laser()]))
+    expect(spec.format.regenTemp).toEqual({ format: 'fixed', toFixed: 2 })
+  })
+
   it('expands the bare-number shorthand into decimal places', () => {
     const [spec] = parseLaserSpecs(
       doc([
