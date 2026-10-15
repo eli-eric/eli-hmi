@@ -346,6 +346,7 @@ class Config(ComponentConfig):
     )
     waveforms_url: str | None = Field(
         default=None,
+        alias="waveformsUrl",
         description="Absolute URL of the Modbox's own waveform catalog, e.g. "
         "https://modbox-nl2.lcs.local/api/waveforms. Served by the device, so it "
         "differs per laser; the server fetches it and expects a JSON array of "

@@ -213,6 +213,36 @@ class TestWhatOneSignalSays:
             parse(text)
 
 
+class TestTheYamlSpelling:
+    """Every key is camelCase in YAML, because the React app's schema is where
+    this format came from and a controls engineer copies blocks between them.
+    A field that only answers to its Python name is a key that silently is not
+    the documented one."""
+
+    def test_the_waveform_catalog_url_is_camel_case(self):
+        laser = parse(
+            MINIMAL + "    waveformsUrl: https://modbox-nl2.lcs.local/api/waveforms\n"
+        )
+        assert laser.waveforms_url == "https://modbox-nl2.lcs.local/api/waveforms"
+
+    def test_every_multi_word_field_answers_to_its_camel_case_name(self):
+        from components.laser_panel.config import (
+            ChillerSpec,
+            LaserPvs,
+            SequenceSpec,
+            SignalOptions,
+        )
+
+        missing = []
+        for model in (Config, LaserPvs, SequenceSpec, ChillerSpec, SignalOptions):
+            for name, field in model.model_fields.items():
+                head, *rest = name.split("_")
+                camel = head + "".join(word.capitalize() for word in rest)
+                if camel != name and not field.alias:
+                    missing.append(f"{model.__name__}.{name} (wanted {camel})")
+        assert not missing, f"fields with no camelCase alias: {missing}"
+
+
 class TestStrictness:
     def test_an_unknown_key_is_rejected(self):
         with pytest.raises(ValidationError):
