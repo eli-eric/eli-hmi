@@ -16,6 +16,7 @@ import os
 import re
 import socket
 import threading
+from urllib.parse import quote
 from pathlib import Path
 
 import httpx
@@ -172,6 +173,23 @@ class TestTheSequencer:
     def test_a_laser_without_sequences_has_no_section(self, page):
         html = page(sequences=[])
         assert "Sequencer" not in html
+
+
+class TestTheWaveformPreset:
+    def test_the_selector_writes_the_record_the_row_reads(self, page):
+        """The preset is a setting, not an action: the row shows a record and
+        its control sets that same record. Writing somewhere else leaves the
+        row reading what it read before, which looks like a write that did
+        nothing."""
+        html = page()
+        preset_pv = yaml.safe_load(
+            (REFERENCE / "l4-opcpa" / "gui.yaml").read_text(encoding="utf-8")
+        )["components"][0]["pvs"]["loadedWaveform"]
+        selector = re.search(
+            r'aria-label="Set waveform".*?</button>', html, re.S
+        )
+        assert selector, "no waveform selector on the page"
+        assert f"pv={quote(preset_pv, safe='')}" in selector.group(0)
 
 
 class TestUnits:

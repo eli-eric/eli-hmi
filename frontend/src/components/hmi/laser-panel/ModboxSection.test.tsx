@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ModboxSection } from './ModboxSection'
+import { __resetWaveformCatalogForTests } from './WaveformSelect'
 import {
   LABEL_DEFAULTS,
   type LabeledPv,
@@ -503,6 +504,56 @@ describe('ModboxSection', () => {
       screen.getByRole('button', { name: 'Set Waveform to…' }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
+  it('sets the waveform preset by writing the record the row reads', async () => {
+    // The preset is a setting, not an action. Writing somewhere else would
+    // leave the row reading what it read before, which looks to an operator
+    // like a write that did nothing.
+    __resetWaveformCatalogForTests() // the catalog is cached module-wide
+    const spy = vi.fn<typeof fetch>(async (input) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      return url.endsWith('/waveforms')
+        ? new Response(JSON.stringify(['std-100ps', 'narrow-50ps']), {
+            status: 200,
+          })
+        : new Response(JSON.stringify({ ok: true }), { status: 200 })
+    })
+    globalThis.fetch = spy as unknown as typeof fetch
+
+    const ws = makeFakeWebSocketContext()
+    const user = userEvent.setup()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <ModboxSection
+          cmdPv={makeCommandPv('NL2', {})}
+          modbox={MODBOX_3}
+          loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+          commands={LASER_COMMANDS}
+        />
+      </TestWebSocketProvider>,
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: 'Set waveform preset' }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole('option', { name: 'narrow-50ps' }),
+      ).toBeInTheDocument(),
+    )
+    await user.selectOptions(screen.getByRole('combobox'), 'narrow-50ps')
+    await user.click(screen.getByRole('button', { name: /CONFIRM/i }))
+
+    await waitFor(() => {
+      const write = spy.mock.calls.find(([url]) =>
+        String(url).includes('/pv/SI_NL2_LOADED_WAVEFORM'),
+      )
+      expect(write).toBeDefined()
+      expect(JSON.parse((write![1] as RequestInit).body as string)).toEqual({
+        value: 'narrow-50ps',
+      })
+    })
   })
 
   it('renders MBC1 / MBC2 readouts and the Waveform Latest row when configured', async () => {

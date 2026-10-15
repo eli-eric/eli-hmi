@@ -252,14 +252,16 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
           />
         }
         action={
-          can('LOAD_WAVEFORM') ? (
-            <CogToggle ariaLabel="Set waveform preset">
-              <WaveformSelect
-                pvName={cmdPv('LOAD_WAVEFORM').pvName}
-                catalogUrl={waveformsUrl}
-              />
-            </CogToggle>
-          ) : undefined
+          /* The preset is a setting, not an action: the control writes the
+             very record the row reads, the way the shutter and the attenuator
+             do. A write that landed anywhere else would leave this row reading
+             what it read before, which looks like a write that did nothing. */
+          <CogToggle ariaLabel="Set waveform preset">
+            <WaveformSelect
+              pvName={loadedWaveformPv}
+              catalogUrl={waveformsUrl}
+            />
+          </CogToggle>
         }
       />
       {latestWaveformPv && (

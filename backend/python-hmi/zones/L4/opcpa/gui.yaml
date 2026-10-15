@@ -28,7 +28,7 @@ components:
   - label: Set to Standby
     pv: L4-OPCPA-NL2:Standby.BUSY
   - label: Send waveform
-    pv: L4-OPCPA-NL2:SetWFByNameSeq.BUSY
+    pv: L4-OPCPA-NL2:ModBox:SetWFByNameSeq.BUSY
   triggerDelay:
   - L4-OPCPA-NL2:PS5059:22:Ch1TriggeringDelay
   - L4-OPCPA-NL2:PS5059:22:Ch2TriggeringDelay

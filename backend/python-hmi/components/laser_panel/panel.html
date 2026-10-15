@@ -172,20 +172,19 @@
       {{ rows.row(labels.biasValue, w['bias'], bare=true) }}
       {% endif %}
 
-      {% if c.can('LOAD_WAVEFORM') %}
+      {#- The preset is a setting, not an action: the control writes the very
+          record the row reads, the way the shutter and the attenuator do. A
+          write that landed anywhere else would leave this row reading what it
+          read before, which looks like a write that did nothing. -#}
       {% set wf_cog = comp.signal('cog_waveform') %}
       {% set wf_actions %}
       {% call controls.cog(wf_cog, 'Set waveform preset', on_open=waveforms_url) %}
-        {{ controls.choice_select(cmd.LOAD_WAVEFORM.pv, comp.signal('set_waveform', ''),
+        {{ controls.choice_select(c.pvs.loaded_waveform, comp.signal('set_waveform', ''),
                                   waveforms, 'Set waveform', wf_cog, id=waveform_select_id) }}
       {% endcall %}
       {% endset %}
       {{ rows.row(labels.waveformPreset, w['waveform_preset'], wf_actions,
                   hint='Waveform sent in ModBox ON sequence') }}
-      {% else %}
-      {{ rows.row(labels.waveformPreset, w['waveform_preset'],
-                  hint='Waveform sent in ModBox ON sequence') }}
-      {% endif %}
 
       {% if 'waveform_latest' in w %}
       {{ rows.row(labels.waveformLatest, w['waveform_latest'],
