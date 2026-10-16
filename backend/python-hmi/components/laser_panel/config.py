@@ -241,11 +241,12 @@ UNIT_DEFAULTS: dict[str, str] = {
 FORMAT_DEFAULTS: dict[str, Any] = {
     "modboxMbc1": 0,
     "modboxMbc2": 0,
-    # Unrounded: a photodiode mean is the reading an operator compares shot to
-    # shot, so the cell shows exactly what the record sent rather than a
-    # three-decimal view of it.
-    "phdMean": {"format": "raw"},
-    "phd2Mean": {"format": "raw"},
+    # A thousandth of a millijoule, which is what the detector resolves. Stated
+    # rather than left to the shared default it currently equals: this is the
+    # reading an operator compares shot to shot, so what it rounds to is this
+    # component's business and should not move if that default ever does.
+    "phdMean": 3,
+    "phd2Mean": 3,
     # A chiller cell is ~3.9rem wide, so every digit has to earn its place:
     # a loop temperature is read to a hundredth, and a water level is a whole
     # percent — a thousandth of one is three characters of noise.

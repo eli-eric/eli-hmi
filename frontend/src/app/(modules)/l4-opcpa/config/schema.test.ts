@@ -362,12 +362,12 @@ describe('parseLaserSpecs', () => {
     expect(spec.format.modboxMbc1).toEqual({ format: 'fixed', toFixed: 0 })
   })
 
-  it('leaves a photodiode mean unrounded', () => {
-    // The reading an operator compares shot to shot: the shared three decimals
-    // throw away the end of it, so the cell shows what the record sent.
+  it('reads a photodiode mean to three decimals', () => {
+    // Fixed rather than unrounded: a double delivered by Channel Access
+    // carries digits the detector never measured.
     const [spec] = parseLaserSpecs(doc([laser()]))
-    expect(spec.format.phdMean).toEqual({ format: 'raw' })
-    expect(spec.format.phd2Mean).toEqual({ format: 'raw' })
+    expect(spec.format.phdMean).toEqual({ format: 'fixed', toFixed: 3 })
+    expect(spec.format.phd2Mean).toEqual({ format: 'fixed', toFixed: 3 })
   })
 
   it('reads a chiller the way its quantity is measured', () => {

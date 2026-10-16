@@ -112,13 +112,13 @@ class TestUnits:
         assert row["pairs"][0]["readout"].units == "mV"
         assert row["pairs"][0]["readout"].text == "2100", "whole millivolts"
 
-    def test_a_photodiode_shows_every_digit_it_was_given(self, spec, panel):
-        """A photodiode mean is the reading an operator compares shot to shot,
-        and the shared three decimals throw away the end of it. Nothing here
-        rounds: what the record sent is what the cell shows."""
+    def test_a_photodiode_reads_to_three_decimals(self, spec, panel):
+        """Fixed rather than unrounded: a double delivered by Channel Access
+        carries digits the detector never measured, and `0.30000000000000004`
+        in a cell is worse than a thousandth of a millijoule is useful."""
         pv = spec.pvs.phd_mean
         context = panel.widgets["phd_mean"].build(reader({PvId(pv): ok(pv, 0.123456)}))
-        assert context["readout"].text == "0.123456"
+        assert context["readout"].text == "0.123"
 
     def test_a_photodiode_reading_that_is_not_a_number_is_a_fault(self, spec, panel):
         """Channel Access delivers a record at its native type, so a string
