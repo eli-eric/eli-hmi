@@ -265,7 +265,7 @@ class LaserPanel(Component):
                 "waveform_preset",
                 "value_cell",
                 [PvId(pvs.loaded_waveform)],
-                self._text(pvs.loaded_waveform),
+                self._text(pvs.loaded_waveform, initialises=True),
             )
             if pvs.latest_waveform:
                 self.add(
@@ -330,9 +330,20 @@ class LaserPanel(Component):
 
         return build
 
-    def _text(self, pv: str):
+    def _text(self, pv: str, *, initialises: bool = False):
+        """`initialises` for a record that is undefined until the device
+        writes it: the waveform preset arrives when the Modbox initialises and
+        reads UDF until then. See `readings.as_initialised`."""
+
         def build(read: PvReader) -> dict[str, Any]:
-            return {"readout": string_readout(read(pv), pv_name=pv, is_connected=read.is_connected)}
+            sample = read(pv)
+            if initialises:
+                sample = readings.as_initialised(sample)
+            return {
+                "readout": string_readout(
+                    sample, pv_name=pv, is_connected=read.is_connected
+                )
+            }
 
         return build
 
@@ -375,11 +386,21 @@ class LaserPanel(Component):
             # Where the waveform options live in the DOM, and what to ask when
             # the control is opened — the Modbox's list changes while the
             # machine runs, so one fetch at start-up is not enough.
-            "waveform_select_id": f"{self.key}-waveforms",
+            # Marks every control showing this laser's catalog, so one patch
+            # refreshes all of them.
+            "waveform_catalog": f"{self.key}-waveforms",
             "waveforms_url": f"/api/waveforms?component={self.key}",
             # What the Modbox serves, when it is configured to serve one;
             # otherwise the list in the config.
-            "waveforms": self.catalog if cfg.waveforms_url else cfg.waveforms,
+            # Alphabetical, whichever list it is: a Modbox answers in the
+            # order its own store holds — the order waveforms were created —
+            # and an operator looking for one name in a drop-down is reading,
+            # not browsing. Case does not decide the order, or `Broad` would
+            # sort away from `broad`.
+            "waveforms": sorted(
+                self.catalog if cfg.waveforms_url else cfg.waveforms,
+                key=lambda name: (name.lower(), name),
+            ),
             "signals": {
                 "seq": getattr(self, "seq_signal", None),
                 "mss": self.mss_signal,

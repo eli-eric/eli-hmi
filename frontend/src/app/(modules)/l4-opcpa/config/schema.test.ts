@@ -370,6 +370,15 @@ describe('parseLaserSpecs', () => {
     expect(spec.format.phd2Mean).toEqual({ format: 'raw' })
   })
 
+  it('reads a chiller the way its quantity is measured', () => {
+    // Three decimals was the shared default and suits neither: a chiller cell
+    // is ~3.9rem wide, and a water level reported to a thousandth of a
+    // percent is three characters of noise.
+    const [spec] = parseLaserSpecs(doc([laser()]))
+    expect(spec.format.chillerTemp).toEqual({ format: 'fixed', toFixed: 2 })
+    expect(spec.format.chillerLevel).toEqual({ format: 'fixed', toFixed: 0 })
+  })
+
   it('reads a temperature to two decimals without being asked', () => {
     // Three was the shared default and is more than a regen loop's sensor can
     // mean; a station reading 22.456 invites a conclusion about the third digit.

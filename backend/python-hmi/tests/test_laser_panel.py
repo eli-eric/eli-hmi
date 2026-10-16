@@ -129,6 +129,20 @@ class TestUnits:
         assert context["readout"].text == "PV INV"
         assert "expected a number, got str" in (context["readout"].title or "")
 
+    def test_a_chiller_reads_the_way_its_quantity_is_measured(self, spec, panel):
+        """Three decimals was the shared default and suits none of these: a
+        chiller cell is ~3.9rem wide, and a water level reported to a
+        thousandth of a percent is three characters of noise."""
+        chiller = spec.chillers[0]
+        for quantity, pv, value, expected in (
+            ("temp", chiller.temp, 24.8137, "24.81"),
+            ("level", chiller.level, 92.4, "92"),
+        ):
+            context = panel.widgets[f"chiller_0_{quantity}"].build(
+                reader({PvId(pv): ok(pv, value)})
+            )
+            assert context["readout"].text == expected, quantity
+
     def test_a_temperature_reads_to_two_decimals(self, spec, panel):
         """Three was the shared default and is more than a regen loop's sensor
         can mean; a station reading 22.456 invites a conclusion about the
@@ -399,6 +413,29 @@ class TestASequenceNeverRun:
         assert context["items"][0].text == "PV DSC"
 
 
+class TestAWaveformPresetNeverLoaded:
+    """The preset record is undefined until the Modbox initialises and writes
+    the waveform it will send — the same shape of fact as a sequence nobody
+    has run, and forgiven the same way."""
+
+    def test_the_row_reads_the_name(self, spec, panel):
+        pv = spec.pvs.loaded_waveform
+        sample = PvSample(
+            name=pv, ok=True, value="std-100ps", severity=3, status="UDF", timestamp=1.0
+        )
+        context = panel.widgets["waveform_preset"].build(reader({PvId(pv): sample}))
+        assert context["readout"].text == "std-100ps"
+        assert context["readout"].tone is None
+
+    def test_invalid_for_any_other_reason_is_still_reported(self, spec, panel):
+        pv = spec.pvs.loaded_waveform
+        sample = PvSample(
+            name=pv, ok=True, value="std-100ps", severity=3, status="READ", timestamp=1.0
+        )
+        context = panel.widgets["waveform_preset"].build(reader({PvId(pv): sample}))
+        assert context["readout"].text == "PV INV"
+
+
 class TestSequencerTooltips:
     def test_an_idle_sequencer_says_so(self, spec, panel):
         samples = {PvId(item.pv): ok(item.pv, 0) for item in spec.sequences}
@@ -454,6 +491,27 @@ class TestWaveformCatalog:
             assert panel.context()["waveforms"] == ["alpha", "beta"]
         finally:
             server.shutdown()
+
+    async def test_the_list_reads_alphabetically(self, zone):
+        """A Modbox answers in whatever order its own store holds, which is
+        the order waveforms were created. An operator looking for one name in
+        a drop-down is reading, not browsing."""
+        server, url = self.stub(["ramp-up", "Broad-200ps", "std-100ps", "narrow-50ps"])
+        try:
+            panel = build_panel(zone, waveforms_url=url)
+            await panel.warm()
+            assert panel.context()["waveforms"] == [
+                "Broad-200ps",
+                "narrow-50ps",
+                "ramp-up",
+                "std-100ps",
+            ], "case must not decide the order either"
+        finally:
+            server.shutdown()
+
+    def test_a_configured_list_reads_alphabetically_too(self, zone):
+        panel = build_panel(zone, waveforms=["zulu", "alpha", "Mike"])
+        assert panel.context()["waveforms"] == ["alpha", "Mike", "zulu"]
 
     async def test_an_unreachable_modbox_leaves_the_screen_usable(self, zone):
         """A device that does not answer must not take the page with it."""

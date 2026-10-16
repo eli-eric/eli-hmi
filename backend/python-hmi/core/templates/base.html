@@ -1,5 +1,17 @@
 <!doctype html>
-<html lang="en"{% if palette %} data-palette="{{ palette }}"{% endif %}>
+{#- The palette is rendered into the tag for the first paint, and bound to
+    the `_palette` signal for every change after it: the tone layer is pure
+    CSS keyed off this attribute, so switching it needs no reload — and a
+    reload would collapse every list an operator had expanded.
+
+    The signal is declared here rather than left to the page's own
+    `data-signals`, which sits inside `<body>`: this element is processed
+    first, and a binding that read an undeclared signal would blank the
+    attribute the server just rendered — a flash of the wrong palette on
+    every load, under goggles of all places. -#}
+<html lang="en"{% if palette %} data-palette="{{ palette }}"{% endif %}
+      data-signals="{_palette: '{{ palette or 'default' }}'}"
+      data-attr="{'data-palette': $_palette === 'default' ? null : $_palette}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">

@@ -546,14 +546,44 @@ class TestPalette:
 
     async def test_choosing_one_sticks_for_the_next_page(self, client):
         chosen = await client.post("/api/palette", params={"value": "l4-goggles"}, json={})
-        assert chosen.status_code == 200
+        assert chosen.is_success
 
         page = (await client.get("/l4-opcpa")).text
         assert 'data-palette="l4-goggles"' in page
 
         await client.post("/api/palette", params={"value": "default"}, json={})
         page = (await client.get("/l4-opcpa")).text
-        assert "data-palette" not in page, "the default palette is the absence of one"
+        # The rendered attribute, not the binding that keeps it in step.
+        assert 'data-palette="' not in page, "the default palette is the absence of one"
+
+    async def test_choosing_one_does_not_reload_the_screen(self, client):
+        """A reload would collapse every expanded list — MSS, module errors,
+        the Modbox state, the flashlamp tally — because each is a signal that
+        starts closed. The palette is one attribute on `<html>`, so it changes
+        in place and whatever an operator had open stays open.
+        """
+        answer = await client.post(
+            "/api/palette", params={"value": "l4-goggles"}, json={}
+        )
+        assert answer.is_success
+        body = answer.text
+        assert "datastar-redirect" not in body and "location" not in body.lower(), (
+            f"the palette reloads the page: {body!r}"
+        )
+
+    async def test_the_document_follows_the_chosen_palette_without_a_reload(
+        self, client
+    ):
+        page = (await client.get("/l4-opcpa")).text
+        html_tag = page[page.index("<html") : page.index(">", page.index("<html")) + 1]
+        assert "data-attr" in html_tag, (
+            f"nothing binds the palette to the document: {html_tag!r}"
+        )
+        # Declared on the element that uses it: the page's own `data-signals`
+        # sits inside `<body>`, which this element is processed before.
+        assert "_palette" in html_tag and "data-signals" in html_tag, (
+            f"the binding reads a signal nothing has declared yet: {html_tag!r}"
+        )
 
     async def test_a_palette_nobody_defined_is_ignored(self, client):
         """A hand-edited cookie must not put an unknown value on <html>, where
@@ -561,6 +591,37 @@ class TestPalette:
         await client.post("/api/palette", params={"value": "l9-goggles"}, json={})
         page = (await client.get("/l4-opcpa")).text
         assert "l9-goggles" not in page
+
+
+class TestTheWaveformCatalogReachesBothControls:
+    """Two controls offer the waveform list: the preset selector on its row,
+    and `Set Waveform to…` inside Modbox Actions. The catalog is one list and
+    both must show the same one — a device reconfigured mid-shift that only
+    half the screen knows about is worse than one neither knows about.
+    """
+
+    async def test_both_selectors_are_patchable(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        assert page.count("data-waveforms=") == 2, (
+            "a selector the refresh cannot find will show a stale catalog for "
+            "as long as the page is open"
+        )
+
+    async def test_both_cogs_re_read_the_catalog_when_opened(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        assert page.count("@get('/api/waveforms?component=") == 2
+
+    async def test_the_refresh_targets_every_copy(self, client):
+        import re
+
+        page = (await client.get("/l4-opcpa")).text
+        key = re.search(r"/api/waveforms\?component=([^']+)'", page).group(1)
+        body = (
+            await client.get("/api/waveforms", params={"component": key})
+        ).text
+        assert "data-waveforms" in body, (
+            f"patched by id, so only the first control is refreshed: {body!r}"
+        )
 
 
 class TestLabelsAndUnits:

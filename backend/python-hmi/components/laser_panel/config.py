@@ -246,6 +246,11 @@ FORMAT_DEFAULTS: dict[str, Any] = {
     # three-decimal view of it.
     "phdMean": {"format": "raw"},
     "phd2Mean": {"format": "raw"},
+    # A chiller cell is ~3.9rem wide, so every digit has to earn its place:
+    # a loop temperature is read to a hundredth, and a water level is a whole
+    # percent — a thousandth of one is three characters of noise.
+    "chillerTemp": 2,
+    "chillerLevel": 0,
     # Two decimals, not the shared three: more digits than a regen loop's
     # sensor can mean, and a station reading 22.456 invites a conclusion about
     # the third one.

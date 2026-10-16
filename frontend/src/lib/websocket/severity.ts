@@ -14,6 +14,29 @@ export const isUdf = (status: number | string | null | undefined): boolean =>
     ? status.trim().toUpperCase() === 'UDF'
     : status === STATUS_UDF
 
+/**
+ * The same reading with "has not happened yet" forgiven.
+ *
+ * Some records are undefined — severity INVALID, status UDF — until the thing
+ * they describe happens for the first time: a sequence nobody has run, a
+ * waveform preset the Modbox has not written on initialisation. On a cold IOC
+ * that is all of them, so every such row would read `PV INV` while nothing
+ * whatever is wrong. An indicator that cries wolf every morning is worse than
+ * no indicator: it teaches an operator to look past the one thing that means
+ * a reading cannot be trusted.
+ *
+ * Narrow on purpose: *why* the record is INVALID is what decides. UDF is the
+ * expected state of something that has not run yet; INVALID for any other
+ * reason — a failed scan, a broken link — is a real fault and passes through,
+ * as does `ok: false`, a channel that is not there at all.
+ */
+export const asInitialised = <T>(
+  msg: Message<T> | undefined,
+): Message<T> | undefined =>
+  msg && msg.ok && msg.severity === EPICS_SEVERITY.INVALID && isUdf(msg.status)
+    ? { ...msg, severity: 0 }
+    : msg
+
 export const EPICS_SEVERITY = {
   NONE: 0,
   MINOR: 1,

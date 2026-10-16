@@ -4,8 +4,7 @@ import { FC, useMemo, useState } from 'react'
 import { SectionCard } from '@/components/hmi/controls/SectionCard'
 import { DataRow } from '@/components/hmi/controls/DataRow'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
-import { EPICS_SEVERITY, isUdf } from '@/lib/websocket/severity'
-import type { Message } from '@/app/providers/types'
+import { asInitialised } from '@/lib/websocket/severity'
 import {
   aggregateSeverityPresentation,
   severityPresentation,
@@ -36,26 +35,6 @@ interface SequencerSectionProps {
  * already say is a second thing that can be wrong, and the disagreement would
  * show as a pill contradicting its own list.
  */
-/**
- * The same reading with "never run" forgiven.
- *
- * A sequence record is undefined — severity INVALID, status UDF — until the
- * control system runs it for the first time, so on a cold IOC every row would
- * read `PV INV` while nothing whatever is wrong. An indicator that cries wolf
- * every morning is worse than no indicator: it teaches an operator to look
- * past the one thing that means a reading cannot be trusted.
- *
- * Narrow on purpose: *why* the record is INVALID is what decides. UDF is the
- * expected state of a sequence nobody has run; INVALID for any other reason —
- * a failed scan, a broken link — is a real fault and passes through, as does
- * `ok: false`, a channel that is not there at all.
- */
-const asRunAtLeastOnce = (
-  msg: Message<number | null> | undefined,
-): Message<number | null> | undefined =>
-  msg && msg.ok && msg.severity === EPICS_SEVERITY.INVALID && isUdf(msg.status)
-    ? { ...msg, severity: 0 }
-    : msg
 
 export const SequencerSection: FC<SequencerSectionProps> = ({
   sequences,
@@ -70,7 +49,7 @@ export const SequencerSection: FC<SequencerSectionProps> = ({
   })
 
   const readings = useMemo(
-    () => pvs.map((name) => asRunAtLeastOnce(state[name])),
+    () => pvs.map((name) => asInitialised(state[name])),
     [pvs, state],
   )
 
@@ -118,7 +97,7 @@ export const SequencerSection: FC<SequencerSectionProps> = ({
       {expanded && (
         <ul className={styles.sequenceList}>
           {sequences.map(({ label: name, statePv }) => {
-            const m = asRunAtLeastOnce(state[statePv])
+            const m = asInitialised(state[statePv])
             const seqRunning =
               !m || !m.ok || m.value === null ? null : m.value === 1
             const seq = severityPresentation(m, {

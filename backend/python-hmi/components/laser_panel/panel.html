@@ -180,7 +180,8 @@
       {% set wf_actions %}
       {% call controls.cog(wf_cog, 'Set waveform preset', on_open=waveforms_url) %}
         {{ controls.choice_select(c.pvs.loaded_waveform, comp.signal('set_waveform', ''),
-                                  waveforms, 'Set waveform', wf_cog, id=waveform_select_id) }}
+                                  waveforms, 'Set waveform', wf_cog,
+                                  catalog=waveform_catalog) }}
       {% endcall %}
       {% endset %}
       {{ rows.row(labels.waveformPreset, w['waveform_preset'], wf_actions,
@@ -194,7 +195,11 @@
       {% if c.can('MODBOX_ON') or c.can('MODBOX_OFF') or c.can('SEND_YDFA_CURRENT') %}
       {% set modbox_cog = comp.signal('cog_modbox') %}
       <div class="action-row">
-        {% call controls.cog(modbox_cog, 'Modbox actions', 'Modbox Actions') %}
+        {#- `on_open` for the same reason the preset selector has it: the
+            waveform list inside this panel comes from the device, and a
+            catalog read once at start-up is wrong by the second shift. -#}
+        {% call controls.cog(modbox_cog, 'Modbox actions', 'Modbox Actions',
+                             on_open=waveforms_url) %}
           {% if c.can('MODBOX_ON') %}
             {{ controls.action_button('Set Modbox ON', cmd.MODBOX_ON.pv, cmd.MODBOX_ON.value, 'primary', modbox_cog) }}
           {% endif %}
@@ -216,7 +221,8 @@
             {% call controls.disclosure('Set Waveform to…', wf_action) %}
               {{ controls.choice_select(cmd.LOAD_WAVEFORM.pv,
                                         comp.signal('set_waveform_action', ''),
-                                        waveforms, 'Set waveform', modbox_cog) }}
+                                        waveforms, 'Set waveform', modbox_cog,
+                                        catalog=waveform_catalog) }}
             {% endcall %}
           {% endif %}
         {% endcall %}

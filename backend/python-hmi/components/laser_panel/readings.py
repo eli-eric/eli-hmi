@@ -141,20 +141,21 @@ def overview(read: PvReader, spec: Config, comp: Component) -> dict[str, Any]:
     }
 
 
-def _as_run_at_least_once(sample: PvSample | None) -> PvSample | None:
-    """The same reading with "never run" forgiven.
+def as_initialised(sample: PvSample | None) -> PvSample | None:
+    """The same reading with "has not happened yet" forgiven.
 
-    A sequence record is undefined — severity INVALID, status UDF — until the
-    control system runs it for the first time, so on a cold IOC every row
-    would read `PV INV` while nothing whatever is wrong. An indicator that
-    cries wolf every morning is worse than no indicator: it teaches an
-    operator to look past the one thing that means a reading cannot be
-    trusted.
+    Some records are undefined — severity INVALID, status UDF — until the
+    thing they describe happens for the first time: a sequence nobody has run,
+    a waveform preset the Modbox has not written on initialisation. On a cold
+    IOC that is all of them, so every such row would read `PV INV` while
+    nothing whatever is wrong. An indicator that cries wolf every morning is
+    worse than no indicator: it teaches an operator to look past the one thing
+    that means a reading cannot be trusted.
 
     Narrow on purpose: *why* the record is INVALID is what decides. UDF is the
-    expected state of a sequence nobody has run; INVALID for any other reason
-    — a failed scan, a broken link — is a real fault and passes through, as
-    does `ok=False`, a channel that is not there at all.
+    expected state of something that has not run yet; INVALID for any other
+    reason — a failed scan, a broken link — is a real fault and passes
+    through, as does `ok=False`, a channel that is not there at all.
     """
     if (
         sample is None
@@ -184,7 +185,7 @@ def sequencer_pill(read: PvReader, spec: Config, comp: Component) -> dict[str, A
     so neither is coloured. Only the control system's severity (or a dead link)
     tones this pill.
     """
-    samples = [_as_run_at_least_once(s) for s in read.many(item.pv for item in spec.sequences)]
+    samples = [as_initialised(s) for s in read.many(item.pv for item in spec.sequences)]
     severity = present_aggregate(samples, is_connected=read.is_connected)
     states = [
         sample.value == 1
@@ -213,7 +214,7 @@ def sequence_list(read: PvReader, spec: Config) -> dict[str, Any]:
     items: list[Readout] = []
     for item in spec.sequences:
         label, pv_name = item.label, item.pv
-        sample = _as_run_at_least_once(read(pv_name))
+        sample = as_initialised(read(pv_name))
         running = None
         if sample is not None and sample.ok and sample.value is not None:
             running = sample.value == 1

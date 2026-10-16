@@ -82,18 +82,19 @@ def current_palette(settings: Settings) -> str | None:
 
 
 async def set_palette() -> Response:
-    """Remember the palette this workstation wants, then reload the screen.
+    """Remember the palette this workstation wants. Nothing else.
 
-    A redirect rather than a patch: the palette is an attribute on `<html>`,
-    and re-rendering the page is both cheaper to reason about than patching
-    the document element and exactly what the server-rendered design is for.
+    The screen has already changed by the time this arrives: `<html>` binds
+    its `data-palette` to the signal the selector writes, and the tone layer
+    is pure CSS keyed off that attribute. This only makes the choice outlast
+    the page, and deliberately sends no redirect — reloading would collapse
+    every list an operator had expanded, which is the one thing changing a
+    colour must not do.
     """
     value = (request.args.get("value") or "").strip()
     who = actor()
     logger.info("palette %r chosen by user=%s", value, who.user if who else "-")
-    response = await make_response(
-        DatastarResponse([SSE.redirect(request.headers.get("Referer") or "/")])
-    )
+    response = await make_response(DatastarResponse([]))
     response.set_cookie(
         PALETTE_COOKIE,
         value if value in PALETTES else DEFAULT_PALETTE,
@@ -188,7 +189,9 @@ async def waveforms() -> DatastarResponse:
         [
             SSE.patch_elements(
                 str(markup),
-                selector=f"#{key}-waveforms",
+                # Every control showing this laser's catalog, not one of
+                # them: a selector patch lands in each match, an id in one.
+                selector=f'[data-waveforms="{key}-waveforms"]',
                 mode=ElementPatchMode.INNER,
             )
         ]

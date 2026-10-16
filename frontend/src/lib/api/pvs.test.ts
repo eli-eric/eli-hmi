@@ -126,7 +126,31 @@ describe('listWaveforms', () => {
           status: 200,
         }),
     )
-    await expect(listWaveforms()).resolves.toEqual(['std-100ps', 'narrow-50ps'])
+    await expect(listWaveforms()).resolves.toEqual(['narrow-50ps', 'std-100ps'])
+  })
+
+  it('returns the catalog alphabetically', async () => {
+    // A Modbox answers in whatever order its own store holds, which is the
+    // order waveforms were created. An operator looking for one name in a
+    // drop-down is reading, not browsing.
+    mockFetch(
+      async () =>
+        new Response(
+          JSON.stringify([
+            'ramp-up',
+            'Broad-200ps',
+            'std-100ps',
+            'narrow-50ps',
+          ]),
+          { status: 200 },
+        ),
+    )
+    await expect(listWaveforms()).resolves.toEqual([
+      'Broad-200ps',
+      'narrow-50ps',
+      'ramp-up',
+      'std-100ps',
+    ])
   })
 })
 

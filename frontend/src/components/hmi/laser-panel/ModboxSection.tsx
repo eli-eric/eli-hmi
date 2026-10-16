@@ -17,6 +17,7 @@ import {
   severityPresentation,
   aggregateSeverityPresentation,
 } from '@/lib/websocket/severity-presentation'
+import { asInitialised } from '@/lib/websocket/severity'
 import type {
   CommandPvResolver,
   LaserCommand,
@@ -248,7 +249,9 @@ export const ModboxSection: FC<ModboxSectionProps> = ({
         value={
           <StringValue
             pvName={loadedWaveformPv}
-            data={state[loadedWaveformPv] as Message<string | null> | undefined}
+            data={asInitialised(
+              state[loadedWaveformPv] as Message<string | null> | undefined,
+            )}
           />
         }
         action={

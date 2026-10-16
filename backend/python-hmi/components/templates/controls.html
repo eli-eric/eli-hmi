@@ -159,12 +159,16 @@
 {#- A drop-down of named choices: a waveform preset, an operating mode. The list
     comes from config rather than a fetch, because it changes when the machine is
     reconfigured, not while an operator is looking at it. -#}
-{%- macro choice_select(pv, signal, choices, label='Set', close=none, id=none) -%}
+{%- macro choice_select(pv, signal, choices, label='Set', close=none, catalog=none) -%}
 <span class="waveform-select">
-{#- `id` makes the options patchable: a device's catalog changes while the
+{#- `catalog` makes the options patchable: a device's catalog changes while the
     machine runs, and the control re-reads it when opened. The patch lands
-    INSIDE the select (mode inner), so the element and its binding survive. -#}
-<select class="waveform-field" {% if id %}id="{{ id }}" {% endif %}data-bind="{{ signal }}" aria-label="{{ label }}">
+    INSIDE the select (mode inner), so the element and its binding survive.
+
+    An attribute rather than an id, because one catalog feeds more than one
+    control — the preset selector and the one in Modbox Actions — and a patch
+    by selector lands in every copy, while an id can only name one. -#}
+<select class="waveform-field" {% if catalog %}data-waveforms="{{ catalog }}" {% endif %}data-bind="{{ signal }}" aria-label="{{ label }}">
 {{ choice_options.options(choices) }}
 </select>
 {#- Nothing selected is not a value: without this the button offers to send

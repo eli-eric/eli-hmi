@@ -164,5 +164,15 @@ export async function listWaveforms(url?: string): Promise<string[]> {
     : await fetch(`${apiBase()}/waveforms`, { headers: await authHeaders() })
   if (!res.ok) throw new Error(`waveforms list HTTP ${res.status}`)
   const data = await res.json()
-  return Array.isArray(data) ? data.filter((n) => typeof n === 'string') : []
+  if (!Array.isArray(data)) return []
+  // Alphabetical: a Modbox answers in the order its own store holds — the
+  // order waveforms were created — and an operator looking for one name in a
+  // drop-down is reading, not browsing. Case does not decide the order, or
+  // `Broad` would sort away from `broad`.
+  return data
+    .filter((n): n is string => typeof n === 'string')
+    .sort(
+      (a, b) =>
+        a.toLowerCase().localeCompare(b.toLowerCase()) || a.localeCompare(b),
+    )
 }

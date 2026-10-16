@@ -506,6 +506,46 @@ describe('ModboxSection', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   })
 
+  it('shows a preset the Modbox has not written yet', async () => {
+    // The preset record is undefined — INVALID because UDF — until the Modbox
+    // initialises and writes the waveform it will send. The same shape of
+    // fact as a sequence nobody has run, and forgiven the same way.
+    const ws = makeFakeWebSocketContext()
+    render(
+      <TestWebSocketProvider value={ws.context}>
+        <ModboxSection
+          cmdPv={makeCommandPv('NL2', {})}
+          modbox={MODBOX_3}
+          loadedWaveformPv="SI_NL2_LOADED_WAVEFORM"
+          commands={LASER_COMMANDS}
+        />
+      </TestWebSocketProvider>,
+    )
+    await waitFor(() =>
+      expect(ws.subscriptions.get('SI_NL2_LOADED_WAVEFORM')?.size).toBe(1),
+    )
+
+    act(() =>
+      ws.push('SI_NL2_LOADED_WAVEFORM', {
+        value: 'std-100ps',
+        severity: 3,
+        status: 'UDF',
+      }),
+    )
+    expect(screen.getByText('std-100ps')).toBeInTheDocument()
+    expect(screen.queryByText('PV INV')).toBeNull()
+
+    // Only "not yet": INVALID for any other reason is a real fault.
+    act(() =>
+      ws.push('SI_NL2_LOADED_WAVEFORM', {
+        value: 'std-100ps',
+        severity: 3,
+        status: 'READ',
+      }),
+    )
+    expect(screen.getByText('PV INV')).toBeInTheDocument()
+  })
+
   it('sets the waveform preset by writing the record the row reads', async () => {
     // The preset is a setting, not an action. Writing somewhere else would
     // leave the row reading what it read before, which looks to an operator
