@@ -14,7 +14,9 @@ components:
       label: PD1-REG:48/Mean
     regenState: L4-OPCPA-NL1:SY3PL50M:32:State
     regenTemp: L4-OPCPA-NL1:TK6:44:DisplayTemperature
-    attenuator: L4-OPCPA-NL1:SM5-ATT1:51:CurrentPosition
+    attenuator:
+      pv: L4-OPCPA-NL1:SM5-ATT:51:CurrentPosition
+      label: Atten. SM5-ATT:51
     loadedWaveform: L4-OPCPA-NL1:ModBox:PresetWaveformName
     latestWaveform: L4-OPCPA-NL1:ModBox:LastSentWaveformName
     modboxMbc1: L4-OPCPA-NL1:ModBox:MBC1:BiasValue
