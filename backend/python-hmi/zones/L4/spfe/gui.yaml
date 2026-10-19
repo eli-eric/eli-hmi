@@ -17,6 +17,15 @@ components:
       attenuator:
         pv: L4-SPFE-APL:SM5-ATT2:52:CurrentPosition
         label: Atten. SM5-ATT52:52
+    sequences:
+    - label: Start Laser
+      pv: L4-SPFE-APL:Start.BUSY
+    - label: Stop Laser
+      pv: L4-SPFE-APL:Stop.BUSY
+    - label: Set to Alignment Mode
+      pv: L4-SPFE-APL:SetAlignmentMode.BUSY
+    - label: Set to Standby
+      pv: L4-SPFE-APL:Standby.BUSY
     trigger_delay:
       - L4-SPFE-APL:PS5059:22:Ch1TriggeringDelay
       - L4-SPFE-APL:PS5059:22:Ch2TriggeringDelay
@@ -87,3 +96,13 @@ components:
     delayPresets: [50, 500, 700, 790]
     commands:
       START_LASER: L4-SPFE-APL:Start
+      STOP_LASER: L4-SPFE-APL:Stop
+      ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode
+      SYSTEM_STANDBY: L4-OPCPA-NL2:Standby
+      FLASHLAMPS_RUN:
+        pv: L4-SPFE-APL:PS5059:SetAll
+        value: RUN
+      FLASHLAMPS_STANDBY:
+        pv: L4-SPFE-APL:PS5059:SetAll
+        value: STANDBY
+      SET_DELAY: L4-SPFE-APL:PS5059:22:SetTriggeringDelay

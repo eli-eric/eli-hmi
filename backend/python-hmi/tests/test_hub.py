@@ -65,6 +65,43 @@ async def test_one_monitor_however_many_subscribers(hub):
     assert hub.backend.removed == [pv]
 
 
+async def test_one_monitor_however_many_widgets_read_it(hub, tmp_path):
+    """A site-wide signal — a beamdump interlock, a hall vacuum flag — is read
+    by every laser panel on the screen. That must be one Channel Access
+    monitor, not one per panel: a dozen subscriptions to one record is load an
+    IOC can feel, and the readings could then disagree with each other.
+
+    Built from YAML through the real loader, because what is under test is the
+    page's own index of which widget reads what.
+    """
+    from core.jinja import create_environment
+    from core.page import Page
+    from core.zones import load_gui, load_zone
+
+    shared = "L4-MSS:BEAMDUMP_CHILLER_ALARM"
+    screen = tmp_path / "screen"
+    screen.mkdir()
+    (screen / "gui.yaml").write_text(
+        "title: Four panels\ncomponents:\n"
+        + "".join(
+            f"- component: value\n  label: NL{n} beamdump\n  pv: {shared}\n"
+            for n in (2, 3, 4, 5)
+        ),
+        encoding="utf-8",
+    )
+    page = Page(load_zone("TESTZ"), load_gui(screen), create_environment())
+    pv = PvId(shared)
+    assert len(page.all_pvs) == 1, "one record, however many panels read it"
+
+    subscription = await hub.subscribe(page.all_pvs)
+    assert hub.backend.added == [pv], f"monitors created: {hub.backend.added}"
+
+    # …and that one monitor's updates reach every widget that named it.
+    woken = page.widgets_for([pv])
+    assert len(woken) == 4, [w.id for w in woken]
+    await subscription.close()
+
+
 async def test_same_pv_at_two_datatypes_is_two_monitors(hub):
     # An mbbi record read natively and as a state name are different requests.
     native, named = PvId("PV:State"), PvId("PV:State", Datatype.ENUM_STRING)
