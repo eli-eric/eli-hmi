@@ -86,9 +86,11 @@ class Settings:
     #: Key the session cookie is signed with. Required in production: without
     #: it every restart would sign every operator out. `DEV=1` generates one.
     session_secret: str = ""
-    #: How long a sign-in lasts. 12h covers a shift, so an operator signs in
-    #: once; the React app's 36h outlived the person at the keyboard.
-    session_hours: float = 12.0
+    #: How long a station may go unused before it asks for a sign-in again —
+    #: every request renews the session (`core.login`). Long on purpose: a
+    #: screen left open all night makes no request until its stream reconnects,
+    #: and nobody wants operators signed out from under a running machine.
+    session_hours: float = 720.0
     #: `Secure` on the session cookie. Default off because stations are served
     #: over plain HTTP inside the zone network today; set it the moment there
     #: is TLS in front, or the cookie travels in clear on the first request.

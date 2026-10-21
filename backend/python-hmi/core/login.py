@@ -13,18 +13,33 @@ something a new screen could be added without, and "the screen someone forgot
 to protect" is precisely the failure that must not be possible. A hook cannot
 be forgotten.
 
-A browser asking for a page is redirected to the form; anything else (the SSE
-stream, `/api/write`) gets a status code, because redirecting a fetch to an HTML
-login page produces a confusing error rather than an honest one.
+A browser asking for a page is redirected to the form; a request Datastar made
+(the SSE stream, `/api/write`) gets an event that sends the browser there,
+because redirecting a fetch to an HTML login page produces a confusing error
+rather than an honest one; anything else gets a status code.
+
+Every request a session lets through renews it, so `SESSION_HOURS` is how long
+a station may sit unused, not how long a sign-in lasts.
 """
 
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote, urlsplit
 
+from datastar_py import ServerSentEventGenerator as SSE
+from datastar_py.quart import DatastarResponse
 from quart import Blueprint, Response, current_app, g, jsonify, redirect, request
 
-from core.auth import COOKIE_NAME, DEV_PASSWORD, DEV_USER, AuthError, Authenticator, SessionCodec
+from core.auth import (
+    COOKIE_NAME,
+    DEV_PASSWORD,
+    DEV_USER,
+    AuthError,
+    Authenticator,
+    Identity,
+    SessionCodec,
+)
 
 logger = logging.getLogger("core.auth")
 
@@ -106,15 +121,7 @@ def build_login_blueprint(*, home: str) -> Blueprint:
 
         cookie, identity = sessions.issue(username.strip(), via)
         response = redirect(destination, code=303)
-        response.set_cookie(
-            COOKIE_NAME,
-            cookie,
-            max_age=identity.seconds_left,
-            httponly=True,
-            samesite="Lax",
-            secure=hmi.settings.session_cookie_secure,
-            path="/",
-        )
+        set_session_cookie(response, cookie, identity)
         logger.info(
             "session issued user=%s via=%s valid=%.0fh -> %s",
             identity.user,
@@ -139,6 +146,19 @@ def build_login_blueprint(*, home: str) -> Blueprint:
         return response
 
     return auth
+
+
+def set_session_cookie(response: Response, cookie: str, identity: Identity) -> None:
+    """The cookie's attributes, decided once for signing in and renewing alike."""
+    response.set_cookie(
+        COOKIE_NAME,
+        cookie,
+        max_age=identity.seconds_left,
+        httponly=True,
+        samesite="Lax",
+        secure=current_app.hmi.settings.session_cookie_secure,
+        path="/",
+    )
 
 
 async def _render_form(
@@ -202,13 +222,31 @@ def install_gate(app, *, home: str) -> None:
         # None lets the request through to its view.
         return None
 
+    @app.after_request
+    async def renew_session(response: Response) -> Response:
+        """Push the session's expiry a full window forward on every request.
+
+        So a screen in use never signs its operator out. The stream counts: its
+        response carries the cookie too, and a screen left open overnight makes
+        no other request — when its stream reconnects after a blip, that is
+        what keeps the sign-in alive.
+        """
+        identity = g.get("identity")
+        if identity is not None:
+            cookie, renewed = current_app.hmi.sessions.renew(identity)
+            set_session_cookie(response, cookie, renewed)
+        return response
+
 
 def _refuse(path: str, *, home: str):
     """Send the browser somewhere useful, and say so once in the log.
 
     A page request gets the form (with `?next=`, so signing in lands on the
-    screen that was asked for). A stream or a write gets 401 — Datastar would
-    otherwise try to patch the login page's HTML into the screen.
+    screen that was asked for). A request Datastar made — the stream, a write —
+    gets an event that sends the browser to the same form: a plain redirect
+    would have Datastar patch the login page's HTML into the screen, and a 401
+    left the page frozen under a banner blaming the live link for what was a
+    sign-out. Anything else gets 401.
 
     The test is "a GET that is not machinery", rather than `Accept: text/html`:
     a browser does send that header, but curl does not, and an operator poking
@@ -223,6 +261,18 @@ def _refuse(path: str, *, home: str):
         target = safe_next(path if path != "/" else home, home)
         logger.info("no session: %s %s -> /login?next=%s", request.method, path, target)
         return redirect(f"/login?next={target}", code=307)
+
+    if is_datastar:
+        # The screen to come back to: a stream's path names it, anything else
+        # was sent from it.
+        screen = (
+            path.removesuffix("/stream")
+            if is_stream
+            else urlsplit(request.headers.get("referer", "")).path
+        )
+        target = quote(safe_next(screen, home))
+        logger.info("no session: %s %s -> /login?next=%s", request.method, path, target)
+        return DatastarResponse([SSE.redirect(f"/login?next={target}")])
 
     logger.warning("no session: %s %s refused (401)", request.method, path)
     return jsonify({"error": "not signed in", "login": "/login"}), 401

@@ -861,21 +861,55 @@ class TestAuthGate:
         assert response.status_code == 307
         assert response.headers["location"] == "/login?next=/chillers"
 
-    async def test_the_stream_is_refused_rather_than_redirected(self, anonymous):
-        """A redirect to an HTML login page would have Datastar patch the form
-        into the screen. 401 is the honest answer to machinery."""
-        response = await anonymous.get("/l4-opcpa/stream", follow_redirects=False)
-        assert response.status_code == 401
-        assert response.json()["login"] == "/login"
+    async def test_a_screens_stream_sends_the_browser_to_the_form(self, anonymous):
+        """What a page open past its session sees when its stream reconnects.
+        A plain redirect would have Datastar patch the form's HTML into the
+        screen, and a 401 left the page frozen under a banner blaming the live
+        link. A Datastar redirect says what actually happened."""
+        response = await anonymous.get(
+            "/l4-opcpa/stream", headers={"Datastar-Request": "true"}, follow_redirects=False
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert "window.location = '/login?next=/l4-opcpa'" in response.text
 
-    async def test_a_write_is_refused(self, anonymous):
+    async def test_a_write_sends_the_browser_to_the_form_for_its_screen(self, anonymous):
         response = await anonymous.post(
             "/api/write",
             params={"pv": "L4-OPCPA-NL2:IO:15:RC1_pin31", "value": "1"},
             json={},
-            headers={"Datastar-Request": "true"},
+            headers={
+                "Datastar-Request": "true",
+                "Referer": str(anonymous.base_url.join("/chillers")),
+            },
         )
-        assert response.status_code == 401
+        assert response.status_code == 200
+        assert "window.location = '/login?next=/chillers'" in response.text
+
+    async def test_machinery_without_a_browser_still_gets_401(self, anonymous):
+        """curl, a script, a probe: nothing there to send to a form."""
+        stream = await anonymous.get("/l4-opcpa/stream", follow_redirects=False)
+        assert stream.status_code == 401
+        assert stream.json()["login"] == "/login"
+        write = await anonymous.post(
+            "/api/write", params={"pv": "L4-OPCPA-NL2:IO:15:RC1_pin31", "value": "1"}, json={}
+        )
+        assert write.status_code == 401
+
+    async def test_using_a_screen_renews_the_session(self, client):
+        """The window is how long a station may sit unused, not how long a
+        sign-in lasts: a screen in use never signs its operator out."""
+        response = await client.get("/l4-opcpa")
+        assert "eli_hmi_session=" in response.headers.get("set-cookie", "")
+
+    async def test_so_does_the_stream_reconnecting(self, client):
+        """A screen left open overnight makes no request but its stream. When
+        that reconnects after a blip, it is what keeps the sign-in alive."""
+        async with client.stream(
+            "GET", "/l4-opcpa/stream", headers={"Datastar-Request": "true"}
+        ) as response:
+            assert response.status_code == 200
+            assert "eli_hmi_session=" in response.headers.get("set-cookie", "")
 
     async def test_health_stays_open_for_the_container_probe(self, anonymous):
         """A probe has no browser and no credentials; a liveness check that

@@ -32,7 +32,7 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 logger = logging.getLogger("core.auth")
 
@@ -106,7 +106,21 @@ class SessionCodec:
 
     def issue(self, user: str, via: str) -> tuple[str, Identity]:
         now = int(time.time())
-        identity = Identity(user=user, via=via, issued_at=now, expires_at=now + self._seconds)
+        return self._encode(
+            Identity(user=user, via=via, issued_at=now, expires_at=now + self._seconds)
+        )
+
+    def renew(self, identity: Identity) -> tuple[str, Identity]:
+        """The same sign-in, good for a full window from now.
+
+        The gate calls this on every request a signed-in browser makes, so the
+        window is how long a station may sit *unused* rather than how long a
+        sign-in lasts. `issued_at` is kept: it is when the operator signed in,
+        and the console's "issued 40h ago" should still say so.
+        """
+        return self._encode(replace(identity, expires_at=int(time.time()) + self._seconds))
+
+    def _encode(self, identity: Identity) -> tuple[str, Identity]:
         payload = {
             "u": identity.user,
             "v": identity.via,

@@ -144,6 +144,20 @@ class TestSessionCookie:
         ).decode().rstrip("=")
         assert self.codec.read(f"{forged}.{signature}") is None
 
+    def test_renewing_starts_a_fresh_window_for_the_same_sign_in(self):
+        """Every request a signed-in browser makes renews the cookie, so the
+        window is how long a station may sit unused. `issued_at` is the sign-in
+        and stays put: the console's "issued 40h ago" must still mean it."""
+        now = int(time.time())
+        nearly_over = Identity(
+            user="jsvacha", via="ldap", issued_at=now - 40 * 3600, expires_at=now + 5
+        )
+        cookie, renewed = self.codec.renew(nearly_over)
+        read = self.codec.read(cookie)
+        assert read == renewed
+        assert (read.user, read.via, read.issued_at) == ("jsvacha", "ldap", now - 40 * 3600)
+        assert 11 * 3600 < read.seconds_left <= 12 * 3600
+
     def test_another_secret_cannot_mint_one(self):
         """Two stations behind one address, or a rotated secret: the cookie must
         stop working rather than half-work."""

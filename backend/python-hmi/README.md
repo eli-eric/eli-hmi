@@ -124,7 +124,11 @@ two ways to get one:
 
 The session is a cookie signed with `SESSION_SECRET` (HMAC-SHA256) that carries
 its own expiry, so there is no session table: restarting a station mid-shift
-does not sign anyone out, and there is nothing to share between zones. It is
+does not sign anyone out, and there is nothing to share between zones. Every
+request renews it — page loads, writes, and the stream reconnecting — so
+`SESSION_HOURS` is how long a station may sit unused, not how long a sign-in
+lasts. If it does lapse, the next stream reconnect or write sends the browser
+to the login form rather than leaving the screen frozen. It is
 `HttpOnly`, `SameSite=Lax`, and `Secure` as soon as you set
 `SESSION_COOKIE_SECURE=1` — do that the moment there is TLS in front.
 
@@ -135,14 +139,14 @@ out. Generate one with `python -c 'import secrets; print(secrets.token_urlsafe(3
 What the console says, and it is the audit trail:
 
 ```
-INFO    core.auth: authentication: LDAP ldap://10.78.0.11; sessions 12h, cookie secure=no
+INFO    core.auth: authentication: LDAP ldap://10.78.0.11; sessions 720h, cookie secure=no
 WARNING core.auth: login failed user=jsvacha via=ldap ip=10.78.4.21 reason=invalid credentials (41ms)
 INFO    core.auth: login ok user=jsvacha via=ldap ip=10.78.4.21 (38ms)
-INFO    core.auth: session issued user=jsvacha via=ldap valid=12h -> /l4-opcpa
+INFO    core.auth: session issued user=jsvacha via=ldap valid=720h -> /l4-opcpa
 INFO    core.routes: SSE stream opened for /l4-opcpa by user=jsvacha (48 PVs, 48 monitors, 1 streams)
 INFO    core.routes: write ok user=jsvacha pv=L4-OPCPA-NL2:IO:15:RC1_pin31 value=1
-WARNING core.auth: no session: POST /api/write refused (401)
-INFO    core.auth: logout user=jsvacha ip=10.78.4.21 (session had 11.7h left)
+INFO    core.auth: no session: GET /l4-opcpa/stream -> /login?next=/l4-opcpa
+INFO    core.auth: logout user=jsvacha ip=10.78.4.21 (session had 719.7h left)
 ```
 
 Every sign-in attempt leaves exactly one line, and a failed one is a WARNING —
@@ -275,7 +279,7 @@ Two failures with two different operator responses, so two sentences:
 | --- | --- | --- |
 | `ZONE_CODE` | *(from the hostname)* | Which `zones/<code>/` to serve |
 | `SESSION_SECRET` | — | Signs the session cookie. **Required** unless `DEV=1` |
-| `SESSION_HOURS` | `12` | How long a sign-in lasts — one shift |
+| `SESSION_HOURS` | `720` | How long a station may go unused before signing in again (30 days); every request renews it |
 | `SESSION_COOKIE_SECURE` | `0` | `Secure` on the cookie. Set it when there is TLS in front |
 | `LDAP_SERVER_URL` | — | e.g. `ldap://10.78.0.11`. Unset means LDAP sign-in is off |
 | `LDAP_UPN_DOMAIN` | `lcs.local` | `<user>@<this>` is what gets bound |
@@ -339,7 +343,8 @@ the zone was resolved).
 - **Nothing rate-limits sign-in attempts.** The console shows a wave of them;
   nothing slows one down.
 - **A session cannot be revoked.** A stateless cookie is valid until it expires
-  (`SESSION_HOURS`); signing out clears the browser's copy. Rotating
+  (`SESSION_HOURS`, renewed on every request, so a copy in use never expires);
+  signing out clears the browser's copy. Rotating
   `SESSION_SECRET` and restarting invalidates every session at once, which is
   the only lever.
 - **The vacuum modules from the React app** (`p3`, `l3bt`, `l4fbt`) are not
