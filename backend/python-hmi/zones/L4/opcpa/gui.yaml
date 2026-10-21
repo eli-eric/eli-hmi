@@ -10,7 +10,7 @@ components:
     fullPower: L4-OPCPA-NL1:FullPower
     shutter: L4-OPCPA-NL1:IO:15:RC1_pin31
     phdMean:
-      pv: L4-OPCPA-NL2:PD1-REG:48:Mean
+      pv: L4-OPCPA-NL1:PD1-REG:48:Mean
       label: PD1-REG:48/Mean
     regenState: L4-OPCPA-NL1:SY3PL50M:32:State
     regenTemp: L4-OPCPA-NL1:TK6:44:DisplayTemperature
@@ -29,7 +29,7 @@ components:
   - label: Set to Alignment Mode
     pv: L4-OPCPA-NL1:SetAlignmentMode.BUSY
   - label: Set to Standby
-    pv: L4-OPCPA-NL1:Standby.BUSY
+    pv: L4-OPCPA-NL1:SetSystemStandby.BUSY
   - label: Send waveform
     pv: L4-OPCPA-NL1:ModBox:SetWFByNameSeq.BUSY
   triggerDelay:
@@ -113,7 +113,7 @@ components:
     START_LASER: L4-OPCPA-NL1:Start
     STOP_LASER: L4-OPCPA-NL1:Stop
     ALIGNMENT_MODE: L4-OPCPA-NL1:SetAlignmentMode
-    SYSTEM_STANDBY: L4-OPCPA-NL1:Standby
+    SYSTEM_STANDBY: L4-OPCPA-NL1:SetSystemStandby
     FLASHLAMPS_RUN:
       pv: L4-OPCPA-NL1:PS5059:SetAll
       value: RUN
@@ -152,7 +152,7 @@ components:
   - label: Set to Alignment Mode
     pv: L4-OPCPA-NL2:SetAlignmentMode.BUSY
   - label: Set to Standby
-    pv: L4-OPCPA-NL2:Standby.BUSY
+    pv: L4-OPCPA-NL2:SetSystemStandby.BUSY
   - label: Send waveform
     pv: L4-OPCPA-NL2:ModBox:SetWFByNameSeq.BUSY
   triggerDelay:
@@ -290,7 +290,7 @@ components:
     START_LASER: L4-OPCPA-NL2:Start
     STOP_LASER: L4-OPCPA-NL2:Stop
     ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode
-    SYSTEM_STANDBY: L4-OPCPA-NL2:Standby
+    SYSTEM_STANDBY: L4-OPCPA-NL2:SetSystemStandby
     FLASHLAMPS_RUN:
       pv: L4-OPCPA-NL2:PS5059:SetAll
       value: RUN
@@ -329,7 +329,7 @@ components:
   - label: Set to Alignment Mode
     pv: L4-OPCPA-NL3:SetAlignmentMode.BUSY
   - label: Set to Standby
-    pv: L4-OPCPA-NL3:Standby.BUSY
+    pv: L4-OPCPA-NL3:SetSystemStandby.BUSY
   - label: Send waveform
     pv: L4-OPCPA-NL3:ModBox:SetWFByNameSeq.BUSY
   triggerDelay:
@@ -467,7 +467,7 @@ components:
     START_LASER: L4-OPCPA-NL3:Start
     STOP_LASER: L4-OPCPA-NL3:Stop
     ALIGNMENT_MODE: L4-OPCPA-NL3:SetAlignmentMode
-    SYSTEM_STANDBY: L4-OPCPA-NL3:Standby
+    SYSTEM_STANDBY: L4-OPCPA-NL3:SetSystemStandby
     FLASHLAMPS_RUN:
       pv: L4-OPCPA-NL3:PS5059:SetAll
       value: RUN
@@ -506,7 +506,7 @@ components:
   - label: Set to Alignment Mode
     pv: L4-OPCPA-NL4:SetAlignmentMode.BUSY
   - label: Set to Standby
-    pv: L4-OPCPA-NL4:Standby.BUSY
+    pv: L4-OPCPA-NL4:SetSystemStandby.BUSY
   - label: Send waveform
     pv: L4-OPCPA-NL4:ModBox:SetWFByNameSeq.BUSY
   triggerDelay:
@@ -644,7 +644,7 @@ components:
     START_LASER: L4-OPCPA-NL4:Start
     STOP_LASER: L4-OPCPA-NL4:Stop
     ALIGNMENT_MODE: L4-OPCPA-NL4:SetAlignmentMode
-    SYSTEM_STANDBY: L4-OPCPA-NL4:Standby
+    SYSTEM_STANDBY: L4-OPCPA-NL4:SetSystemStandby
     FLASHLAMPS_RUN:
       pv: L4-OPCPA-NL4:PS5059:SetAll
       value: RUN
@@ -683,7 +683,7 @@ components:
   - label: Set to Alignment Mode
     pv: L4-OPCPA-NL5:SetAlignmentMode.BUSY
   - label: Set to Standby
-    pv: L4-OPCPA-NL5:Standby.BUSY
+    pv: L4-OPCPA-NL5:SetSystemStandby.BUSY
   - label: Send waveform
     pv: L4-OPCPA-NL5:ModBox:SetWFByNameSeq.BUSY
   triggerDelay:
@@ -821,7 +821,7 @@ components:
     START_LASER: L4-OPCPA-NL5:Start
     STOP_LASER: L4-OPCPA-NL5:Stop
     ALIGNMENT_MODE: L4-OPCPA-NL5:SetAlignmentMode
-    SYSTEM_STANDBY: L4-OPCPA-NL5:Standby
+    SYSTEM_STANDBY: L4-OPCPA-NL5:SetSystemStandby
     FLASHLAMPS_RUN:
       pv: L4-OPCPA-NL5:PS5059:SetAll
       value: RUN

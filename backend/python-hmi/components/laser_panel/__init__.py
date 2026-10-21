@@ -80,6 +80,21 @@ class LaserPanel(Component):
     async def warm(self) -> None:
         if self.config.waveforms_url:
             self.catalog = await fetch_catalog(self.config.waveforms_url)
+        self.signals[self.waveforms_signal] = bool(self.choices())
+
+    def choices(self) -> list[str]:
+        """The waveform names the controls offer, alphabetically.
+
+        A Modbox answers in the order its own store holds — the order
+        waveforms were created — and an operator looking for one name in a
+        drop-down is reading, not browsing. Case does not decide the order, or
+        `Broad` would sort away from `broad`.
+        """
+        cfg = self.config
+        return sorted(
+            self.catalog if cfg.waveforms_url else cfg.waveforms,
+            key=lambda name: (name.lower(), name),
+        )
 
     def setup(self) -> None:
         """Declare every live part of one laser.
@@ -91,6 +106,10 @@ class LaserPanel(Component):
         cfg = self.config
         pvs = cfg.pvs
         self.catalog = []
+        # Whether either waveform control has anything to send. False until
+        # `warm` has asked the device, so a Confirm button is never live over
+        # an empty list — see `panel.html`.
+        self.waveforms_signal = self.signal("waveforms_available", bool(cfg.waveforms))
 
         # -- Sequencer ------------------------------------------------------
         #
@@ -392,15 +411,8 @@ class LaserPanel(Component):
             "waveforms_url": f"/api/waveforms?component={self.key}",
             # What the Modbox serves, when it is configured to serve one;
             # otherwise the list in the config.
-            # Alphabetical, whichever list it is: a Modbox answers in the
-            # order its own store holds — the order waveforms were created —
-            # and an operator looking for one name in a drop-down is reading,
-            # not browsing. Case does not decide the order, or `Broad` would
-            # sort away from `broad`.
-            "waveforms": sorted(
-                self.catalog if cfg.waveforms_url else cfg.waveforms,
-                key=lambda name: (name.lower(), name),
-            ),
+            "waveforms": self.choices(),
+            "waveforms_available": self.waveforms_signal,
             "signals": {
                 "seq": getattr(self, "seq_signal", None),
                 "mss": self.mss_signal,

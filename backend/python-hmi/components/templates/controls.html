@@ -159,7 +159,7 @@
 {#- A drop-down of named choices: a waveform preset, an operating mode. The list
     comes from config rather than a fetch, because it changes when the machine is
     reconfigured, not while an operator is looking at it. -#}
-{%- macro choice_select(pv, signal, choices, label='Set', close=none, catalog=none) -%}
+{%- macro choice_select(pv, signal, choices, label='Set', close=none, catalog=none, available=none) -%}
 <span class="waveform-select">
 {#- `catalog` makes the options patchable: a device's catalog changes while the
     machine runs, and the control re-reads it when opened. The patch lands
@@ -172,9 +172,14 @@
 {{ choice_options.options(choices) }}
 </select>
 {#- Nothing selected is not a value: without this the button offers to send
-    the empty string, and the operator cannot tell what would arrive. -#}
+    the empty string, and the operator cannot tell what would arrive.
+
+    `available` covers the other way there is nothing to send: a device that
+    answers with an empty catalog, or stops answering. The selection alone
+    does not, because a list that empties under a choice already made would
+    leave the button live, offering a name the device no longer has. -#}
 <button type="button" class="preset-confirm" data-indicator="_busy"
-        data-attr="{disabled: ${{ signal }} === '' || ${{ signal }} === null}"
+        data-attr="{disabled: ${{ signal }} === '' || ${{ signal }} === null{% if available %} || !${{ available }}{% endif %}}"
         data-on:click="@post('{{ write_url(pv, signal=signal, status=status_id(label), close=close) }}')">Confirm</button>
 <span class="control-status" id="{{ status_id(label) }}"></span>
 </span>

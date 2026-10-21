@@ -624,6 +624,28 @@ class TestTheWaveformCatalogReachesBothControls:
         )
 
 
+class TestTheWaveformConfirmButtons:
+    """Both controls refuse to send what the device does not offer."""
+
+    async def test_both_buttons_watch_the_catalog_and_the_selection(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        live = page.count("waveforms_available}")
+        assert live == 2, (
+            f"{live} of the two Confirm buttons go dead on an empty catalog"
+        )
+
+    async def test_a_refresh_carries_whether_anything_can_be_sent(self, client):
+        import re
+
+        page = (await client.get("/l4-opcpa")).text
+        key = re.search(r"/api/waveforms\?component=([^']+)'", page).group(1)
+        body = (await client.get("/api/waveforms", params={"component": key})).text
+        assert "waveforms_available" in body, (
+            "a catalog that empties while the page is open would leave the "
+            f"buttons live: {body!r}"
+        )
+
+
 class TestLabelsAndUnits:
     async def test_the_bias_values_are_in_millivolts(self, client):
         """The amplifier reports millivolts. The simulator's EGU said volts and

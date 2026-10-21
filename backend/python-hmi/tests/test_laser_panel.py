@@ -513,6 +513,31 @@ class TestWaveformCatalog:
         panel = build_panel(zone, waveforms=["zulu", "alpha", "Mike"])
         assert panel.context()["waveforms"] == ["alpha", "Mike", "zulu"]
 
+    async def test_nothing_can_be_sent_from_an_empty_catalog(self, zone):
+        """A device that answers with nothing, or stops answering, leaves both
+        waveform controls with nothing to send — so both Confirm buttons go
+        dead. `$signal === ''` alone does not cover it: a list that empties
+        under a selection already made would leave the button live, offering
+        to send a name the device no longer has.
+        """
+        server, url = self.stub([])
+        try:
+            panel = build_panel(zone, waveforms_url=url)
+            await panel.warm()
+            available = f"{panel.key}_waveforms_available"
+            assert panel.signals[available] is False
+        finally:
+            server.shutdown()
+
+    async def test_a_catalog_that_answers_puts_the_buttons_back(self, zone):
+        server, url = self.stub(["alpha"])
+        try:
+            panel = build_panel(zone, waveforms_url=url)
+            await panel.warm()
+            assert panel.signals[f"{panel.key}_waveforms_available"] is True
+        finally:
+            server.shutdown()
+
     async def test_an_unreachable_modbox_leaves_the_screen_usable(self, zone):
         """A device that does not answer must not take the page with it."""
         panel = build_panel(zone, waveforms_url="http://127.0.0.1:9/waveforms")

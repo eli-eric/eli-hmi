@@ -103,7 +103,11 @@ export const WaveformSelect: FC<WaveformSelectProps> = ({
         type="button"
         className={styles.load}
         onClick={onLoad}
-        disabled={!selected || state === 'pending'}
+        // `catalog.length` covers the other way there is nothing to send: a
+        // device that answers with an empty list, or stops answering. The
+        // selection alone does not, because a list that empties under a choice
+        // already made would leave the button live.
+        disabled={!selected || catalog.length === 0 || state === 'pending'}
         data-state={state}
       >
         {state === 'pending' ? 'Setting…' : 'CONFIRM'}

@@ -64,6 +64,21 @@ describe('WaveformSelect', () => {
     expect(screen.getByRole('button', { name: /CONFIRM/i })).not.toBeDisabled()
   })
 
+  it('refuses to send when the device offers nothing', async () => {
+    // The other way there is nothing to send: a device that answers with an
+    // empty catalog, or stops answering. The selection alone does not cover
+    // it — a list that empties under a choice already made would leave the
+    // button live, offering a name the device no longer has.
+    globalThis.fetch = vi.fn<typeof fetch>(
+      async () => new Response(JSON.stringify([]), { status: 200 }),
+    ) as unknown as typeof fetch
+    render(<WaveformSelect pvName="CMD_NL2_LOAD_WAVEFORM" />)
+    await waitFor(() =>
+      expect(screen.getByRole('combobox')).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: /CONFIRM/i })).toBeDisabled()
+  })
+
   it('POSTs the configured pvName with the selected name on Set Waveform click', async () => {
     const spy = mockFetch()
     const user = userEvent.setup()

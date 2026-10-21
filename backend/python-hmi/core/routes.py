@@ -187,6 +187,12 @@ async def waveforms() -> DatastarResponse:
     markup = current_app.hmi.jinja.get_template("choices.html").module.options(options)
     return DatastarResponse(
         [
+            # Whether anything can be sent travels with the list: a device that
+            # has stopped offering waveforms must take the Confirm buttons with
+            # it, or they stay live over a selection the device no longer has.
+            SSE.patch_signals(
+                {component.context()["waveforms_available"]: bool(options)}
+            ),
             SSE.patch_elements(
                 str(markup),
                 # Every control showing this laser's catalog, not one of
