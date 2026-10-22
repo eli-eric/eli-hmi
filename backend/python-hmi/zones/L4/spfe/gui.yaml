@@ -20,8 +20,6 @@ components:
     sequences:
     - label: Start Laser
       pv: L4-SPFE-APL:Start.BUSY
-    - label: Stop Laser
-      pv: L4-SPFE-APL:Stop.BUSY
     - label: Set to Alignment Mode
       pv: L4-SPFE-APL:SetAlignmentMode.BUSY
     - label: Set to Standby
@@ -82,8 +80,6 @@ components:
     flashlamps:
     - label: PS5059:22 Ch1
       pv: L4-SPFE-APL:PS5059:22:Ch1_State
-    - label: PS5059:22 Ch2
-      pv: L4-SPFE-APL:PS5059:22:Ch2_State
     - label: PS5059:23 Ch1
       pv: L4-SPFE-APL:PS5059:23:Ch1_State
     - label: PS5059:23 Ch2
@@ -98,6 +94,13 @@ components:
       STOP_LASER: L4-SPFE-APL:Stop
       ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode
       SYSTEM_STANDBY: L4-OPCPA-NL2:SetSystemStandby
+      OPEN_SHUTTER:
+        pv: L4-SPFE-APL:IO:15:RC1_pin31:W
+        value: 1
+      CLOSE_SHUTTER:
+        pv: L4-SPFE-APL:IO:15:RC1_pin31:W
+        value: 0
+      SET_ATTENUATOR: L4-SPFE-APL:SM5-ATT2:52:TargetPosition:W
       FLASHLAMPS_RUN:
         pv: L4-SPFE-APL:PS5059:SetAll
         value: RUN

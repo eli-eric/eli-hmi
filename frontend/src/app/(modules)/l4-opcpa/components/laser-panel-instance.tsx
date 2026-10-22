@@ -47,6 +47,8 @@ export const LaserPanelInstance: FC<LaserPanelInstanceProps> = ({ spec }) => {
         labels={spec.labels}
       />
       <LaserPanel.Regen
+        cmdPv={cmdPv}
+        commands={spec.commands}
         regenStatePv={spec.pvs.regenState}
         regenTempPv={spec.pvs.regenTemp}
         phd2MeanPv={spec.pvs.phd2Mean}

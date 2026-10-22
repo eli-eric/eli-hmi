@@ -15,6 +15,9 @@ describe('L4 OPCPA command vocabulary', () => {
       'SEND_YDFA_CURRENT',
       'SET_DELAY',
       'LOAD_WAVEFORM',
+      'OPEN_SHUTTER',
+      'CLOSE_SHUTTER',
+      'SET_ATTENUATOR',
     ])
   })
 

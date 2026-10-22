@@ -1169,6 +1169,32 @@ record(seq, "SIM:CMD_NL2_LOAD_WAVEFORM:seq") {
     field(DO0, "1")
     field(LNK0, "SI_NL2_LOADED_WAVEFORM PP")
 }
+# The panel writes here to run the chain below.
+record(bo, "L4-OPCPA-NL2:SM5-SH:50:SetPosition") {
+    field(DESC, "OPEN_SHUTTER trigger")
+    field(FLNK, "SIM:L4-OPCPA-NL2_SM5-SH_50_SetPosition:seq")
+    field(ZNAM, "IDLE")
+    field(ONAM, "GO")
+}
+record(seq, "SIM:L4-OPCPA-NL2_SM5-SH_50_SetPosition:seq") {
+    field(DESC, "L4-OPCPA-NL2:SM5-SH:50:SetPosition chain")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "L4-OPCPA-NL2:IO:15:RC1_pin31 PP")
+}
+# The panel writes here to run the chain below. The operator's value cannot be carried by a seq step, so the chain writes a constant; the simulator passes the real value.
+record(stringout, "L4-OPCPA-NL2:SM5-ATT1:51:SetPosition") {
+    field(DESC, "SET_ATTENUATOR trigger")
+    field(FLNK, "SIM:L4-OPCPA-NL2_SM5-ATT1_51_SetPosition:seq")
+}
+record(seq, "SIM:L4-OPCPA-NL2_SM5-ATT1_51_SetPosition:seq") {
+    field(DESC, "L4-OPCPA-NL2:SM5-ATT1:51:SetPosition cha")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "L4-OPCPA-NL2:SM5-ATT1:51:CurrentPosition PP")
+}
 record(bi, "L4-OPCPA-NL4:PortControl:CNCT") {
     field(DESC, "NL4 connection")
     field(PINI, "YES")
@@ -1701,6 +1727,32 @@ record(seq, "SIM:L4-OPCPA-NL4_PS5059_41_SetBothChannelsTrigDelay:seq") {
     field(DLY0, "0")
     field(DO0, "1")
     field(LNK0, "SIM:L4-OPCPA-NL4_PS5059_41_SetBothChannelsTrigDelay:fan0_1 PP")
+}
+# The panel writes here to run the chain below.
+record(bo, "L4-OPCPA-NL4:SM1-SH:08:SetPosition") {
+    field(DESC, "OPEN_SHUTTER trigger")
+    field(FLNK, "SIM:L4-OPCPA-NL4_SM1-SH_08_SetPosition:seq")
+    field(ZNAM, "IDLE")
+    field(ONAM, "GO")
+}
+record(seq, "SIM:L4-OPCPA-NL4_SM1-SH_08_SetPosition:seq") {
+    field(DESC, "L4-OPCPA-NL4:SM1-SH:08:SetPosition chain")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "L4-OPCPA-NL4:IO:08:RC1_pin31 PP")
+}
+# The panel writes here to run the chain below. The operator's value cannot be carried by a seq step, so the chain writes a constant; the simulator passes the real value.
+record(stringout, "L4-OPCPA-NL4:SM1-ATT3:22:SetPosition") {
+    field(DESC, "SET_ATTENUATOR trigger")
+    field(FLNK, "SIM:L4-OPCPA-NL4_SM1-ATT3_22_SetPosition:seq")
+}
+record(seq, "SIM:L4-OPCPA-NL4_SM1-ATT3_22_SetPosition:seq") {
+    field(DESC, "L4-OPCPA-NL4:SM1-ATT3:22:SetPosition cha")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "1")
+    field(LNK0, "L4-OPCPA-NL4:SM1-ATT3:22:CurrentPosition PP")
 }
 
 # --------------------------------------------------------------------------

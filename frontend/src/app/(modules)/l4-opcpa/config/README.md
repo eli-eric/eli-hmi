@@ -204,6 +204,20 @@ Adding a **brand-new** command still needs code changes in the app repo (the
 `LASER_COMMANDS` tuple + a button, and a mock `sequences` entry for the
 placeholder path).
 
+The shutter and the attenuator are commands too, because a device reports its
+position from one record and is moved by another — writing to the row's own PV
+works only where the two happen to be the same one:
+
+```yaml
+commands:
+  OPEN_SHUTTER: { pv: L4-OPCPA-NL2:SM5-SH:50:SetPosition, value: 1 }
+  CLOSE_SHUTTER: { pv: L4-OPCPA-NL2:SM5-SH:50:SetPosition, value: 0 }
+  SET_ATTENUATOR: L4-OPCPA-NL2:SM5-ATT1:51:SetPosition # operator types the value
+```
+
+Omit them and the row keeps its readout without the cog, the same as any other
+command that is not configured.
+
 ## `waveformsUrl` — the waveform catalog
 
 The waveform list in _Set Waveform to…_ is served by the modbox itself, so the

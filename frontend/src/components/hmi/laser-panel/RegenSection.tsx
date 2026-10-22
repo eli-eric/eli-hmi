@@ -11,6 +11,11 @@ import {
   StringValue,
 } from '@/components/hmi/controls/Values'
 import { useWebSocketData } from '@/lib/websocket/use-websocket-data'
+import { makeCommandGate } from './commandGate'
+import type {
+  CommandPvResolver,
+  LaserCommand,
+} from '@/app/(modules)/l4-opcpa/lib/pv-names'
 import {
   LABEL_DEFAULTS,
   UNIT_DEFAULTS,
@@ -27,6 +32,10 @@ interface RegenSectionProps {
   attenuatorPv: string
   /** What each row is called; see `LABEL_DEFAULTS`. */
   labels?: ResolvedLabels
+  /** Resolves a command to its write PV (YAML override or CMD_<laser>_<NAME>). */
+  cmdPv: CommandPvResolver
+  /** Commands this laser exposes. Controls for commands not listed are hidden. */
+  commands: readonly LaserCommand[]
   /** Configured units per signal role; each wins over PV metadata. */
   units?: UnitsConfig
   /** Configured number format per signal role; each wins over the default. */
@@ -45,7 +54,10 @@ export const RegenSection: FC<RegenSectionProps> = ({
   units = {},
   format = {},
   labels = LABEL_DEFAULTS,
+  cmdPv,
+  commands,
 }) => {
+  const can = makeCommandGate(commands)
   const numericPvs = useMemo(
     () =>
       [regenTempPv, phd2MeanPv, attenuatorPv].filter((name): name is string =>
@@ -116,13 +128,17 @@ export const RegenSection: FC<RegenSectionProps> = ({
           />
         }
         action={
-          <CogToggle ariaLabel="Set attenuator">
-            <PresetNumberInput
-              label="Set Attenuator"
-              presets={[]}
-              pvName={attenuatorPv}
-            />
-          </CogToggle>
+          /* As with the shutter: the attenuator is moved by its setpoint
+             record, not by the one that reports where it is. */
+          can('SET_ATTENUATOR') ? (
+            <CogToggle ariaLabel="Set attenuator">
+              <PresetNumberInput
+                label="Set Attenuator"
+                presets={[]}
+                pvName={cmdPv('SET_ATTENUATOR').pvName}
+              />
+            </CogToggle>
+          ) : undefined
         }
       />
     </SectionCard>

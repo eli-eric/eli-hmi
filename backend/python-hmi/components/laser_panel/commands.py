@@ -25,12 +25,18 @@ LASER_COMMANDS: tuple[str, ...] = (
     "SEND_YDFA_CURRENT",
     "SET_DELAY",
     "LOAD_WAVEFORM",
+    # The write side of two devices whose setpoint record is not the one they
+    # report from. Writing to the readback happens to work where the two are
+    # one PV — the simulator — and silently does nothing in the hall.
+    "OPEN_SHUTTER",
+    "CLOSE_SHUTTER",
+    "SET_ATTENUATOR",
 )
 
 #: Commands whose written value comes from the operator at press time, so a
 #: configured `value` would be silently discarded.
 OPERATOR_VALUED_COMMANDS: frozenset[str] = frozenset(
-    {"SET_DELAY", "LOAD_WAVEFORM", "SEND_YDFA_CURRENT"}
+    {"SET_DELAY", "LOAD_WAVEFORM", "SEND_YDFA_CURRENT", "SET_ATTENUATOR"}
 )
 
 

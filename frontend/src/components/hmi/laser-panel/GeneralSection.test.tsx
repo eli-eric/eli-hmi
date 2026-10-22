@@ -416,10 +416,11 @@ describe('GeneralSection', () => {
     expect(
       screen.queryByRole('button', { name: 'General Actions' }),
     ).not.toBeInTheDocument()
-    // Shutter (a direct write, not a command) is unaffected.
+    // The shutter goes with them: it is moved by its own command now, not by
+    // a direct write to the record that reports its position.
     expect(
-      screen.getByRole('button', { name: 'Shutter actions' }),
-    ).toBeInTheDocument()
+      screen.queryByRole('button', { name: 'Shutter actions' }),
+    ).not.toBeInTheDocument()
   })
 
   it('writes to the configured override PV instead of the CMD_ fallback', async () => {

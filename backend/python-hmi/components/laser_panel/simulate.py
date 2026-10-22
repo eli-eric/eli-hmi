@@ -295,7 +295,12 @@ def _command_specs(cfg: Config) -> list[PvSpec]:
         # inventing one would be fiction. Without the entry the command has no
         # simulated PV at all and the button would look broken.
         "SEND_YDFA_CURRENT": [],
+        # The setpoint moves the readback, which is what a device does and
+        # what the panel's own row then shows.
+        "OPEN_SHUTTER": [(pvs.shutter, 1)],
+        "CLOSE_SHUTTER": [(pvs.shutter, 0)],
         # `None` as the value means "write whatever the operator sent".
+        "SET_ATTENUATOR": [(pvs.attenuator, None)],
         "SET_DELAY": [(name, None) for name in cfg.trigger_delay],
         "LOAD_WAVEFORM": [(pvs.loaded_waveform, None)] if pvs.loaded_waveform else [],
     }

@@ -163,6 +163,32 @@ def with_signal(role: str, **options) -> str:
     )
 
 
+class TestTheWriteSideOfADevice:
+    """A device's setpoint record is not its readback. The shutter opened by
+    writing to the record that reports its position only works where the two
+    happen to be one PV — the simulator, and not the hall."""
+
+    def test_the_shutter_has_a_command_for_each_direction(self):
+        laser = parse(
+            MINIMAL
+            + "      OPEN_SHUTTER: {pv: L4:NL2:SHUT:SET, value: 1}\n"
+            + "      CLOSE_SHUTTER: {pv: L4:NL2:SHUT:SET, value: 0}\n"
+        )
+        assert laser.can("OPEN_SHUTTER") and laser.can("CLOSE_SHUTTER")
+        opened = laser.resolve_command("OPEN_SHUTTER")
+        assert (opened.pv_name, opened.value) == ("L4:NL2:SHUT:SET", 1)
+        assert laser.resolve_command("CLOSE_SHUTTER").value == 0
+
+    def test_the_attenuator_has_one(self):
+        laser = parse(MINIMAL + "      SET_ATTENUATOR: L4:NL2:ATT:SET\n")
+        assert laser.resolve_command("SET_ATTENUATOR").pv_name == "L4:NL2:ATT:SET"
+
+    def test_a_value_for_the_attenuator_is_refused(self):
+        """The operator types it, so a configured one would never be written."""
+        with pytest.raises(ValidationError, match="operator"):
+            parse(MINIMAL + "      SET_ATTENUATOR: {pv: L4:NL2:ATT:SET, value: 1024}\n")
+
+
 class TestWhatOneSignalSays:
     """Everything about a reading is written where its PV is."""
 

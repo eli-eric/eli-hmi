@@ -36,14 +36,27 @@
       {{ w['mss_list'] }}
       {{ w['err_list'] }}
 
+      {#- The setpoint, never the readback: a shutter reports its position from
+          one record and is moved by another. Writing to the one the row reads
+          works only where the two are the same PV — the simulator — and does
+          nothing in the hall. A laser that configures neither command gets the
+          row without the cog. -#}
+      {% if c.can('OPEN_SHUTTER') or c.can('CLOSE_SHUTTER') %}
       {% set shutter_cog = comp.signal('cog_shutter') %}
       {% set shutter_actions %}
       {% call controls.cog(shutter_cog, 'Shutter actions') %}
-        {{ controls.action_button('Open Shutter', c.pvs.shutter, 1, 'secondary', shutter_cog) }}
-        {{ controls.action_button('Close Shutter', c.pvs.shutter, 0, 'secondary', shutter_cog) }}
+        {% if c.can('OPEN_SHUTTER') %}
+          {{ controls.action_button('Open Shutter', cmd.OPEN_SHUTTER.pv, cmd.OPEN_SHUTTER.value, 'secondary', shutter_cog) }}
+        {% endif %}
+        {% if c.can('CLOSE_SHUTTER') %}
+          {{ controls.action_button('Close Shutter', cmd.CLOSE_SHUTTER.pv, cmd.CLOSE_SHUTTER.value, 'secondary', shutter_cog) }}
+        {% endif %}
       {% endcall %}
       {% endset %}
       {{ rows.row(labels.shutter, w['shutter'], shutter_actions, bare=true) }}
+      {% else %}
+      {{ rows.row(labels.shutter, w['shutter'], bare=true) }}
+      {% endif %}
 
       {{ rows.row(labels.phdMean, w['phd_mean']) }}
 
@@ -75,14 +88,18 @@
       {% if 'phd2_mean' in w %}
       {{ rows.row(labels.phd2Mean, w['phd2_mean']) }}
       {% endif %}
+      {% if c.can('SET_ATTENUATOR') %}
       {% set atten_cog = comp.signal('cog_atten') %}
       {% set atten_actions %}
       {% call controls.cog(atten_cog, 'Set attenuator') %}
-        {{ controls.preset_input('Set Attenuator', [], c.pvs.attenuator,
+        {{ controls.preset_input('Set Attenuator', [], cmd.SET_ATTENUATOR.pv,
                                  comp.signal('set_atten', ''), atten_cog) }}
       {% endcall %}
       {% endset %}
       {{ rows.row(labels.attenuator, w['attenuator'], atten_actions) }}
+      {% else %}
+      {{ rows.row(labels.attenuator, w['attenuator']) }}
+      {% endif %}
     </section>
 
     {# -------------------------------------------------------------- Chillers #}

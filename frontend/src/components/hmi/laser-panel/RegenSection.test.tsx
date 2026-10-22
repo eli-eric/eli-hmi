@@ -3,6 +3,10 @@ import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RegenSection } from './RegenSection'
 import {
+  LASER_COMMANDS,
+  makeCommandPv,
+} from '@/app/(modules)/l4-opcpa/lib/pv-names'
+import {
   makeFakeWebSocketContext,
   TestWebSocketProvider,
 } from '@/test/ws-test-provider'
@@ -23,6 +27,8 @@ describe('RegenSection', () => {
     render(
       <TestWebSocketProvider value={ws.context}>
         <RegenSection
+          cmdPv={makeCommandPv('NL2', {})}
+          commands={LASER_COMMANDS}
           regenStatePv="BI_NL2_REGEN_STATE"
           regenTempPv="AI_TEMP_NL2_REGEN"
           phd2MeanPv="AI_NL2_PHD2_MEAN"
@@ -46,6 +52,8 @@ describe('RegenSection', () => {
     render(
       <TestWebSocketProvider value={ws.context}>
         <RegenSection
+          cmdPv={makeCommandPv('NL2', {})}
+          commands={LASER_COMMANDS}
           regenStatePv="BI_NL2_REGEN_STATE"
           regenTempPv="AI_TEMP_NL2_REGEN"
           phd2MeanPv="AI_NL2_PHD2_MEAN"
@@ -79,6 +87,8 @@ describe('RegenSection', () => {
     render(
       <TestWebSocketProvider value={ws.context}>
         <RegenSection
+          cmdPv={makeCommandPv('NL2', {})}
+          commands={LASER_COMMANDS}
           regenStatePv="BI_NL2_REGEN_STATE"
           regenTempPv="AI_TEMP_NL2_REGEN"
           phd2MeanPv="AI_NL2_PHD2_MEAN"
@@ -102,6 +112,8 @@ describe('RegenSection', () => {
     render(
       <TestWebSocketProvider value={ws.context}>
         <RegenSection
+          cmdPv={makeCommandPv('NL2', {})}
+          commands={LASER_COMMANDS}
           regenStatePv="BI_NL2_REGEN_STATE"
           regenTempPv="AI_TEMP_NL2_REGEN"
           phd2MeanPv="AI_NL2_PHD2_MEAN"
@@ -138,6 +150,8 @@ describe('RegenSection', () => {
     render(
       <TestWebSocketProvider value={ws.context}>
         <RegenSection
+          cmdPv={makeCommandPv('NL2', {})}
+          commands={LASER_COMMANDS}
           regenStatePv="BI_NL2_REGEN_STATE"
           regenTempPv="AI_TEMP_NL2_REGEN"
           phd2MeanPv="AI_NL2_PHD2_MEAN"

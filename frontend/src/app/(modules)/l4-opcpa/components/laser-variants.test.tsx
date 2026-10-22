@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { stringify } from 'yaml'
 import {
@@ -122,6 +122,58 @@ describe('the sequencer', () => {
   it('has no section when the laser runs none', () => {
     panel({ sequences: [] })
     expect(screen.queryByText('Sequencer')).toBeNull()
+  })
+})
+
+describe('the write side of a device', () => {
+  // A setpoint record is not a readback. The shutter opened by writing to the
+  // record that reports its position only works where the two are one PV —
+  // the mock backend — and does nothing in the hall.
+  /** Did anything write to this PV? The name is encoded into the path. */
+  const wrote = (spy: ReturnType<typeof vi.fn<typeof fetch>>, pv: string) =>
+    spy.mock.calls.some(([url]) =>
+      String(url).endsWith(`/pv/${encodeURIComponent(pv)}`),
+    )
+
+  const writeSpy = () => {
+    const spy = vi.fn<typeof fetch>(
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    )
+    globalThis.fetch = spy as unknown as typeof fetch
+    return spy
+  }
+
+  it('opens the shutter through its own command', async () => {
+    const spy = writeSpy()
+    panel({
+      commands: {
+        START_LASER: 'START_LASER',
+        OPEN_SHUTTER: { pv: 'L4-OPCPA-NL9:SH:SetPosition', value: 1 },
+      },
+    })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Shutter actions' }))
+    await user.click(screen.getByRole('button', { name: 'Open Shutter' }))
+    await waitFor(() =>
+      expect(wrote(spy, 'L4-OPCPA-NL9:SH:SetPosition')).toBe(true),
+    )
+  })
+
+  it('sets the attenuator through its own command', async () => {
+    const spy = writeSpy()
+    panel({
+      commands: {
+        START_LASER: 'START_LASER',
+        SET_ATTENUATOR: 'L4-OPCPA-NL9:ATT:SetPosition',
+      },
+    })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Set attenuator' }))
+    await user.type(screen.getByRole('spinbutton'), '1024')
+    await user.click(screen.getByRole('button', { name: 'Confirm' }))
+    await waitFor(() =>
+      expect(wrote(spy, 'L4-OPCPA-NL9:ATT:SetPosition')).toBe(true),
+    )
   })
 })
 

@@ -192,6 +192,38 @@ class TestTheWaveformPreset:
         assert f"pv={quote(preset_pv, safe='')}" in selector.group(0)
 
 
+class TestTheWriteSideOfADevice:
+    """A setpoint record is not a readback: both controls write the command
+    their laser configures, not the PV the row reads."""
+
+    def serve(self, page, **commands):
+        gui = yaml.safe_load(
+            (REFERENCE / "l4-opcpa" / "gui.yaml").read_text(encoding="utf-8")
+        )
+        existing = gui["components"][0]["commands"]
+        return page(commands={**existing, **commands})
+
+    def test_the_shutter_buttons_write_the_setpoint(self, page):
+        html = self.serve(
+            page,
+            OPEN_SHUTTER={"pv": "L4-OPCPA-NL2:SHUT:SET", "value": 1},
+            CLOSE_SHUTTER={"pv": "L4-OPCPA-NL2:SHUT:SET", "value": 0},
+        )
+        # The write URL is in the button's attributes, before its label.
+        opened = re.search(r"<button[^>]*>\s*Open Shutter", html, re.S)
+        assert opened and quote("L4-OPCPA-NL2:SHUT:SET", safe="") in opened.group(0)
+        assert "pv=L4-OPCPA-NL2%3AIO%3A15%3ARC1_pin31&" not in html, (
+            "the readback is still being written"
+        )
+
+    def test_the_attenuator_input_writes_the_setpoint(self, page):
+        html = self.serve(page, SET_ATTENUATOR="L4-OPCPA-NL2:ATT:SET")
+        confirm = re.search(
+            r"Set Attenuator.*?<button[^>]*preset-confirm[^>]*>", html, re.S
+        )
+        assert confirm and quote("L4-OPCPA-NL2:ATT:SET", safe="") in confirm.group(0)
+
+
 class TestUnits:
     """What a reading is measured in follows from the reading, not from where
     it is deployed: every zone's file used to carry the same five lines."""

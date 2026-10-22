@@ -29,6 +29,12 @@ export const LASER_COMMANDS = [
   'SEND_YDFA_CURRENT',
   'SET_DELAY',
   'LOAD_WAVEFORM',
+  // The write side of two devices whose setpoint record is not the one they
+  // report from. Writing to the readback happens to work where the two are one
+  // PV — the mock backend — and silently does nothing in the hall.
+  'OPEN_SHUTTER',
+  'CLOSE_SHUTTER',
+  'SET_ATTENUATOR',
 ] as const
 
 export type LaserCommand = (typeof LASER_COMMANDS)[number]

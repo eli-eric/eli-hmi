@@ -92,20 +92,27 @@ export const GeneralSection: FC<GeneralSectionProps> = ({
           />
         }
         action={
-          <CogToggle ariaLabel="Shutter actions">
-            <ActionButton
-              label="Open Shutter"
-              pvName={shutterPv}
-              value={1}
-              variant="secondary"
-            />
-            <ActionButton
-              label="Close Shutter"
-              pvName={shutterPv}
-              value={0}
-              variant="secondary"
-            />
-          </CogToggle>
+          /* The setpoint, never the readback: a shutter reports its position
+             from one record and is moved by another. Writing to the one the
+             row reads works only where the two are the same PV. */
+          can('OPEN_SHUTTER') || can('CLOSE_SHUTTER') ? (
+            <CogToggle ariaLabel="Shutter actions">
+              {can('OPEN_SHUTTER') && (
+                <ActionButton
+                  label="Open Shutter"
+                  {...cmdPv('OPEN_SHUTTER')}
+                  variant="secondary"
+                />
+              )}
+              {can('CLOSE_SHUTTER') && (
+                <ActionButton
+                  label="Close Shutter"
+                  {...cmdPv('CLOSE_SHUTTER')}
+                  variant="secondary"
+                />
+              )}
+            </CogToggle>
+          ) : undefined
         }
       />
 

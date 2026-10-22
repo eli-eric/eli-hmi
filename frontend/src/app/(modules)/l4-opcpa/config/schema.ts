@@ -93,6 +93,7 @@ const OPERATOR_VALUED_COMMANDS: readonly LaserCommand[] = [
   'SET_DELAY',
   'LOAD_WAVEFORM',
   'SEND_YDFA_CURRENT',
+  'SET_ATTENUATOR',
 ]
 
 /**
