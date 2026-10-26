@@ -99,7 +99,7 @@ components:
     pv: L4-OPCPA-NL1:ModBox:LAS1:State
   - label: YDFA state
     pv: L4-OPCPA-NL1:ModBox:YDFA:State
-  - label: AWG software key
+  - label: YDFA software key
     pv: L4-OPCPA-NL1:ModBox:YDFA:SoftwareKey
   delayPresets:
   - 50
@@ -283,7 +283,7 @@ components:
     pv: L4-OPCPA-NL2:ModBox:LAS1:State
   - label: YDFA state
     pv: L4-OPCPA-NL2:ModBox:YDFA:State
-  - label: AWG software key
+  - label: YDFA software key
     pv: L4-OPCPA-NL2:ModBox:YDFA:SoftwareKey
   delayPresets:
   - 50
@@ -467,7 +467,7 @@ components:
     pv: L4-OPCPA-NL3:ModBox:LAS1:State
   - label: YDFA state
     pv: L4-OPCPA-NL3:ModBox:YDFA:State
-  - label: AWG software key
+  - label: YDFA software key
     pv: L4-OPCPA-NL3:ModBox:YDFA:SoftwareKey
   delayPresets:
   - 50
@@ -651,7 +651,7 @@ components:
     pv: L4-OPCPA-NL4:ModBox:LAS1:State
   - label: YDFA state
     pv: L4-OPCPA-NL4:ModBox:YDFA:State
-  - label: AWG software key
+  - label: YDFA software key
     pv: L4-OPCPA-NL4:ModBox:YDFA:SoftwareKey
   delayPresets:
   - 50
@@ -835,7 +835,7 @@ components:
     pv: L4-OPCPA-NL5:ModBox:LAS1:State
   - label: YDFA state
     pv: L4-OPCPA-NL5:ModBox:YDFA:State
-  - label: AWG software key
+  - label: YDFA software key
     pv: L4-OPCPA-NL5:ModBox:YDFA:SoftwareKey
   delayPresets:
   - 50
