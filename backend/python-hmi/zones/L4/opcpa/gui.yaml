@@ -30,6 +30,8 @@ components:
     pv: L4-OPCPA-NL1:SetAlignmentMode.BUSY
   - label: Set to Standby
     pv: L4-OPCPA-NL1:SetSystemStandby.BUSY
+  - label: ModBox ON
+    pv: L4-OPCPA-NL1:ModBox:Start.BUSY
   - label: Send waveform
     pv: L4-OPCPA-NL1:ModBox:SetWFByNameSeq.BUSY
   triggerDelay:
@@ -66,8 +68,9 @@ components:
     pv: L4-OPCPA-NL1:SY3PL50M:32:ErrorCode
   - label: HV40W:40
     pv: L4-OPCPA-NL1:HV40W:40:ErrorCode
-  - label: TK6:44
-    pv: L4-OPCPA-NL1:TK6:44:ErrorCode
+  # permanently unreachable
+  # - label: TK6:44
+  #   pv: L4-OPCPA-NL1:TK6:44:ErrorCode
   - label: PD1-REG:48
     pv: L4-OPCPA-NL1:PD1-REG:48:ErrorCode
   - label: SM5-SH:50
@@ -125,8 +128,7 @@ components:
       pv: L4-OPCPA-NL1:PS5059:SetAll
       value: STANDBY
     MODBOX_ON:
-      pv: L4-OPCPA-NL1:ModBox:Awake
-      value: Awake
+      pv: L4-OPCPA-NL1:ModBox:Start
     MODBOX_OFF:
       pv: L4-OPCPA-NL1:ModBox:Awake
       value: Sleep
@@ -157,6 +159,8 @@ components:
     pv: L4-OPCPA-NL2:SetAlignmentMode.BUSY
   - label: Set to Standby
     pv: L4-OPCPA-NL2:SetSystemStandby.BUSY
+  - label: ModBox ON
+    pv: L4-OPCPA-NL2:ModBox:Start.BUSY
   - label: Send waveform
     pv: L4-OPCPA-NL2:ModBox:SetWFByNameSeq.BUSY
   triggerDelay:
@@ -309,8 +313,7 @@ components:
       pv: L4-OPCPA-NL2:PS5059:SetAll
       value: STANDBY
     MODBOX_ON:
-      pv: L4-OPCPA-NL2:ModBox:Awake
-      value: Awake
+      pv: L4-OPCPA-NL2:ModBox:Start
     MODBOX_OFF:
       pv: L4-OPCPA-NL2:ModBox:Awake
       value: Sleep
@@ -341,6 +344,8 @@ components:
     pv: L4-OPCPA-NL3:SetAlignmentMode.BUSY
   - label: Set to Standby
     pv: L4-OPCPA-NL3:SetSystemStandby.BUSY
+  - label: ModBox ON
+    pv: L4-OPCPA-NL3:ModBox:Start.BUSY
   - label: Send waveform
     pv: L4-OPCPA-NL3:ModBox:SetWFByNameSeq.BUSY
   triggerDelay:
@@ -493,8 +498,7 @@ components:
       pv: L4-OPCPA-NL3:PS5059:SetAll
       value: STANDBY
     MODBOX_ON:
-      pv: L4-OPCPA-NL3:ModBox:Awake
-      value: Awake
+      pv: L4-OPCPA-NL3:ModBox:Start
     MODBOX_OFF:
       pv: L4-OPCPA-NL3:ModBox:Awake
       value: Sleep
@@ -525,6 +529,8 @@ components:
     pv: L4-OPCPA-NL4:SetAlignmentMode.BUSY
   - label: Set to Standby
     pv: L4-OPCPA-NL4:SetSystemStandby.BUSY
+  - label: ModBox ON
+    pv: L4-OPCPA-NL4:ModBox:Start.BUSY
   - label: Send waveform
     pv: L4-OPCPA-NL4:ModBox:SetWFByNameSeq.BUSY
   triggerDelay:
@@ -677,8 +683,7 @@ components:
       pv: L4-OPCPA-NL4:PS5059:SetAll
       value: STANDBY
     MODBOX_ON:
-      pv: L4-OPCPA-NL4:ModBox:Awake
-      value: Awake
+      pv: L4-OPCPA-NL4:ModBox:Start
     MODBOX_OFF:
       pv: L4-OPCPA-NL4:ModBox:Awake
       value: Sleep
@@ -709,6 +714,8 @@ components:
     pv: L4-OPCPA-NL5:SetAlignmentMode.BUSY
   - label: Set to Standby
     pv: L4-OPCPA-NL5:SetSystemStandby.BUSY
+  - label: ModBox ON
+    pv: L4-OPCPA-NL5:ModBox:Start.BUSY
   - label: Send waveform
     pv: L4-OPCPA-NL5:ModBox:SetWFByNameSeq.BUSY
   triggerDelay:
@@ -861,8 +868,7 @@ components:
       pv: L4-OPCPA-NL5:PS5059:SetAll
       value: STANDBY
     MODBOX_ON:
-      pv: L4-OPCPA-NL5:ModBox:Awake
-      value: Awake
+      pv: L4-OPCPA-NL5:ModBox:Start
     MODBOX_OFF:
       pv: L4-OPCPA-NL5:ModBox:Awake
       value: Sleep
