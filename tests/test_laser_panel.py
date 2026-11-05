@@ -39,6 +39,11 @@ def spec(panel):
 def build_panel(zone, **overrides) -> LaserPanel:
     """The zone's NL2 panel, rebuilt with a few config fields changed."""
     template = zone.gui("l4-opcpa").components[0]
+    if "commands" in overrides:
+        # `exclusive:` names commands, and `model_copy` does not re-validate:
+        # a test that swaps the commands out must not keep locks on buttons
+        # the panel no longer has.
+        overrides.setdefault("exclusive", False)
     config = template.config.model_copy(update=overrides)
     return LaserPanel(key="test", config=config)
 

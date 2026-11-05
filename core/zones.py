@@ -157,6 +157,13 @@ class Gui:
             specs.extend(component.all_pv_specs())
         return specs
 
+    def exclusive_pvs(self) -> set[str]:
+        """PVs this screen's YAML marked `exclusive`."""
+        pvs: set[str] = set()
+        for component in self.components:
+            pvs |= component.all_exclusive_pvs()
+        return pvs
+
     def signals(self) -> dict[str, Any]:
         signals: dict[str, Any] = {}
         for component in self.components:
@@ -177,6 +184,14 @@ class Zone:
 
     def gui(self, slug: str) -> Gui | None:
         return next((gui for gui in self.guis if gui.slug == slug), None)
+
+    def exclusive_pvs(self) -> set[str]:
+        """Every PV any screen of the zone marked `exclusive`. The lock is on
+        the PV, so one screen marking it makes it exclusive on all of them."""
+        pvs: set[str] = set()
+        for gui in self.guis:
+            pvs |= gui.exclusive_pvs()
+        return pvs
 
     @property
     def home(self) -> str:

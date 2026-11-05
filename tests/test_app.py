@@ -13,9 +13,12 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import re
 import socket
 import threading
+from contextlib import contextmanager
+from urllib.parse import urlencode
 
 import pytest
 
@@ -48,7 +51,14 @@ def accepting(port: int, timeout: float = 15.0) -> bool:
 
 @pytest.fixture(scope="module")
 def server():
-    settings = Settings(
+    with running() as url:
+        yield url
+
+
+@contextmanager
+def running(**overrides):
+    """A real server on a free port, for as long as the block runs."""
+    fields = dict(
         host="127.0.0.1",
         port=free_port(),
         zone_code="TESTZ",
@@ -62,6 +72,8 @@ def server():
         dev=True,
         session_secret="test-only-secret",
     )
+    fields.update(overrides)
+    settings = Settings(**fields)
     app = create_app(settings)
     config = serve_config(settings)
     config.accesslog = None
@@ -112,7 +124,12 @@ async def client(server):
 
 
 async def read_events(
-    client, path: str, count: int, timeout: float = 10.0, into: list[str] | None = None
+    client,
+    path: str,
+    count: int,
+    timeout: float = 10.0,
+    into: list[str] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> list[str]:
     """Collect `count` SSE events (blank-line separated) from a stream.
 
@@ -123,7 +140,7 @@ async def read_events(
     events: list[str] = into if into is not None else []
 
     async def reader():
-        async with client.stream("GET", path) as response:
+        async with client.stream("GET", path, headers=headers) as response:
             assert response.status_code == 200
             assert response.headers["content-type"].startswith("text/event-stream")
             buffer = ""
@@ -215,7 +232,9 @@ class TestStream:
         events = await read_events(client, "/l4-opcpa/stream", count=4)
         assert len(events) >= 4
         assert events[0].startswith("event: datastar-patch-signals")
-        assert '{"_age":0}' in events[0]
+        # The opening signals also carry this tab's view of the screen's
+        # exclusive PVs (`_locks`), which the page could not know.
+        assert '"_age":0' in events[0]
         assert events[1].startswith("event: datastar-patch-elements")
         # The opening sync carries every widget.
         assert 'id="NL2-overview"' in events[1]
@@ -342,7 +361,10 @@ class TestWriteGuards:
         """The endpoint is the guarantee; this is the courtesy. An operator
         should see that 60001 is not acceptable, not press Confirm and be told."""
         page = (await client.get("/l4-opcpa")).text
-        binding = re.search(r'data-attr="\{disabled:[^"]*"', page)
+        # The binding that carries a range — the delay's Confirm. Other
+        # controls on the screen bind `disabled` too (an exclusive button
+        # waits for this tab to take control), and say nothing about range.
+        binding = re.search(r'data-attr="\{disabled:[^"]*Number\([^"]*"', page)
         assert binding, "Confirm has no disabled binding"
         assert "60000" in binding.group() and "10" in binding.group()
 
@@ -1161,7 +1183,9 @@ class TestMonitor:
     async def test_its_stream_opens_with_a_full_sync(self, client):
         events = await read_events(client, "/monitor/stream", count=3)
         assert events[0].startswith("event: datastar-patch-signals")
-        assert '{"_age":0}' in events[0]
+        # The opening signals also carry this tab's view of the screen's
+        # exclusive PVs (`_locks`), which the page could not know.
+        assert '"_age":0' in events[0]
         assert events[1].startswith("event: datastar-patch-elements")
         for panel in ("mon-overview", "mon-clients", "mon-screens", "mon-monitors"):
             assert f'id="{panel}"' in events[1], panel
@@ -1213,3 +1237,170 @@ class TestMonitor:
             assert f"'mon-full': ${signal}" in section, panel
             assert f'data-on:click="${signal} = !${signal}"' in body, panel
         assert "evt.key === 'Escape' && ($_pvfull = false, $_logfull = false)" in body
+
+
+
+# ---------------------------------------------------------------------------
+# Exclusive write control
+# ---------------------------------------------------------------------------
+
+#: VV1 is `exclusive: true` on the Vacuum screen; VV2 beside it is not.
+VV1_OPEN = "L4-VCS-NL2:VV1:Open"
+VV2_OPEN = "L4-VCS-NL2:VV2:Open"
+#: What the browser sends with every request: the Datastar header, and the
+#: signals — of which only `tab` matters here.
+DATASTAR = {"Datastar-Request": "true"}
+
+
+async def lock(client, tab: str | None, action: str, pv: str = VV1_OPEN):
+    return await client.post(
+        "/api/lock",
+        params={"pv": pv, "action": action, "status": "vv1-open-status"},
+        json={"tab": tab},
+        headers=DATASTAR,
+    )
+
+
+async def press(client, tab: str | None, pv: str = VV1_OPEN, value: int = 1):
+    return await client.post(
+        "/api/write", params={"pv": pv, "value": value}, json={"tab": tab}, headers=DATASTAR
+    )
+
+
+def stream_as(slug: str, tab: str) -> str:
+    """A screen's stream, opened the way a browser tab with this id opens it."""
+    return f"/{slug}/stream?" + urlencode({"datastar": json.dumps({"tab": tab})})
+
+
+async def until(check, timeout: float = 5.0) -> None:
+    """Wait for `check()` — sync or async — to be true."""
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        result = check()
+        if asyncio.iscoroutine(result):
+            result = await result
+        if result:
+            return
+        if asyncio.get_running_loop().time() > deadline:
+            pytest.fail("timed out waiting for the condition")
+        await asyncio.sleep(0.05)
+
+
+class TestExclusiveControl:
+    """One tab at a time may write an exclusive PV. Every route to the device
+    is checked at the endpoint, and every open screen hears the lock move."""
+
+    @pytest.fixture(autouse=True)
+    async def free_valve(self, client):
+        # The server is shared by the module, so every test starts — and
+        # leaves — with nobody holding VV1.
+        await lock(client, "janitor", "force")
+        await lock(client, "janitor", "release")
+        yield
+        await lock(client, "janitor", "force")
+        await lock(client, "janitor", "release")
+
+    async def test_a_write_nobody_took_control_for_is_refused(self, client):
+        response = await press(client, "tab-a")
+        assert "Refused" in response.text
+        assert "take control" in response.text
+
+    async def test_the_tab_that_took_control_may_write_and_no_other_may(self, client):
+        taken = await lock(client, "tab-a", "take")
+        assert '"state":"mine"' in taken.text
+
+        assert "Refused" not in (await press(client, "tab-a")).text
+        refused = (await press(client, "tab-b")).text
+        assert "Refused" in refused
+        assert "controlled by test at 127.0.0.1" in refused
+
+    async def test_a_request_that_names_no_tab_is_refused(self, client):
+        """A curl, or a page from before the feature: it is not the holder."""
+        await lock(client, "tab-a", "take")
+        response = await client.post("/api/write", params={"pv": VV1_OPEN, "value": 1})
+        assert "Refused" in response.text
+
+    async def test_a_second_tab_is_told_who_has_it_and_may_force_it(self, client):
+        await lock(client, "tab-a", "take")
+
+        refused = await lock(client, "tab-b", "take")
+        assert "controlled by test" in refused.text
+
+        forced = await lock(client, "tab-b", "force")
+        assert '"state":"mine"' in forced.text
+        assert "Refused" not in (await press(client, "tab-b")).text
+        assert "Refused" in (await press(client, "tab-a")).text
+
+    async def test_release_hands_it_back(self, client):
+        await lock(client, "tab-a", "take")
+        released = await lock(client, "tab-a", "release")
+        assert '"state":"free"' in released.text
+        assert '"state":"mine"' in (await lock(client, "tab-b", "take")).text
+
+    async def test_a_pv_that_is_not_exclusive_is_written_from_anywhere(self, client):
+        response = await client.post("/api/write", params={"pv": VV2_OPEN, "value": 1})
+        assert "Refused" not in response.text
+
+    async def test_an_action_that_is_not_one_is_refused(self, client):
+        response = await lock(client, "tab-a", "steal")
+        assert "Refused" in response.text
+
+    async def test_a_tab_that_holds_control_is_unlocked_by_its_stream(self, client):
+        """The page renders locked — it cannot know which tab is asking — and
+        the stream's first events say what this tab holds."""
+        await lock(client, "tab-a", "take")
+        events = await read_events(client, stream_as("vacuum", "tab-a"), 3, headers=DATASTAR)
+        assert any('"state":"mine"' in event for event in events)
+
+    async def test_every_screen_hears_the_lock_move(self, client):
+        events: list[str] = []
+        watching = asyncio.create_task(
+            read_events(client, stream_as("vacuum", "tab-b"), 1000, timeout=8,
+                        into=events, headers=DATASTAR)
+        )
+        try:
+            await until(lambda: len(events) >= 2)
+            await lock(client, "tab-a", "take")
+            await until(lambda: any('"state":"other"' in e and "since" in e for e in events))
+        finally:
+            watching.cancel()
+
+    async def test_the_holder_forced_out_is_told_by_whom(self, client):
+        events: list[str] = []
+        watching = asyncio.create_task(
+            read_events(client, stream_as("vacuum", "tab-a"), 1000, timeout=8,
+                        into=events, headers=DATASTAR)
+        )
+        try:
+            await until(lambda: len(events) >= 2)
+            await lock(client, "tab-a", "take")
+            await until(lambda: any('"state":"mine"' in e for e in events))
+            await lock(client, "tab-b", "force")
+            await until(lambda: any("taken over by test" in e for e in events))
+        finally:
+            watching.cancel()
+
+    async def test_the_monitor_lists_who_holds_what(self, client):
+        await lock(client, "tab-a", "take")
+        rows = TestMonitor.rows((await client.get("/monitor")).text, "mon-locks")
+        assert any(VV1_OPEN in row and "test" in row for row in rows), rows
+
+
+@pytest.fixture(scope="module")
+def short_grace():
+    with running(lock_grace_seconds=0.3) as url:
+        yield url
+
+
+async def test_a_lock_whose_tab_is_gone_lapses(short_grace):
+    import httpx
+
+    async with httpx.AsyncClient(base_url=short_grace, timeout=15) as client:
+        await client.post("/login", data={"username": "test", "password": "test"})
+        # Taken with no screen open in that tab: nothing keeps it alive.
+        assert '"state":"mine"' in (await lock(client, "tab-a", "take")).text
+
+        async def free() -> bool:
+            return '"state":"mine"' in (await lock(client, "tab-b", "take")).text
+
+        await until(free, timeout=5)

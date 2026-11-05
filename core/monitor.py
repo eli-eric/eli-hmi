@@ -42,6 +42,7 @@ from quart import Blueprint, Response, current_app, request
 from core.clients import Client
 from core.epics.hub import MonitorInfo
 from core.epics.types import PvSample
+from core.locks import Held, clock_time
 from core.logbook import LogEntry
 from core.login import client_ip
 from core.render.severity import (
@@ -95,6 +96,24 @@ class ScreenRow:
     components: int
     widgets: int
     pvs: int
+
+
+@dataclass(frozen=True)
+class LockRow:
+    """One exclusive PV someone holds: who, from where, since when."""
+
+    pv: str
+    user: str
+    ip: str
+    screen: str
+    #: `14:02`, and how long ago that was.
+    since: str
+    held_for: str
+    #: The first characters of the tab id — enough to tell two tabs apart.
+    tab: str
+    #: "held", or "lapses in 42s" once no screen in that tab shows it.
+    state: str
+    lapsing: bool
 
 
 @dataclass(frozen=True)
@@ -168,6 +187,9 @@ class MonitorView:
     screens: list[ScreenRow]
     monitors: list[MonitorRow]
     log: list[LogRow]
+    #: Exclusive PVs someone holds, and how many exclusive PVs there are.
+    locks: list[LockRow] = ()
+    exclusive: int = 0
 
 
 #: Worst first. A dead channel outranks an INVALID one — they share a tone, but
@@ -246,6 +268,24 @@ def collect(
         # Stable over the hub's PV order: worst first, alphabetical within.
         monitors=[row for _rank, row in sorted(ranked, key=lambda pair: -pair[0])],
         log=log_rows(entries, run=hmi.logbook.run),
+        locks=[_lock_row(held, now) for held in hmi.locks.held()],
+        exclusive=len(hmi.locks.exclusive),
+    )
+
+
+def _lock_row(held: Held, now: float) -> LockRow:
+    holder = held.holder
+    lapsing = held.lapses_at is not None
+    return LockRow(
+        pv=held.pv,
+        user=holder.user,
+        ip=holder.ip,
+        screen=holder.screen,
+        since=clock_time(holder.since, now=now),
+        held_for=duration(now - holder.since),
+        tab=holder.tab[:6],
+        state=f"lapses in {duration(max(0.0, held.lapses_at - now))}" if lapsing else "held",
+        lapsing=lapsing,
     )
 
 
@@ -450,6 +490,7 @@ _PANELS = {
     "mon-clients": "clients",
     "mon-screens": "screens",
     "mon-monitors": "monitors",
+    "mon-locks": "locks",
 }
 
 

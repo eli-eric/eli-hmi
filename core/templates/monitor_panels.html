@@ -67,6 +67,40 @@
 </div>
 {% endmacro %}
 
+{#- Exclusive PVs and who holds them (`core.locks`). The question this answers
+    is the one an operator facing a dead button asks: who has it, from which
+    desk, and since when — so they know who to ask before forcing it. -#}
+{% macro locks(view) %}
+<div class="mon-body" id="mon-locks">
+  {% if view.locks %}
+  <table class="mon-table">
+    <thead>
+      <tr><th>PV</th><th>User</th><th>Address</th><th>Screen</th>
+          <th>Since</th><th>Held</th><th>Tab</th><th>State</th></tr>
+    </thead>
+    <tbody>
+      {% for lock in view.locks %}
+      <tr data-lock="{{ lock.pv }}">
+        <td>{{ lock.pv }}</td>
+        <td>{{ lock.user }}</td>
+        <td>{{ lock.ip }}</td>
+        <td>{% if lock.screen != '-' %}<a href="/{{ lock.screen }}">{{ lock.screen }}</a>{% else %}-{% endif %}</td>
+        <td>{{ lock.since }}</td>
+        <td>{{ lock.held_for }}</td>
+        <td>{{ lock.tab }}</td>
+        <td>{% if lock.lapsing %}<span class="mon-tag">{{ lock.state }}</span>{% else %}{{ lock.state }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% elif view.exclusive %}
+  <p class="mon-empty">Nobody holds any of the {{ view.exclusive }} exclusive PV(s).</p>
+  {% else %}
+  <p class="mon-empty">No screen in this zone marks a control exclusive.</p>
+  {% endif %}
+</div>
+{% endmacro %}
+
 {% macro screens(view) %}
 <div class="mon-body" id="mon-screens">
   <table class="mon-table">

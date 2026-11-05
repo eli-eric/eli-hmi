@@ -263,6 +263,47 @@ turns one press into a coordinated chain of writes, and a component declares tha
 chain once (`PvSpec(command=True, effects=…)`) for both the simulator and the
 local IOC.
 
+### Exclusive write control
+
+A control marked `exclusive:` in a screen's YAML can be written by **one
+browser tab at a time**. The lock is on the PV, so a PV that one screen marks
+exclusive is locked on every screen of the zone (`core/locks.py`).
+
+- **Take control.** An exclusive control starts disabled, with **Take
+  control** beside it. Taking it enables the control in that tab only.
+- **Read-only elsewhere.** Every other tab sees the control disabled, and who
+  holds it, from where and since when:
+  `jsvacha · 10.78.4.21 · vacuum · since 14:02`. The streams push this to each
+  tab as the lock moves.
+- **Release.** The holder gives control back.
+- **Force.** Anyone signed in can take control from the holder after a
+  `confirm()`. The holder's screen goes read-only and says
+  `taken over by … at 14:05`.
+- **Lapse.** If no screen showing the PV has been open in the holder's tab for
+  `LOCK_GRACE_SECONDS` (default 60), the lock is released. A reload or a stream
+  reconnect within that time keeps it.
+
+A tab is identified by an id the page puts in `sessionStorage` and sends as the
+`tab` signal. A holder is that tab *and* the user signed in on it, so the id is
+not a credential. `/api/write` refuses an exclusive PV to any other tab, a
+`curl` included. `POST /api/lock?pv=…&action=take|release|force` changes a lock.
+Screens with an exclusive PV keep their stream open while the tab is hidden,
+because a tab in the background is still the tab that holds control.
+
+Every take, release, force (a WARNING naming both users), lapse and refused
+write is logged under `core.locks` / `core.routes`. `/monitor` lists who holds
+what.
+
+Limits worth knowing:
+
+- Locks live in one HMI process, in memory. A restart releases all of them.
+  Two processes serving one zone (L4 lists both `aton-deploy20` and
+  `aton-debug20`) don't see each other's locks.
+- Only writes made through this HMI are governed. Phoebus, `caput` and other
+  tools bypass it. EPICS Access Security is what enforces anything at the IOC.
+- A browser's "Duplicate tab" copies `sessionStorage`, so the duplicate is the
+  same tab as far as the lock is concerned.
+
 ## Two kinds of "disconnected"
 
 Two failures with two different operator responses, so two sentences:
@@ -291,6 +332,9 @@ server and patched live over one SSE stream, here on the heartbeat:
   cookies, so the open streams are the honest list of who is connected
   (`core/clients.py`).
 - **Screens**: for each one, how many are open, by whom, and its size.
+- **Write control**: every exclusive PV someone holds, with the user, address,
+  screen, when control was taken, and whether it is about to lapse
+  (`LockTable.held()`).
 - **CA monitors**: every (PV, datatype) the hub monitors, with problems first
   (disconnected, INVALID, MAJOR, MINOR). Each row shows its subscriber count,
   state, value, update count and last arrival (`PvHub.monitors()`).

@@ -289,6 +289,8 @@ class Component:
         self.signals: dict[str, Any] = {}
         #: PVs this component writes, and the bounds it accepts. See `writable`.
         self.limits: dict[str, WriteLimits] = {}
+        #: PVs one browser tab at a time may write. See `exclusive`.
+        self.exclusive_pvs: set[str] = set()
         self.setup()
 
     # -- what a subclass implements -----------------------------------------
@@ -379,6 +381,21 @@ class Component:
         )
         return pv
 
+    def exclusive(self, pv: str) -> str:
+        """Declare that only the tab holding control may write this PV.
+
+        What the screen asked for with `exclusive:` in its YAML. The lock is on
+        the PV, so declaring it here makes it exclusive on every screen of the
+        zone, and the write endpoint refuses it to any tab that has not taken
+        control (`core.locks`).
+
+        Kept apart from `writable` on purpose: bounds are about the value, and
+        an exclusive string PV with default bounds would be refused any value
+        with an `e` in it.
+        """
+        self.exclusive_pvs.add(pv)
+        return pv
+
     # -- what the framework uses -------------------------------------------
 
     @property
@@ -406,6 +423,9 @@ class Component:
         for component in self.walk():
             limits.update(component.limits)
         return limits
+
+    def all_exclusive_pvs(self) -> set[str]:
+        return {pv for component in self.walk() for pv in component.exclusive_pvs}
 
     def all_pv_specs(self) -> list[PvSpec]:
         specs: list[PvSpec] = []

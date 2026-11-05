@@ -79,6 +79,11 @@ class Action(Strict):
         "room full of green and red buttons trains operators to look at chrome "
         "instead of at readings.",
     )
+    exclusive: bool = Field(
+        default=False,
+        description="Only the tab that has taken control may press it. Everyone "
+        "else sees who holds it, from where and since when, and may force it.",
+    )
 
 
 class Setpoint(Strict):
@@ -104,6 +109,10 @@ class Setpoint(Strict):
         "by default: nothing on these screens is set that way, and the browser "
         "blanks a number field while an exponent is half-typed, so pressing `e` "
         "looks like it erased the value.",
+    )
+    exclusive: bool = Field(
+        default=False,
+        description="Only the tab that has taken control may write it. See Action.",
     )
 
     @model_validator(mode="after")
@@ -285,6 +294,40 @@ def write_targets(cfg: Readable) -> list[tuple[str, Any]]:
     if cfg.setpoint:
         targets.append((cfg.setpoint.pv or cfg.pv, None))
     return targets
+
+
+def exclusive_targets(cfg: Readable) -> list[str]:
+    """The PVs this row's `exclusive:` buttons and setpoint write."""
+    targets = [action.pv or cfg.pv for action in cfg.actions if action.exclusive]
+    if cfg.setpoint and cfg.setpoint.exclusive:
+        targets.append(cfg.setpoint.pv or cfg.pv)
+    return targets
+
+
+#: `exclusive:` on a component with a fixed set of controls: `true` for every
+#: one of them, or a list naming which.
+Exclusive = bool | list[str]
+
+
+def exclusive_names(value: Exclusive, controls: Iterable[str]) -> list[str]:
+    """Validate an `exclusive:` value against the controls a component has.
+
+    Returns the names it selects. A misspelt name is refused with the ones that
+    would have worked, for the same reason a misspelt key is: a lock that
+    silently is not there is the worst way for this to fail.
+    """
+    controls = list(controls)
+    if value is True:
+        return controls
+    if value is False:
+        return []
+    unknown = [name for name in value if name not in controls]
+    if unknown:
+        raise ValueError(
+            f"exclusive: {', '.join(map(repr, unknown))} is not a control here. "
+            f"Choose from: {', '.join(controls)} (or `true` for all of them)"
+        )
+    return list(value)
 
 
 def _decimals(cfg: Readable) -> int:

@@ -29,11 +29,14 @@ components:
         on_text: "YES"
         off_text: "NO"
         good: on
+      # Exclusive: one tab at a time may move it. Any other tab sees who has
+      # control, from where and since when, and may force it after confirming.
       - component: valve
         label: VV1 gate valve
         pv: L4-VCS-NL2:VV1:State
         open_pv: L4-VCS-NL2:VV1:Open
         close_pv: L4-VCS-NL2:VV1:Close
+        exclusive: true
       - component: valve
         label: VV2 roughing valve
         pv: L4-VCS-NL2:VV2:State

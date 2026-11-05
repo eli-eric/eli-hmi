@@ -47,6 +47,11 @@
       {{ panels.screens(view) }}
     </section>
 
+    <section class="panel mon-panel" data-span="all" aria-label="Write control">
+      <header class="panel-header"><h2 class="panel-title">Write control — exclusive PVs held</h2></header>
+      {{ panels.locks(view) }}
+    </section>
+
     {#- Both long lists are short by default, so the whole page reads at a
         glance, and each opens to the full window when it is the thing being
         studied. A class on the section, not a re-render: the stream keeps

@@ -12,6 +12,7 @@ component tree a GUI's YAML produced, collects widgets and signals, and renders.
 from __future__ import annotations
 
 import json
+import secrets
 from dataclasses import dataclass
 from typing import Any, Iterable, Sequence
 
@@ -20,6 +21,7 @@ from markupsafe import Markup
 
 from core.components import Component, PvReader, Widget
 from core.epics import PvId
+from core.locks import LockTable
 from core.palette import DEFAULT_PALETTE, PALETTES
 from core.jinja import WidgetRenderer
 from core.zones import Gui, Zone
@@ -30,6 +32,12 @@ LINK_BANNER_ID = "link-banner"
 #: heartbeat), `_busy` is Datastar's indicator for an in-flight write, `_toast`
 #: is the write-result line, `_toast_age` ages it out, and `_palette` is the
 #: colour palette the header's selector is bound to.
+#:
+#: Two more are added per render (`Page.signals`): `_locks`, this tab's view of
+#: each exclusive PV on the screen, and `tab`, the id the browser keeps in
+#: `sessionStorage`. `tab` is the one page signal without a leading `_`, because
+#: Datastar sends no `_` signal with a request and the server needs this one
+#: with every write (`core.locks`).
 PAGE_SIGNALS: dict[str, Any] = {
     "_age": 0,
     "_busy": False,
@@ -37,6 +45,13 @@ PAGE_SIGNALS: dict[str, Any] = {
     "_toast_age": 0,
     "_palette": DEFAULT_PALETTE,
 }
+
+
+def new_tab_id() -> str:
+    """A tab id for a browser that has none yet. The page offers one with
+    every render; the browser keeps the first it got for as long as the tab
+    lives, so a reload is the same tab."""
+    return secrets.token_urlsafe(16)
 
 #: Seconds a write result stays on screen, counted down by the page's own tick.
 TOAST_SECONDS = 5
@@ -62,12 +77,24 @@ class _Banner:
 class Page:
     """A renderable screen: one GUI of one zone."""
 
-    def __init__(self, zone: Zone, gui: Gui, env: Environment):
+    def __init__(self, zone: Zone, gui: Gui, env: Environment, locks: LockTable | None = None):
         self.zone = zone
         self.gui = gui
         self._env = env
         self._renderer = WidgetRenderer(env)
         self.link_banner = _Banner()
+        #: Shared by every screen of the app (`core.server`), so a lock taken
+        #: here shows on any screen with a control for the same PV. A page
+        #: built on its own gets a table of its own, with every PV free.
+        self.locks = locks if locks is not None else LockTable(zone.exclusive_pvs())
+        #: Every PV a control on this screen can write, from what the
+        #: components declared about their PVs.
+        self.written_pvs: frozenset[str] = frozenset(
+            spec.name for spec in gui.all_pv_specs() if spec.writable or spec.command
+        )
+        #: The exclusive ones: what this screen's `_locks` signal carries and
+        #: what its stream keeps alive (`LockTable.watch`).
+        self.exclusive_pvs: frozenset[str] = self.written_pvs & self.locks.exclusive
 
         self._by_pv: dict[PvId, list[Widget]] = {}
         for widget in gui.all_widgets():
@@ -92,18 +119,31 @@ class Page:
             "pvs": len(self.all_pvs),
         }
 
-    def signals(self, palette: str | None = None) -> dict[str, Any]:
+    def signals(
+        self, palette: str | None = None, *, tab: str | None = None, user: str = ""
+    ) -> dict[str, Any]:
         """Every signal the page declares, up front.
 
         `palette` seeds the header selector so it opens on the palette the
         page was actually rendered in, rather than snapping to the default
         after the first paint.
+
+        `_locks` is rendered without knowing which tab is asking — the browser
+        says that over the stream — so a held PV starts as someone else's and
+        its controls start locked. The stream's first event unlocks the ones
+        this tab holds.
         """
         return {
             **PAGE_SIGNALS,
             "_palette": palette or DEFAULT_PALETTE,
+            "_locks": self.lock_view(tab=None, user=user),
+            "tab": tab or new_tab_id(),
             **self.gui.signals(),
         }
+
+    def lock_view(self, *, tab: str | None, user: str) -> dict[str, Any]:
+        """This screen's `_locks` signal, as one tab should see it."""
+        return self.locks.view(self.exclusive_pvs, tab=tab, user=user)
 
     def widgets_for(self, dirty: Iterable[PvId]) -> list[Widget]:
         """Widgets touched by a set of changed PVs, each at most once.
@@ -139,6 +179,9 @@ class Page:
                 w={role: self.render_widget(widget, reader) for role, widget in component.widgets.items()},
                 s=component.signals,
                 comp=component,
+                # How a write control learns that its PV is exclusive, and
+                # which entry of `_locks` it follows (`controls.lock_strip`).
+                lock_key=self.locks.key,
                 children=[self.render_component(child, reader) for child in component.children],
                 **component.context(),
             )
@@ -166,8 +209,13 @@ class Page:
             menu=self.zone.menu(),
             components=rendered,
             link_banner=self.render_widget(self.link_banner, reader),
-            signals_json=json.dumps(self.signals(palette), separators=(",", ":")),
+            signals_json=json.dumps(self.signals(palette, user=user or ""), separators=(",", ":")),
             stream_url=self.gui.stream_url,
+            # A hidden tab is still the tab that holds control. Datastar closes
+            # a hidden tab's stream by default, which would let its locks lapse
+            # while the operator looks at another tab, and drop the "taken
+            # over by" notice; a screen with an exclusive PV keeps it open.
+            stream_hidden=bool(self.exclusive_pvs),
             backend_label=backend_label,
             toast_seconds=TOAST_SECONDS,
             palette=palette,
@@ -200,9 +248,10 @@ class Page:
         return str(self.render_widget(self.link_banner, reader))
 
 
-def build_pages(zone: Zone, env: Environment) -> dict[str, Page]:
-    """One `Page` per GUI in the zone, keyed by slug."""
-    return {gui.slug: Page(zone, gui, env) for gui in zone.guis}
+def build_pages(zone: Zone, env: Environment, locks: LockTable | None = None) -> dict[str, Page]:
+    """One `Page` per GUI in the zone, keyed by slug, sharing one lock table."""
+    locks = locks if locks is not None else LockTable(zone.exclusive_pvs())
+    return {gui.slug: Page(zone, gui, env, locks) for gui in zone.guis}
 
 
 def all_pvs(pages: Sequence[Page]) -> set[PvId]:
