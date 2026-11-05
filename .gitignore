@@ -1,24 +1,18 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Python
+__pycache__
+*.pyc
+.pytest_cache
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# uv creates the virtualenv here; never commit it (uv.lock is what is shared)
+.venv/
 
-# testing
-/coverage
+# Frozen page renders from tools/snapshot.py (layout review)
+/snapshot/
 
-# next.js
-/.next/
-/out/
-
-# production
-/build
+# The IOC image handed to a colleague by ioc/export-image.sh
+ioc/l4-opcpa-ioc-image.tar.gz
+ioc/l4-opcpa-ioc-image.tar.gz.sha256
+ioc/l4-opcpa-ioc-image.tar.gz.tmp
 
 # ai tools
 CLAUDE.md
@@ -28,34 +22,7 @@ CLAUDE.md
 # misc
 .DS_Store
 *.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+.vscode/settings.json
 
 # env files (can opt-in for committing if needed)
 .env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-frontend/yarn.lock
-__pycache__
-.venv/
-frontend/.npm
-backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.tar.gz
-backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.tar.gz.sha256
-backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.tar.gz.tmp
-backend/epics/laser-mockup-ioc/laser-mockup-ioc-image.zip
-.vscode/settings.json
-
-# Frozen page renders from backend/python-hmi/tools/snapshot.py (layout review)
-backend/python-hmi/snapshot/
-
-# uv creates the virtualenv here; never commit it (uv.lock is what is shared)
-backend/python-hmi/.venv/
