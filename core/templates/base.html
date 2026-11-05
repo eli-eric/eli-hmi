@@ -1,0 +1,73 @@
+<!doctype html>
+{#- The palette is rendered into the tag for the first paint, and bound to
+    the `_palette` signal for every change after it: the tone layer is pure
+    CSS keyed off this attribute, so switching it needs no reload — and a
+    reload would collapse every list an operator had expanded.
+
+    The signal is declared here rather than left to the page's own
+    `data-signals`, which sits inside `<body>`: this element is processed
+    first, and a binding that read an undeclared signal would blank the
+    attribute the server just rendered — a flash of the wrong palette on
+    every load, under goggles of all places. -#}
+<html lang="en"{% if palette %} data-palette="{{ palette }}"{% endif %}
+      data-signals="{_palette: '{{ palette or 'default' }}'}"
+      data-attr="{'data-palette': $_palette === 'default' ? null : $_palette}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ELI HMI{% endblock %}</title>
+  {#- Ahead of the stylesheet that asks for them: the face is what every
+      column width in the panel was measured against, so fetching it late
+      means a visible reflow of the whole screen. -#}
+  <link rel="preload" href="{{ static('/fonts/RobotoCondensed-Regular.ttf') }}"
+        as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="{{ static('/fonts/RobotoCondensed-Bold.ttf') }}"
+        as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="{{ static('/css/hmi.css') }}">
+  {#
+    Datastar is the only JavaScript this application ships. It is vendored
+    rather than pulled from a CDN because a control room is not assumed to have
+    a route to the public internet, and because the version the Python SDK
+    generates events for should be pinned to the one the browser runs.
+  #}
+  <script type="module" src="{{ static('/vendor/datastar.js') }}"></script>
+</head>
+<body>
+  <div class="layout">
+    {#
+      The menu is the zone's folder listing: one entry per screen folder under
+      `zones/<CODE>/`. It cannot disagree with what the app serves, because the
+      routes come from the same listing.
+
+      The zone code is deliberately prominent. Each zone is a separate network
+      and this app is deployed once per zone, so "which zone am I looking at"
+      is a question an operator must never have to guess — and a wrong answer
+      looks exactly like a right one.
+    #}
+    <nav class="nav">
+      <span class="nav-zone" title="{{ zone.title }} — resolved from {{ zone.resolved_by }}">{{ zone.code }}</span>
+      {% for item in menu %}
+      <a class="nav-link" href="{{ item.href }}"
+         {%- if item.slug == gui.slug %} aria-current="page"{% endif %}>{{ item.label }}</a>
+      {% endfor %}
+      <span class="nav-spacer"></span>
+      <span class="nav-meta">{{ zone.title }} · {{ backend_label }}</span>
+      {#
+        Who is signed in, and one way out. A plain form post, like the login
+        page: signing out must not depend on the live stream being healthy, and
+        POST is right for something that changes state — a link would let a
+        page prefetch sign the operator out.
+      #}
+      {% if user %}
+      <form class="nav-session" method="post" action="/logout">
+        <span class="nav-user" title="Signed in as {{ user }}">{{ user }}</span>
+        <button class="nav-logout" type="submit">Sign out</button>
+      </form>
+      {% endif %}
+    </nav>
+    <main class="page-container">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

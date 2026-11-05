@@ -1,0 +1,18 @@
+{#
+  The option list of a `choice_select`, in one place.
+
+  Both the template that first renders the control and the endpoint that
+  re-reads the device's catalog emit this list — the endpoint replaces the
+  whole of it — so they have to agree down to the attributes. They did not:
+  the endpoint kept its own copy of the prompt, and opening the control
+  quietly reverted the markup the template had rendered.
+#}
+{%- macro options(choices, prompt='Select Waveform') -%}
+{#- `hidden` keeps the prompt out of the list: it names what the control is
+    for, and it is not something anyone can load. It stays the shown value
+    until a choice is made, and `disabled` stops it being chosen again. -#}
+<option value="" disabled hidden>{{ prompt }}</option>
+{% for choice in choices %}
+<option value="{{ choice }}">{{ choice }}</option>
+{% endfor %}
+{%- endmacro -%}

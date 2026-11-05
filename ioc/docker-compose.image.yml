@@ -1,0 +1,12 @@
+# Run a pre-built IOC image (see export-image.sh / load-and-run.sh) without
+# building EPICS base locally.
+#
+# Host networking for the same reason as docker-compose.yml: Channel Access
+# resolves names by UDP broadcast, which Docker's bridge network does not pass.
+
+services:
+  l4-opcpa-ioc:
+    image: ${L4_OPCPA_IOC_IMAGE:-l4-opcpa-ioc:ready}
+    container_name: l4-opcpa-ioc
+    network_mode: host
+    restart: unless-stopped

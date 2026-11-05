@@ -1,0 +1,392 @@
+"""How one laser's readings become template contexts.
+
+Pure functions: latest readings in, a dict for a macro out. This is the logic
+that used to live in each React section component (`OverviewBar.tsx`,
+`FlashlampsSection.tsx`, …), and it is separated from the widget wiring in
+`component.py` for the same reason it was worth unit-testing there — it is where
+the judgements live. How many flashlamps count as accounted for, whether a
+failed permission is the panel's business to colour, what a mismatched trigger
+delay should say.
+"""
+
+from __future__ import annotations
+
+from dataclasses import replace
+from typing import Any, Mapping
+
+from core.components import Component, Datatype, PvReader
+from core.epics.types import PvSample
+from core.render import (
+    ON_OFF_TEXT,
+    RAW_FORMAT,
+    TRANSPORT_DOWN_TITLE,
+    UNKNOWN_TEXT,
+    YES_NO_TEXT,
+    Readout,
+    aggregate_readout,
+    bool_readout,
+    format_value,
+    is_usable,
+    mapped_readout,
+    number_readout,
+    present_aggregate,
+    resolve_format,
+    resolve_units,
+    SEVERITY_INVALID,
+    STATUS_UDF,
+    severity_tone,
+    single_readout,
+    string_readout,
+)
+
+from .config import Config
+
+MSS_NOTE = (
+    "This is a selection of some MSS indicators, it is NOT an exhaustive list of "
+    "all parameters that lead to the overall MSS indicator."
+)
+ERR_NOTE = "Error code 0 means no error."
+
+#: Flashlamp state columns. Capped at four by the row's width: a 22rem panel
+#: minus the 8.5rem label and 2.25rem action column leaves ~2.4rem per cell,
+#: about what a bold 4-character header needs.
+FLASHLAMP_STATES: tuple[str, ...] = ("SB", "RUN", "STOP", "FAIL")
+
+#: The PV delivers the full enum name. Only these four have a count column;
+#: IGNITION, BUSY and OFF are counted in none, but every channel's raw state is
+#: still shown in the expanded list.
+FLASHLAMP_ALIASES: Mapping[str, str] = {
+    "STANDBY": "SB",
+    "RUN": "RUN",
+    "STOP": "STOP",
+    "FAILURE": "FAIL",
+}
+
+
+
+
+
+
+
+def overview(read: PvReader, spec: Config, comp: Component) -> dict[str, Any]:
+    """CONN / FULLP / MSS / ERR — `OverviewBar.tsx`.
+
+    Green when good, plain when bad. A red "NO" here would be the panel's own
+    opinion about a value the control system did not flag; if a failed MSS bit
+    or a non-zero error code is genuinely an alarm, the IOC says so through
+    severity and that tone paints it. Absence of green is the signal.
+    """
+    connected = read.is_connected
+    conn = bool_readout(
+        read(spec.pvs.connection),
+        pv_name=spec.pvs.connection,
+        on_label="YES",
+        off_label="NO",
+        on_emphasis="positive-important",
+        is_connected=connected,
+        strict=True,
+    )
+    fullp = bool_readout(
+        read(spec.pvs.full_power),
+        pv_name=spec.pvs.full_power,
+        on_label="YES",
+        off_label="NO",
+        on_emphasis="positive-important",
+        is_connected=connected,
+        strict=True,
+    )
+
+    mss_samples = read.many(item.pv for item in spec.mss)
+    mss_total = len(spec.mss)
+    # "ok" means healthy AND unalarmed — otherwise the pill could read YES while
+    # painted red for an alarmed child.
+    mss_ok = sum(
+        1
+        for sample in mss_samples
+        if severity_tone(sample) == "none" and sample is not None and sample.value == 1
+    )
+    mss = aggregate_readout(
+        mss_samples,
+        fallback_text="YES" if mss_ok == mss_total else "NO",
+        emphasis="positive-important" if mss_ok == mss_total else None,
+        is_connected=connected,
+    )
+
+    err_samples = read.many(item.pv for item in spec.module_errors)
+    err_total = len(spec.module_errors)
+    # Counted by severity, never by the code itself. The codes are numeric PVs
+    # whose meaning belongs to the IOC: a screen deciding which values are
+    # healthy would be a second, private notion of "bad" — and the comparison
+    # that was here, against the string "0000", would call every numeric
+    # reading an error. A module is in trouble when the control system says so.
+    err_count = sum(
+        1
+        for sample in err_samples
+        if severity_tone(sample) not in ("none", "unknown")
+    )
+    err = aggregate_readout(
+        err_samples,
+        fallback_text=f"{err_count}/{err_total}",
+        emphasis="positive-important" if err_count == 0 else None,
+        is_connected=connected,
+    )
+
+    return {
+        "conn": conn,
+        "fullp": fullp,
+        "mss": mss,
+        "err": err,
+        "mss_signal": comp.signal("mss"),
+        "err_signal": comp.signal("err"),
+    }
+
+
+def as_initialised(sample: PvSample | None) -> PvSample | None:
+    """The same reading with "has not happened yet" forgiven.
+
+    Some records are undefined — severity INVALID, status UDF — until the
+    thing they describe happens for the first time: a sequence nobody has run,
+    a waveform preset the Modbox has not written on initialisation. On a cold
+    IOC that is all of them, so every such row would read `PV INV` while
+    nothing whatever is wrong. An indicator that cries wolf every morning is
+    worse than no indicator: it teaches an operator to look past the one thing
+    that means a reading cannot be trusted.
+
+    Narrow on purpose: *why* the record is INVALID is what decides. UDF is the
+    expected state of something that has not run yet; INVALID for any other
+    reason — a failed scan, a broken link — is a real fault and passes
+    through, as does `ok=False`, a channel that is not there at all.
+    """
+    if (
+        sample is None
+        or not sample.ok
+        or sample.severity != SEVERITY_INVALID
+        or not _is_udf(sample.status)
+    ):
+        return sample
+    return replace(sample, severity=0)
+
+
+def _is_udf(status: int | str | None) -> bool:
+    """`epicsAlarm.h` code 17, or the name a gateway may send instead."""
+    if isinstance(status, str):
+        return status.strip().upper() == "UDF"
+    return status == STATUS_UDF
+
+
+def sequencer_pill(read: PvReader, spec: Config, comp: Component) -> dict[str, Any]:
+    """RUNNING while any sequence is, IDLE when none is.
+
+    Derived rather than read from a flag of its own: a second PV saying what
+    the rows below it already say is a second thing that can be wrong, and the
+    disagreement would show as a pill contradicting its own list.
+
+    Both states are normal operating states — neither is good news or bad news,
+    so neither is coloured. Only the control system's severity (or a dead link)
+    tones this pill.
+    """
+    samples = [as_initialised(s) for s in read.many(item.pv for item in spec.sequences)]
+    severity = present_aggregate(samples, is_connected=read.is_connected)
+    states = [
+        sample.value == 1
+        for sample in samples
+        if sample is not None and sample.ok and sample.value is not None
+    ]
+    if not states:
+        text = UNKNOWN_TEXT
+    else:
+        text = "RUNNING" if any(states) else "IDLE"
+    # 'unknown' here means no sequence has reported yet, which the text above
+    # already says as `<>`; anything worse is a real severity and is painted.
+    tone = None if severity.tone == "unknown" else severity.tone
+    return {
+        "readout": Readout(
+            text=severity.text if severity.text is not None else text,
+            tone=tone,
+            title=severity.title,
+        ),
+        "signal": comp.signal("seq"),
+    }
+
+
+def sequence_list(read: PvReader, spec: Config) -> dict[str, Any]:
+    labels: list[str] = []
+    items: list[Readout] = []
+    for item in spec.sequences:
+        label, pv_name = item.label, item.pv
+        sample = as_initialised(read(pv_name))
+        running = None
+        if sample is not None and sample.ok and sample.value is not None:
+            running = sample.value == 1
+        fallback = UNKNOWN_TEXT if running is None else ("RUNNING" if running else "IDLE")
+        labels.append(label)
+        items.append(
+            single_readout(
+                sample,
+                pv_name=pv_name,
+                fallback_text=fallback,
+                is_connected=read.is_connected,
+            )
+        )
+    return {"labels": labels, "items": items, "note": None}
+
+
+def flashlamp_counts(read: PvReader, spec: Config) -> dict[str, Any]:
+    counts = {state: 0 for state in FLASHLAMP_STATES}
+    uncounted = 0
+    for item in spec.flashlamps:
+        sample = read(item.pv, Datatype.ENUM_STRING)
+        if not is_usable(sample):
+            uncounted += 1
+            continue
+        value = sample.value if sample is not None else None
+        state = FLASHLAMP_ALIASES.get(str(value).upper()) if isinstance(value, str) else None
+        if state:
+            counts[state] += 1
+
+    # The columns no longer add up to the number of channels, so say why on
+    # hover. Channels in an uncounted state (IGNITION / BUSY / OFF) are an
+    # expected case and are not reported here; the expanded list shows them.
+    if not read.is_connected:
+        title = TRANSPORT_DOWN_TITLE
+    elif uncounted:
+        title = (
+            f"{uncounted} of {len(spec.flashlamps)} channels have no usable reading "
+            f"and are not counted."
+        )
+    else:
+        title = None
+
+    return {
+        "states": FLASHLAMP_STATES,
+        "counts": counts,
+        "title": title,
+        # Stale counts grey out with everything else when the link drops.
+        "tone": None if read.is_connected else "unknown",
+    }
+
+
+def flashlamp_list(read: PvReader, spec: Config) -> dict[str, Any]:
+    """A channel row shows the state name and nothing more. No state is coloured
+    here — not even FAILURE: a failed flashlamp is an alarm condition and the
+    IOC raises it as one, which the shared table then paints. Colouring it a
+    second time from the string would mean two independent notions of "bad".
+    """
+    labels: list[str] = []
+    items: list[Readout] = []
+    for item in spec.flashlamps:
+        sample = read(item.pv, Datatype.ENUM_STRING)
+        labels.append(item.label)
+        items.append(
+            mapped_readout(sample, pv_name=item.pv, is_connected=read.is_connected)
+        )
+    return {"labels": labels, "items": items, "note": None}
+
+
+def trigger_delay(read: PvReader, spec: Config) -> dict[str, Any]:
+    """All readouts should be equal (spec). Flag it when they are not.
+
+    These PVs have no alarm limits configured, but INVALID severity (or a
+    disconnected channel) on any of them still means the reading cannot be
+    trusted, and takes priority over the mismatch check.
+    """
+    samples = read.many(spec.trigger_delay)
+    severity = present_aggregate(samples, is_connected=read.is_connected)
+    values = [
+        round(sample.value)
+        if sample is not None and isinstance(sample.value, (int, float)) and not isinstance(sample.value, bool)
+        else None
+        for sample in samples
+    ]
+    known = [value for value in values if value is not None]
+    all_known = bool(values) and len(known) == len(values)
+
+    if severity.text is not None:
+        return {
+            "readout": Readout(
+                text=severity.text, tone=severity.tone, title=severity.title, placeholder=True
+            )
+        }
+    if not all_known:
+        return {"readout": Readout(text=UNKNOWN_TEXT, tone="unknown", placeholder=True)}
+    if len(set(known)) > 1:
+        # The one condition no PV can report: the readouts should be equal by
+        # spec, and they are not. It gets the reserved 'negative-important' tone
+        # and nothing else.
+        return {
+            "readout": Readout(
+                text="MISMATCH " + "/".join(str(value) for value in known),
+                tone="negative-important",
+                title=" / ".join(str(value) for value in known),
+            )
+        }
+    unit = resolve_units(
+        spec.unit("triggerDelay"),
+        samples[0].units if samples and samples[0] is not None else None,
+        spec.default_unit("triggerDelay"),
+    )
+    # Raw unless the config says otherwise: delays are whole nanoseconds, so the
+    # shared 3-decimal default would turn 790 into 790.000 for everyone who
+    # never asked for a format.
+    text = format_value(known[0], resolve_format(spec.value_format("triggerDelay"), RAW_FORMAT))
+    return {
+        "readout": Readout(
+            text=text, tone=severity.tone, title=severity.title, units=unit, numeric=True
+        )
+    }
+
+
+def modbox_pill(read: PvReader, spec: Config, comp: Component) -> dict[str, Any]:
+    """Modbox state is a plain status readout, not a pass/fail signal — no colour
+    coding from the raw 1/0 value. 'unknown' (no channel has reported yet) stays
+    unpainted too, so "no data" and "all fine" deliberately look the same here.
+    """
+    samples = read.many(item.pv for item in spec.modbox)
+    total = len(spec.modbox)
+    ok_count = sum(1 for sample in samples if sample is not None and sample.value == 1)
+    severity = present_aggregate(samples, is_connected=read.is_connected)
+    tone = None if severity.tone == "unknown" else severity.tone
+    if severity.tone == "unknown":
+        text = f"{ok_count}/{total}"
+    else:
+        text = severity.text if severity.text is not None else f"{ok_count}/{total}"
+    return {
+        "readout": Readout(text=text, tone=tone, title=severity.title),
+        "signal": comp.signal("modbox"),
+    }
+
+
+def bias_row(read: PvReader, spec: Config) -> dict[str, Any]:
+    """The two bias channels, side by side and unlabelled.
+
+    Which cell is which is in the row's own label (`biasValue`), because two
+    names repeated on every row of every laser cost more width than they buy —
+    and width here is what the numbers need. The PV name is still in each
+    cell's hover text, so "which one is this" is always answerable.
+    """
+    pairs: list[dict[str, Any]] = []
+    for pv_name, role in (
+        (spec.pvs.modbox_mbc1, "modboxMbc1"),
+        (spec.pvs.modbox_mbc2, "modboxMbc2"),
+    ):
+        if not pv_name:
+            continue
+        pairs.append(
+            {
+                "readout": number_readout(
+                    read(pv_name),
+                    pv_name=pv_name,
+                    value_format=spec.value_format(role),
+                    # Beside the value, not in the row label: two channels
+                    # share this row and both carry the same unit, so it reads
+                    # as "2.15 mV / 2.20 mV" rather than a label that has to be
+                    # held in mind. `spec.unit` wins over the record's own EGU,
+                    # which is how a device reporting the wrong one is
+                    # corrected without touching the IOC.
+                    units=spec.unit(role),
+                    units_fallback=spec.default_unit(role),
+                    is_connected=read.is_connected,
+                ),
+            }
+        )
+    return {"pairs": pairs}

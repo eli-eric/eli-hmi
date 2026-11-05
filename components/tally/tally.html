@@ -1,0 +1,25 @@
+{#- The counts row: a label button, one cell per state, and the cog.
+
+    One CSS grid, with the column count coming from the config so the track list
+    cannot drift out of step with the states. -#}
+{% import "rows.html" as rows with context %}
+{% import "controls.html" as controls with context %}
+<section class="card">
+  <div class="tally-grid" style="--tally-state-count: {{ c.states | length }}">
+    <span class="row-label"></span>
+    {% for state in c.states %}
+    <span class="col-header">{{ state }}</span>
+    {% endfor %}
+    <span></span>
+
+    <button type="button" class="flashlamp-state-button" aria-label="Toggle {{ c.label }} detail"
+            data-on:click="${{ open_signal }} = !${{ open_signal }}"
+            data-attr="{'aria-expanded': ${{ open_signal }} ? 'true' : 'false'}">
+      <span>{{ c.label }}</span>
+      <span class="corner-triangle" data-class="{expanded: ${{ open_signal }}}" aria-hidden="true"></span>
+    </button>
+    {{ w['counts'] }}
+    <span></span>
+  </div>
+  {{ w['list'] }}
+</section>

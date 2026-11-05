@@ -1,0 +1,7 @@
+title: L4
+hostnames:
+  - "aton-deploy20"
+  - "aton-debug20"
+menu:
+  - spfe
+  - opcpa

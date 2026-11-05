@@ -1,12 +1,16 @@
-**
-!frontend/
-!frontend/**
-
-frontend/.next
-frontend/.npm
-frontend/coverage
-frontend/node_modules
-frontend/npm-debug.log
-frontend/.env
-frontend/.env.local
-frontend/.env.production
+# The Dockerfile copies only pyproject.toml, uv.lock, core/, components/ and
+# zones/. Everything else is kept out of the build context so it stays small
+# and a local virtualenv or secret never reaches the daemon.
+.git
+.venv
+.pytest_cache
+**/__pycache__
+**/*.pyc
+snapshot
+tests
+tools
+ioc
+.agents
+.claude
+.vscode
+.env*

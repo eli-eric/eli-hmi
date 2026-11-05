@@ -15,108 +15,56 @@ variables:
 stages:
   - test
   - build
-  - deploy
 
-docs-validate:
-  stage: test
-  image: harbor.eli-beams.eu/proxy-dockerhub/node:20.18-alpine
-  services: []
-  variables:
-    DOCKER_TLS_CERTDIR: ""
-  script:
-    - node scripts/docs/check-index.js
-    - node scripts/docs/check-links.js
-  rules:
-    - changes:
-        - docs/**/*
-        - scripts/docs/**/*
-
-frontend-test:
+# The test suite (`make test`). A runner reaches neither pypi.org nor uv's
+# Python downloads, so uv comes from the internal PyPI mirror, packages resolve
+# against it, and the interpreter is the image's own — the same arrangement as
+# the Dockerfile's build stage. For the same reason the run is not `--locked`:
+# the mirror as default index changes the resolution, so uv re-resolves into
+# this job's checkout rather than refusing the committed lockfile.
+python-hmi-test:
   stage: test
   tags:
-    - docker-in-docker # run on the runner that can do docker-in-docker
-  # Pin to a major.minor tag so unreviewed minor bumps don't change build
-  # behaviour. Pin to a digest as well if reproducibility ever bites.
-  image: harbor.eli-beams.eu/proxy-dockerhub/node:22-alpine
-  # No docker-in-docker needed; this job just runs `npm test`.
+    - docker-in-docker
+  image: harbor.eli-beams.eu/proxy-dockerhub/python:3.12
+  # No docker-in-docker needed; this job just runs pytest.
   services: []
   variables:
     DOCKER_TLS_CERTDIR: ""
-    NPM_CONFIG_REGISTRY: "https://npm-mirror1.eli-beams.eu/"
-    NPM_CONFIG_STRICT_SSL: "false"
-    NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/frontend/.npm"
+    UV_DEFAULT_INDEX: "https://pypi-mirror.eli-beams.eu/root/pypi/+simple/"
+    UV_INSECURE_HOST: "pypi-mirror.eli-beams.eu"
+    UV_PYTHON_DOWNLOADS: "never"
+    UV_LINK_MODE: "copy"
+    UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
   cache:
     key:
       files:
-        - frontend/package-lock.json
+        - uv.lock
     paths:
-      - frontend/.npm/
+      - .uv-cache/
   before_script:
-    - cd frontend
-    - rm -rf node_modules
-    - npm ci --prefer-offline --no-audit --loglevel=verbose --fetch-retries=3 --fetch-retry-mintimeout=15000 --fetch-retry-maxtimeout=20000
-    - test -x node_modules/.bin/vitest
+    - pip install --no-cache-dir --index-url https://pypi-mirror.eli-beams.eu/root/pypi/+simple/ --trusted-host pypi-mirror.eli-beams.eu uv
   script:
-    - npm test -- --run --coverage
-  artifacts:
-    when: always
-    paths:
-      - frontend/coverage/lcov-report/
-      - frontend/coverage/lcov.info
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: frontend/coverage/cobertura-coverage.xml
-    expire_in: 1 week
-  coverage: '/Lines\s+:\s+([\d.]+)%/'
+    - make test
 
-docker-build-job-demo:
+# The HMI image: one image that is both the operator interface and the EPICS
+# gateway. Built from the repository root, whose Dockerfile builds in two
+# stages: a runner can reach neither the Debian repositories nor pypi.org, so
+# the toolchain comes from the full python image and the packages from the
+# internal PyPI mirror.
+docker-build-job-python-hmi:
   stage: build
-  # all commands in this stage will run in this docker container that will provide the docker cli
   image: harbor.eli-beams.eu/proxy-dockerhub/docker:27.1.2
   tags:
-    - docker-in-docker # run on the runner that can do docker-in-docker
+    - docker-in-docker
   script:
     - docker info
-    - docker pull harbor.eli-beams.eu/proxy-dockerhub/node:22-alpine # this fixes a SSL verify error when running docker build
-    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:${CI_COMMIT_REF_SLUG} --file=frontend/Dockerfile.demo .
+    # Both stages: the full image compiles the dependencies, the slim one runs
+    # them. Pulled here so the build does not depend on a cold fetch.
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/python:3.12
+    - docker pull harbor.eli-beams.eu/proxy-dockerhub/python:3.12-slim
+    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:${CI_COMMIT_REF_SLUG} .
     - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
-    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:${CI_COMMIT_REF_SLUG}
-    - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:latest
-    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-frontend-demo:latest
-
-docker-build-job-mockup-demo:
-  stage: build
-  image: harbor.eli-beams.eu/proxy-dockerhub/docker:27.1.2
-  tags:
-    - docker-in-docker
-  script:
-    - docker pull harbor.eli-beams.eu/proxy-dockerhub/golang:1.22-alpine
-    - docker pull harbor.eli-beams.eu/proxy-dockerhub/alpine:latest
-    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup-demo:${CI_COMMIT_REF_SLUG} backend/mockup-websocket-server
-    - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
-    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup-demo:${CI_COMMIT_REF_SLUG}
-    - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup-demo:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup-demo:latest
-    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-backend-mockup-demo:latest
-
-deploy-czol-ap08:
-  variables:
-    DEPLOY_HOST: "czol-ap08.eli-laser.eu"
-  stage: deploy
-  image: harbor.eli-beams.eu/eli_images/alpine-ssh:latest
-  tags:
-    - docker-in-docker
-  when: manual
-  script:
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - printf '%s' "$DEPLOY_SSH_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_ed25519
-    - chmod 600 ~/.ssh/id_ed25519
-    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
-    - |
-      ssh -i ~/.ssh/id_ed25519 "${DEPLOY_USER}@${DEPLOY_HOST}" '
-        set -e
-        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml pull
-        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml down
-        sudo /usr/bin/docker compose -f /app/eli-hmi/docker-compose.yml up -d
-      '
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:${CI_COMMIT_REF_SLUG}
+    - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:latest
+    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:latest
