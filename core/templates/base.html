@@ -59,6 +59,11 @@
         page prefetch sign the operator out.
       #}
       {% if user %}
+      {#- The diagnostics dashboard (`core.monitor`). Its own class rather than
+          `nav-link`: it is a tool, not a screen, and the zone menu stays the
+          folder listing. -#}
+      <a class="nav-tool" href="/monitor"
+         {%- if gui.slug == "monitor" %} aria-current="page"{% endif %}>Monitor</a>
       <form class="nav-session" method="post" action="/logout">
         <span class="nav-user" title="Signed in as {{ user }}">{{ user }}</span>
         <button class="nav-logout" type="submit">Sign out</button>

@@ -18,6 +18,11 @@ zones/
 edit and no route to declare, and the main menu *is* the folder listing — so the
 menu cannot disagree with what the app serves.
 
+The folder name is the URL, so a few names are taken by paths the app serves
+itself: `api`, `health`, `login`, `logout`, `monitor`, `static` and `stats`. A
+screen folder with one of those names stops the start with an error saying so,
+rather than giving a menu entry that can never open.
+
 ## Adding a screen
 
 ```bash

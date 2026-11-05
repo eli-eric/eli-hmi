@@ -1,0 +1,142 @@
+{#
+  The dashboard's live parts (`core.monitor`), one macro each. The page renders
+  them for the first paint and the stream renders them again for every patch,
+  so the two are the same bytes. Each macro's root carries the id a patch is
+  matched on.
+
+  Only these are patched. The panels around them — titles, filter boxes,
+  toggles — are rendered once by `monitor.html` and never touched again, so a
+  patch cannot reset what an engineer is typing into a filter.
+#}
+
+{#- Two lines on a desktop: what matters at a glance, then the details of the
+    process and how it was configured, smaller and muted. Each fact is a
+    `label value` pair on one line, so the bar wraps by fact, never inside one. -#}
+{% macro overview(view) %}
+{% set o = view.overview %}
+<div class="mon-body mon-overview" id="mon-overview">
+  <dl class="mon-facts mon-facts-main">
+    <div><dt>Zone</dt><dd title="resolved from {{ o.zone_resolved_by }}">{{ o.zone }}</dd></div>
+    <div><dt>Backend</dt><dd>{{ o.backend }}</dd></div>
+    <div><dt>EPICS link</dt>
+      <dd><span class="mon-chip-sm" data-tone-surface="chip" data-tone="{{ 'positive-neutral' if o.link_ok else 'error' }}">{{ 'up' if o.link_ok else 'DOWN' }}</span></dd></div>
+    <div><dt>Up</dt><dd title="since {{ o.started }}">{{ o.uptime }}</dd></div>
+    <div><dt>Screens open</dt><dd>{{ o.streams }}<span class="mon-aside">by {{ o.users }} user{{ '' if o.users == 1 else 's' }}</span></dd></div>
+    <div><dt>CA monitors</dt>
+      <dd>{{ o.monitors }}
+        {%- if o.disconnected %} <span class="mon-chip-sm" data-tone-surface="chip" data-tone="invalid">{{ o.disconnected }} DSC</span>{% endif %}
+        {%- if o.alarms %} <span class="mon-chip-sm" data-tone-surface="chip" data-tone="warning">{{ o.alarms }} in alarm</span>{% endif %}</dd></div>
+    <div><dt>Log this run</dt>
+      <dd>{% if o.errors %}<span class="mon-chip-sm" data-tone-surface="chip" data-tone="error">{{ o.errors }} error{{ '' if o.errors == 1 else 's' }}</span>{% endif %}
+        {%- if o.warnings %} <span class="mon-chip-sm" data-tone-surface="chip" data-tone="warning">{{ o.warnings }} warning{{ '' if o.warnings == 1 else 's' }}</span>{% endif %}
+        {%- if not o.errors and not o.warnings %}clean{% endif %}</dd></div>
+    <div><dt>Sign-in</dt><dd>{{ o.auth }}</dd></div>
+  </dl>
+  <dl class="mon-facts mon-facts-detail">
+    {% for label, value in o.process + o.config %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}
+  </dl>
+</div>
+{% endmacro %}
+
+{% macro clients(view) %}
+<div class="mon-body" id="mon-clients">
+  {% if view.clients %}
+  <table class="mon-table">
+    <thead>
+      <tr><th>User</th><th>Address</th><th>Browser</th><th>Screen</th>
+          <th>Connected</th><th class="num">Events</th><th>Last event</th></tr>
+    </thead>
+    <tbody>
+      {% for client in view.clients %}
+      <tr data-client="{{ client.id }}" data-kind="{{ client.kind }}">
+        <td>{{ client.user }}</td>
+        <td>{{ client.ip }}</td>
+        <td title="{{ client.user_agent }}">{{ client.browser }}</td>
+        <td><a href="/{{ client.slug }}">{{ client.slug }}</a>
+          {%- if client.kind == "monitor" %} <span class="mon-tag">dashboard</span>{% endif %}</td>
+        <td>{{ client.connected_for }}</td>
+        <td class="num">{{ client.events }}</td>
+        <td>{{ client.last_event }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="mon-empty">No screen is open anywhere.</p>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro screens(view) %}
+<div class="mon-body" id="mon-screens">
+  <table class="mon-table">
+    <thead>
+      <tr><th>Screen</th><th>Title</th><th class="num">Open</th><th>Users</th>
+          <th class="num">Components</th><th class="num">Widgets</th><th class="num">PVs</th></tr>
+    </thead>
+    <tbody>
+      {% for screen in view.screens %}
+      <tr data-screen="{{ screen.slug }}">
+        <td><a href="/{{ screen.slug }}">{{ screen.slug }}</a></td>
+        <td>{{ screen.title }}</td>
+        <td class="num">{{ screen.streams }}</td>
+        <td>{{ screen.users }}</td>
+        <td class="num">{{ screen.components }}</td>
+        <td class="num">{{ screen.widgets }}</td>
+        <td class="num">{{ screen.pvs }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+
+{% macro monitors(view) %}
+<div class="mon-body" id="mon-monitors">
+  <table class="mon-table">
+    <thead>
+      <tr><th>PV</th><th>Type</th><th class="num">Refs</th><th>State</th><th class="num">Value</th>
+          <th class="num">Updates</th><th>Last update</th><th>Error</th></tr>
+    </thead>
+    <tbody>
+      {% for row in view.monitors %}
+      <tr data-pv="{{ row.name }}"{% if row.problem %} data-problem{% endif %}
+          data-show="$_pvq == '' || el.dataset.pv.toLowerCase().includes($_pvq.toLowerCase())">
+        <td class="mon-pv">{{ row.name }}</td>
+        <td>{{ row.datatype }}</td>
+        <td class="num">{{ row.refs }}</td>
+        <td><span class="mon-state" data-tone-surface="chip"
+                  {%- if row.tone %} data-tone="{{ row.tone }}"{% endif %}
+                  {%- if row.title %} title="{{ row.title }}"{% endif %}>{{ row.state }}</span></td>
+        <td class="num">{{ row.value }}</td>
+        <td class="num">{{ row.updates }}</td>
+        <td>{{ row.last_update }}</td>
+        <td>{{ row.error }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+
+{#- One log record. `data-level` and `data-cat` are what the level and
+    category filters key on (pure CSS, see hmi.css); the text filter is the
+    `data-show`. -#}
+{% macro log_line(row) %}
+{% if row.restart_above %}
+<li class="log-divider" role="separator">process restarted — below is the previous run</li>
+{% endif %}
+<li class="log-line" data-seq="{{ row.seq }}" data-level="{{ row.level }}" data-cat="{{ row.category }}"
+    {%- if row.earlier %} data-earlier{% endif %}
+    data-show="$_logq == '' || el.textContent.toLowerCase().includes($_logq.toLowerCase())">
+  <time class="log-time" title="{{ row.stamp }}">{{ row.clock }}</time>
+  <span class="log-level" data-tone-surface="chip"{% if row.tone %} data-tone="{{ row.tone }}"{% endif %}>{{ row.level }}</span>
+  <span class="log-source" title="{{ row.logger }}">{{ row.source }}</span>
+  <span class="log-msg">{{ row.message }}</span>
+  {% if row.exc %}
+  <details class="log-exc"><summary>traceback</summary><pre>{{ row.exc }}</pre></details>
+  {% endif %}
+</li>
+{% endmacro %}
+
+{% macro log_lines(rows) %}{% for row in rows %}{{ log_line(row) }}{% endfor %}{% endmacro %}

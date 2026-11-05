@@ -31,15 +31,19 @@ import asyncio
 import logging
 import signal
 import sys
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
 from quart import Quart, jsonify
 
 from core.auth import Authenticator, SessionCodec, config_from_env, log_startup, session_secret
+from core.clients import ClientRegistry
 from core.epics.hub import PvHub
 from core.jinja import STATIC_ROOT, create_environment
+from core.logbook import LogBook
 from core.login import build_login_blueprint, install_gate
+from core.monitor import build_monitor_blueprint
 from core.page import Page, build_pages
 from core.routes import build_blueprint
 from core.settings import Settings, SettingsError
@@ -74,6 +78,14 @@ class Hmi:
     #: once from what the components declared. The write endpoint consults it
     #: for every write, whatever posted it.
     write_limits: dict[str, Any] = field(default_factory=dict, repr=False)
+    #: Every open SSE stream — who, from where, on which screen. `/monitor`
+    #: reads it; sessions are stateless, so this is the list of who is connected.
+    clients: ClientRegistry = field(default_factory=ClientRegistry, repr=False)
+    #: Wall-clock start of the process, for the uptime `/monitor` shows.
+    started_at: float = field(default_factory=time.time)
+    #: Recent log records, structured, for `/monitor`. On the root logger
+    #: while the app is serving (see `start` / `stop` in `create_app`).
+    logbook: LogBook = field(default_factory=LogBook, repr=False)
 
 
 def build_backend(settings: Settings, zone: Zone):
@@ -120,6 +132,9 @@ def create_app(settings: Settings | None = None) -> Quart:
     env = create_environment(auto_reload=settings.dev)
     pages = build_pages(zone, env)
     hub = PvHub(build_backend(settings, zone))
+    # Built here rather than at serve time so an unusable LOG_DIR stops the
+    # start, like a missing SESSION_SECRET; attached in `start` below.
+    logbook = LogBook(directory=settings.log_dir or None)
 
     # Sign-in, before anything is served. `session_secret` raises rather than
     # inventing a key outside development: a generated key works perfectly until
@@ -147,6 +162,7 @@ def create_app(settings: Settings | None = None) -> Quart:
         pages=pages,
         authenticator=authenticator,
         sessions=sessions,
+        logbook=logbook,
         home=f"/{next(iter(pages))}" if pages else "/",
         write_limits={
             pv: limits
@@ -158,6 +174,8 @@ def create_app(settings: Settings | None = None) -> Quart:
 
     @app.before_serving
     async def start() -> None:
+        # First, so the dashboard's log has the whole start-up in it.
+        app.hmi.logbook.attach()
         await hub.start()
         if settings.prewarm:
             # Hold a subscription for every screen's PVs for the process
@@ -196,9 +214,13 @@ def create_app(settings: Settings | None = None) -> Quart:
         if app.hmi.warm is not None:
             await app.hmi.warm.close()
         await hub.stop()
+        # Last, for the same reason — and so a test run, which builds an app
+        # per module, does not leave a handler per app on the root logger.
+        app.hmi.logbook.detach()
 
     app.register_blueprint(build_login_blueprint(home=app.hmi.home))
     app.register_blueprint(build_blueprint(pages, home=app.hmi.home))
+    app.register_blueprint(build_monitor_blueprint())
     # Registered after the blueprints but runs before every one of their views:
     # `before_request` hooks run in registration order, and nothing above is
     # reachable without passing this one.
@@ -228,12 +250,7 @@ def create_app(settings: Settings | None = None) -> Quart:
                 "backend": settings.epics_backend,
                 "auth": authenticator.mode,
                 "screens": {
-                    slug: {
-                        "title": page.gui.title,
-                        "components": sum(1 for _ in page.gui.walk()),
-                        "widgets": len(list(page.gui.all_widgets())),
-                        "pvs": len(page.all_pvs),
-                    }
+                    slug: {"title": page.gui.title, **page.sizes()}
                     for slug, page in pages.items()
                 },
                 "monitored_pvs": hub.monitor_count,

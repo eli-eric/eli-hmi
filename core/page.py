@@ -84,6 +84,14 @@ class Page:
     def widget_count(self) -> int:
         return sum(len(widgets) for widgets in self._by_pv.values())
 
+    def sizes(self) -> dict[str, int]:
+        """How big the screen is, as `/stats` and `/monitor` report it."""
+        return {
+            "components": sum(1 for _ in self.gui.walk()),
+            "widgets": len(list(self.gui.all_widgets())),
+            "pvs": len(self.all_pvs),
+        }
+
     def signals(self, palette: str | None = None) -> dict[str, Any]:
         """Every signal the page declares, up front.
 

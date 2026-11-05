@@ -55,6 +55,13 @@ ZONE_FILE = "zone.yaml"
 GUI_FILE = "gui.yaml"
 
 
+#: Paths the app serves itself. A screen is a route named after its folder, so a
+#: folder with one of these names would be shadowed: in the menu, never openable.
+RESERVED_SLUGS = frozenset(
+    {"api", "health", "login", "logout", "monitor", "static", "stats"}
+)
+
+
 class ZoneError(Exception):
     """Something about the zone layout an operator or engineer must fix."""
 
@@ -289,6 +296,13 @@ def load_zone(code: str, *, resolved_by: str = "explicit") -> Zone:
         child for child in path.iterdir() if child.is_dir() and (child / GUI_FILE).is_file()
     )
     guis = [load_gui(folder) for folder in folders]
+    taken = sorted(gui.slug for gui in guis if gui.slug in RESERVED_SLUGS)
+    if taken:
+        raise ZoneError(
+            f"zone {code}: screen folder {', '.join(repr(s) for s in taken)} is reserved — "
+            f"the app already serves /{taken[0]}, so the screen could never be opened. "
+            f"Rename the folder (reserved: {', '.join(sorted(RESERVED_SLUGS))})"
+        )
 
     # Explicit `menu:` order first, then everyone else by their own `order:`.
     explicit = {name: index for index, name in enumerate(meta.menu)}

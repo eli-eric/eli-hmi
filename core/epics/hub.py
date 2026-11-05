@@ -19,11 +19,27 @@ import logging
 import math
 import time
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Iterable
 
 from core.epics.types import EpicsBackend, LastValid, PvId, PvSample
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class MonitorInfo:
+    """One open monitor as `/monitor` lists it."""
+
+    pv: PvId
+    #: How many subscriptions (open streams, the prewarm) want it.
+    refs: int
+    #: The latest sample, or None if nothing has arrived yet.
+    sample: PvSample | None
+    #: Samples received since the monitor opened, unchanged repeats included.
+    updates: int
+    #: Wall-clock time the last one arrived — not the IOC's timestamp.
+    received_at: float | None
 
 
 class Subscription:
@@ -86,6 +102,10 @@ class PvHub:
         self._started_at = 0.0
         self._cache: dict[PvId, PvSample] = {}
         self._refcount: dict[PvId, int] = defaultdict(int)
+        # Channel Access traffic per open monitor, for `/monitor`: how many
+        # samples arrived and when the last one did. Cleared with the monitor.
+        self._updates: dict[PvId, int] = {}
+        self._received_at: dict[PvId, float] = {}
         self._subscribers: set[Subscription] = set()
         self._lock = asyncio.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -105,6 +125,8 @@ class PvHub:
         async with self._lock:
             pvs = list(self._refcount)
             self._refcount.clear()
+            self._updates.clear()
+            self._received_at.clear()
             self._subscribers.clear()
         for pv in pvs:
             try:
@@ -179,6 +201,8 @@ class PvHub:
                 self._refcount[pv] -= 1
                 if self._refcount[pv] <= 0:
                     self._refcount.pop(pv, None)
+                    self._updates.pop(pv, None)
+                    self._received_at.pop(pv, None)
                     dead.append(pv)
         for pv in dead:
             try:
@@ -201,6 +225,20 @@ class PvHub:
     @property
     def subscriber_count(self) -> int:
         return len(self._subscribers)
+
+    def monitors(self) -> list[MonitorInfo]:
+        """Every open monitor, in PV order, with what `/monitor` shows of it:
+        how many subscriptions want it, its latest sample, and its traffic."""
+        return [
+            MonitorInfo(
+                pv=pv,
+                refs=refs,
+                sample=self._cache.get(pv),
+                updates=self._updates.get(pv, 0),
+                received_at=self._received_at.get(pv),
+            )
+            for pv, refs in sorted(self._refcount.items())
+        ]
 
     # ------------------------------------------------------------------- writes
 
@@ -233,6 +271,11 @@ class PvHub:
         """Backend callback. Must be cheap and must not block: it only updates
         the cache and flips a flag per interested subscriber.
         """
+        if pv in self._refcount:
+            # Guarded so a sample that lands after its monitor was removed
+            # cannot resurrect the counters.
+            self._updates[pv] = self._updates.get(pv, 0) + 1
+            self._received_at[pv] = time.time()
         previous = self._cache.get(pv)
         sample = self._carry_last_valid(previous, sample)
         self._cache[pv] = sample

@@ -49,7 +49,7 @@ async def render_all(out: Path) -> list[tuple[str, str]]:
             # has to resolve for it to open from a file:// URL.
             html = re.sub(r'\s*data-init="[^"]*"', "", html)
             html = re.sub(r"\s*<script[^>]*></script>", "", html)
-            html = html.replace('href="/static/css/hmi.css"', 'href="css/hmi.css"')
+            html = re.sub(r'href="/static/css/hmi\.css(\?v=\w+)?"', 'href="css/hmi.css"', html)
             (out / f"{slug}.html").write_text(html)
             pages.append((slug, screen["title"]))
             print(f"{out / (slug + '.html')}  ({len(html)} bytes)")

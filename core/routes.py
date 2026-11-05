@@ -30,8 +30,10 @@ from datastar_py.quart import DatastarResponse, read_signals
 from quart import Blueprint, Response, current_app, g, make_response, redirect, request
 
 from core.auth import Identity
+from core.clients import ClientRegistry
 from core.components import PvReader
 from core.epics.hub import PvHub
+from core.login import client_ip
 from core.page import Page
 from core.palette import DEFAULT_PALETTE, PALETTE_COOKIE, PALETTES, usable
 from core.settings import Settings
@@ -137,10 +139,12 @@ def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:
         closed over. The generator outlives the request scope by design — it is
         the response — so reaching for `request` from inside it would need
         Quart's `stream_with_context` and tie a shift-long stream to machinery
-        it does not otherwise care about.
+        it does not otherwise care about. That includes who is asking and from
+        where, which `/monitor` lists for as long as the stream is open.
         """
         settings, hub, pages = state()
         who = actor()
+        hmi = current_app.hmi
         return DatastarResponse(
             _stream_events(
                 slug,
@@ -148,7 +152,10 @@ def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:
                 hub,
                 settings,
                 user=who.user if who else "-",
-                shutting_down=current_app.hmi.shutting_down,
+                shutting_down=hmi.shutting_down,
+                clients=hmi.clients,
+                ip=client_ip(),
+                user_agent=request.headers.get("user-agent", ""),
             )
         )
 
@@ -242,6 +249,9 @@ async def _stream_events(
     *,
     user: str,
     shutting_down: asyncio.Event | None = None,
+    clients: ClientRegistry | None = None,
+    ip: str = "-",
+    user_agent: str = "",
 ):
     """The live half of a screen.
 
@@ -264,21 +274,32 @@ async def _stream_events(
     A stopping *server* arrives as `shutting_down`, and the loop returns rather
     than waiting to be cancelled — nothing cancels it, because the shutdown is
     waiting for this very response to finish.
+
+    While it is open the stream is listed in `clients`, which is what `/monitor`
+    shows as a connected client; every event it sends is counted there.
     """
     stopping = shutting_down or asyncio.Event()
     subscription = await hub.subscribe(view.all_pvs)
+    registry = clients if clients is not None else ClientRegistry()
+    client = registry.open(kind="screen", slug=slug, user=user, ip=ip, user_agent=user_agent)
     logger.info(
-        "SSE stream opened for /%s by user=%s (%d PVs, %d monitors, %d streams)",
+        "SSE stream opened for /%s by user=%s ip=%s (%d PVs, %d monitors, %d streams)",
         slug,
         user,
+        ip,
         len(view.all_pvs),
         hub.monitor_count,
         hub.subscriber_count,
     )
+
+    def sent(event):
+        client.sent()
+        return event
+
     try:
         reader = PvReader(subscription.snapshot(), hub.link_ok)
-        yield SSE.patch_signals({"_age": 0})
-        yield SSE.patch_elements(view.render_all_widgets(reader))
+        yield sent(SSE.patch_signals({"_age": 0}))
+        yield sent(SSE.patch_elements(view.render_all_widgets(reader)))
 
         while not stopping.is_set():
             dirty, stop_now = await _wait_for_change(
@@ -294,17 +315,18 @@ async def _stream_events(
                 dirty |= subscription.drain()
 
             reader = PvReader(subscription.snapshot(), hub.link_ok)
-            yield SSE.patch_signals({"_age": 0})
+            yield sent(SSE.patch_signals({"_age": 0}))
 
             if not dirty:
                 # Heartbeat tick: nothing changed, but the link state may have.
-                yield SSE.patch_elements(view.render_link_banner(reader))
+                yield sent(SSE.patch_elements(view.render_link_banner(reader)))
                 continue
 
             patch = view.render_patch(reader, dirty)
             if patch:
-                yield SSE.patch_elements(patch)
+                yield sent(SSE.patch_elements(patch))
     finally:
+        registry.close(client)
         await subscription.close()
         logger.info(
             "SSE stream closed for /%s by user=%s (%d left)",

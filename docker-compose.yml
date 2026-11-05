@@ -40,6 +40,14 @@ services:
     #   SESSION_COOKIE_SECURE: '1'      # with TLS in front
     #   LDAP_SERVER_URL: ldap://10.78.0.11
     #   LDAP_UPN_DOMAIN: lcs.local
+    #   # Keep /monitor's log across restarts (and container rebuilds):
+    #   LOG_DIR: /var/log/eli-hmi
+    # volumes:
+    #   - eli-hmi-logs:/var/log/eli-hmi
+    #
+    # ...and at the top level of this file:
+    # volumes:
+    #   eli-hmi-logs:
     healthcheck:
       test:
         - CMD

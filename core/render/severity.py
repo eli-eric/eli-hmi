@@ -330,3 +330,20 @@ def present_aggregate(
         text=DISCONNECTED_TEXT if all_disconnected else INVALID_TEXT,
         title="\n".join(title_lines),
     )
+
+
+def log_tone(levelno: int) -> Tone | None:
+    """Tone for a log record's level badge on `/monitor`.
+
+    Here rather than in the dashboard because this module is the one place
+    that decides which tone means what: an ERROR line wears the same tone as a
+    MAJOR alarm, a WARNING the same as a MINOR one. INFO is the normal case and
+    stays unstyled; DEBUG is muted like a reading that has not arrived.
+    """
+    if levelno >= 40:  # logging.ERROR, CRITICAL
+        return "error"
+    if levelno >= 30:  # logging.WARNING
+        return "warning"
+    if levelno < 20:  # logging.DEBUG
+        return "unknown"
+    return None

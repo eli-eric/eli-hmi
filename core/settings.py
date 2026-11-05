@@ -52,6 +52,9 @@ class Settings:
     #: 8082, the port the React app used — operators have it bookmarked.
     port: int = 8082
     log_level: str = "INFO"
+    #: Where the log book (`core.logbook`) keeps its rotating file, so `/monitor`
+    #: still has the history after a restart. Empty: memory only.
+    log_dir: str = ""
 
     #: Which zone folder to serve. Empty means "work it out from the hostname".
     zone_code: str = ""
@@ -110,6 +113,7 @@ class Settings:
             host=os.getenv("HOST", defaults.host),
             port=_env_int("PORT", defaults.port),
             log_level=os.getenv("LOG_LEVEL", defaults.log_level).upper(),
+            log_dir=os.getenv("LOG_DIR", defaults.log_dir).strip(),
             zone_code=os.getenv("ZONE_CODE", defaults.zone_code).strip(),
             epics_backend=os.getenv("EPICS_BACKEND", defaults.epics_backend).strip().lower(),
             sim_tick_seconds=_env_float("SIM_TICK_SECONDS", defaults.sim_tick_seconds),

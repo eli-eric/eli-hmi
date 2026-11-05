@@ -315,3 +315,63 @@ class TestSimulatorCommands:
             assert ran == ["on", "off"]
         finally:
             await hub.stop()
+
+
+# ------------------------------------------------------- what /monitor reads
+
+
+async def test_the_hub_lists_each_monitor_with_how_many_want_it(hub):
+    a, b = PvId("PV:A"), PvId("PV:B")
+    first = await hub.subscribe([a, b])
+    second = await hub.subscribe([a])
+
+    info = {monitor.pv: monitor for monitor in hub.monitors()}
+    assert (info[a].refs, info[b].refs) == (2, 1)
+
+    await first.close()
+    assert [(m.pv, m.refs) for m in hub.monitors()] == [(a, 1)]
+    await second.close()
+    assert hub.monitors() == []
+
+
+async def test_every_update_is_counted_even_one_that_repaints_nothing(hub):
+    """The count is Channel Access traffic, not repaints: an IOC republishing
+    the same value every second is exactly what this should show."""
+    pv = PvId("PV:A")
+    subscription = await hub.subscribe([pv])
+    hub.backend.push(pv, 1.0)
+    hub.backend.push(pv, 1.0)
+    hub.backend.push(pv, 2.0)
+
+    [monitor] = hub.monitors()
+    assert monitor.updates == 3
+    assert monitor.sample.value == 2.0
+    assert monitor.received_at is not None
+    await subscription.close()
+
+
+async def test_a_reopened_monitor_counts_from_zero(hub):
+    pv = PvId("PV:A")
+    subscription = await hub.subscribe([pv])
+    hub.backend.push(pv, 1.0)
+    await subscription.close()
+
+    subscription = await hub.subscribe([pv])
+    [monitor] = hub.monitors()
+    assert (monitor.updates, monitor.received_at) == (0, None)
+    await subscription.close()
+
+
+async def test_a_monitor_that_could_not_be_created_is_listed_as_unusable():
+    class Refusing(RecordingBackend):
+        async def add_monitor(self, pv, callback):
+            raise RuntimeError("no such channel")
+
+    hub = PvHub(Refusing())
+    await hub.start()
+    subscription = await hub.subscribe([PvId("PV:GONE")])
+    [monitor] = hub.monitors()
+    assert monitor.sample is not None and not monitor.sample.ok
+    assert monitor.sample.error == "monitor could not be created"
+    await subscription.close()
+    await hub.stop()

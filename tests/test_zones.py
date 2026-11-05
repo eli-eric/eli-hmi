@@ -174,6 +174,16 @@ class TestErrors:
         with pytest.raises(ZoneError, match="zone.yaml"):
             load_zone("03")
 
+    @pytest.mark.parametrize("slug", ["monitor", "api", "login", "stats"])
+    def test_a_screen_may_not_take_a_path_the_app_already_serves(self, zones, slug):
+        """A folder is a route. One named like a fixed route would be shadowed
+        by it — a screen that is in the menu and can never be opened."""
+        zone = make_zone(zones, "01")
+        make_gui(zone, "vacuum")
+        make_gui(zone, slug)
+        with pytest.raises(ZoneError, match=f"'{slug}'.*reserved"):
+            load_zone("01")
+
     def test_a_component_typo_names_the_keys_that_would_have_worked(self, zones):
         zone = make_zone(zones, "01")
         folder = zone / "screen"

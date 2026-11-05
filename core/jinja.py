@@ -16,6 +16,8 @@ Templates are found in three places, searched in this order:
 
 from __future__ import annotations
 
+import hashlib
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -52,8 +54,42 @@ def create_environment(*, auto_reload: bool = False) -> Environment:
     # Starlette's `url_for` is only available through its own Jinja integration,
     # and this app uses the environment directly (widgets render outside any
     # request). One mount point, one helper.
-    env.globals["static"] = lambda path: f"{STATIC_URL}{path}"
+    env.globals["static"] = static_url
     return env
+
+
+#: Files whose URL carries their own hash. Fonts do not: `@font-face` asks for
+#: them by a fixed URL, and a preload must name exactly that URL or the browser
+#: fetches the face twice.
+VERSIONED = (".css", ".js")
+
+
+def static_url(path: str, *, root: Path = STATIC_ROOT) -> str:
+    """`/static/css/hmi.css?v=1a2b3c4d5e6f` — the URL of a static file, with a
+    hash of its content for a stylesheet or a script.
+
+    Static files are served with a twelve-hour cache. Without the hash, a
+    browser that has the stylesheet keeps using it after a deploy has changed
+    it, and the station shows today's markup in yesterday's styling until
+    someone forces a reload. With it, a changed file is a new URL.
+
+    The file is stat'ed on every call and hashed only when its size or mtime
+    changed, so an edit in development is picked up on the next render.
+    """
+    url = f"{STATIC_URL}{path}"
+    if not path.endswith(VERSIONED):
+        return url
+    file = root / path.lstrip("/")
+    try:
+        stat = file.stat()
+    except OSError:
+        return url
+    return f"{url}?v={_digest(str(file), stat.st_mtime_ns, stat.st_size)}"
+
+
+@lru_cache(maxsize=32)
+def _digest(file: str, _mtime_ns: int, _size: int) -> str:
+    return hashlib.sha256(Path(file).read_bytes()).hexdigest()[:12]
 
 
 class WidgetRenderer:

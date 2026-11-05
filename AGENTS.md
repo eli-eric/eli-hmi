@@ -14,7 +14,7 @@ The structure is the config:
 
 - `zones/<CODE>/zone.yaml` declares a zone and the hostname globs that select it. `zones/<CODE>/<screen>/gui.yaml` is a screen. A folder is a screen: its route and menu entry come from the folder listing, so there is no registry or menu to edit.
 - `components/` holds the reusable pieces (`value`, `group`, `grid`, `tally`, `motor`, `valve`, `panel`, `laser_panel`), each a folder with Python and a Jinja template, used from YAML. A component declares a pydantic `Config`, a `setup()` for its live widgets, and `pv_specs()` saying what each PV is. `components/valve/` is the smallest one to copy.
-- `core/` holds zone resolution, the EPICS hub, rendering and routes. `core/__init__.py` has the module map.
+- `core/` holds zone resolution, the EPICS hub, rendering and routes. `core/__init__.py` has the module map. It also holds `/monitor`, the diagnostics dashboard (`core/monitor.py`), which is the one page that isn't a zone folder. Its name and the app's other fixed paths are reserved slugs (`RESERVED_SLUGS` in `core/zones.py`).
 - `ioc/` is a local EPICS IOC whose database is **generated** from what the components declare (`uv run python ioc/generate.py --zone TESTZ`). Never edit `ioc/db/*.db`: add a screen and regenerate. `generate.py` also writes `zones/<ZONE>-IOC/`, which is identical to the real zone except for PVs naming a *field* of a synApps record (no base-only IOC can serve a name with a dot in it) and answers to no hostname, so a station can never resolve to it. It runs via pythonSoftIOC from the `ioc` extra (no EPICS build), or as a stock `softIoc` in Docker (`ioc/Dockerfile`).
 - `tests/` is pytest. The end-to-end tests drive a real Hypercorn socket, because the thing under test is a streaming response.
 - `tools/snapshot.py` freezes one render of every screen as static HTML for layout review.
@@ -42,13 +42,19 @@ All from the repo root:
 - **Widget granularity:** a widget is a value cell, pill or list, never a row. Labels, inputs and cog buttons are rendered once and never patched.
 - **Colour:** components own geometry and emit `data-tone-surface` / `data-tone`. `core/static/css/hmi.css` owns colour. `core/render/severity.py` is the only thing that decides which tone applies (transport loss > EPICS severity > component emphasis), so never hard-code a colour in a component.
 - **Writes:** every control posts to `POST /api/write` (`?pv=…&value=…` or `?pv=…&signal=…`). Command PVs and their effects are declared once in `pv_specs()` and drive both the simulator and the generated IOC.
+- **Diagnostics (`/monitor`):** this page reads state and keeps none of its own.
+  - `PvHub.monitors()` gives the refcount, latest sample and update count for each monitor.
+  - `core/clients.py`'s `ClientRegistry` lists the open SSE streams. `_stream_events` opens and closes an entry.
+  - `core/logbook.py`'s `LogBook` is a second root handler, attached in `before_serving` and detached in `after_serving`. With `LOG_DIR` set it also writes rotating JSON lines and reads them back on start.
+  - `core/monitor.py`'s `collect()` builds the view model, and `monitor_panels.html` renders it for the first paint and for patches.
+  - Its stream ticks on the heartbeat rather than on PV changes, and it must end on `shutting_down` like a screen's stream.
 - **Auth:** `core/auth.py` does an LDAP simple bind as `<user>@LDAP_UPN_DOMAIN` and issues an HMAC-signed session cookie. It adds a `test`/`test` account when `DEV=1`. `core/login.py` has the login form and the `before_request` gate on every route; `PUBLIC_PATHS` there is the whole exception list. `SESSION_SECRET` is required unless `DEV=1`. Auth events and every write are logged with the actor; the password and the cookie never are.
 
 ## Conventions worth knowing
 
 - The port is **8082**, not 8000 or 3000. Operators have it bookmarked.
 - Screens are YAML. YAML traps (`OFF` is a boolean) are covered in `zones/README.md`.
-- Templates are Jinja, under `core/templates/` and `components/**`. Static assets live in `core/static/`. `datastar.js` is vendored and must match the `datastar-py` pin in `pyproject.toml`.
+- Templates are Jinja, under `core/templates/` and `components/**`. Static assets live in `core/static/`. Link them with `static()`, which adds a content hash to `.css` and `.js` URLs (`?v=…`). They're served with a 12-hour cache, so a hard-coded `/static/…` URL keeps serving the old file after a change. `datastar.js` is vendored and must match the `datastar-py` pin in `pyproject.toml`.
 - Commit subjects are short imperative. Prefix with the Jira/issue id when there is one (e.g. `OPHMI-15: ...`).
 
 ## CI

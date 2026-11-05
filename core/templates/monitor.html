@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ gui.title }} — zone {{ zone.code }}{% endblock %}
+
+{#
+  The diagnostics dashboard (`core.monitor`). Not a zone screen: nothing here
+  comes from YAML, and nothing here writes to the machine.
+
+  Same shape as a screen: rendered whole on the server, then one SSE stream
+  patches the live parts. Every filter is client-side — a signal and a CSS
+  attribute rule — so filtering costs no round-trip and the stream never needs
+  to know what an engineer is looking for.
+#}
+
+{% import "monitor_panels.html" as panels %}
+
+{% block content %}
+<div class="page monitor"
+     data-signals="{_age: 0, _pvq: '', _problems: false, _loglevel: 'DEBUG', _logcat: '', _logq: '', _pvfull: false, _logfull: false}"
+     data-init="@get('/monitor/stream')"
+     data-on:keydown__window="evt.key === 'Escape' && ($_pvfull = false, $_logfull = false)">
+
+  <div class="sticky-header">
+    <header class="page-header">
+      <h1 class="page-title">{{ gui.title }}</h1>
+      <span class="page-description">Clients, screens, CA monitors and the log of this process</span>
+      <span class="stream-watchdog" data-on-interval__duration.1s="$_age = $_age + 1"></span>
+    </header>
+    <div class="banner" role="status" data-show="$_age > 6" style="display:none">
+      Live updates have stopped — this page is frozen at its last update. Reload if it persists.
+    </div>
+  </div>
+
+  <div class="monitor-grid">
+    {#- No title bar: a status strip is self-explanatory, and the point of the
+        overview is to cost as little height as possible. -#}
+    <section class="panel mon-panel" data-span="all" aria-label="Overview">
+      {{ panels.overview(view) }}
+    </section>
+
+    <section class="panel mon-panel" aria-label="Clients">
+      <header class="panel-header"><h2 class="panel-title">Clients — open streams</h2></header>
+      {{ panels.clients(view) }}
+    </section>
+
+    <section class="panel mon-panel" aria-label="Screens">
+      <header class="panel-header"><h2 class="panel-title">Screens</h2></header>
+      {{ panels.screens(view) }}
+    </section>
+
+    {#- Both long lists are short by default, so the whole page reads at a
+        glance, and each opens to the full window when it is the thing being
+        studied. A class on the section, not a re-render: the stream keeps
+        patching the rows inside while it is open. -#}
+    <section class="panel mon-panel" data-span="all" aria-label="CA monitors"
+             data-class="{'mon-full': $_pvfull}">
+      <header class="panel-header"><h2 class="panel-title">CA monitors — problems first</h2></header>
+      <div class="mon-tools">
+        <input type="search" class="mon-filter" placeholder="Filter PV names" aria-label="Filter PV names"
+               data-bind="_pvq">
+        <label class="mon-toggle"><input type="checkbox" data-bind="_problems"> problems only</label>
+        <button type="button" class="mon-expand" data-on:click="$_pvfull = !$_pvfull"
+                data-attr="{'aria-pressed': $_pvfull ? 'true' : 'false'}"
+                data-text="$_pvfull ? 'close full screen (Esc)' : 'full screen'">full screen</button>
+      </div>
+      <div class="mon-scroll" data-class="{'problems-only': $_problems}">
+        {{ panels.monitors(view) }}
+      </div>
+    </section>
+
+    <section class="panel mon-panel" id="mon-log" data-span="all" aria-label="Log"
+             data-class="{'mon-full': $_logfull}">
+      <header class="panel-header"><h2 class="panel-title">Log — newest first</h2></header>
+      <div class="mon-tools">
+        <label class="mon-toggle">level
+          <select data-bind="_loglevel" aria-label="Lowest level shown">
+            <option value="DEBUG">everything</option>
+            <option value="INFO">info and worse</option>
+            <option value="WARNING">warnings and errors</option>
+            <option value="ERROR">errors only</option>
+          </select>
+        </label>
+        <span class="mon-chips" role="group" aria-label="Category">
+          {% for value, label in [("", "all"), ("auth", "sign-in"), ("writes", "writes"), ("streams", "streams"), ("epics", "EPICS"), ("app", "other")] %}
+          <button type="button" class="mon-chip" data-on:click="$_logcat = '{{ value }}'"
+                  data-attr="{'aria-pressed': $_logcat === '{{ value }}' ? 'true' : 'false'}">{{ label }}</button>
+          {% endfor %}
+        </span>
+        <input type="search" class="mon-filter" placeholder="Filter text" aria-label="Filter log text"
+               data-bind="_logq">
+        <a class="mon-download" href="/monitor/logs.txt" download>download the whole log</a>
+        <button type="button" class="mon-expand" data-on:click="$_logfull = !$_logfull"
+                data-attr="{'aria-pressed': $_logfull ? 'true' : 'false'}"
+                data-text="$_logfull ? 'close full screen (Esc)' : 'full screen'">full screen</button>
+      </div>
+      <ol class="log-lines" id="log-lines" data-attr="{'data-min': $_loglevel, 'data-cat': $_logcat}">
+        {{ panels.log_lines(view.log) }}
+      </ol>
+    </section>
+  </div>
+</div>
+{% endblock %}
