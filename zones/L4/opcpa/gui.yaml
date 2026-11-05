@@ -75,8 +75,8 @@ components:
     pv: L4-OPCPA-NL1:PD1-REG:48:ErrorCode
   - label: SM5-SH:50
     pv: L4-OPCPA-NL1:SM5-SH:50:ErrorCode
-  - label: SM5-ATT1:51
-    pv: L4-OPCPA-NL1:SM5-ATT1:51:ErrorCode
+  - label: SM5-ATT:51
+    pv: L4-OPCPA-NL1:SM5-ATT:51:ErrorCode
   chillers:
   - label: PS1225:10
     flow: L4-OPCPA-NL1:PS1225:10:MeasuredFlow
