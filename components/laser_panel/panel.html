@@ -16,13 +16,13 @@
 <article class="panel">
   <header class="panel-header">
     <h2 class="panel-title">{{ c.laser }}</h2>
-    {#- Every module and every register of this laser. Its own page, because
-        it is far more than fits beside the other lasers — and because its
-        hundreds of PVs are then monitored only while someone is reading
-        them. -#}
+    {#- Every module and every register of this laser, in this panel's
+        place: the tree is no wider than the laser it belongs to. Fetched
+        when asked for rather than rendered with the screen, so its hundreds
+        of rows are streamed only while someone has it open. -#}
     {% if detail_url %}
-    <a class="panel-detail" href="{{ detail_url }}"
-       title="Every module and register of {{ c.laser }}">Registers →</a>
+    <button type="button" class="panel-detail" data-on:click="@get('{{ detail_url }}')"
+            title="Every module and register of {{ c.laser }}">Registers →</button>
     {% endif %}
   </header>
   <div class="panel-body">

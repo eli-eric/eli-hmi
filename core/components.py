@@ -375,15 +375,16 @@ class WriteRule:
 
 @dataclass(frozen=True)
 class Detail:
-    """A page belonging to one component. See `Component.detail`."""
+    """A view belonging to one component, shown in its place on the screen.
+    See `Component.detail`."""
 
     #: Last segment of the route, e.g. `registers`.
     slug: str
-    #: Page heading.
+    #: What the view is called.
     title: str
-    #: What the page renders. Separate instances from the ones on the screen,
+    #: What the view renders. Separate instances from the ones on the screen,
     #: deliberately: widgets belong to exactly one page's index, which is what
-    #: keeps a detail page's PVs out of the screen's subscription.
+    #: keeps a detail view's PVs out of the screen's stream.
     components: tuple["Component", ...]
 
 
@@ -453,17 +454,19 @@ class Component:
         """
 
     def detail(self) -> "Detail | None":
-        """A page of this component's own, or None — the usual answer.
+        """A view of this component's own, or None — the usual answer.
 
-        Some components hold far more than a screen can show beside its
-        neighbours: every module of a device and every register under them.
-        That belongs on its own page, reached from the component and holding
-        its own stream, so its PVs are monitored only while someone is looking
-        at them and dropped when they leave.
+        Some components hold far more than they show: every module of a
+        device and every register under them. That is a detail view, shown in
+        the component's place and at its width when the component asks for it
+        (`@get(detail_url)` from its template), and holding its own stream —
+        so the screen's stream never carries its rows, and it is streamed only
+        while someone has it open.
 
-        The route is `/<screen>/<component key>/<detail slug>`. It is not a
-        menu entry: the menu is the zone's folder listing, and this is reached
-        from the component that owns it.
+        The route is `/<screen>/<component key>/<detail slug>` and answers
+        with a fragment for the component's slot (`Page.render_view`). It is
+        not a menu entry: the menu is the zone's folder listing, and this is
+        reached from the component that owns it.
         """
         return None
 

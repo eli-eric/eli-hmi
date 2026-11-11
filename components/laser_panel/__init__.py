@@ -394,9 +394,10 @@ class LaserPanel(Component):
 
         A separate `register-tree` instance rather than this component's own
         widgets: a widget belongs to exactly one page's index, and that is
-        what keeps hundreds of register monitors off the screen the panels
-        live on. The modules are configured here, once, because they belong to
-        the laser.
+        what keeps hundreds of register rows out of the screen's stream. It
+        is shown in this panel's place, at its width, when Registers is
+        pressed. The modules are configured here, once, because they belong
+        to the laser.
         """
         if not self.config.modules:
             return None

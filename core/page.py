@@ -138,13 +138,14 @@ class Page:
         """
         template = self._env.get_template(component.template)
         detail = component.detail()
-        return Markup(
+        markup = Markup(
             template.render(
                 c=component.config,
-                # Where this component's own page is, if it has one. Built
-                # here because only the page knows which screen it is on.
+                # Where this component's detail view is fetched from, if it
+                # has one. Built here because only the page knows which screen
+                # it is on.
                 detail_url=(
-                    f"/{self.gui.slug}/{component.key}/{detail.slug}"
+                    f"/{detail_slug(self.gui, component, detail)}"
                     if detail is not None
                     else None
                 ),
@@ -155,6 +156,17 @@ class Page:
                 **component.context(),
             )
         )
+        if detail is None:
+            return markup
+        # The slot its detail view is patched into, and the component, as one
+        # item of the grid: the view takes the component's place and its
+        # width. The slot comes first so the stylesheet can hide what follows
+        # it while it is not empty — a sibling selector, which every browser
+        # has, where `:has()` is missing from a Firefox before 121. Empty in
+        # the markup, with no whitespace: `:empty` counts a text node.
+        return Markup(
+            '<div class="view-host"><div class="view-slot" id="{}"></div>{}</div>'
+        ).format(detail_slot(component, detail), markup)
 
     def render(
         self,
@@ -185,6 +197,22 @@ class Page:
             palette=palette,
             palettes=PALETTES,
             user=user,
+        )
+
+    def render_view(self, reader: PvReader) -> str:
+        """A detail view: the fragment patched into its component's slot.
+
+        Not a page — it lands inside one — so it carries what a page would
+        have given it: its own signals, which the screen never declared, and
+        its own stream. The stream is opened by the view and cancelled when
+        the view is removed, so its monitors are someone's for exactly as
+        long as it is on screen.
+        """
+        rendered = [self.render_component(component, reader) for component in self.gui.components]
+        return self._env.get_template("view.html").render(
+            components=rendered,
+            signals_json=json.dumps(self.gui.signals(), separators=(",", ":")),
+            stream_url=self.gui.stream_url,
         )
 
     def render_all_widgets(self, reader: PvReader) -> str:
@@ -286,10 +314,12 @@ def describe_on_reconnect(hub: Any, pages: dict[str, "Page"]) -> None:
 def build_pages(zone: Zone, env: Environment) -> dict[str, Page]:
     """One `Page` per GUI in the zone, plus one per component detail view.
 
-    A detail page is a page like any other — same renderer, same stream, same
-    index — reached at `/<screen>/<component key>/<detail slug>`. It is not in
-    the menu: the menu is the zone's folder listing, and a detail view is
-    reached from the component that owns it.
+    A detail view is a page like any other as far as its index and its
+    stream go — same renderer, same stream, same widgets-by-PV — reached at
+    `/<screen>/<component key>/<detail slug>`. What it renders is a fragment,
+    patched into the screen in its component's place (`Page.render_view`).
+    It is not in the menu: the menu is the zone's folder listing, and a
+    detail view is reached from the component that owns it.
     """
     pages = {gui.slug: Page(zone, gui, env) for gui in zone.guis}
     for gui in zone.guis:
@@ -297,25 +327,30 @@ def build_pages(zone: Zone, env: Environment) -> dict[str, Page]:
             detail = component.detail()
             if detail is None:
                 continue
-            slug = f"{gui.slug}/{component.key}/{detail.slug}"
-            pages[slug] = Page(zone, _detail_gui(gui, slug, detail), env)
+            slug = detail_slug(gui, component, detail)
+            pages[slug] = Page(zone, _detail_gui(gui, slug, component, detail), env)
     return pages
 
 
-def _detail_gui(gui: Gui, slug: str, detail: Detail) -> Gui:
-    """The detail view as a screen, so one `Page` serves both kinds.
+def detail_slug(gui: Gui, component: Component, detail: Detail) -> str:
+    """Where a component's detail view is served, under its screen."""
+    return f"{gui.slug}/{component.key}/{detail.slug}"
 
-    `back` is what it was opened from: a detail view is left the way it was
-    entered, and an operator should not have to find the screen again among
-    the menu's others.
-    """
+
+def detail_slot(component: Component, detail: Detail) -> str:
+    """The id of the element a component's detail view is patched into."""
+    return f"{component.key}-{detail.slug}-view"
+
+
+def _detail_gui(gui: Gui, slug: str, component: Component, detail: Detail) -> Gui:
+    """The detail view as a screen, so one `Page` indexes and streams both."""
     return replace(
         gui,
         slug=slug,
         title=detail.title,
         description="",
         components=list(detail.components),
-        back={"href": gui.url, "label": gui.title},
+        slot=detail_slot(component, detail),
     )
 
 

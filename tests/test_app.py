@@ -672,42 +672,163 @@ class TestTheWaveformConfirmButtons:
 
 class TestTheRegisterTree:
     """Full control of a laser is its modules and every register under them.
-    That is far too much for the screen the panels live on, so it is its own
-    page: reached from the panel, and holding its own stream, so hundreds of
-    register monitors exist only while someone is looking at them.
+    It is no wider than the laser it belongs to, so it takes the laser's own
+    place on the screen rather than a page of its own — and it still holds
+    its own stream, so the screen never carries hundreds of register rows
+    nobody has opened.
     """
 
-    async def test_a_laser_has_a_register_page(self, client):
+    async def test_a_laser_has_a_register_view(self, client):
         answer = await client.get("/l4-opcpa/NL2/registers")
         assert answer.status_code == 200
-        page = answer.text
-        assert "PS1225:11" in page, "the module is not in the tree"
-        assert "Outlet temp" in page, "its registers are not"
+        view = answer.text
+        assert "PS1225:11" in view, "the module is not in the tree"
+        assert "Outlet temp" in view, "its registers are not"
+
+
+class TestAnOpenModuleLooksLikeAnyOpenList:
+    """A module opens the way the laser's own lists do, so it says it is open
+    the same way: the thick box round what was pressed, and its corner
+    triangle darkened."""
+
+    async def test_it_draws_the_box_an_open_list_draws(self, client):
+        """In the same rule, so the two cannot drift apart."""
+        css = (await client.get("/static/css/hmi.css")).text
+        rule = re.search(
+            r"([^{}]*\.state-button\[aria-expanded='true'\] \.state-pill[^{}]*)\{([^}]*)\}", css
+        )
+        assert rule and "outline" in rule.group(2), "no box round an open list"
+        assert ".module-head[aria-expanded='true']" in rule.group(1), (
+            "a module shows it is open some other way"
+        )
+
+    async def test_the_box_clears_the_first_register(self, client):
+        """The box is drawn outside the header, and the rows follow it a row
+        gap below — less than the box reaches. The list starts the box's
+        reach further down, from the same two numbers the box is drawn with,
+        so the box sits a row gap above the first register at any size."""
+        css = (await client.get("/static/css/hmi.css")).text
+        rule = re.search(r"\.module-head\[aria-expanded='true'\]\s*\{([^}]*)\}", css)
+        assert rule, "no rule for an open module"
+        assert "outline: var(--hmi-open-outline) solid" in rule.group(1), rule.group(1)
+        assert "outline-offset: var(--hmi-open-offset)" in rule.group(1), rule.group(1)
+        listing = re.search(r"(?m)^\.register-list\s*\{([^}]*)\}", css)
+        assert listing and (
+            "padding-top: calc(var(--hmi-open-outline) + var(--hmi-open-offset))"
+            in listing.group(1)
+        ), "the first register sits under the box"
+
+    async def test_a_click_does_not_take_the_box_away(self, client):
+        """Pressing the header focuses it, and the rule that hides the focus
+        ring from a mouse used to tie with this one and come later — so the
+        box appeared only once focus moved somewhere else. That rule is there
+        to quiet the browser's ring, not to cancel an outline drawn on
+        purpose, so it carries no weight of its own."""
+        css = (await client.get("/static/css/hmi.css")).text
+        assert re.search(r"(?m)^:where\(:focus:not\(:focus-visible\)\)\s*\{\s*outline: none;", css), (
+            "hiding the focus ring from a mouse also hides an open module's box"
+        )
+        assert not re.search(r"(?m)^:focus:not\(:focus-visible\)", css)
+
+    async def test_its_triangle_darkens_the_way_a_list_s_does(self, client):
+        view = (await client.get("/l4-opcpa/NL2/registers")).text
+        triangles = re.findall(r'<span class="corner-triangle"[^>]*>', view)
+        assert triangles, "a module has no triangle"
+        for triangle in triangles:
+            assert re.search(r'data-class="\{expanded: \$NL2_registers_module_\d+\}"', triangle), (
+                triangle
+            )
+
+
+class TestARegisterRowIsJustItsLabel:
+    """No info icon on a register: a tree of hundreds with an icon on every
+    row is a column of icons. The PV is on the reading's own tooltip."""
+
+    async def test_no_register_carries_a_hint_icon(self, client):
+        view = (await client.get("/l4-opcpa/NL2/registers")).text
+        assert "info-icon" not in view, "a register row still has its hint icon"
+
+    async def test_the_reading_still_names_its_pv(self, client):
+        view = (await client.get("/l4-opcpa/NL2/registers")).text
+        cell = view[view.index('id="NL2-registers-r0-0"') :][:400]
+        assert "L4-OPCPA-NL2:PS1225:11:" in cell, cell
 
 
 class TestGettingToTheRegistersAndBack:
-    """A detail page is reached from the component that owns it and left by
-    the way it was entered. Not a menu entry: the menu is the zone's folder
+    """The tree replaces its laser in the laser's own column, and is left the
+    way it was entered. Not a menu entry: the menu is the zone's folder
     listing, and a laser's registers belong to that laser, not to the zone."""
 
-    async def test_the_panel_offers_the_way_down(self, client):
+    VIEW = "/l4-opcpa/NL2/registers"
+    SLOT = "NL2-registers-view"
+
+    async def test_the_panel_asks_for_the_view_in_place(self, client):
+        """A request patched into the screen, not a link to another page."""
         page = (await client.get("/l4-opcpa")).text
-        assert "/l4-opcpa/NL2/registers" in page, "no way to reach the tree"
+        assert f'href="{self.VIEW}"' not in page, "the tree is still a page of its own"
+        assert f"@get('{self.VIEW}')" in page, "no way to reach the tree"
+
+    async def test_the_view_lands_in_its_laser_s_column(self, client):
+        """In a slot that shares one grid item with the laser's panel: the
+        column is the laser's width, so the tree is too."""
+        answer = await client.get(self.VIEW)
+        assert answer.headers.get("datastar-selector") == f"#{self.SLOT}"
+        assert answer.headers.get("datastar-mode") == "inner"
+        page = (await client.get("/l4-opcpa")).text
+        title = page.index('<h2 class="panel-title">NL2</h2>')
+        host = page.rindex('class="view-host"', 0, title)
+        assert f'id="{self.SLOT}"></div>' in page[host:title], (
+            "no empty slot ahead of the NL2 panel, in its grid item"
+        )
+
+    async def test_the_panel_steps_aside_while_the_view_is_open(self, client):
+        """Hidden by the slot ahead of it having something in it, so there is
+        no moment with neither on screen while the tree is on its way. A
+        sibling selector rather than `:has()`, which a Firefox before 121
+        drops — and with it the whole swap."""
+        css = (await client.get("/static/css/hmi.css")).text
+        assert re.search(r"\.view-slot:not\(:empty\) ~ \*\s*\{\s*display: none;", css), (
+            "nothing hides the panel while its tree is shown"
+        )
+        assert ":has(> .view-slot" not in css
+
+    async def test_the_view_is_not_a_page(self, client):
+        view = (await client.get(self.VIEW)).text
+        assert "<html" not in view and "</nav>" not in view, "a whole page in a slot"
+
+    async def test_it_holds_its_own_stream_while_it_is_open(self, client):
+        """Opened by the view itself and cancelled when the view is removed,
+        so its monitors are someone's for exactly as long as it is shown."""
+        view = (await client.get(self.VIEW)).text
+        assert (
+            f"@get('{self.VIEW}/stream', {{requestCancellation: 'cleanup'}})" in view
+        ), view[:400]
+        async with client.stream("GET", f"{self.VIEW}/stream") as stream:
+            assert stream.status_code == 200
+            assert stream.headers["content-type"].startswith("text/event-stream")
+
+    async def test_it_brings_its_own_signals(self, client):
+        """The screen it lands in never declared them."""
+        page = (await client.get("/l4-opcpa")).text
+        view = (await client.get(self.VIEW)).text
+        assert "NL2_registers_selected" not in page
+        signals = re.search(r'data-signals="([^"]*)"', view)
+        assert signals and "NL2_registers_selected" in signals.group(1), view[:400]
 
     async def test_the_tree_offers_the_way_back(self, client):
-        """Its own control, not the menu link that every page carries: the
-        way out of a detail view is the way back into what you were looking
-        at, and an operator should not have to find it among the screens."""
-        page = (await client.get("/l4-opcpa/NL2/registers")).text
-        body = page[page.index("</nav>") :]
-        back = re.search(r'<a class="page-back"[^>]*href="([^"]+)"', body)
-        assert back, "no back control outside the menu"
-        assert back.group(1) == "/l4-opcpa"
+        """Its own control: the way out of the tree is the way back to the
+        laser. Removing the view is what stops its stream."""
+        view = (await client.get(self.VIEW)).text
+        back = re.search(r"<button[^>]*view-back[^>]*>", view)
+        assert back, "no way back from the tree"
+        # Emptied, not just the view removed: the panel comes back only when
+        # the slot is `:empty`, and a stray text node would keep it hidden.
+        assert "el.closest('.view-slot').replaceChildren()" in back.group(0), back.group(0)
 
     async def test_the_menu_is_still_the_zone_s_folders(self, client):
         page = (await client.get("/l4-opcpa")).text
         menu = page[page.index('class="nav"') : page.index("</nav>")]
-        assert "registers" not in menu, "a detail page crept into the menu"
+        assert "registers" not in menu, "a detail view crept into the menu"
 
 
 class TestWritingARegister:
@@ -1059,11 +1180,11 @@ class TestTheTreeLooksLikeTheRestOfTheApp:
 
 
 class TestRegisterMonitorsAreNotOnTheScreen:
-    """The whole reason the tree is a page of its own.
+    """The whole reason the tree holds its own stream.
 
-    A register belongs to the detail page's index and to no other, so the
-    screen the panels live on never subscribes it. Hundreds of monitors per
-    laser would otherwise be held for every operator with that screen open,
+    A register belongs to the detail view's index and to no other, so the
+    screen the panels live on never subscribes it. Hundreds of rows per laser
+    would otherwise be streamed to every operator with that screen open,
     whether or not anyone ever looks at a register.
     """
 
@@ -1080,12 +1201,12 @@ class TestRegisterMonitorsAreNotOnTheScreen:
         detail = {pv.name for pv in pages["l4-opcpa/NL2/registers"].all_pvs}
         register = "L4-OPCPA-NL2:PS1225:11:SetPoint"
 
-        assert register in detail, "the detail page is not reading it either"
+        assert register in detail, "the detail view is not reading it either"
         assert register not in screen, (
             "a register is monitored for everyone on the panel screen"
         )
 
-    def test_the_detail_page_reads_nothing_but_its_registers(self):
+    def test_the_detail_view_reads_nothing_but_its_registers(self):
         """It is the laser's registers and the PV that arms a non-volatile
         write — not a second copy of the panel."""
         pages = self.pages()

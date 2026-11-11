@@ -3,6 +3,7 @@
     GET  /                   redirect to the zone's first screen
     GET  /<gui>              the screen, server-rendered from the hub's cache
     GET  /<gui>/stream       Datastar SSE — element patches as PVs report
+    GET  /<gui>/<key>/<view> a component's detail view, patched in its place
     POST /api/write          one PV write, with the result patched back
 
 Every one of them requires a session; the gate is in `core.login`, not here, so
@@ -121,6 +122,18 @@ def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:
         settings, hub, pages = state()
         view = pages[slug]
         reader = PvReader(hub.snapshot(view.all_pvs), hub.link_ok)
+        if view.gui.slot is not None:
+            # A component's detail view: a fragment, and the headers that
+            # tell Datastar where it goes — inside the slot beside the
+            # component, which it then stands in for.
+            return Response(
+                view.render_view(reader),
+                content_type="text/html; charset=utf-8",
+                headers={
+                    "datastar-selector": f"#{view.gui.slot}",
+                    "datastar-mode": "inner",
+                },
+            )
         who = actor()
         html = view.render(
             reader,

@@ -1,10 +1,10 @@
 """register-tree — every module of one device, and every register under it.
 
 The panel shows what an operator watches; this shows everything the device
-has. It is far too much for the screen the panels live on, so it is a page of
-its own, reached from the panel and holding its own stream — which is the
-point: hundreds of register monitors exist only while someone is looking at
-them, and are dropped the moment they leave.
+has. It takes the panel's place, at the panel's width, when the panel's
+Registers button asks for it, and holds its own stream — which is the point:
+the screen never carries hundreds of register rows, and they are streamed only
+while someone has the tree open. Back removes it, which closes the stream.
 
 Not written in YAML directly, though nothing stops it: `laser-panel` builds
 one from its own `modules:` block, because the modules belong to the laser and

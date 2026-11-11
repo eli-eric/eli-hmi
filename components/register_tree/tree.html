@@ -16,6 +16,13 @@
          data-on:keydown__window="evt.key === 'Escape' && (${{ selected_signal }} = '')">
   <header class="panel-header">
     <h2 class="panel-title">{{ c.title }}</h2>
+    {#- Emptying the slot is the whole of going back: the panel it stood in
+        for reappears when the slot is `:empty` — every node gone, text
+        included — and Datastar cancels the view's stream with the element
+        that opened it. No round-trip. -#}
+    <button type="button" class="panel-detail view-back"
+            data-on:click="el.closest('.view-slot').replaceChildren()"
+            title="Back to the laser">← Back</button>
   </header>
   <div class="body">
     {% for module in modules %}
@@ -25,7 +32,7 @@
               data-attr="{'aria-expanded': ${{ module.signal }} ? 'true' : 'false'}">
         <span class="module-label">{{ module.label }}</span>
         <span class="module-count">{{ module.registers | length }}</span>
-        <span class="corner-triangle" data-attr="{'data-expanded': ${{ module.signal }}}" aria-hidden></span>
+        <span class="corner-triangle" data-class="{expanded: ${{ module.signal }}}" aria-hidden="true"></span>
       </button>
       <div class="register-list" data-show="${{ module.signal }}" style="display:none">
         {% for register in module.registers %}
@@ -51,7 +58,9 @@
           {%- endif %}
         </span>
         {%- endset %}
-        {{ rows.row(register.label, cell, hint=register.pv) }}
+        {#- No hint icon: on hundreds of rows it is a column of icons, and the
+            reading's own tooltip already names the PV. -#}
+        {{ rows.row(register.label, cell) }}
         {%- if register.write %}
         {#- This register's write panel: filled when it is selected, and shown
             only then. Every slot is emptied before one is filled, so the page

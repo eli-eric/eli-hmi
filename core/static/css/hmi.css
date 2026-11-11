@@ -79,6 +79,11 @@
   --hmi-panel-width: 22rem;
   --hmi-gap: 0.1429rem;
   --hmi-gap-sm: 0.1429rem;
+  /* The box round whatever has opened a list in place, and how far out of
+   * it the box is drawn. In px, like any border; what follows an open
+   * control leaves room for exactly their sum. */
+  --hmi-open-outline: 2px;
+  --hmi-open-offset: 1px;
   --hmi-font-size: 0.8125rem;
   --hmi-row-min-h: 1.375rem;
 
@@ -435,7 +440,7 @@ body {
   position: sticky;
   top: var(--header-stack-height, 0);
   z-index: 1;
-  /* A row, so a panel can carry a link to its own detail page opposite the
+  /* A row, so a panel can carry the button to its detail view opposite the
      title. A header with nothing but a title is unaffected. */
   display: flex;
   align-items: baseline;
@@ -710,10 +715,13 @@ body {
   filter: brightness(0.93);
 }
 
+/* Open, said one way for everything that opens a list in place: a laser's
+ * pills and a register tree's modules. */
 .pill-button[aria-expanded='true'] .overview-pill,
-.state-button[aria-expanded='true'] .state-pill {
-  outline: 2px solid var(--color-text);
-  outline-offset: 1px;
+.state-button[aria-expanded='true'] .state-pill,
+.module-head[aria-expanded='true'] {
+  outline: var(--hmi-open-outline) solid var(--color-text);
+  outline-offset: var(--hmi-open-offset);
 }
 
 /* Geometry only. No bit-value colouring: 1/0 is not pass/fail, and only EPICS
@@ -782,32 +790,42 @@ body {
   padding-right: 0.5rem;
 }
 
-/* The rows themselves are `.row`, so there is nothing to align here. */
+/* The rows themselves are `.row`, so there is nothing to align here. Shown
+ * only under an open module, whose box reaches out past the row gap: the
+ * list starts that much further down, so the box sits a row gap above the
+ * first register instead of over it. */
 .register-list {
   display: block;
+  padding-top: calc(var(--hmi-open-outline) + var(--hmi-open-offset));
 }
 
-/* The way down to a laser's registers, in its panel header — which is dark,
- * so the colour is the header's and not the page's. */
+/* The way down to a laser's registers, and back up, in a panel header —
+ * which is dark, so the colour is the header's and not the page's. A button
+ * dressed as the header's text: it swaps a view in place, it goes nowhere. */
 .panel-detail {
+  background: none;
+  border: 0;
+  padding: 0;
   color: inherit;
+  font: inherit;
   font-size: var(--hmi-font-size);
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .panel-detail:hover {
   text-decoration: underline;
 }
 
-/* The way back out of a detail page, beside its heading. */
-.page-back {
-  color: var(--color-text);
-  font-size: 1.25rem;
-  line-height: 1;
-  text-decoration: none;
-  padding-right: 0.5rem;
+/* The slot a detail view is patched into, ahead of its component in one grid
+ * item: the view takes the component's place and its width. The component
+ * steps aside exactly while the slot holds something, so there is no moment
+ * with neither on screen while the view is on its way. A sibling selector,
+ * not `:has()`, which a Firefox before 121 drops — and the swap with it. */
+.view-slot:not(:empty) ~ * {
+  display: none;
 }
 
 /* --------------------------------------------------- register write panel */
@@ -1524,8 +1542,12 @@ body {
   border-radius: var(--border-radius-sm);
 }
 
-/* Hide the outline for the mouse, keep it for the keyboard. */
-:focus:not(:focus-visible) {
+/* Hide the outline for the mouse, keep it for the keyboard. Inside `:where()`
+ * so it weighs nothing: it is here to quiet the browser's focus ring, not to
+ * cancel an outline drawn on purpose — an open module's box is on the very
+ * button a click has just focused, and at equal weight this rule, coming
+ * later, took it away until focus moved on. */
+:where(:focus:not(:focus-visible)) {
   outline: none;
 }
 

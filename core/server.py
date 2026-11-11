@@ -240,8 +240,9 @@ def create_app(settings: Settings | None = None) -> Quart:
                 "backend": settings.epics_backend,
                 "auth": authenticator.mode,
                 # The zone's screens, which is what the menu offers. A
-                # component's own detail page is served too, and counted
-                # below, but it is not a screen an operator navigates to.
+                # component's detail view is served too, and listed below,
+                # but it is shown in its component's place on a screen, not
+                # navigated to.
                 "screens": {
                     slug: {
                         "title": page.gui.title,
@@ -252,7 +253,7 @@ def create_app(settings: Settings | None = None) -> Quart:
                     for slug, page in pages.items()
                     if "/" not in slug
                 },
-                "detail_pages": sorted(slug for slug in pages if "/" in slug),
+                "detail_views": sorted(slug for slug in pages if "/" in slug),
                 "monitored_pvs": hub.monitor_count,
                 "open_streams": hub.subscriber_count,
                 "link_ok": hub.link_ok,
