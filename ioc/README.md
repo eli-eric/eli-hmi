@@ -30,6 +30,16 @@ Open <http://localhost:8082>. Nothing is simulated in Python: the numbers move
 because `calc` records are scanning, the alarms are real EPICS alarms from real
 limit fields, and pressing a button runs a `seq` record inside the IOC.
 
+The one exception is cameras. No database record can invent an image, so
+`make ioc` passes `--zone`, and each camera the zone shows gets a `waveform`
+record (USHORT, width × height) that the beam simulator from
+[`../cameras/`](../cameras/README.md) feeds at the camera's rate. `make ioc-verify`
+checks that every camera serves a whole image at its rate, and that the IOC honours
+the `dec` channel filter the gateway uses with `filters: true`. The stock
+`softIoc` in the Dockerfile runs no Python, so it serves no cameras.
+`--cameras-only` runs just the cameras, as a second IOC on another
+`EPICS_CA_SERVER_PORT` (`tools/camload.py --ca` does this).
+
 Check it without the HMI:
 
 ```bash

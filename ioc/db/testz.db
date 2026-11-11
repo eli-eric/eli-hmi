@@ -7,7 +7,7 @@
 # working IOC with no extra work.
 #
 # Zone:    TESTZ — Test zone
-# Screens: l4-opcpa, chillers, vacuum
+# Screens: l4-opcpa, chillers, vacuum, cameras
 #
 # Analogue records scan at 1 second and random-walk inside their band;
 # their alarm limits are real, so the panel's MINOR and MAJOR arrive
@@ -2443,3 +2443,7 @@ record(seq, "SIM:L4-MOT-SAMPLE_RZ_Stop:seq") {
     field(DO0, "0")
     field(LNK0, "L4-MOT-SAMPLE:RZ:Moving PP")
 }
+
+# --------------------------------------------------------------------------
+# cameras — Cameras
+# --------------------------------------------------------------------------

@@ -29,7 +29,7 @@ from urllib.parse import quote, urlsplit
 
 from datastar_py import ServerSentEventGenerator as SSE
 from datastar_py.quart import DatastarResponse
-from quart import Blueprint, Response, current_app, g, jsonify, redirect, request
+from quart import Blueprint, Response, current_app, g, jsonify, redirect, request, websocket
 
 from core.auth import (
     COOKIE_NAME,
@@ -236,6 +236,41 @@ def install_gate(app, *, home: str) -> None:
             cookie, renewed = current_app.hmi.sessions.renew(identity)
             set_session_cookie(response, cookie, renewed)
         return response
+
+
+def install_socket_gate(app, sessions: SessionCodec) -> None:
+    """Require a session before any WebSocket opens.
+
+    Separate from `install_gate` because Quart runs `before_request` hooks only
+    for HTTP: a WebSocket handshake goes through `before_websocket` instead, so
+    without this the camera socket would be the one door the HTTP gate cannot
+    see. Takes the codec rather than reading `app.hmi`, because the standalone
+    camera gateway (`python -m cameras`) has no `hmi` but checks the same
+    cookie with the same secret.
+
+    A refused handshake gets a plain 401: nothing on the other end can follow
+    a redirect, and the page's script shows the tile as offline.
+
+    The cookie alone is not enough for a socket. A browser sends it with a
+    socket opened by *any* page, so a page elsewhere could open the camera
+    socket as the operator (cross-site WebSocket hijacking). A browser always
+    says which page opened a socket, in `Origin`; that must be this host. Any
+    port: the standalone gateway listens on a different one from the HMI
+    whose pages open it. A client that sends no `Origin` is not a browser,
+    and the cookie is still required of it.
+    """
+
+    @app.before_websocket
+    async def require_session_for_socket():
+        origin = websocket.headers.get("origin")
+        if origin and urlsplit(origin).hostname != urlsplit(f"//{websocket.host}").hostname:
+            logger.warning("websocket %s opened from %s refused (403)", websocket.path, origin)
+            return Response("wrong origin", status=403, content_type="text/plain")
+        g.identity = sessions.read(websocket.cookies.get(COOKIE_NAME))
+        if g.identity is None:
+            logger.warning("no session: websocket %s refused (401)", websocket.path)
+            return Response("not signed in", status=401, content_type="text/plain")
+        return None
 
 
 def _refuse(path: str, *, home: str):

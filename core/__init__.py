@@ -4,16 +4,18 @@ You rarely need to come in here. Adding a screen is a folder under `zones/`;
 adding a new kind of thing a screen can show is a folder under `components/`.
 
     zones.py        the folder layout, hostname -> zone, GUI discovery
-    components.py   the component contract: Config, setup(), pv_specs()
+    components.py   the component contract: Config, setup(), pv_specs(), cameras()
     page.py         a screen: full render, and the patch for a change
     routes.py       page / stream / write endpoints
     auth.py         an LDAP bind, and the signed cookie that remembers it
-    login.py        the sign-in page, and the gate in front of every route
-    monitor.py      /monitor: clients, screens, CA monitors and the log, live
+    login.py        the sign-in page, the gate in front of every route and socket
+    monitor.py      /monitor: clients, screens, cameras, CA monitors and the log, live
     clients.py      the open SSE streams — who is watching what, from where
     logbook.py      recent log records for /monitor, optionally kept on disk
     server.py       start-up: resolve the zone, seed the simulator, warm the cache
     epics/          monitors, cache, the simulator, aioca
     render/         severity -> tone, readouts, number formats
     jinja.py        template search path and the widget renderer
+
+Camera images take a path of their own, outside `core/`: see `cameras/`.
 """

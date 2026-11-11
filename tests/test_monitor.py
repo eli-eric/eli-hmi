@@ -94,3 +94,46 @@ class TestLogDirectory:
         assert now < before, "newest first"
         assert not rows[now].earlier and rows[before].earlier
         assert any(row.restart_above for row in rows[now + 1 : before + 1])
+
+
+class TestCamerasPanel:
+    """Which cameras are open, who watches them, and what they cost — the
+    first questions when a camera tile is frozen or the gateway is busy."""
+
+    async def test_it_lists_every_camera_and_what_an_open_one_costs(self):
+        from cameras.hub import Want
+        from core.monitor import camera_stats
+
+        app = create_app(build_settings())
+        async with app.test_app():
+            hub = app.cameras.hub
+            watched = hub.names[0]
+            viewer = hub.viewer()
+            viewer.want({watched: Want(px=128, fps=10)})
+            async with asyncio.timeout(5):
+                while hub.stats()["cameras"][watched]["frames_out"] < 3:
+                    await asyncio.sleep(0.05)
+
+            rows = {row.pv: row for row in collect(app.hmi, cameras=await camera_stats(app.hmi)).cameras}
+            viewer.close()
+
+        assert set(rows) == set(hub.names)
+        row = rows[watched]
+        assert row.state == "open" and row.viewers == 1
+        assert row.channel == watched
+        assert row.fps_in > 5
+        assert row.encode_ms > 0
+        assert row.kib_out > 0
+        idle = rows[hub.names[1]]
+        assert idle.state == "idle" and idle.viewers == 0
+
+    async def test_with_cameras_off_there_is_nothing_to_list(self):
+        from core.monitor import camera_stats
+
+        app = create_app(build_settings(camera_gateway="off"))
+        async with app.test_app():
+            stats = await camera_stats(app.hmi)
+            view = collect(app.hmi, cameras=stats)
+        assert stats is None
+        assert view.cameras == []
+        assert view.camera_note == "Cameras are switched off on this station (CAMERA_GATEWAY=off)."

@@ -2,6 +2,11 @@
 #
 #   docker compose up --build
 #   open http://localhost:8082
+#
+# Two services from one image: the HMI, and the camera gateway as its own
+# process (cameras/server.py), so a burst of camera traffic cannot slow the
+# screens. Pages fetch camera frames from the gateway directly; the two share a
+# signing key, so the HMI's sign-in is good there too.
 
 services:
   python-hmi:
@@ -26,6 +31,11 @@ services:
       # on the next deploy.
       DEV: '1'
       LOG_LEVEL: INFO
+      # Camera frames come from the `cameras` service below, which the browser
+      # reaches on port 8083. DEV=1 would give each process its own random
+      # signing key, so the quick start fixes one — never this one on a station.
+      CAMERA_GATEWAY: http://localhost:8083
+      SESSION_SECRET: quick-start-only-not-a-secret
     # Channel Access uses UDP broadcast for name resolution and does not survive
     # Docker's default bridge NAT. A real deployment therefore wants:
     #
@@ -54,6 +64,30 @@ services:
         - python
         - -c
         - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8082/health/ready').status == 200 else 1)"
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+
+  cameras:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['python', '-m', 'cameras']
+    ports:
+      - '8083:8083'
+    environment:
+      ZONE_CODE: TESTZ
+      EPICS_BACKEND: sim
+      DEV: '1'
+      LOG_LEVEL: INFO
+      # Must match the HMI's, or every camera socket is refused (401).
+      SESSION_SECRET: quick-start-only-not-a-secret
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8083/health/ready').status == 200 else 1)"
       interval: 30s
       timeout: 3s
       start_period: 10s

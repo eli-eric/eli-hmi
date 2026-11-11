@@ -31,6 +31,14 @@ dependencies = [
     # against, unlike python-ldap — and imported lazily, so a laptop without it
     # can still run the app with DEV=1 and the built-in test account.
     "ldap3==2.9.1",
+    # Camera frames (cameras/): a 1024x1024 image is a 2 MiB array, and every
+    # per-pixel step — downscale, levels, statistics, the simulator — has to run
+    # in C, not in a Python loop. numpy already arrives with aioca; listed here
+    # because the simulator needs it without the epics extra.
+    "numpy>=2.0",
+    # JPEG encoding of camera tiles. Its wheels bundle libjpeg-turbo and the
+    # encoder releases the GIL, so encodes in a thread pool run in parallel.
+    "pillow>=11",
 ]
 
 [project.optional-dependencies]
@@ -52,6 +60,9 @@ dev = [
     # The end-to-end tests drive a real socket, because the thing under test is
     # a streaming response and an in-process transport buffers it.
     "httpx>=0.27",
+    # A real WebSocket client for the camera end-to-end tests: httpx does not
+    # speak WebSocket, and the camera stream is one.
+    "websockets>=14",
 ]
 
 [project.scripts]
@@ -61,7 +72,7 @@ eli-hmi = "core.server:main"
 [tool.hatch.build.targets.wheel]
 # `zones/` is deliberately not packaged: a zone is configuration a controls
 # engineer edits in place, and ZONES_ROOT points at it.
-packages = ["core", "components"]
+packages = ["core", "components", "cameras"]
 
 [build-system]
 requires = ["hatchling"]

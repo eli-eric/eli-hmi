@@ -33,11 +33,14 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable, ClassVar, Iterable, Iterator, Literal, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, Literal, Mapping, Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.epics import Datatype, PvId, PvSample
+
+if TYPE_CHECKING:
+    from cameras.spec import CameraSpec
 
 # ---------------------------------------------------------------------------
 # Reading PV values
@@ -307,6 +310,15 @@ class Component:
         """
         return []
 
+    def cameras(self) -> list["CameraSpec"]:
+        """The camera images this component shows.
+
+        The camera counterpart of `pv_specs`: what the camera gateway serves,
+        the simulator draws and the local IOC publishes. An image never goes
+        through a widget — frames have their own WebSocket (`cameras/`).
+        """
+        return []
+
     def context(self) -> dict[str, Any]:
         """Extra template variables beyond `c` (config), `w` (widgets),
         `s` (signals) and `children`.
@@ -435,6 +447,9 @@ class Component:
 
     def all_pvs(self) -> set[PvId]:
         return {pv for widget in self.all_widgets() for pv in widget.pvs}
+
+    def all_cameras(self) -> list["CameraSpec"]:
+        return [spec for component in self.walk() for spec in component.cameras()]
 
     def __repr__(self) -> str:  # pragma: no cover - diagnostics
         return f"<{type(self).__name__} {self.key}>"

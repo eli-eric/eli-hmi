@@ -1,0 +1,19 @@
+{#- A camera tile: a title bar and the place frames are drawn.
+
+    Rendered once and never patched. `core/static/js/cameras.js` finds every
+    `[data-camera]` on the page, asks the gateway for frames sized to the
+    canvas as laid out, and draws them. The overlay's tone comes from the
+    gateway (saturation) or from the script noticing frames have stopped —
+    the same split as the screen's link banner and its `$_age` watchdog. -#}
+<article class="panel camera" data-camera="{{ camera.pv }}" data-camera-rate="{{ camera.rate }}"
+         data-camera-max="{{ camera.max_value }}">
+  <header class="panel-header">
+    <h2 class="panel-title">{{ c.label }}</h2>
+    <span class="panel-subtitle camera-pv">{{ camera.pv }}</span>
+  </header>
+  <div class="camera-view" style="aspect-ratio: {{ camera.width }} / {{ camera.height }}">
+    <canvas class="camera-canvas" width="{{ camera.width }}" height="{{ camera.height }}"
+            aria-label="{{ c.label }} — live image"></canvas>
+    <span class="camera-status" data-camera-status data-tone-surface="chip" data-tone="unknown">connecting…</span>
+  </div>
+</article>

@@ -19,6 +19,7 @@ from typing import Any, Iterable, Sequence
 from jinja2 import Environment
 from markupsafe import Markup
 
+from cameras.protocol import SOCKET_PATH as CAMERA_SOCKET_PATH
 from core.components import Component, PvReader, Widget
 from core.epics import PvId
 from core.locks import LockTable
@@ -194,6 +195,7 @@ class Page:
         backend_label: str,
         palette: str | None = None,
         user: str | None = None,
+        camera_gateway: str | None = "",
     ) -> str:
         # Components are rendered BEFORE the signal list is serialised, and the
         # order matters: a template may create a signal as it goes (the cog on a
@@ -221,7 +223,20 @@ class Page:
             palette=palette,
             palettes=PALETTES,
             user=user,
+            camera_socket=self.camera_socket(camera_gateway),
         )
+
+    def camera_socket(self, gateway: str | None = "") -> str:
+        """Where this screen's camera frames come from, or "" for a screen
+        with no camera (which then loads no camera script at all).
+
+        `gateway` is the camera gateway's base URL when it runs as its own
+        process; "" means this app serves the cameras itself, and `None` that
+        nothing does (`CAMERA_GATEWAY=off`).
+        """
+        if gateway is None or not self.gui.cameras():
+            return ""
+        return gateway.rstrip("/") + CAMERA_SOCKET_PATH
 
     def render_all_widgets(self, reader: PvReader) -> str:
         """Every widget, concatenated into one patch payload.

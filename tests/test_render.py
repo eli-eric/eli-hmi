@@ -271,3 +271,28 @@ class TestTimestampZone:
         )
         assert "13:00:00" in self.described(sample, "Europe/Prague")
         assert "12:00:00" in self.described(sample, "UTC")
+
+
+class TestCameraTone:
+    """A camera tile's status chip wears the same tones as a reading: the
+    gateway reports what it knows about a frame, this decides how it looks,
+    and the page only applies what it is told (`cameras.js`)."""
+
+    def test_a_good_frame_is_unstyled(self):
+        from cameras.protocol import Status
+        from core.render.severity import camera_tone
+
+        assert camera_tone(Status.OK) is None
+
+    def test_saturation_is_a_warning_like_a_minor_alarm(self):
+        from cameras.protocol import Status
+        from core.render.severity import camera_tone
+
+        assert camera_tone(Status.SATURATED) == "warning"
+
+    def test_a_lost_or_garbled_camera_reads_like_a_disconnected_pv(self):
+        from cameras.protocol import Status
+        from core.render.severity import camera_tone
+
+        assert camera_tone(Status.DISCONNECTED) == "invalid"
+        assert camera_tone(Status.BAD_FRAME) == "invalid"

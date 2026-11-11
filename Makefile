@@ -19,6 +19,7 @@ RUN_IOC = $(UV) run --extra epics --extra ioc
 
 .PHONY: install install-epics install-ioc lock upgrade \
         run run-zone run-epics run-ioc ioc ioc-db ioc-verify \
+        run-cameras run-with-gateway cambench camload \
         components snapshot test
 
 # Not usually needed — `uv run` syncs on its own — but useful to warm the venv
@@ -51,6 +52,33 @@ run:
 # Another zone, e.g. `make run-zone ZONE_CODE=01`.
 run-zone: run
 
+# The camera gateway as its own process (cameras/server.py), on 8083, against
+# the simulator. Run `make run-with-gateway` in another shell for the HMI that
+# sends its pages here. The two share a signing key so a sign-in on one is
+# good on the other — a fixed development key here; a station sets its own
+# SESSION_SECRET on both.
+DEV_SESSION_SECRET ?= development-only-not-a-secret
+CAMERA_PORT ?= 8083
+
+run-cameras:
+	ZONE_CODE=$(ZONE_CODE) EPICS_BACKEND=sim DEV=1 SESSION_SECRET=$(DEV_SESSION_SECRET) \
+	CAMERA_PORT=$(CAMERA_PORT) $(RUN) python -m cameras
+
+run-with-gateway:
+	ZONE_CODE=$(ZONE_CODE) EPICS_BACKEND=sim DEV=1 SESSION_SECRET=$(DEV_SESSION_SECRET) \
+	CAMERA_GATEWAY=http://localhost:$(CAMERA_PORT) PORT=$(PORT) $(RUN) python -m core
+
+# What one camera frame costs the gateway, step by step (tools/cambench.py).
+cambench:
+	$(RUN) python tools/cambench.py
+
+# N simulated cameras, C browsers' worth of sockets, and what the gateway
+# delivers (tools/camload.py). `make camload CAMERAS=100 CLIENTS=4`.
+CAMERAS ?= 100
+CLIENTS ?= 4
+camload:
+	$(RUN) --group dev python tools/camload.py --cameras $(CAMERAS) --clients $(CLIENTS)
+
 # The real control system. Needs a reachable network; the zone comes from the
 # hostname unless ZONE_CODE says otherwise. No DEV here, so it wants
 # SESSION_SECRET and LDAP_SERVER_URL — see the auth section of README.md. It
@@ -69,7 +97,7 @@ run-ioc:
 # The local IOC itself: a real EPICS database, generated from what the zone's
 # components declare about their PVs.
 ioc:
-	$(RUN_IOC) python ioc/run_ioc.py --db ioc/db/$(shell echo $(ZONE_CODE) | tr A-Z a-z).db
+	$(RUN_IOC) python ioc/run_ioc.py --db ioc/db/$(shell echo $(ZONE_CODE) | tr A-Z a-z).db --zone $(ZONE_CODE)
 
 # Regenerate the database and the <ZONE>-IOC zone after editing a screen.
 ioc-db:

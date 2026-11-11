@@ -101,6 +101,7 @@ class TestPvCoverage:
         "motor": {"label": "M", "readback": "X:M:RBV", "setpoint": "X:M:VAL"},
         "valve": {"label": "V", "pv": "X:V:State"},
         "panel": {"title": "P"},
+        "camera": {"label": "C", "pv": "X:CAM:Image", "width": 64, "height": 48},
     }
 
     @pytest.mark.parametrize("name", sorted(CASES))
@@ -575,3 +576,31 @@ class TestExclusive:
     def test_a_name_that_is_not_a_control_is_refused_with_the_choices(self, name, block, valid):
         with pytest.raises(ValueError, match=valid):
             build(name, **block, exclusive=["opne"])
+
+
+class TestCamera:
+    """A camera tile. Its image never goes through a widget: frames arrive on
+    their own WebSocket (`cameras/`), so the component's job is to declare the
+    camera and lay out the place a frame is drawn."""
+
+    BLOCK = {"label": "NL1 near field", "pv": "L4:CAM1:Image", "width": 1024, "height": 768}
+
+    def test_declares_the_camera_it_shows(self):
+        component = build("camera", **self.BLOCK, bits=16, rate=5, filters=True)
+
+        (spec,) = component.cameras()
+
+        assert spec.pv == "L4:CAM1:Image"
+        assert (spec.width, spec.height, spec.bits) == (1024, 768, 16)
+        assert spec.rate == 5
+        assert spec.filters is True
+        assert spec.label == "NL1 near field"
+
+    def test_renders_a_canvas_tagged_with_its_camera(self):
+        component = build("camera", **self.BLOCK)
+        html = create_environment().get_template(component.template).render(
+            c=component.config, w={}, s={}, comp=component, children=[], **component.context()
+        )
+        assert '<canvas' in html
+        assert 'data-camera="L4:CAM1:Image"' in html
+        assert "NL1 near field" in html

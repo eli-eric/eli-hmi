@@ -15,6 +15,7 @@ a screen can show.
 | `tally` | How many channels are in each state, expanding into the per-channel detail. |
 | `motor` | A motor: position, setpoint, jog presets, stop, limit switches. |
 | `valve` | A valve: state, Open and Close. The smallest one — copy it. |
+| `camera` | A live image from a waveform PV. Its frames bypass widgets and SSE entirely: see [`../cameras/`](../cameras/README.md). |
 | `laser-panel` | One L4 OPCPA laser. The one bespoke component, and the escape hatch. |
 
 Every setting of every component is documented in its `Config` class, which is

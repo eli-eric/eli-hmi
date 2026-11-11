@@ -86,6 +86,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY core ./core
 COPY components ./components
+COPY cameras ./cameras
 COPY zones ./zones
 
 RUN --mount=type=cache,target=/root/.cache/uv \

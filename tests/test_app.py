@@ -163,7 +163,7 @@ class TestPage:
     async def test_every_screen_in_the_zone_is_served(self, client):
         """The routes come from the zone's folders, so the menu cannot disagree
         with what the app serves."""
-        for slug in ("l4-opcpa", "chillers", "vacuum"):
+        for slug in ("l4-opcpa", "chillers", "vacuum", "cameras"):
             response = await client.get(f"/{slug}")
             assert response.status_code == 200, slug
 
@@ -173,7 +173,7 @@ class TestPage:
             body = (await client.get(f"/{slug}")).text
             menus.append(re.findall(r'class="nav-link"[^>]*>([^<]+)', body))
         assert menus[0] == menus[1] == menus[2]
-        assert menus[0] == ["L4 OPCPA", "Chillers", "Vacuum"]
+        assert menus[0] == ["L4 OPCPA", "Chillers", "Vacuum", "Cameras"]
 
     async def test_the_zone_is_named_on_every_screen(self, client):
         """Each zone is a separate network, so "which zone is this" must never
@@ -220,6 +220,15 @@ class TestPage:
         body = (await client.get("/l4-opcpa")).text
         assert body.count("<script") == 1
         assert "datastar.js" in body
+
+    async def test_a_camera_screen_also_ships_the_camera_script(self, client):
+        """A camera tile is the one thing Datastar cannot draw: frames arrive
+        as binary on a WebSocket. The script comes only with screens that have
+        a camera; every other screen keeps exactly one (above)."""
+        body = (await client.get("/cameras")).text
+        assert body.count("<script") == 2
+        assert re.search(r'<script type="module" src="/static/js/cameras\.js\?v=\w+"', body)
+        assert body.count("data-camera=") >= 4
 
     async def test_index_redirects_to_the_zone_first_screen(self, client):
         response = await client.get("/", follow_redirects=False)
@@ -327,7 +336,7 @@ class TestOps:
         # How the zone was chosen is the second question after "is anything
         # monitored", so /stats answers both.
         assert stats["zone_resolved_by"] == "ZONE_CODE"
-        assert set(stats["screens"]) == {"l4-opcpa", "chillers", "vacuum"}
+        assert set(stats["screens"]) == {"l4-opcpa", "chillers", "vacuum", "cameras"}
         assert stats["monitored_pvs"] > 0
         assert stats["link_ok"] is True
 
@@ -1074,6 +1083,7 @@ class TestMonitor:
             "L4 OPCPA",
             "Chillers",
             "Vacuum",
+            "Cameras",
         ]
 
     @staticmethod
@@ -1121,7 +1131,7 @@ class TestMonitor:
             await anext(chunks)
             rows = {row[0]: row for row in self.rows((await client.get("/monitor")).text, "mon-screens")}
 
-        assert list(rows) == ["l4-opcpa", "chillers", "vacuum"]
+        assert list(rows) == ["l4-opcpa", "chillers", "vacuum", "cameras"]
         for slug, row in rows.items():
             title, streams, users, components, widgets, pvs = row[1:]
             assert title == stats[slug]["title"]
