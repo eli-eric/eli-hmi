@@ -42,6 +42,14 @@ All from the repo root:
 - **Widget granularity:** a widget is a value cell, pill or list, never a row. Labels, inputs and cog buttons are rendered once and never patched.
 - **Colour:** components own geometry and emit `data-tone-surface` / `data-tone`. `core/static/css/hmi.css` owns colour. `core/render/severity.py` is the only thing that decides which tone applies (transport loss > EPICS severity > component emphasis), so never hard-code a colour in a component.
 - **Writes:** every control posts to `POST /api/write` (`?pv=…&value=…` or `?pv=…&signal=…`). Command PVs and their effects are declared once in `pv_specs()` and drive both the simulator and the generated IOC.
+- **Exclusive write control:** `exclusive:` on a control in screen YAML lets one browser tab at a time write that PV.
+  - A component declares the PV with `Component.exclusive()`. `Zone.exclusive_pvs()` unions them, and one `core/locks.py` `LockTable` on `app.hmi.locks` holds the state.
+  - The lock is keyed by PV, so a PV marked exclusive on one screen is exclusive on all of them.
+  - `/api/write` refuses the PV unless the request's `tab` signal and user match the holder. `POST /api/lock` takes, releases or forces it.
+  - The page mints `tab` and the browser keeps it in `sessionStorage`. It is the one page signal without a `_` prefix, because Datastar doesn't send `_` signals.
+  - Each screen stream opens a `LockTable.watch()` that keeps its tab's locks alive and wakes the loop to push `_locks`, plus a toast when someone forced the lock away.
+  - A lock lapses `LOCK_GRACE_SECONDS` after its tab stops showing the PV.
+  - The controls in `controls.html` follow `$_locks.<key>.state`. They are never patched.
 - **Diagnostics (`/monitor`):** this page reads state and keeps none of its own.
   - `PvHub.monitors()` gives the refcount, latest sample and update count for each monitor.
   - `core/clients.py`'s `ClientRegistry` lists the open SSE streams. `_stream_events` opens and closes an entry.

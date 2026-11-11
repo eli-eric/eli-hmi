@@ -42,13 +42,64 @@
 {{ comp.key }}-{{ label | lower | replace(' ', '-') | replace('…', '') }}-status
 {%- endmacro -%}
 
+{#- Exclusive write control (`core.locks`).
+
+    A PV marked `exclusive:` may be written only by the tab that has taken
+    control of it. `lock_key(pv)` says whether this one is, and names its
+    entry in the page's `_locks` signal: `state` is free, mine or other, and
+    `text` is who has it, from where and since when — finished prose from the
+    server, so nothing here builds a sentence.
+
+    The strip is rendered once and never patched, like every control: only
+    the signal changes, pushed down the stream to each tab as the lock moves.
+    The buttons it governs are rendered `disabled` and enabled only for the
+    tab whose state is `mine`, so the first paint — before the browser has
+    said which tab it is — is locked rather than open. -#}
+{%- macro lock_url(pv, action, status) -%}
+/api/lock?pv={{ pv | urlencode }}&amp;action={{ action }}&amp;status={{ status | urlencode }}
+{%- endmacro -%}
+
+{#- The attribute that holds a control until this tab has control of `pv`.
+    `extra` is the control's own reason to be disabled, if it has one. -#}
+{%- macro lock_gate(pv, extra=none) -%}
+{%- set key = lock_key(pv) -%}
+{%- if key -%}
+disabled data-attr="{disabled: {% if extra %}({{ extra }}) || {% endif %}$_locks.{{ key }}.state !== 'mine'}"
+{%- elif extra -%}
+data-attr="{disabled: {{ extra }}}"
+{%- endif -%}
+{%- endmacro -%}
+
+{%- macro lock_strip(pv, label) -%}
+{%- set key = lock_key(pv) -%}
+{%- if key -%}
+{%- set lock = '$_locks.' ~ key -%}
+{%- set status = status_id(label) -%}
+<span class="lock-strip" data-lock-state="other" data-attr="{'data-lock-state': {{ lock }}.state}">
+<button type="button" class="lock-take" data-indicator="_busy" data-show="{{ lock }}.state === 'free'" style="display:none"
+        data-on:click="@post('{{ lock_url(pv, 'take', status) }}')">Take control</button>
+<span class="lock-note" data-show="{{ lock }}.state === 'mine'" style="display:none">You have control <span data-text="{{ lock }}.text"></span></span>
+<button type="button" class="lock-release" data-indicator="_busy" data-show="{{ lock }}.state === 'mine'" style="display:none"
+        data-on:click="@post('{{ lock_url(pv, 'release', status) }}')">Release</button>
+<span class="lock-note" data-show="{{ lock }}.state === 'other'" style="display:none">Read-only — controlled by <span data-text="{{ lock }}.text"></span></span>
+{#- Force is for the operator who cannot reach the holder: it takes control
+    at once, so it asks first, and the holder's screen says who took it. -#}
+<button type="button" class="lock-force" data-indicator="_busy" data-show="{{ lock }}.state === 'other'" style="display:none"
+        data-on:click="confirm('Take control of {{ label }} from ' + {{ lock }}.user + '? They lose it immediately.') && @post('{{ lock_url(pv, 'force', status) }}')">Force</button>
+</span>
+{%- endif -%}
+{%- endmacro -%}
+
 {#- A single write. `variant` is kept for semantics but every variant renders
     identically — see `common.Action`. -#}
 {%- macro action_button(label, pv, value, variant='primary', close=none) -%}
 {%- set target = status_id(label) -%}
 <span class="action-with-status">
 <button type="button" class="btn" data-variant="{{ variant }}" data-indicator="_busy"
+        {% if lock_key(pv) %}{{ lock_gate(pv) }}
+        {% endif -%}
         data-on:click="@post('{{ write_url(pv, value=value, status=target, close=close) }}')">{{ label }}</button>
+{{ lock_strip(pv, label) }}
 <span class="control-status" id="{{ target }}"></span>
 </span>
 {%- endmacro -%}
@@ -87,10 +138,13 @@
 {%- macro preset_input(label, presets, pv, signal, close=none, step=1, min=none, max=none, exponential=false, precision=none) -%}
 <span class="preset-input">
 <span class="preset-label">{{ label }}</span>
+{{ lock_strip(pv, label) }}
 {% if presets %}
 <span class="preset-chips">
 {% for preset in presets %}
 <button type="button" class="preset-chip" data-indicator="_busy"
+        {% if lock_key(pv) %}{{ lock_gate(pv) }}
+        {% endif -%}
         data-on:click="@post('{{ write_url(pv, value=preset, status=status_id(label), close=close) }}')">{{ preset }}</button>
 {% endfor %}
 </span>
@@ -105,6 +159,8 @@
     appears to erase it. Nothing here is set that way, so the key is refused
     unless the setpoint asks for it. -#}
 <input class="preset-field" type="number" step="{{ step }}"
+       {% if lock_key(pv) %}{{ lock_gate(pv) }}
+       {% endif -%}
        {% if min is not none %}min="{{ min }}" {% endif %}
        {%- if max is not none %}max="{{ max }}" {% endif %}data-bind="{{ signal }}"
        {% if not exponential %}data-on:keydown="(evt.key === 'e' || evt.key === 'E') && evt.preventDefault()"
@@ -121,11 +177,16 @@
 {#- Confirm greys out for a value the device will not take. The endpoint
     refuses it too (`Component.writable`); this is so the operator sees it
     before pressing rather than after. -#}
+{%- set out_of_range -%}
+{%- if min is not none or max is not none -%}
+${{ signal }} === '' || ${{ signal }} === null
+{%- if min is not none %} || Number(${{ signal }}) < {{ min }}{% endif %}
+{%- if max is not none %} || Number(${{ signal }}) > {{ max }}{% endif %}
+{%- endif -%}
+{%- endset -%}
 <button type="button" class="preset-confirm" data-indicator="_busy"
-        {% if min is not none or max is not none -%}
-        data-attr="{disabled: ${{ signal }} === '' || ${{ signal }} === null
-        {%- if min is not none %} || Number(${{ signal }}) < {{ min }}{% endif %}
-        {%- if max is not none %} || Number(${{ signal }}) > {{ max }}{% endif %}}"
+        {% if out_of_range or lock_key(pv) -%}
+        {{ lock_gate(pv, out_of_range or none) }}
         {% endif -%}
         data-on:click="@post('{{ write_url(pv, signal=signal, status=status_id(label), close=close) }}')">Confirm</button>
 </span>
@@ -168,6 +229,7 @@
     An attribute rather than an id, because one catalog feeds more than one
     control — the preset selector and the one in Modbox Actions — and a patch
     by selector lands in every copy, while an id can only name one. -#}
+{{ lock_strip(pv, label) }}
 <select class="waveform-field" {% if catalog %}data-waveforms="{{ catalog }}" {% endif %}data-bind="{{ signal }}" aria-label="{{ label }}">
 {{ choice_options.options(choices) }}
 </select>
@@ -178,8 +240,11 @@
     answers with an empty catalog, or stops answering. The selection alone
     does not, because a list that empties under a choice already made would
     leave the button live, offering a name the device no longer has. -#}
+{%- set nothing_chosen -%}
+${{ signal }} === '' || ${{ signal }} === null{% if available %} || !${{ available }}{% endif %}
+{%- endset -%}
 <button type="button" class="preset-confirm" data-indicator="_busy"
-        data-attr="{disabled: ${{ signal }} === '' || ${{ signal }} === null{% if available %} || !${{ available }}{% endif %}}"
+        {{ lock_gate(pv, nothing_chosen) }}
         data-on:click="@post('{{ write_url(pv, signal=signal, status=status_id(label), close=close) }}')">Confirm</button>
 <span class="control-status" id="{{ status_id(label) }}"></span>
 </span>

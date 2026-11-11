@@ -18,9 +18,15 @@
 #}
 
 {% block content %}
+{#- `tab` first, then the stream. The page offers a fresh tab id with every
+    render; the browser keeps the first one it was given in sessionStorage,
+    so a reload or a move to another screen is still the same tab and keeps
+    whatever control it holds (`core.locks`). A new tab has empty storage and
+    takes the one offered. Not `crypto.randomUUID()`: that needs a secure
+    context, and a station is plain http. -#}
 <div class="page"
      data-signals="{{ signals_json }}"
-     data-init="@get('{{ stream_url }}')">
+     data-init="$tab = sessionStorage.getItem('hmiTab') || (sessionStorage.setItem('hmiTab', $tab), $tab); @get('{{ stream_url }}'{% if stream_hidden %}, {openWhenHidden: true}{% endif %})">
 
   <div class="sticky-header">
     <header class="page-header">

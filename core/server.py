@@ -41,6 +41,7 @@ from core.auth import Authenticator, SessionCodec, config_from_env, log_startup,
 from core.clients import ClientRegistry
 from core.epics.hub import PvHub
 from core.jinja import STATIC_ROOT, create_environment
+from core.locks import LockTable
 from core.logbook import LogBook
 from core.login import build_login_blueprint, install_gate
 from core.monitor import build_monitor_blueprint
@@ -86,6 +87,11 @@ class Hmi:
     #: Recent log records, structured, for `/monitor`. On the root logger
     #: while the app is serving (see `start` / `stop` in `create_app`).
     logbook: LogBook = field(default_factory=LogBook, repr=False)
+    #: Which tab holds each exclusive PV. One table for the whole app, shared
+    #: by every screen, the write endpoint and `/monitor` (`core.locks`).
+    locks: LockTable = field(default_factory=lambda: LockTable(()), repr=False)
+    #: The task that releases locks abandoned past the grace period.
+    lock_sweeper: Any = field(default=None, repr=False)
 
 
 def build_backend(settings: Settings, zone: Zone):
@@ -130,7 +136,10 @@ def create_app(settings: Settings | None = None) -> Quart:
         )
 
     env = create_environment(auto_reload=settings.dev)
-    pages = build_pages(zone, env)
+    # One table for the zone: a PV that one screen marks exclusive is locked
+    # on every screen with a control for it.
+    locks = LockTable(zone.exclusive_pvs(), grace_seconds=settings.lock_grace_seconds)
+    pages = build_pages(zone, env, locks)
     hub = PvHub(build_backend(settings, zone))
     # Built here rather than at serve time so an unusable LOG_DIR stops the
     # start, like a missing SESSION_SECRET; attached in `start` below.
@@ -163,6 +172,7 @@ def create_app(settings: Settings | None = None) -> Quart:
         authenticator=authenticator,
         sessions=sessions,
         logbook=logbook,
+        locks=locks,
         home=f"/{next(iter(pages))}" if pages else "/",
         write_limits={
             pv: limits
@@ -193,6 +203,14 @@ def create_app(settings: Settings | None = None) -> Quart:
         for page in pages.values():
             for component in page.gui.walk():
                 await component.warm()
+        app.hmi.lock_sweeper = asyncio.create_task(_sweep_locks(locks))
+        if locks.exclusive:
+            # Locks live in memory, so a restart is a release of every one of
+            # them — said once, so nobody wonders where their control went.
+            logger.info(
+                "exclusive write control: %d PV(s), all free after start-up",
+                len(locks.exclusive),
+            )
         log_startup(
             authenticator,
             cookie_secure=settings.session_cookie_secure,
@@ -211,6 +229,8 @@ def create_app(settings: Settings | None = None) -> Quart:
 
     @app.after_serving
     async def stop() -> None:
+        if app.hmi.lock_sweeper is not None:
+            app.hmi.lock_sweeper.cancel()
         if app.hmi.warm is not None:
             await app.hmi.warm.close()
         await hub.stop()
@@ -260,6 +280,17 @@ def create_app(settings: Settings | None = None) -> Quart:
         )
 
     return app
+
+
+async def _sweep_locks(locks: LockTable, interval: float = 1.0) -> None:
+    """Release, once a second, every lock whose tab has been gone longer than
+    the grace period. The table tells every screen showing the PV."""
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            locks.sweep()
+        except Exception:  # noqa: BLE001 - one bad sweep must not end the sweeping
+            logger.exception("lock sweep failed")
 
 
 def serve_config(settings: Settings):

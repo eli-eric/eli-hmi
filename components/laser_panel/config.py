@@ -55,7 +55,7 @@ from pydantic import (
 )
 
 from core.components import ComponentConfig
-from components.common import ValueText
+from components.common import Exclusive, ValueText, exclusive_names
 from core.render import ValueFormatOptions, parse_format
 
 from .commands import (
@@ -64,6 +64,10 @@ from .commands import (
     CommandTarget,
     command_pv,
 )
+
+#: The one lockable control that is not a command: the Modbox preset selector,
+#: which writes `pvs.loadedWaveform` directly.
+WAVEFORM_PRESET = "WAVEFORM_PRESET"
 
 # `.strip()` before the length check so a whitespace-only string — a common
 # copy/paste slip — is rejected rather than subscribing to an empty PV.
@@ -370,6 +374,14 @@ class Config(ComponentConfig):
         "page rather than fetched: the list changes when the machine is "
         "reconfigured, not while an operator is looking at it.",
     )
+    exclusive: Exclusive = Field(
+        default=False,
+        description="Controls only the tab that has taken control may use: "
+        "`true` for every one this laser has, or a list of command names "
+        "(`[START_LASER, SET_DELAY]`), plus WAVEFORM_PRESET for the Modbox "
+        "preset selector. Leaving STOP_LASER out keeps it pressable from any "
+        "desk.",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -495,6 +507,24 @@ class Config(ComponentConfig):
     def command_names(self) -> tuple[str, ...]:
         return tuple(self.commands or {})
 
+    def exclusive_controls(self) -> list[str]:
+        """The controls `exclusive:` selects, from the ones this laser has."""
+        return exclusive_names(self.exclusive, self._lockable())
+
+    def exclusive_targets(self) -> list[str]:
+        """The PV behind each control `exclusive:` selects."""
+        return [
+            self.pvs.loaded_waveform if control == WAVEFORM_PRESET
+            else self.resolve_command(control).pv_name
+            for control in self.exclusive_controls()
+        ]
+
+    def _lockable(self) -> list[str]:
+        controls = [command for command in LASER_COMMANDS if self.can(command)]
+        if self.modbox:
+            controls.append(WAVEFORM_PRESET)
+        return controls
+
     @field_validator("signals")
     @classmethod
     def _signal_formats(cls, value: dict[str, SignalOptions]) -> dict[str, SignalOptions]:
@@ -529,6 +559,32 @@ class Config(ComponentConfig):
                     f'"value" here would never be written'
                 )
         return value
+
+    @model_validator(mode="after")
+    def _exclusive_names_a_control_here(self) -> "Config":
+        """A lock on a button this laser does not show is a lock nobody can
+        see, and almost always a command left out of `commands:`."""
+        if self.exclusive in (True, False):
+            return self
+        vocabulary = (*LASER_COMMANDS, WAVEFORM_PRESET)
+        unknown = [name for name in self.exclusive if name not in vocabulary]
+        if unknown:
+            raise ValueError(
+                f"exclusive: unknown control(s) {', '.join(unknown)} "
+                f"(vocabulary: {', '.join(vocabulary)})"
+            )
+        for name in self.exclusive:
+            if name == WAVEFORM_PRESET and not self.modbox:
+                raise ValueError(
+                    "exclusive: WAVEFORM_PRESET is the Modbox preset selector, "
+                    "and this laser has no modbox"
+                )
+            if name != WAVEFORM_PRESET and not self.can(name):
+                raise ValueError(
+                    f"exclusive: {name} is not in `commands:`, so this laser "
+                    f"shows no button for it"
+                )
+        return self
 
     @model_validator(mode="after")
     def _modbox_is_whole(self) -> "Config":

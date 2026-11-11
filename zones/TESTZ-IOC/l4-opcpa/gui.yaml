@@ -213,6 +213,10 @@ components:
     SET_ATTENUATOR: L4-OPCPA-NL2:SM5-ATT1:51:SetPosition
     SET_DELAY: L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay
     LOAD_WAVEFORM: LOAD_WAVEFORM
+  # Only the tab that has taken control may switch to alignment mode or move
+  # the attenuator; any other tab sees who has control and may force it.
+  # STOP_LASER is left out on purpose: any desk can always stop the laser.
+  exclusive: [ALIGNMENT_MODE, SET_ATTENUATOR]
 
 # A laser that is not NL2: no Modbox at all, a different set of modules, and
 # its own device ids on the rows. Here to be looked at beside NL2 while the

@@ -99,6 +99,12 @@ class Settings:
     #: is TLS in front, or the cookie travels in clear on the first request.
     session_cookie_secure: bool = False
 
+    #: How long an exclusive PV stays held after the last screen showing it
+    #: closed in the holder's tab (`core.locks`). Long enough for a reload or a
+    #: stream reconnect, short enough that a closed tab does not keep a valve
+    #: from everyone else for the rest of the shift.
+    lock_grace_seconds: float = 60.0
+
     @property
     def backend_label(self) -> str:
         return "simulated EPICS" if self.epics_backend == "sim" else "EPICS (aioca)"
@@ -130,4 +136,5 @@ class Settings:
             session_cookie_secure=_env_bool(
                 "SESSION_COOKIE_SECURE", defaults.session_cookie_secure
             ),
+            lock_grace_seconds=_env_float("LOCK_GRACE_SECONDS", defaults.lock_grace_seconds),
         )

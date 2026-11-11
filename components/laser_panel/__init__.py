@@ -105,6 +105,8 @@ class LaserPanel(Component):
         """
         cfg = self.config
         pvs = cfg.pvs
+        for target in cfg.exclusive_targets():
+            self.exclusive(target)
         self.catalog = []
         # Whether either waveform control has anything to send. False until
         # `warm` has asked the device, so a Confirm button is never live over
