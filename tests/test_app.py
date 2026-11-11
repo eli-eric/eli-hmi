@@ -576,6 +576,26 @@ class TestStaticVersions:
         after = static_url("/app.css", root=tmp_path)
         assert before.startswith("/static/app.css?v=") and before != after
 
+    def test_a_same_size_edit_within_one_clock_tick_still_changes_the_version(self, tmp_path):
+        """Linux stamps file times from a coarse clock that ticks every few
+        milliseconds, so two quick edits can share an mtime. With the same
+        size too, stat cannot tell them apart. Simulated here by pinning the
+        mtime, so the test fails the same way on any filesystem."""
+        import os
+        import time
+
+        from core.jinja import static_url
+
+        file = tmp_path / "app.css"
+        tick = time.time_ns()
+        file.write_text("body { color: black }")
+        os.utime(file, ns=(tick, tick))
+        before = static_url("/app.css", root=tmp_path)
+        file.write_text("body { color: white }")
+        os.utime(file, ns=(tick, tick))
+        after = static_url("/app.css", root=tmp_path)
+        assert before != after
+
 
 class TestCogPanels:
     async def test_a_cog_panel_closes_on_a_click_outside_it(self, client):

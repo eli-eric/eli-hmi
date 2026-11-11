@@ -305,12 +305,16 @@ class TestSections:
         assert ("modbox_pill" in panel.widgets) == bool(spec.modbox)
 
 
-class TestPage:
-    @pytest.fixture(scope="class")
-    def view(self):
-        zone = load_zone("TESTZ")
-        return Page(zone, zone.gui("l4-opcpa"), create_environment())
+@pytest.fixture(scope="module")
+def view():
+    """The TESTZ OPCPA screen, built once: rendering it is the slow part, and
+    the tests below only read from it. Module-level rather than a method on
+    the class, which pytest 10 no longer allows for a shared fixture."""
+    zone = load_zone("TESTZ")
+    return Page(zone, zone.gui("l4-opcpa"), create_environment())
 
+
+class TestPage:
     def test_a_changed_pv_renders_only_the_widgets_that_read_it(self, view, spec):
         touched = view.widgets_for([PvId(spec.pvs.phd_mean)])
         assert [widget.id for widget in touched] == ["NL2-phd-mean"]
