@@ -105,6 +105,28 @@ class Settings:
     #: from everyone else for the rest of the shift.
     lock_grace_seconds: float = 60.0
 
+    #: Who serves camera frames. `embedded`: this process. A URL such as
+    #: `http://station:8083`: a standalone gateway (`python -m cameras`), so
+    #: a burst of camera traffic cannot slow a control write; pages connect
+    #: there. `off`: no camera frames at all.
+    camera_gateway: str = "embedded"
+    #: Where the standalone camera gateway (`python -m cameras`) listens. The
+    #: HMI keeps 8082; the gateway is the next port up.
+    camera_port: int = 8083
+
+    @property
+    def cameras_embedded(self) -> bool:
+        return self.camera_gateway == "embedded"
+
+    @property
+    def camera_gateway_url(self) -> str | None:
+        """Base URL pages fetch frames from: "" for this app, `None` for none."""
+        if self.camera_gateway == "embedded":
+            return ""
+        if self.camera_gateway == "off":
+            return None
+        return self.camera_gateway.rstrip("/")
+
     @property
     def backend_label(self) -> str:
         return "simulated EPICS" if self.epics_backend == "sim" else "EPICS (aioca)"
@@ -137,4 +159,17 @@ class Settings:
                 "SESSION_COOKIE_SECURE", defaults.session_cookie_secure
             ),
             lock_grace_seconds=_env_float("LOCK_GRACE_SECONDS", defaults.lock_grace_seconds),
+            camera_gateway=_camera_gateway(os.getenv("CAMERA_GATEWAY", defaults.camera_gateway)),
+            camera_port=_env_int("CAMERA_PORT", defaults.camera_port),
         )
+
+
+def _camera_gateway(raw: str) -> str:
+    value = raw.strip() or "embedded"
+    if value.lower() in {"embedded", "off"}:
+        return value.lower()
+    if not value.startswith(("http://", "https://")):
+        raise SettingsError(
+            f"CAMERA_GATEWAY={raw!r} is not 'embedded', 'off' or an http(s):// URL"
+        )
+    return value

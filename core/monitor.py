@@ -117,6 +117,24 @@ class LockRow:
 
 
 @dataclass(frozen=True)
+class CameraRow:
+    """One camera the zone shows, as the gateway sees it."""
+
+    pv: str
+    #: "open" while someone watches it, "idle" otherwise — an idle camera
+    #: costs nothing, which is the point of the gateway.
+    state: str
+    #: What the gateway monitors: the PV, or the PV with a channel filter.
+    channel: str
+    viewers: int
+    fps_in: float
+    encode_ms: float
+    frames_out: int
+    kib_out: float
+    dropped: int
+
+
+@dataclass(frozen=True)
 class MonitorRow:
     name: str
     datatype: str
@@ -190,6 +208,10 @@ class MonitorView:
     #: Exclusive PVs someone holds, and how many exclusive PVs there are.
     locks: list[LockRow] = ()
     exclusive: int = 0
+    #: Cameras, open ones first, and a line saying where the numbers come
+    #: from — or why there are none.
+    cameras: list[CameraRow] = ()
+    camera_note: str = ""
 
 
 #: Worst first. A dead channel outranks an INVALID one — they share a tone, but
@@ -247,14 +269,78 @@ def _short_value(sample: PvSample | None, limit: int = 40) -> str:
     return f"{text} {sample.units}" if sample.units else text
 
 
+async def camera_stats(hmi) -> dict | None:
+    """The camera gateway's statistics, wherever it runs, or `None` when this
+    station has no cameras switched on.
+
+    Embedded, they are read straight from the hub. A standalone gateway is
+    asked over HTTP, with a session cookie this process signs for itself: the
+    two share `SESSION_SECRET`, so there is no second credential to manage.
+    A gateway that does not answer is reported in the panel, never raised —
+    the dashboard is how someone finds out the gateway is down.
+    """
+    if hmi.cameras is not None:
+        return hmi.cameras.hub.stats()
+    base = hmi.settings.camera_gateway_url
+    if not base:
+        return None
+    import httpx
+
+    from cameras.protocol import STATS_PATH
+    from core.auth import COOKIE_NAME
+
+    cookie, _ = hmi.sessions.issue("monitor", "camera-gateway")
+    try:
+        async with httpx.AsyncClient(timeout=2.0, cookies={COOKIE_NAME: cookie}) as client:
+            response = await client.get(base + STATS_PATH)
+            response.raise_for_status()
+            return response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        return {"error": f"camera gateway at {base} unreachable: {exc}"}
+
+
+def _camera_rows(stats: dict | None, settings) -> tuple[list[CameraRow], str]:
+    if stats is None:
+        return [], "Cameras are switched off on this station (CAMERA_GATEWAY=off)."
+    if "error" in stats:
+        return [], stats["error"]
+    where = "this process" if settings.cameras_embedded else settings.camera_gateway_url
+    rows = [
+        CameraRow(
+            pv=pv,
+            state="open" if item["open"] else "idle",
+            channel=item["channel"] or "",
+            viewers=item["viewers"],
+            fps_in=item["fps_in"],
+            encode_ms=item["encode_ms"],
+            frames_out=item["frames_out"],
+            kib_out=round(item["bytes_out"] / 1024, 1),
+            dropped=item["dropped"],
+        )
+        for pv, item in stats.get("cameras", {}).items()
+    ]
+    rows.sort(key=lambda row: (row.state != "open", row.pv))
+    note = (
+        f"Served by {where}: {stats.get('viewers', 0)} socket(s), "
+        f"{sum(row.state == 'open' for row in rows)} of {len(rows)} camera(s) open."
+    )
+    return rows, note
+
+
 def collect(
-    hmi, now: float | None = None, *, loop_lag: float | None = None, log: bool = True
+    hmi,
+    now: float | None = None,
+    *,
+    loop_lag: float | None = None,
+    log: bool = True,
+    cameras: dict | None = None,
 ) -> MonitorView:
     """Everything the dashboard shows, read from the app's own state.
 
     `loop_lag` is how late the dashboard's own stream last woke — the one
     measurement here that only a running stream can take. `log=False` skips
-    the log rows, which a stream tick does not re-send.
+    the log rows, which a stream tick does not re-send. `cameras` is what
+    `camera_stats` fetched, which may have taken a request to another process.
     """
     now = time.time() if now is None else now
     active = hmi.clients.active()
@@ -270,6 +356,7 @@ def collect(
         log=log_rows(entries, run=hmi.logbook.run),
         locks=[_lock_row(held, now) for held in hmi.locks.held()],
         exclusive=len(hmi.locks.exclusive),
+        **dict(zip(("cameras", "camera_note"), _camera_rows(cameras, hmi.settings))),
     )
 
 
@@ -376,7 +463,15 @@ def _peak_memory() -> str:
 
 
 #: Channel Access configuration worth seeing when a station cannot reach a PV.
-_CA_ENVIRONMENT = ("EPICS_CA_ADDR_LIST", "EPICS_CA_AUTO_ADDR_LIST", "EPICS_CA_SERVER_PORT")
+_CA_ENVIRONMENT = (
+    "EPICS_CA_ADDR_LIST",
+    "EPICS_CA_AUTO_ADDR_LIST",
+    "EPICS_CA_SERVER_PORT",
+    # Camera frames are big arrays: these decide whether CA will carry them
+    # (`cameras.ca.array_bytes_problem`).
+    "EPICS_CA_AUTO_ARRAY_BYTES",
+    "EPICS_CA_MAX_ARRAY_BYTES",
+)
 
 
 def _config_facts(settings) -> list[tuple[str, str]]:
@@ -388,6 +483,7 @@ def _config_facts(settings) -> list[tuple[str, str]]:
         ("Log level", settings.log_level),
         ("Log directory", settings.log_dir or "none — memory only"),
         ("DEV", "on" if settings.dev else "off"),
+        ("Camera gateway", settings.camera_gateway),
     ]
     facts += [(name, os.environ[name]) for name in _CA_ENVIRONMENT if os.environ.get(name)]
     return facts
@@ -491,6 +587,7 @@ _PANELS = {
     "mon-screens": "screens",
     "mon-monitors": "monitors",
     "mon-locks": "locks",
+    "mon-cameras": "cameras",
 }
 
 
@@ -529,7 +626,7 @@ async def monitor_events(hmi, *, user: str, ip: str, user_agent: str):
         return event
 
     try:
-        view = collect(hmi)
+        view = collect(hmi, cameras=await camera_stats(hmi))
         seen = view.log[0].seq if view.log else 0
         last = _render_panels(hmi, view)
         yield sent(SSE.patch_signals({"_age": 0}))
@@ -555,7 +652,8 @@ async def monitor_events(hmi, *, user: str, ip: str, user_agent: str):
 
             yield sent(SSE.patch_signals({"_age": 0}))
 
-            panels = _render_panels(hmi, collect(hmi, loop_lag=lag, log=False))
+            stats = await camera_stats(hmi)
+            panels = _render_panels(hmi, collect(hmi, loop_lag=lag, log=False, cameras=stats))
             changed = [html for panel, html in panels.items() if last.get(panel) != html]
             last = panels
             if changed:
@@ -634,7 +732,7 @@ def build_monitor_blueprint() -> Blueprint:
             backend_label=hmi.settings.backend_label,
             palette=current_palette(hmi.settings),
             user=who.user if who else None,
-            view=collect(hmi),
+            view=collect(hmi, cameras=await camera_stats(hmi)),
         )
         return Response(html, content_type="text/html; charset=utf-8")
 

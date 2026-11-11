@@ -125,6 +125,38 @@
 </div>
 {% endmacro %}
 
+{#- Cameras: open ones first. An idle camera costs nothing — no CA monitor,
+    no encode — which is what this panel exists to make visible. -#}
+{% macro cameras(view) %}
+<div class="mon-body" id="mon-cameras">
+  <p class="mon-note">{{ view.camera_note }}</p>
+  {% if view.cameras %}
+  <table class="mon-table">
+    <thead>
+      <tr><th>Camera</th><th>State</th><th>Channel</th><th class="num">Viewers</th>
+          <th class="num">Frames/s in</th><th class="num">Encode ms</th>
+          <th class="num">Frames out</th><th class="num">KiB out</th><th class="num">Dropped</th></tr>
+    </thead>
+    <tbody>
+      {% for row in view.cameras %}
+      <tr data-camera-row="{{ row.pv }}">
+        <td class="mon-pv">{{ row.pv }}</td>
+        <td>{{ row.state }}</td>
+        <td class="mon-pv">{{ row.channel }}</td>
+        <td class="num">{{ row.viewers }}</td>
+        <td class="num">{{ "%.1f" | format(row.fps_in) }}</td>
+        <td class="num">{{ "%.2f" | format(row.encode_ms) }}</td>
+        <td class="num">{{ row.frames_out }}</td>
+        <td class="num">{{ row.kib_out }}</td>
+        <td class="num">{{ row.dropped }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endmacro %}
+
 {% macro monitors(view) %}
 <div class="mon-body" id="mon-monitors">
   <table class="mon-table">

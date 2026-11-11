@@ -31,6 +31,12 @@
     generates events for should be pinned to the one the browser runs.
   #}
   <script type="module" src="{{ static('/vendor/datastar.js') }}"></script>
+  {#- The one exception: a camera frame is binary, on its own WebSocket, and
+      Datastar has no way to draw it. Only screens with a camera load this. -#}
+  {% if camera_socket | default('') %}
+  <meta name="hmi-camera-socket" content="{{ camera_socket }}">
+  <script type="module" src="{{ static('/js/cameras.js') }}"></script>
+  {% endif %}
 </head>
 <body>
   <div class="layout">

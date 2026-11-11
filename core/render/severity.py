@@ -347,3 +347,31 @@ def log_tone(levelno: int) -> Tone | None:
     if levelno < 20:  # logging.DEBUG
         return "unknown"
     return None
+
+
+#: What a camera tile's status chip says for each `cameras.protocol.Status`.
+#: Empty for a good frame: the chip is hidden while the image is live.
+CAMERA_STATUS_TEXT = ("", "SATURATED", "BAD FRAME", "CAMERA DSC")
+#: Shown by the page itself when frames stop arriving or the socket drops —
+#: the camera counterpart of the screen's `$_age` watchdog.
+CAMERA_STALE = {"text": "NO FRAMES", "tone": "unknown"}
+
+
+def camera_tone(status: int) -> Tone | None:
+    """Tone for a camera tile's status chip, from what the camera gateway
+    reports about a frame (`cameras.protocol.Status`).
+
+    Here for the same reason as `log_tone`: this module decides which tone
+    means what. Saturation is a warning — the image is still live, but a
+    reading taken from it is not trustworthy, like a MINOR alarm. A lost PV or
+    a frame that is not this camera's image reads like a disconnected PV.
+    A good frame stays unstyled.
+    """
+    from cameras.protocol import Status
+
+    return {
+        Status.OK: None,
+        Status.SATURATED: "warning",
+        Status.BAD_FRAME: "invalid",
+        Status.DISCONNECTED: "invalid",
+    }[Status(status)]

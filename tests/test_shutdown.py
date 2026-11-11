@@ -112,3 +112,35 @@ class TestShutdownTrigger:
             f"{signal_name} did not reach the open streams — shutdown would wait "
             "for a connection that has not been told to end"
         )
+
+
+class TestCameraSocketShutdown:
+    async def test_an_open_camera_socket_ends_when_the_process_stops(self):
+        """Same deadlock as the SSE stream, same cure: a camera socket is a
+        connection that never ends on its own, so it must end on
+        `shutting_down` — and release its cameras on the way out."""
+        from cameras.protocol import SOCKET_PATH
+        from core.auth import COOKIE_NAME
+
+        app = create_app(build_settings())
+        async with app.test_app():
+            cookie, _ = app.hmi.sessions.issue("test", "test")
+            client = app.test_client()
+            async with client.websocket(SOCKET_PATH, headers={"Cookie": f"{COOKIE_NAME}={cookie}"}) as ws:
+                assert "hello" in await ws.receive()
+                camera = app.cameras.hub.names[0]
+                await ws.send('{"view": {"%s": {"px": 64, "fps": 10}}}' % camera)
+                await asyncio.wait_for(ws.receive(), timeout=5)  # a frame: the camera is open
+                assert app.cameras.hub.stats()["cameras"][camera]["open"]
+
+                app.hmi.shutting_down.set()
+
+                async def drain() -> None:
+                    try:
+                        while True:
+                            await ws.receive()
+                    except Exception:  # the socket closed — what this waits for
+                        return
+
+                await asyncio.wait_for(drain(), timeout=5.0)
+            assert not app.cameras.hub.stats()["cameras"][camera]["open"]

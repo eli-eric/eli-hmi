@@ -170,6 +170,10 @@ class Gui:
             signals.update(component.all_signals())
         return signals
 
+    def cameras(self) -> list[Any]:
+        """Every camera this screen shows, in screen order."""
+        return [spec for component in self.components for spec in component.all_cameras()]
+
 
 @dataclass
 class Zone:
@@ -192,6 +196,26 @@ class Zone:
         for gui in self.guis:
             pvs |= gui.exclusive_pvs()
         return pvs
+
+    def cameras(self) -> dict[str, Any]:
+        """Every camera any screen shows, by image PV — what the camera gateway
+        serves, and the only images a browser may ask it for.
+
+        The first declaration of a PV wins. Two that disagree on its geometry
+        are a `ZoneError`: one of the screens would draw garbage, and which one
+        would depend on which loaded first.
+        """
+        cameras: dict[str, Any] = {}
+        for gui in self.guis:
+            for spec in gui.cameras():
+                first = cameras.setdefault(spec.pv, spec)
+                if first.geometry != spec.geometry:
+                    raise ZoneError(
+                        f"zone {self.code}: camera {spec.pv} is declared twice with "
+                        f"different geometry (width, height, bits): {first.geometry} "
+                        f"and {spec.geometry} on /{gui.slug}"
+                    )
+        return cameras
 
     @property
     def home(self) -> str:
@@ -323,6 +347,8 @@ def load_zone(code: str, *, resolved_by: str = "explicit") -> Zone:
     explicit = {name: index for index, name in enumerate(meta.menu)}
     guis.sort(key=lambda gui: (explicit.get(gui.slug, len(explicit)), gui.order, gui.slug))
     zone.guis = guis
+    # Checked here, at start-up, rather than when the gateway first asks.
+    zone.cameras()
 
     stray = [
         child.name

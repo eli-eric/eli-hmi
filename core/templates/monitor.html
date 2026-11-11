@@ -56,6 +56,11 @@
         glance, and each opens to the full window when it is the thing being
         studied. A class on the section, not a re-render: the stream keeps
         patching the rows inside while it is open. -#}
+    <section class="panel mon-panel" data-span="all" aria-label="Cameras">
+      <header class="panel-header"><h2 class="panel-title">Cameras — open first</h2></header>
+      {{ panels.cameras(view) }}
+    </section>
+
     <section class="panel mon-panel" data-span="all" aria-label="CA monitors"
              data-class="{'mon-full': $_pvfull}">
       <header class="panel-header"><h2 class="panel-title">CA monitors — problems first</h2></header>

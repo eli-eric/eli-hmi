@@ -29,13 +29,16 @@ core/           how any of it reaches a browser  ← rarely touched
   per screen inside it. A folder *is* a screen: creating one adds a route and a
   menu entry, deleting one removes them. Screens are YAML.
 - **[components/](components/README.md)** — `value`, `group`, `grid`, `tally`,
-  `motor`, `valve`, `panel`, and the bespoke `laser-panel`. Python, written once,
-  used from YAML any number of times.
+  `motor`, `valve`, `panel`, `camera`, and the bespoke `laser-panel`. Python,
+  written once, used from YAML any number of times.
 - **core/** — zone resolution, the EPICS hub, severity and rendering, the
   routes. See `core/__init__.py`.
 
 Plus **[ioc/](ioc/README.md)** — a real local EPICS IOC, generated from what the
-components declare, so a screen can be developed against real Channel Access.
+components declare, so a screen can be developed against real Channel Access —
+and **[cameras/](cameras/README.md)**, the camera gateway: live images from
+waveform PVs, on a path of their own beside the PV hub, inside this process or
+as its own (`python -m cameras`).
 
 ## Quick start
 
@@ -221,6 +224,11 @@ One renderer serves both paths, so a cell pushed over SSE is byte-identical to
 the cell the page was rendered with. There is a test for exactly that
 (`test_patch_markup_matches_what_the_page_rendered`).
 
+A camera image does not take this path: 2 MiB ten times a second is not a
+value to cache, compare and render as HTML. Frames go from their own
+on-demand monitors to a binary WebSocket and a canvas — see
+[cameras/](cameras/README.md), including what a hundred cameras cost.
+
 ### Widget granularity
 
 A widget is a **value cell, pill or list — never a row**. Labels, cog buttons,
@@ -379,6 +387,8 @@ the browser, and the page never writes to the machine.
 | `DEV` | `0` | Reload templates on every render, **and accept `test`/`test`** |
 | `LOG_LEVEL` | `INFO` | |
 | `LOG_DIR` | — | Keep the log book on disk here too (rotating `eli-hmi.jsonl`), so `/monitor` shows the run before a restart. Unset: memory only |
+| `CAMERA_GATEWAY` | `embedded` | Who serves camera frames: this process, a standalone gateway's URL (`http://station:8083`), or `off`. See [cameras/](cameras/README.md) |
+| `CAMERA_PORT` | `8083` | Where the standalone gateway (`python -m cameras`) listens |
 
 Channel Access reads its own environment too (`EPICS_CA_ADDR_LIST`,
 `EPICS_CA_AUTO_ADDR_LIST`); nothing here overrides it.

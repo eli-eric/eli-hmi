@@ -134,6 +134,7 @@ def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:
             backend_label=settings.backend_label,
             palette=current_palette(settings),
             user=who.user if who else None,
+            camera_gateway=settings.camera_gateway_url,
         )
         return Response(html, content_type="text/html; charset=utf-8")
 

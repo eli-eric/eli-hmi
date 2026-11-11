@@ -254,3 +254,40 @@ class TestRealZones:
                 read = {pv.name for pv in gui.all_pvs()}
                 missing = sorted(read - declared)
                 assert not missing, f"{code}/{gui.slug}: undeclared PVs {missing}"
+
+
+def camera_block(pv: str, width: int = 640, height: int = 480) -> str:
+    """One `camera` entry, indented to follow `make_gui`'s component list."""
+    block = textwrap.dedent(
+        f"""\
+        - component: camera
+          label: Camera {pv}
+          pv: {pv}
+          width: {width}
+          height: {height}
+        """
+    )
+    return textwrap.indent(block, "  ")
+
+
+class TestCameras:
+    """Which cameras a zone shows: what the camera gateway will serve, and the
+    only images a browser may ask it for."""
+
+    def test_the_zone_lists_every_camera_once_across_its_screens(self, zones):
+        zone = make_zone(zones, "Z1")
+        make_gui(zone, "wall", camera_block("Z:CAM1:Image") + camera_block("Z:CAM2:Image"))
+        make_gui(zone, "laser", camera_block("Z:CAM1:Image"))
+
+        cameras = load_zone("Z1").cameras()
+
+        assert sorted(cameras) == ["Z:CAM1:Image", "Z:CAM2:Image"]
+        assert cameras["Z:CAM1:Image"].width == 640
+
+    def test_two_screens_disagreeing_about_a_camera_fail_the_start(self, zones):
+        zone = make_zone(zones, "Z1")
+        make_gui(zone, "wall", camera_block("Z:CAM1:Image", width=640))
+        make_gui(zone, "laser", camera_block("Z:CAM1:Image", width=1024))
+
+        with pytest.raises(ZoneError, match="Z:CAM1:Image"):
+            load_zone("Z1")

@@ -43,7 +43,7 @@ from core.epics.hub import PvHub
 from core.jinja import STATIC_ROOT, create_environment
 from core.locks import LockTable
 from core.logbook import LogBook
-from core.login import build_login_blueprint, install_gate
+from core.login import build_login_blueprint, install_gate, install_socket_gate
 from core.monitor import build_monitor_blueprint
 from core.page import Page, build_pages
 from core.routes import build_blueprint
@@ -92,6 +92,10 @@ class Hmi:
     locks: LockTable = field(default_factory=lambda: LockTable(()), repr=False)
     #: The task that releases locks abandoned past the grace period.
     lock_sweeper: Any = field(default=None, repr=False)
+    #: Camera frames, when this process serves them (`CAMERA_GATEWAY=embedded`):
+    #: a `cameras.routes.CameraService`. `None` when a standalone gateway or
+    #: nothing does; `/monitor` then asks the gateway, or says so.
+    cameras: Any = field(default=None, repr=False)
 
 
 def build_backend(settings: Settings, zone: Zone):
@@ -117,6 +121,24 @@ def build_backend(settings: Settings, zone: Zone):
     specs = [spec for gui in zone.guis for spec in gui.all_pv_specs()]
     seed_from_specs(backend, specs)
     return backend
+
+
+def build_frame_source(settings: Settings, cameras):
+    """Where camera frames come from — the camera counterpart of
+    `build_backend`. The simulator needs nothing seeded: it draws from each
+    camera's own declaration when the camera is opened."""
+    if settings.epics_backend == "aioca":
+        import os
+
+        from cameras.ca import CaFrameSource, CameraError, array_bytes_problem
+
+        problem = array_bytes_problem(cameras.values(), os.environ)
+        if problem:
+            raise CameraError(problem)
+        return CaFrameSource()
+    from cameras.sim import SimFrameSource
+
+    return SimFrameSource(seed=settings.sim_seed)
 
 
 def create_app(settings: Settings | None = None) -> Quart:
@@ -182,11 +204,29 @@ def create_app(settings: Settings | None = None) -> Quart:
         },
     )
 
+    # Camera frames, when this process serves them itself. Same shutdown event
+    # as the screens' streams, so Ctrl-C ends the camera sockets too.
+    app.cameras = None
+    if settings.cameras_embedded:
+        from cameras.hub import CameraHub
+        from cameras.routes import CameraService, build_camera_blueprint
+
+        cameras = zone.cameras()
+        app.cameras = CameraService(
+            hub=CameraHub(cameras, build_frame_source(settings, cameras)),
+            shutting_down=app.hmi.shutting_down,
+        )
+        app.register_blueprint(build_camera_blueprint())
+        install_socket_gate(app, sessions)
+    app.hmi.cameras = app.cameras
+
     @app.before_serving
     async def start() -> None:
         # First, so the dashboard's log has the whole start-up in it.
         app.hmi.logbook.attach()
         await hub.start()
+        if app.cameras is not None:
+            await app.cameras.hub.start()
         if settings.prewarm:
             # Hold a subscription for every screen's PVs for the process
             # lifetime, so the cache is warm before anyone loads a page.
@@ -234,6 +274,8 @@ def create_app(settings: Settings | None = None) -> Quart:
         if app.hmi.warm is not None:
             await app.hmi.warm.close()
         await hub.stop()
+        if app.cameras is not None:
+            await app.cameras.hub.stop()
         # Last, for the same reason — and so a test run, which builds an app
         # per module, does not leave a handler per app on the root logger.
         app.hmi.logbook.detach()
@@ -331,6 +373,17 @@ def _shutdown_trigger(app: Quart):
     sequence proceeds as it does with no stream open at all.
     """
 
+    def closing() -> None:
+        logger.info("shutting down — closing %d open stream(s)", app.hmi.hub.subscriber_count)
+
+    return signal_trigger(app.hmi.shutting_down, before=closing)
+
+
+def signal_trigger(shutting_down: asyncio.Event, *, before=None):
+    """Hypercorn's shutdown trigger for any of this repository's apps: wait for
+    SIGINT/SIGTERM/SIGBREAK, then set `shutting_down` so open streams and
+    sockets end themselves (see `_shutdown_trigger` for why they must)."""
+
     async def trigger() -> None:
         loop = asyncio.get_running_loop()
         stop = asyncio.Event()
@@ -344,8 +397,9 @@ def _shutdown_trigger(app: Quart):
                 # Windows: no loop-level handlers, but the C-level one works.
                 signal.signal(sig, lambda *_: stop.set())
         await stop.wait()
-        logger.info("shutting down — closing %d open stream(s)", app.hmi.hub.subscriber_count)
-        app.hmi.shutting_down.set()
+        if before is not None:
+            before()
+        shutting_down.set()
 
     return trigger
 
