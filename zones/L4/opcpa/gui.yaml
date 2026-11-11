@@ -43,7 +43,7 @@ components:
     pv: L4-MSS:NP1_PERMISSION_TO_OPERATE_CH1
   - label: OPCPA MSS interlock
     pv: L4-MSS:OPA_interlock
-  - label: NL2 vacuum good
+  - label: NL1 vacuum good
     pv: L4-VCS-NL1:ReadyToFire
   - label: OPCPA pump tel. vac. good
     pv: L4-VCS-NSOPA_PUMP_TEL:ReadyToFire
