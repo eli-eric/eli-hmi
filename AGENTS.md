@@ -77,6 +77,10 @@ All from the repo root:
 
 ## CI
 
+Branch model: `main` is production, `dev` is integration (the default branch, and where PRs go), and every other branch is work in progress.
+
 `.gitlab-ci.yml`:
 - `python-hmi-test` runs `make test` on `python:3.12`. uv and packages come from the internal PyPI mirror (`UV_DEFAULT_INDEX`), because the runner has no public route. That changes the resolution, so the job is not `--locked`.
 - `docker-build-job-python-hmi` builds the repo root and pushes `eli-hmi-ssr` to Harbor. That one image is both the operator interface and the EPICS gateway. Its Dockerfile pulls the base image through Harbor's proxy and resolves packages through the same mirror.
+  - Every branch pushes `:<branch-slug>`, its newest build, and `:<branch-slug>-<short-sha>`, that exact build.
+  - Only `main` pushes `:latest`, so `latest` is always production. The check names `main` literally, because `$CI_DEFAULT_BRANCH` is `dev`.
