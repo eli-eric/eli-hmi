@@ -16,6 +16,8 @@ Templates are found in three places, searched in this order:
 
 from __future__ import annotations
 
+import hashlib
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +31,38 @@ SHARED_TEMPLATES = COMPONENTS_ROOT / "templates"
 STATIC_ROOT = APP_ROOT / "core" / "static"
 #: Where `core/static` is mounted (see `core.server.create_app`).
 STATIC_URL = "/static"
+
+
+def asset_url(path: str, *, root: Path = STATIC_ROOT, versioned: bool = True) -> str:
+    """The URL of a static file, named for what it holds.
+
+    Quart serves static files to be kept for twelve hours, so a browser that
+    has the stylesheet does not ask for it again — and after a change, a
+    station renders new markup with old CSS until the cache runs out. A
+    version taken from the content makes a changed file a new URL, fetched at
+    once, while an unchanged one stays cached for as long as Quart says.
+
+    Hashed once per version of the file on disk (its mtime and size), so a
+    file edited under a running `make run` is a new URL on the next render
+    and an unchanged one costs a `stat`.
+
+    `versioned=False` for a URL that must match another byte for byte: a
+    font preload is used only if it is the stylesheet's `url()` exactly.
+    """
+    url = f"{STATIC_URL}{path}"
+    if not versioned:
+        return url
+    try:
+        stat = (root / path.lstrip("/")).stat()
+    except OSError:
+        # Not there: the plain URL, and the 404 says why.
+        return url
+    return f"{url}?v={_content_version(root / path.lstrip('/'), stat.st_mtime_ns, stat.st_size)}"
+
+
+@lru_cache(maxsize=64)
+def _content_version(file: Path, _mtime_ns: int, _size: int) -> str:
+    return hashlib.sha256(file.read_bytes()).hexdigest()[:12]
 
 
 def create_environment(*, auto_reload: bool = False) -> Environment:
@@ -52,7 +86,7 @@ def create_environment(*, auto_reload: bool = False) -> Environment:
     # Starlette's `url_for` is only available through its own Jinja integration,
     # and this app uses the environment directly (widgets render outside any
     # request). One mount point, one helper.
-    env.globals["static"] = lambda path: f"{STATIC_URL}{path}"
+    env.globals["static"] = asset_url
     return env
 
 

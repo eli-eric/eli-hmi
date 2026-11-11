@@ -670,6 +670,40 @@ class TestTheWaveformConfirmButtons:
         )
 
 
+class TestAChangedAssetIsFetchedAgain:
+    """Static files are served to be kept for twelve hours, so a browser that
+    has the stylesheet does not ask for it again — and after a change, a
+    station renders the new markup with the old CSS. The URL names the
+    content instead: a changed file is a new URL and fetched at once, an
+    unchanged one stays cached."""
+
+    async def test_the_stylesheet_and_the_script_are_named_for_their_content(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        for path in ("/static/css/hmi.css", "/static/vendor/datastar.js"):
+            url = re.search(rf'(?:href|src)="({re.escape(path)}\?v=[0-9a-f]+)"', page)
+            assert url, f"{path} is linked without a version"
+            assert (await client.get(url.group(1))).status_code == 200
+
+    def test_the_version_follows_the_content(self, tmp_path):
+        from core.jinja import asset_url
+
+        (tmp_path / "a.css").write_text("x{}")
+        first = asset_url("/a.css", root=tmp_path)
+        assert asset_url("/a.css", root=tmp_path) == first, "unchanged, yet a new URL"
+        (tmp_path / "a.css").write_text("xy{}")
+        assert asset_url("/a.css", root=tmp_path) != first, "changed, yet the same URL"
+
+    async def test_a_preloaded_font_is_the_one_the_stylesheet_asks_for(self, client):
+        """The exception: a preload is only used if its URL is the
+        stylesheet's `url()` byte for byte, and that cannot carry a version."""
+        page = (await client.get("/l4-opcpa")).text
+        css = (await client.get("/static/css/hmi.css")).text
+        fonts = re.findall(r'<link rel="preload" href="([^"]+)"', page)
+        assert fonts, "no font is preloaded"
+        for href in fonts:
+            assert f"url('{href}')" in css, f"{href} is preloaded and never used"
+
+
 class TestTheRegisterTree:
     """Full control of a laser is its modules and every register under them.
     It is no wider than the laser it belongs to, so it takes the laser's own
