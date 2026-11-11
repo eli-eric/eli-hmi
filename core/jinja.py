@@ -17,6 +17,7 @@ Templates are found in three places, searched in this order:
 from __future__ import annotations
 
 import hashlib
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -63,6 +64,14 @@ def create_environment(*, auto_reload: bool = False) -> Environment:
 #: fetches the face twice.
 VERSIONED = (".css", ".js")
 
+#: A file modified this recently is hashed afresh rather than from the cache.
+#: Linux stamps file times from a coarse clock that ticks every few
+#: milliseconds, so a second edit within the same tick keeps the mtime, and if
+#: it keeps the size too, stat cannot tell the two versions apart. Once the
+#: mtime is this far in the past, any later edit gets a later timestamp, so
+#: the cache is safe again. Git treats its index the same way ("racily clean").
+RACY_NS = 2_000_000_000
+
 
 def static_url(path: str, *, root: Path = STATIC_ROOT) -> str:
     """`/static/css/hmi.css?v=1a2b3c4d5e6f` — the URL of a static file, with a
@@ -74,7 +83,8 @@ def static_url(path: str, *, root: Path = STATIC_ROOT) -> str:
     someone forces a reload. With it, a changed file is a new URL.
 
     The file is stat'ed on every call and hashed only when its size or mtime
-    changed, so an edit in development is picked up on the next render.
+    changed, so an edit in development is picked up on the next render. A file
+    changed in the last two seconds is hashed every time (`RACY_NS`).
     """
     url = f"{STATIC_URL}{path}"
     if not path.endswith(VERSIONED):
@@ -84,12 +94,18 @@ def static_url(path: str, *, root: Path = STATIC_ROOT) -> str:
         stat = file.stat()
     except OSError:
         return url
+    if time.time_ns() - stat.st_mtime_ns < RACY_NS:
+        return f"{url}?v={_hash(file)}"
     return f"{url}?v={_digest(str(file), stat.st_mtime_ns, stat.st_size)}"
 
 
 @lru_cache(maxsize=32)
 def _digest(file: str, _mtime_ns: int, _size: int) -> str:
-    return hashlib.sha256(Path(file).read_bytes()).hexdigest()[:12]
+    return _hash(Path(file))
+
+
+def _hash(file: Path) -> str:
+    return hashlib.sha256(file.read_bytes()).hexdigest()[:12]
 
 
 class WidgetRenderer:
