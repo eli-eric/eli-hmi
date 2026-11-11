@@ -40,7 +40,12 @@ from core.auth import Authenticator, SessionCodec, config_from_env, log_startup,
 from core.epics.hub import PvHub
 from core.jinja import STATIC_ROOT, create_environment
 from core.login import build_login_blueprint, install_gate
-from core.page import Page, build_pages
+from core.page import (
+    Page,
+    build_pages,
+    describe_components,
+    describe_on_reconnect,
+)
 from core.routes import build_blueprint
 from core.settings import Settings, SettingsError
 from core.zones import Zone, ZoneError, load_zone, resolve_zone_code
@@ -159,6 +164,13 @@ def create_app(settings: Settings | None = None) -> Quart:
     @app.before_serving
     async def start() -> None:
         await hub.start()
+        # What a monitor cannot answer, asked once: whether a record is an
+        # enum and must be read by name, what it will accept, what it is
+        # measured in. Before anything subscribes, because a component may
+        # re-declare its widgets on the answer — and before `prewarm`, so the
+        # subscription it holds is of the final PV set.
+        await describe_components(hub, pages)
+        describe_on_reconnect(hub, pages)
         if settings.prewarm:
             # Hold a subscription for every screen's PVs for the process
             # lifetime, so the cache is warm before anyone loads a page.
@@ -227,6 +239,9 @@ def create_app(settings: Settings | None = None) -> Quart:
                 "zone_resolved_by": zone.resolved_by,
                 "backend": settings.epics_backend,
                 "auth": authenticator.mode,
+                # The zone's screens, which is what the menu offers. A
+                # component's own detail page is served too, and counted
+                # below, but it is not a screen an operator navigates to.
                 "screens": {
                     slug: {
                         "title": page.gui.title,
@@ -235,7 +250,9 @@ def create_app(settings: Settings | None = None) -> Quart:
                         "pvs": len(page.all_pvs),
                     }
                     for slug, page in pages.items()
+                    if "/" not in slug
                 },
+                "detail_pages": sorted(slug for slug in pages if "/" in slug),
                 "monitored_pvs": hub.monitor_count,
                 "open_streams": hub.subscriber_count,
                 "link_ok": hub.link_ok,

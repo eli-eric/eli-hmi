@@ -34,7 +34,13 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Iterable, Literal
 
-from core.epics.types import Datatype, MonitorCallback, PvId, PvSample
+from core.epics.types import (
+    Datatype,
+    MonitorCallback,
+    PvDescription,
+    PvId,
+    PvSample,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +67,14 @@ class SimSpec:
     #: EPICS alarm severity this PV reports (0..3), regardless of its value —
     #: for a signal with no limit to trip, like a denied permission.
     severity: int = 0
+    #: The range the record declares, or None. Not the drift band: a screen
+    #: offering "0 to 100" because that is where a simulated value happens to
+    #: wander teaches a range the device does not have.
+    limits: tuple[float, float] | None = None
+    #: Decimal places the record advertises (PREC). Carried so a `describe`
+    #: answers what the generated IOC would: a control whose precision differs
+    #: between the simulator and the hall teaches the wrong thing.
+    prec: int | None = None
     #: EPICS alarm status this PV reports, when it is not a limit that tripped.
     #: `UDF` is the one that matters: a screen can only treat "never run"
     #: differently from "broken" if the reading says which it is.
@@ -116,6 +130,25 @@ class SimBackend:
         self._commands.setdefault(pv_name, []).append((value, handler))
         self.declare(SimSpec(name=pv_name, kind="int", value=0, drifts=False))
 
+    async def describe(self, pv: PvId) -> PvDescription:
+        """What the component declared this register to be.
+
+        The band a simulated value wanders inside is also the range it will
+        accept: a simulator whose limits differ from the ones the screen shows
+        would teach an engineer a range the hall does not have.
+        """
+        spec = self._specs.get(pv.name)
+        if spec is None:
+            return PvDescription()
+        low, high = spec.limits or (None, None)
+        return PvDescription(
+            units=spec.units,
+            precision=spec.prec,
+            low=low,
+            high=high,
+            states=tuple(spec.enums),
+        )
+
     def spec(self, name: str) -> SimSpec | None:
         return self._specs.get(name)
 
@@ -166,6 +199,12 @@ class SimBackend:
             spec = self.declare(SimSpec(name=name, kind="string", value="", drifts=False))
         logger.info("SIM write %s <- %r", name, value)
         self._set(name, self._coerce(spec, value), hold=True)
+
+    async def caget(self, pv: PvId) -> PvSample:
+        """The simulated value, as a monitor would deliver it at this datatype.
+        An undeclared PV reads as not found, the way a real one would fail to
+        connect."""
+        return self._sample(pv)
 
     def _resolve_command(self, name: str, written: Any) -> CommandHandler | None:
         """Pick the effect chain for this write: the one registered for exactly
@@ -380,11 +419,24 @@ def seed_from_specs(backend: "SimBackend", specs: Iterable[Any]) -> None:
     declared once, because `SimBackend.declare` keeps the first.
     """
     commands = []
+    forwarders = []
     for spec in specs:
         if spec.command:
             commands.append(spec)
             continue
+        if spec.forwards_to:
+            forwarders.append(spec)
+            continue
         backend.declare(_sim_spec(spec))
+
+    # The write side of a readback: whatever is written here lands there, the
+    # operator's value and not a constant. Declared as a PV of its own so the
+    # write has somewhere to go, with a handler that forwards it.
+    for spec in forwarders:
+        backend.declare(_sim_spec(spec))
+        backend.register_command(
+            spec.name, _forward_handler(spec.forwards_to), value=None
+        )
 
     # Commands last: their effects name PVs that the loop above declared, and a
     # chain that writes to an undeclared PV is a component bug worth surfacing
@@ -395,6 +447,15 @@ def seed_from_specs(backend: "SimBackend", specs: Iterable[Any]) -> None:
             _effect_handler(spec),
             value=None if spec.value is None else spec.value,
         )
+
+
+def _forward_handler(target: str) -> CommandHandler:
+    """Write what the operator sent to the record this one reports from."""
+
+    async def handle(backend: "SimBackend", value: Any) -> None:
+        backend.set_value(target, value)
+
+    return handle
 
 
 def _sim_spec(spec: Any) -> SimSpec:
@@ -429,6 +490,8 @@ def _sim_spec(spec: Any) -> SimSpec:
     return SimSpec(
         name=spec.name,
         kind=spec.kind,
+        prec=spec.prec,
+        limits=spec.limits,
         value=value,
         low=spec.low,
         high=spec.high,

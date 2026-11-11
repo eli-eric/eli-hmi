@@ -19,9 +19,9 @@ import logging
 import math
 import time
 from collections import defaultdict
-from typing import Iterable
+from typing import Callable, Iterable
 
-from core.epics.types import EpicsBackend, LastValid, PvId, PvSample
+from core.epics.types import PvDescription, EpicsBackend, LastValid, PvId, PvSample
 
 logger = logging.getLogger(__name__)
 
@@ -188,8 +188,25 @@ class PvHub:
 
     # -------------------------------------------------------------------- reads
 
+    #: Called with a PV whose channel has just come back. Set by the server
+    #: to re-read control fields; does nothing until something cares.
+    on_reconnect: Callable[[PvId], None] = staticmethod(lambda pv: None)
+
     def snapshot(self, pvs: Iterable[PvId]) -> dict[PvId, PvSample | None]:
         return {pv: self._cache.get(pv) for pv in pvs}
+
+    def invalidate(self, name: str) -> None:
+        """Have every open screen showing `name` draw it again, at whatever
+        datatype it is monitored, though its value has not changed.
+
+        For what a draw depends on besides the reading — a record's unit,
+        answered after its channel came back. The monitor has no reason to
+        report again, so nothing else would put the answer on screen.
+        """
+        for subscription in self._subscribers:
+            for pv in subscription.pvs:
+                if pv.name == name:
+                    subscription.notify(pv)
 
     def get(self, pv: PvId) -> PvSample | None:
         return self._cache.get(pv)
@@ -206,6 +223,25 @@ class PvHub:
 
     async def caput(self, name: str, value: object) -> None:
         await self._backend.caput(name, value)
+
+    async def caget(self, pv: PvId) -> PvSample:
+        """What the device holds now, read once.
+
+        Not the cache: this is asked after a write failed, when the screen
+        may be showing what the operator *meant* rather than what the device
+        has, and the monitor has no reason to report a value that never
+        changed.
+        """
+        return await self._backend.caget(pv)
+
+    async def describe(self, pv: PvId) -> PvDescription:
+        """What one record will accept, read on demand.
+
+        Not cached and not monitored: it is asked for when a register is
+        selected to be written, which is rare and deliberate, and a device
+        that has been reconfigured should not be answered from memory.
+        """
+        return await self._backend.describe(pv)
 
     # ----------------------------------------------------------------- internal
 
@@ -234,6 +270,11 @@ class PvHub:
         the cache and flips a flag per interested subscriber.
         """
         previous = self._cache.get(pv)
+        # A channel that has come back may be a different record than the one
+        # described at start-up — or may not have been there to describe at
+        # all. Whoever asked about it is told, and asks again.
+        if previous is not None and not previous.ok and sample.ok:
+            self.on_reconnect(pv)
         sample = self._carry_last_valid(previous, sample)
         self._cache[pv] = sample
         if previous is not None and _unchanged(previous, sample):

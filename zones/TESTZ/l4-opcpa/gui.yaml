@@ -25,6 +25,28 @@ components:
     latestWaveform: SI_NL2_LATEST_WAVEFORM
     modboxMbc1: L4-OPCPA-NL2::ModBox:MBC1:BiasValue
     modboxMbc2: L4-OPCPA-NL2::ModBox:MBC2:BiasValue
+  # Arms writing a register to the device's non-volatile memory. One per
+  # laser, and only the registers declaring `nv: true` may use it.
+  nvWrite: L4-OPCPA-NL2:NVWriteEnable
+  # The register tree behind this laser's panel, at /l4-opcpa/NL2/registers.
+  # A module repeats the same register set on every laser, so the set is an
+  # anchor and each module names only its prefix.
+  modules:
+  - label: PS1225:11
+    prefix: L4-OPCPA-NL2:PS1225:11
+    # `units`, `states` and `range` are simulator scaffolding: they are what
+    # the simulator and the local IOC answer a control-field read with. On a
+    # real device the record supplies all three (EGU, state strings,
+    # DRVL/DRVH), so a real zone writes only name, label, kind, write and nv.
+    registers: &chiller_registers
+    - {name: T_out, label: Outlet temp, units: °C, range: [20, 26]}
+    - {name: MeasuredFlow, label: Flow, units: l/min, range: [11, 16]}
+    - {name: SetPoint, label: Setpoint, units: °C, write: true, nv: true, range: [18, 28]}
+    - {name: Mode, label: Mode, write: true, kind: enum, states: ["STANDBY", "RUN", "SERVICE"]}
+    - {name: PumpSpeed, label: Pump speed, units: rpm, write: true, kind: int, range: [0, 3000], value: 1500}
+  - label: PS1225:12
+    prefix: L4-OPCPA-NL2:PS1225:12
+    registers: *chiller_registers
   sequences:
   # The state PV says whether the control system is running this sequence;
   # `command` names the button that starts it, which is what the simulator and

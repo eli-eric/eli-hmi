@@ -1,0 +1,45 @@
+{#
+  The register tree's own widget macros. Everything generic — value cells,
+  pills — comes from `components/templates/readouts.html`, searched after
+  this file.
+#}
+{% import "controls.html" as controls with context %}
+
+{#- Whether the next write goes to non-volatile memory: one checkbox, and
+    nothing beside it.
+
+    Ticked when the device is armed. A widget, not a control rendered once:
+    the stream redraws it on every monitor update, so two operators — or one
+    operator and the control system — see the same box.
+
+    Optimistic: it ticks the moment it is pressed, because waiting a round
+    trip for the device to confirm feels broken. Two things make that safe:
+
+    - The value written is read from the box at the moment of the press, not
+      fixed when it was drawn. A second press before the device confirms the
+      first writes the opposite, not the same value twice.
+    - The `checked` *attribute* is set along with the property. Datastar's
+      morph only corrects a box whose attribute differs from the redraw's,
+      and a press flips only the property — so without this, a refused write
+      redraws the same attribute and the box stays wrong.
+
+    A refused write is reported in `status`, which is outside this element,
+    and then this widget is redrawn from a fresh read (`/api/write`).
+
+    Disabled when the channel does not answer: there is no chip to say
+    PV DSC, and an unticked box that still works reads as 'volatile'. Never
+    for INVALID — a write PV is UDF until first written, and only a write
+    clears it. -#}
+{%- macro nv_toggle(id, show, pv, armed, known, why, status) -%}
+<label id="{{ id }}" class="nv-toggle"
+       {%- if why %} title="{{ why }}"{% endif %}
+       {%- if show %} data-show="{{ show }}" style="display:none"{% endif %}>
+  <input type="checkbox" class="nv-box"
+         {%- if armed %} checked{% endif %}
+         {%- if not known %} disabled{% endif %}
+         data-indicator="_busy"
+         data-on:change="el.toggleAttribute('checked', el.checked); @post('{{ controls.write_url(pv, status=status) }}&amp;value=' + (el.checked ? 1 : 0))"
+         aria-label="Write to non-volatile memory">
+  <span>Write to non-volatile memory</span>
+</label>
+{%- endmacro -%}

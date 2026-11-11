@@ -127,6 +127,29 @@ class TestRecordChoices:
         record = re.search(rf'record\(calc, "{re.escape(bias)}"\) \{{(.*?)\n\}}', db_text, re.S)
         assert record and 'field(PREC, "0")' in record.group(1), "bias is whole millivolts"
 
+    def test_a_setpoint_forwards_to_its_readback(self, records, db_text):
+        """A register is reported from one record and written through
+        another. The write record is an output record carrying the drive
+        limits a screen asks for, and what is written lands in the readback —
+        a `seq` of constants cannot do that, because the value is the
+        operator's and not the configuration's.
+        """
+        write = "L4-OPCPA-NL2:PS1225:11:SetPoint:W"
+        assert records[write] in ("ao", "longout"), (
+            f"a setpoint is a {records[write]}, which cannot take a value"
+        )
+        rule = re.search(
+            rf'record\({records[write]}, "{re.escape(write)}"\) \{{(.*?)\n\}}',
+            db_text,
+            re.S,
+        ).group(1)
+        assert 'field(OUT, "L4-OPCPA-NL2:PS1225:11:SetPoint' in rule, (
+            f"the write goes nowhere: {rule}"
+        )
+        assert 'field(DRVL, "18' in rule and 'field(DRVH, "28' in rule, (
+            f"no drive limits for a screen to read: {rule}"
+        )
+
     def test_a_command_becomes_a_trigger_plus_a_sequence(self, records, db_text):
         sequences = [name for name, rtype in records.items() if rtype == "seq"]
         assert sequences, "no seq records — a command would write nothing"

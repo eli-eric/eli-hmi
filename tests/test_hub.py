@@ -36,6 +36,11 @@ class RecordingBackend:
         self.monitors.pop(pv, None)
         self.removed.append(pv)
 
+    async def describe(self, pv):
+        from core.epics.types import PvDescription
+
+        return PvDescription()
+
     async def caput(self, name, value):
         self.writes.append((name, value))
 
@@ -100,6 +105,26 @@ async def test_one_monitor_however_many_widgets_read_it(hub, tmp_path):
     woken = page.widgets_for([pv])
     assert len(woken) == 4, [w.id for w in woken]
     await subscription.close()
+
+
+async def test_a_channel_that_comes_back_is_described_again(hub):
+    """Control fields are read once, at start-up — so a module that was off
+    then would be described from nothing for the life of the process. A
+    channel that connects later is asked again, or a register whose device
+    was powered up after the station reads as an index for the rest of the
+    shift.
+    """
+    asked: list[PvId] = []
+    hub.on_reconnect = asked.append
+
+    pv = PvId("PV:A")
+    await hub.subscribe([pv])
+    hub._on_sample(pv, PvSample(name="PV:A", ok=True, value=1))
+    assert asked == [], "nothing reconnected yet"
+
+    hub._on_sample(pv, PvSample(name="PV:A", ok=False, error="gone"))
+    hub._on_sample(pv, PvSample(name="PV:A", ok=True, value=1))
+    assert asked == [pv], "a channel came back and nobody asked it anything"
 
 
 async def test_same_pv_at_two_datatypes_is_two_monitors(hub):
@@ -313,5 +338,34 @@ class TestSimulatorCommands:
             await hub.caput("PV:MODE", 0)
             await asyncio.sleep(0.05)
             assert ran == ["on", "off"]
+        finally:
+            await hub.stop()
+
+
+class TestReadingOneValueNow:
+    """A monitor says what a PV was when it last changed. After a write the
+    device refused, the question is what it holds *now* — so the hub can ask
+    once, directly, without opening a monitor or trusting the cache."""
+
+    async def test_it_answers_with_what_the_device_holds(self):
+        backend = SimBackend(tick_seconds=10, seed=1)
+        backend.declare(SimSpec(name="X:NV", kind="int", value=1, drifts=False))
+        hub = PvHub(backend)
+        await hub.start()
+        try:
+            sample = await hub.caget(PvId("X:NV"))
+            assert sample.ok and sample.value == 1
+            assert hub.monitor_count == 0, "a one-off read opened a monitor"
+        finally:
+            await hub.stop()
+
+    async def test_a_pv_that_cannot_be_read_is_a_bad_sample_not_an_exception(self):
+        """The read is made because something already went wrong; it must not
+        turn one failure into a second, louder one."""
+        hub = PvHub(SimBackend(tick_seconds=10, seed=1))
+        await hub.start()
+        try:
+            sample = await hub.caget(PvId("NOWHERE:PV"))
+            assert not sample.ok
         finally:
             await hub.stop()

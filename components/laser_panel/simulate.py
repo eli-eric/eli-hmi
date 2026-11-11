@@ -244,7 +244,73 @@ def laser_pv_specs(cfg: Config) -> list[PvSpec]:
             )
         )
 
+    specs += _register_specs(cfg)
     specs += _command_specs(cfg)
+    return specs
+
+
+def _register_specs(cfg: Config) -> list[PvSpec]:
+    """One spec per register of every module.
+
+    Declared here with the rest of the laser's PVs, so the register tree works
+    against the simulator and the generated IOC exactly as the panel does. A
+    register's kind is what the config says it is; `float` is the default
+    because most of a module's registers are analogue readings.
+    """
+    specs: list[PvSpec] = []
+    if cfg.nv_write:
+        specs.append(
+            PvSpec(
+                name=cfg.nv_write,
+                kind="bool",
+                value=0,
+                states=("volatile", "non-volatile"),
+                writable=True,
+                desc=f"{cfg.laser} non-volatile write armed",
+            )
+        )
+    for module in cfg.modules:
+        for register in module.registers:
+            # The band a simulated value wanders inside, and — only when the
+            # config declared one — the range the record advertises. A screen
+            # must never offer a range nobody declared.
+            low, high = register.range or (0.0, 100.0)
+            limits = register.range
+            specs.append(
+                PvSpec(
+                    name=register.pv,
+                    kind=register.kind,
+                    value=register.value,
+                    low=low,
+                    high=high,
+                    limits=limits,
+                    states=tuple(register.states),
+                    egu=register.units,
+                    writable=register.write,
+                    desc=f"{module.label} {register.label or register.name}",
+                )
+            )
+            if not register.write:
+                continue
+            # The setpoint record itself. A device reports from one record and
+            # is written through another, so the screen writes `<register>:W`
+            # — and that record has to exist wherever the screen runs, or
+            # Confirm appears to work in dev and moves nothing.
+            specs.append(
+                PvSpec(
+                    name=register.write_pv,
+                    kind=register.kind,
+                    value=register.value,
+                    low=low,
+                    high=high,
+                    limits=limits,
+                    states=tuple(register.states),
+                    egu=register.units,
+                    writable=True,
+                    forwards_to=register.pv,
+                    desc=f"{module.label} {register.label or register.name} setpoint",
+                )
+            )
     return specs
 
 

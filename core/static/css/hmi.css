@@ -435,6 +435,12 @@ body {
   position: sticky;
   top: var(--header-stack-height, 0);
   z-index: 1;
+  /* A row, so a panel can carry a link to its own detail page opposite the
+     title. A header with nothing but a title is unaffected. */
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
   background: var(--color-text);
   color: var(--color-surface-lighter);
   padding: 0.1875rem 0.375rem;
@@ -740,6 +746,157 @@ body {
 
 .corner-triangle.expanded {
   opacity: 1;
+}
+
+/* ------------------------------------------------------------- register tree */
+
+/* A module's header is the control that opens it, so it has to read as one:
+ * full width, and the same chrome as every other pressable thing here. */
+.module-head {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  background: var(--color-surface-lighter);
+  border: 1px solid var(--color-text);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  text-align: left;
+  padding: 0.125rem 0.75rem 0.125rem 0.25rem;
+  cursor: pointer;
+}
+
+.module-head:hover:not(:disabled) {
+  background: var(--color-surface-light);
+}
+
+/* How many registers are behind it: a module with four is worth opening on a
+ * glance, one with sixty is a decision. */
+.module-count {
+  font-weight: 400;
+  opacity: 0.75;
+  padding-right: 0.5rem;
+}
+
+/* The rows themselves are `.row`, so there is nothing to align here. */
+.register-list {
+  display: block;
+}
+
+/* The way down to a laser's registers, in its panel header — which is dark,
+ * so the colour is the header's and not the page's. */
+.panel-detail {
+  color: inherit;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.panel-detail:hover {
+  text-decoration: underline;
+}
+
+/* The way back out of a detail page, beside its heading. */
+.page-back {
+  color: var(--color-text);
+  font-size: 1.25rem;
+  line-height: 1;
+  text-decoration: none;
+  padding-right: 0.5rem;
+}
+
+/* --------------------------------------------------- register write panel */
+
+/* The control for whichever register is selected, under the tree and above
+ * nothing: one panel for a whole device, so it is worth the width. */
+.register-write {
+  display: block;
+}
+
+.register-write-inner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  padding: 0.25rem;
+  background: var(--color-surface-light);
+  border: 1px solid var(--color-text);
+}
+
+/* Field, unit, Confirm on one line. A cog panel stacks them for want of
+ * width; this panel spans the tree, and a button under its field reads as
+ * the start of something else. */
+.register-write-inner .preset-custom,
+.register-write-inner .waveform-select {
+  flex-direction: row;
+  align-items: center;
+}
+
+/* A reading and its Set button, together as wide as a reading alone: the
+ * button shares the value column instead of taking an action column, so a
+ * writable register's number lines up with every other register's. */
+.register-cell {
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* The reading takes the room; the button takes what it needs. */
+.register-cell .value {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The reading's own type and weight, so the row reads as one thing — and
+ * `stretch` above makes it exactly as tall as the field beside it. */
+.register-select {
+  flex: 0 0 auto;
+  background: var(--color-surface-lighter);
+  border: 1px solid var(--color-text);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--hmi-font-size);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0 0.375rem;
+  cursor: pointer;
+}
+
+.register-select:hover:not(:disabled) {
+  background: var(--color-surface-light);
+}
+
+/* Open, and filled in to say so — the same inversion a cog uses, because it
+ * is the same gesture: the panel below belongs to the row whose button is
+ * dark, which is the only thing telling the two apart in a tree of hundreds. */
+.register-select[aria-expanded='true'] {
+  background: var(--color-text);
+  color: var(--color-surface-lighter);
+}
+
+/* Whether the next write is permanent: one checkbox, ticked when the device
+ * is armed. */
+.nv-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  font-size: var(--hmi-font-size);
+  cursor: pointer;
+}
+
+/* The channel does not answer. Dimmed as well as dead, because an operator who
+ * cannot tell why a box will not tick will press it again; the tooltip says
+ * why. */
+.nv-toggle:has(.nv-box:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* --------------------------------------------------------------- detail lists */
@@ -1162,6 +1319,12 @@ body {
   border: 1px solid var(--color-text);
   background: var(--color-surface-lighter);
   color: var(--color-text);
+}
+
+.preset-units {
+  flex-shrink: 0;
+  font-size: var(--hmi-font-size);
+  opacity: 0.75;
 }
 
 .preset-confirm {

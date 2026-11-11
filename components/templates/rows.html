@@ -90,7 +90,7 @@
 {% else %}
 {{ controls.preset_input(cfg.setpoint.label, cfg.setpoint.presets, cfg.setpoint.pv or cfg.pv,
                          comp.signal('set_' ~ (cfg.id or cfg.label), ''), signal, cfg.setpoint.step,
-                         exponential=cfg.setpoint.exponential) }}
+                         exponential=cfg.setpoint.exponential, kind='number') }}
 {% endif %}
 {% endif %}
 {% endcall %}

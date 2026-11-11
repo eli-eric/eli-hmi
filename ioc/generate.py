@@ -168,6 +168,8 @@ def emit(db: Db, spec: PvSpec) -> None:
         return
     if spec.command:
         emit_command(db, spec)
+    elif spec.forwards_to:
+        emit_setpoint(db, spec)
     elif spec.kind == "float":
         emit_analog(db, spec)
     elif spec.kind == "int":
@@ -326,6 +328,48 @@ def emit_string(db: Db, spec: PvSpec) -> None:
             ("VAL", None if spec.undefined else str(spec.value or "")),
         ],
     )
+
+
+def emit_setpoint(db: Db, spec: PvSpec) -> None:
+    """An output record whose OUT is the readback it belongs to.
+
+    The write side of a device that reports from one record and is written
+    through another. An output record rather than a trigger with a chain,
+    because the value is the operator's: a `seq` step carries a constant, and
+    a setpoint's whole point is passing a number or a state through.
+
+    DRVL/DRVH are what a screen reads back as the range it may offer, which is
+    why the engineering range is worth declaring on a writable register.
+    """
+    kinds = {"float": "ao", "int": "longout", "bool": "bo", "enum": "mbbo"}
+    record = kinds.get(spec.kind, "stringout")
+    fields: list[tuple[str, Any]] = [
+        ("DESC", spec.desc[:40]),
+        # Supervisory: the value comes from Channel Access, not from a link.
+        ("OMSL", "supervisory"),
+        ("OUT", f"{spec.forwards_to} PP"),
+    ]
+    if record in ("ao", "longout"):
+        # Drive limits only when the component declared a range: a record that
+        # advertises 0-100 because that is where the simulator wanders would
+        # hand a screen a range the device never had.
+        low, high = spec.limits or (None, None)
+        fields += [
+            ("EGU", spec.egu),
+            ("PREC", spec.prec if record == "ao" else None),
+            ("DRVL", low),
+            ("DRVH", high),
+            ("LOPR", low),
+            ("HOPR", high),
+        ]
+    if record == "mbbo":
+        fields += [
+            (state_field, state)
+            for state_field, state in zip(MBB_STATE_FIELDS, spec.states)
+        ]
+    if record == "bo" and len(spec.states) >= 2:
+        fields += [("ZNAM", spec.states[0]), ("ONAM", spec.states[1])]
+    db.record(record, spec.name, fields)
 
 
 def emit_command(db: Db, spec: PvSpec) -> None:

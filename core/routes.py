@@ -19,10 +19,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import math
-import re
 from html import escape
-from typing import Any
+from typing import Any, AsyncIterator
 
 from datastar_py import ServerSentEventGenerator as SSE
 from datastar_py.consts import ElementPatchMode
@@ -30,8 +28,9 @@ from datastar_py.quart import DatastarResponse, read_signals
 from quart import Blueprint, Response, current_app, g, make_response, redirect, request
 
 from core.auth import Identity
-from core.components import PvReader
+from core.components import PvReader, WriteRule
 from core.epics.hub import PvHub
+from core.epics.types import PvDescription, PvId
 from core.page import Page
 from core.palette import DEFAULT_PALETTE, PALETTE_COOKIE, PALETTES, usable
 from core.settings import Settings
@@ -69,6 +68,7 @@ def build_blueprint(pages: dict[str, Page], *, home: str) -> Blueprint:
 
     screens.add_url_rule("/api/write", "write", write, methods=["POST"])
     screens.add_url_rule("/api/waveforms", "waveforms", waveforms, methods=["GET"])
+    screens.add_url_rule("/api/register", "register", register_panel, methods=["GET"])
     screens.add_url_rule("/api/palette", "palette", set_palette, methods=["POST"])
     return screens
 
@@ -154,6 +154,126 @@ def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:
 
     blueprint.add_url_rule(f"/{slug}", f"page_{slug}", page, methods=["GET"])
     blueprint.add_url_rule(f"/{slug}/stream", f"stream_{slug}", stream, methods=["GET"])
+
+
+def _component(key: str) -> Any:
+    """The component with this key, from whichever page holds it."""
+    _settings, _hub, pages = state()
+    return next(
+        (
+            candidate
+            for page in pages.values()
+            for candidate in page.gui.walk()
+            if candidate.key == key
+        ),
+        None,
+    )
+
+
+async def register_panel() -> DatastarResponse:
+    """Open the write panel on one register of one device.
+
+    One panel for a whole tree rather than a control on every row: a module
+    has dozens of registers, most of them readings, and a control per row
+    would mean asking the device for hundreds of sets of limits nobody is
+    looking at.
+    """
+    key = (request.args.get("component") or "").strip()
+    pv = (request.args.get("pv") or "").strip()
+    component = _component(key)
+    if component is None or not hasattr(component, "register"):
+        logger.warning("register panel refused: no register tree %r", key)
+        return DatastarResponse([])
+
+    item = component.register(pv)
+    if item is None or not item.write:
+        # Not a register of this tree, or not one that can be written. Either
+        # way the panel is cleared rather than left showing the last one.
+        logger.warning("register panel refused: %r is not a setpoint of %r", pv, key)
+        item = None
+
+    # What the device will accept, asked for now rather than monitored: the
+    # control fields are a heavier read and a module has hundreds of
+    # registers, so they are read for the one being written.
+    _settings, hub, pages = state()
+    described = (
+        await hub.describe(PvId(item.pv))
+        if item is not None and component.has_control_fields(item)
+        else PvDescription()
+    )
+    # What this register takes: the component decides, from the register's
+    # declared kind and the device's answer. The panel is built from this
+    # same rule, so the field an operator sees and the endpoint that guards
+    # the write cannot disagree about what the register is.
+    rule = (
+        component.write_rule(item, described) if item is not None else WriteRule.text()
+    )
+    if item is not None:
+        # Recorded against the record the write goes to. The field greys out
+        # its Confirm from the same rule, but this endpoint is the one route
+        # to a write and anything that can post to it can post anything.
+        # Replaced on every selection, so a device that has been reconfigured
+        # is answered for afresh.
+        current_app.hmi.write_limits[item.write_pv] = rule
+
+    # The arming control is a live widget, rendered into the panel rather than
+    # standing apart from it: what it reports is the device's state. Only for
+    # a register that takes an NV write — for any other there is nothing to
+    # arm, and an indicator beside its field would report a state that does
+    # not concern the write being made.
+    nv = ""
+    widget = component.widgets.get("nv")
+    if widget is not None and item is not None and item.nv:
+        page = next(
+            (p for p in pages.values() if component in list(p.gui.walk())), None
+        )
+        if page is not None:
+            reader = PvReader(hub.snapshot(page.all_pvs), hub.link_ok)
+            nv = page.render_widget(widget, reader)
+
+    markup = current_app.hmi.jinja.get_template(
+        "register_tree/write_panel.html"
+    ).render(
+        comp=component,
+        c=component.config,
+        register=item,
+        described=described,
+        rule=rule,
+        nv=nv,
+    )
+    who = actor()
+    logger.info(
+        "register %s selected by user=%s", pv, who.user if who else "-"
+    )
+    return DatastarResponse(
+        [
+            # Which register's panel is open, so the slot under that row is
+            # the one shown. Per browser: this answer goes to the operator who
+            # asked, not down the shared stream.
+            SSE.patch_signals(
+                {
+                    component.selected: pv if item is not None else "",
+                    # Choosing a register is starting a new write. One signal
+                    # carries the value for whichever register is open, so a
+                    # number typed for the last one would otherwise still be
+                    # loaded — a field reading blank with Confirm live, and
+                    # the old number going to the new record.
+                    component.set_register: "",
+                }
+            ),
+            # Every slot emptied before one is filled, so the page holds one
+            # panel at a time. A hidden slot that kept its last panel kept a
+            # copy of the live NV widget too, under the same id as the one
+            # being shown — and a live update lands on the first element with
+            # that id, which could be the stale one nobody can see.
+            SSE.remove_elements(selector=".register-write > *"),
+            SSE.patch_elements(
+                str(markup),
+                selector=f"#{component.slot(pv)}",
+                mode=ElementPatchMode.INNER,
+            ),
+        ]
+    )
 
 
 async def waveforms() -> DatastarResponse:
@@ -344,39 +464,32 @@ async def write() -> DatastarResponse:
         raw: Any = (signals or {}).get(signal)
         if raw is None or (isinstance(raw, str) and not raw.strip()):
             logger.info("write skipped user=%s pv=%s reason=empty-field", user, name)
-            return _report("Nothing to write — enter a value first.", status)
+            return _report("Nothing to write — enter a value first.", status, pv=name)
     elif value is None:
         # Neither form. Writing the string "None" — which is what falling
         # through would do — is worse than refusing: it reaches the device.
         logger.warning("write refused user=%s pv=%s reason=no-value", user, name)
-        return _report(f"Refused: no value given for {name}.", status)
+        return _report(f"Refused: no value given for {name}.", status, pv=name)
     else:
         raw = value
 
-    limits = current_app.hmi.write_limits.get(name)
-    if limits is not None and isinstance(raw, (str, int, float)):
-        refusal = limits.rejects_notation(str(raw))
-        if refusal is not None:
-            logger.warning("write refused user=%s pv=%s value=%r reason=%s", user, name, raw, refusal)
-            return _report(f"Refused: {raw} is {refusal}.", status)
-        raw = limits.truncate(str(raw))
-
-    try:
-        payload = _coerce(raw)
-    except ValueError as exc:
-        logger.warning("write refused user=%s pv=%s reason=%s", user, name, exc)
-        return _report(f"Refused: {exc}", status)
-
-    # The bounds the component that owns this control declared. Checked here
-    # rather than only in the field, because this endpoint is the one route
-    # every write takes — a stale tab, a second browser, a curl.
-    if limits is not None:
-        reason = limits.rejects(payload)
-        if reason is not None:
-            logger.warning(
-                "write refused user=%s pv=%s value=%r reason=%s", user, name, payload, reason
-            )
-            return _report(f"Refused: {payload} is {reason}.", status)
+    # What the component that owns this control declared the PV takes. One
+    # question, asked here rather than only in the field, because this
+    # endpoint is the one route every write takes — a stale tab, a second
+    # browser, a curl. A PV nobody declared takes text, unchecked: it was
+    # never registered as writable, and there is nothing to check it against.
+    rule = current_app.hmi.write_limits.get(name) or WriteRule.text()
+    payload, refusal = rule.resolve(raw)
+    if refusal is not None:
+        logger.warning(
+            "write refused user=%s pv=%s value=%r kind=%s reason=%s",
+            user,
+            name,
+            raw,
+            rule.kind,
+            refusal,
+        )
+        return _report(f"Refused: {refusal}.", status, pv=name)
 
     try:
         await hub.caput(name, payload)
@@ -384,43 +497,12 @@ async def write() -> DatastarResponse:
         # `exception` for the traceback, and the actor on the same line: a write
         # that failed is the first thing asked about after a shift handover.
         logger.exception("write FAILED user=%s pv=%s value=%r", user, name, payload)
-        return _report(f"{name}: write failed — {exc}", status)
+        return _report(f"{name}: write failed — {exc}", status, pv=name)
 
     # The audit line. One per write, with who, what and to where — the reason
     # `/api/write` is the only write path in the app.
     logger.info("write ok user=%s pv=%s value=%r", user, name, payload)
     return _report(f"{name} ← {payload}", status, ok=True, close=close, reset_age=True)
-
-
-#: What may be typed into a numeric field. Deliberately not `int()`/`float()`,
-#: which accept `1_000` (Python's digit separators), `nan` and `infinity` — none
-#: of which an operator meant to type, and all of which would be written to a
-#: device. A leading zero is excluded too: "0021" is a code, and turning it into
-#: 21 would change what reaches the record.
-_NUMBER = re.compile(r"^[+-]?(0|[1-9]\d*)?(\.\d+)?([eE][+-]?\d+)?$")
-
-
-def _coerce(raw: Any) -> Any:
-    """Numbers arrive as strings from a query parameter or a text input. A PV
-    that wants a number and gets "1" would be a type error at the CA layer, so
-    the conversion happens here, once, and anything else passes through as the
-    string it is (a mode PV wanting 'Sleep', say).
-    """
-    if isinstance(raw, bool):
-        return int(raw)
-    if isinstance(raw, (int, float)):
-        if isinstance(raw, float) and not math.isfinite(raw):
-            raise ValueError("a non-finite number cannot be written to a PV")
-        return raw
-    text = str(raw).strip()
-    if not text or not _NUMBER.match(text) or not any(c.isdigit() for c in text):
-        return text
-    number = float(text)
-    return (
-        int(number)
-        if number.is_integer() and "." not in text and "e" not in text.lower()
-        else number
-    )
 
 
 def _report(
@@ -430,6 +512,7 @@ def _report(
     ok: bool = False,
     close: str | None = None,
     reset_age: bool = False,
+    pv: str | None = None,
 ) -> DatastarResponse:
     """Say what happened, beside the control that caused it when it named one.
 
@@ -440,6 +523,12 @@ def _report(
 
     The header toast still records every write, successes included; it is the
     log of what this session did, not the answer to "did my press work".
+
+    A failure that names its `pv` also puts the screen right: controls are
+    optimistic — a checkbox ticks when pressed, not when the device confirms
+    — so after a refusal a control may be showing what the operator meant
+    rather than what the device holds. The PV is read again and everything
+    displaying it is redrawn from the answer (`_redraw_from_device`).
     """
     events: list[Any] = [_toast_event(message, reset_age=reset_age)]
     if target:
@@ -451,7 +540,58 @@ def _report(
         )
     if ok and close:
         events.append(SSE.patch_signals({close: False}))
-    return DatastarResponse(events)
+    if ok or pv is None:
+        return DatastarResponse(events)
+    redraw = _redraw_from_device(pv)
+
+    async def said_then_put_right() -> AsyncIterator[Any]:
+        # The message first, the read after it. A channel that just refused a
+        # write may not answer a read either, and an operator should not sit
+        # out a second timeout to learn about the first.
+        for event in events:
+            yield event
+        async for event in redraw:
+            yield event
+
+    return DatastarResponse(said_then_put_right())
+
+
+def _redraw_from_device(name: str) -> AsyncIterator[Any]:
+    """Every widget that displays `name`, redrawn from a fresh read of it.
+
+    `caget`, not the cache: the monitor reports changes, and a write the
+    device refused changed nothing — so there is no update coming that would
+    put an optimistic control back. One read per datatype the PV is shown at,
+    and each widget drawn once however many pages carry it.
+
+    Resolved now, iterated later: the response streams after the view has
+    returned, where the request's app context may be gone.
+    """
+    _settings, hub, pages = state()
+
+    async def redraw() -> AsyncIterator[Any]:
+        fresh: dict[PvId, Any] = {}
+        drawn: set[str] = set()
+        parts: list[str] = []
+        for page in pages.values():
+            for pv in page.all_pvs:
+                if pv.name != name:
+                    continue
+                widgets = [w for w in page.widgets_for([pv]) if w.id not in drawn]
+                if not widgets:
+                    continue
+                if pv not in fresh:
+                    fresh[pv] = await hub.caget(pv)
+                reader = PvReader(
+                    {**hub.snapshot(page.all_pvs), pv: fresh[pv]}, hub.link_ok
+                )
+                for widget in widgets:
+                    drawn.add(widget.id)
+                    parts.append(str(page.render_widget(widget, reader)))
+        if parts:
+            yield SSE.patch_elements("\n".join(parts))
+
+    return redraw()
 
 
 def _toast(message: str, *, reset_age: bool = False) -> DatastarResponse:

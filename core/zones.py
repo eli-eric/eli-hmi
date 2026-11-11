@@ -121,6 +121,9 @@ class Gui:
     path: Path
     #: Top-level components, already built.
     components: list[Component]
+    #: For a component's detail view: the screen it was opened from, as
+    #: `{href, label}`. None for a screen, which is reached from the menu.
+    back: dict[str, str] | None = None
 
     @property
     def url(self) -> str:

@@ -1,0 +1,70 @@
+{#- One device's modules, each collapsing to hide its registers: a tree of
+    hundreds is unreadable with everything open.
+
+    The registers are the app's own rows, not a list of this view's invention:
+    the label column and the right edge are the card's, so a register reads
+    like every other reading in the HMI and there is no second geometry to
+    keep aligned. -#}
+{% import "rows.html" as rows with context %}
+{#- The tree shuts its open panel the way every cog on these screens does: a
+    click that lands neither on a SET button nor inside a write panel puts the
+    selection back to nothing, and Escape does the same. One handler for the
+    whole tree rather than one per register — a module has hundreds, and that
+    would be hundreds of window listeners for one behaviour. -#}
+<article class="panel register-tree"
+         data-on:click__window="evt.target.closest('.register-select, .register-write') || (${{ selected_signal }} = '')"
+         data-on:keydown__window="evt.key === 'Escape' && (${{ selected_signal }} = '')">
+  <header class="panel-header">
+    <h2 class="panel-title">{{ c.title }}</h2>
+  </header>
+  <div class="body">
+    {% for module in modules %}
+    <section class="card">
+      <button type="button" class="module-head"
+              data-on:click="${{ module.signal }} = !${{ module.signal }}"
+              data-attr="{'aria-expanded': ${{ module.signal }} ? 'true' : 'false'}">
+        <span class="module-label">{{ module.label }}</span>
+        <span class="module-count">{{ module.registers | length }}</span>
+        <span class="corner-triangle" data-attr="{'data-expanded': ${{ module.signal }}}" aria-hidden></span>
+      </button>
+      <div class="register-list" data-show="${{ module.signal }}" style="display:none">
+        {% for register in module.registers %}
+        {#- The reading and its Set button share the value column, rather than
+            the button taking an action column of its own: a row's reading
+            would otherwise be narrower for being writable, and a column of
+            numbers has to line up to be read. -#}
+        {%- set cell %}
+        <span class="register-cell">
+          {{- w[register.widget] }}
+          {%- if register.write %}
+          {#- Pressing it again shuts the panel, without asking the server:
+              the selection is this browser's, and a round-trip to be told
+              that nothing is selected is a round-trip to display nothing.
+              `aria-expanded` is what fills the button in while its panel is
+              open — the same mark, and the same styling, as a cog. -#}
+          <button type="button" class="register-select"
+                  data-on:click="${{ selected_signal }} === '{{ register.pv }}'
+                  ? (${{ selected_signal }} = '')
+                  : @get('{{ select_url }}&amp;pv={{ register.pv | urlencode }}')"
+                  data-attr="{'aria-expanded': ${{ selected_signal }} === '{{ register.pv }}' ? 'true' : 'false'}"
+                  aria-label="Set {{ register.label }}">SET</button>
+          {%- endif %}
+        </span>
+        {%- endset %}
+        {{ rows.row(register.label, cell, hint=register.pv) }}
+        {%- if register.write %}
+        {#- This register's write panel: filled when it is selected, and shown
+            only then. Every slot is emptied before one is filled, so the page
+            holds one panel — and one copy of the live NV widget — at a time. -#}
+        <div id="{{ register.slot }}" class="register-write"
+             data-show="${{ selected_signal }} === '{{ register.pv }}'"
+             style="display:none"></div>
+        {%- endif %}
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+    {#- The write panel for whichever register is selected. Empty until one
+        is, and replaced whole each time: one panel, not one per row. -#}
+  </div>
+</article>

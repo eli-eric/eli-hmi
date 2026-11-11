@@ -42,7 +42,11 @@ async def render_all(out: Path) -> list[tuple[str, str]]:
         # screen would render as a redirect to the login form.
         await client.post("/login", form={"username": "test", "password": "test"})
         stats = await (await client.get("/stats")).get_json()
-        for slug, screen in stats["screens"].items():
+        # The zone's screens, and the detail pages components own: a register
+        # tree is layout too, and the point of a snapshot is to look at it.
+        targets = {slug: screen["title"] for slug, screen in stats["screens"].items()}
+        targets.update({slug: slug for slug in stats.get("detail_pages", [])})
+        for slug, title in targets.items():
             response = await client.get(f"/{slug}")
             html = (await response.get_data()).decode()
             # No stream, no vendored JS: a frozen page, and one less thing that
@@ -50,9 +54,13 @@ async def render_all(out: Path) -> list[tuple[str, str]]:
             html = re.sub(r'\s*data-init="[^"]*"', "", html)
             html = re.sub(r"\s*<script[^>]*></script>", "", html)
             html = html.replace('href="/static/css/hmi.css"', 'href="css/hmi.css"')
-            (out / f"{slug}.html").write_text(html)
-            pages.append((slug, screen["title"]))
-            print(f"{out / (slug + '.html')}  ({len(html)} bytes)")
+            # A detail page's slug has the screen in it, so the file is
+            # named flat rather than nested in a folder nobody would look in.
+            name = slug.replace("/", "-")
+            html = html.replace('href="css/hmi.css"', 'href="css/hmi.css"')
+            (out / f"{name}.html").write_text(html)
+            pages.append((name, title))
+            print(f"{out / (name + '.html')}  ({len(html)} bytes)")
     return pages
 
 

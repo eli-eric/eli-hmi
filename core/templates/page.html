@@ -24,6 +24,12 @@
 
   <div class="sticky-header">
     <header class="page-header">
+      {#- A detail view is left the way it was entered. Not the menu, which
+          offers the zone's screens and not the one you came from. -#}
+      {% if gui.back %}
+      <a class="page-back" href="{{ gui.back.href }}"
+         title="Back to {{ gui.back.label }}" aria-label="Back to {{ gui.back.label }}">←</a>
+      {% endif %}
       <h1 class="page-title">{{ gui.title }}</h1>
       {% if gui.description %}<span class="page-description">{{ gui.description }}</span>{% endif %}
       {# Two independent failure reports. `#link-banner` is pushed by the server

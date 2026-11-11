@@ -7,6 +7,8 @@ rule an operator's reading of the screen depends on.
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from core.epics.types import Datatype, PvId, PvSample
@@ -451,172 +453,412 @@ class TestSequencerTooltips:
         assert context["readout"].text == "PV DSC"
 
 
-class TestWaveformCatalog:
-    """The Modbox serves its own waveform list, and it changes while the
-    machine is running — a list baked into config is wrong by the second
-    shift. The React panel fetches it from the browser; here the server does,
-    which needs no CORS on the device and puts the list in the first paint.
+class TestRegistersReachTheBackends:
+    """A register the screen can show is a PV the simulator invents and the
+    generated IOC serves. Declared once by the component, as every other PV
+    is — otherwise the tree is a screen you can only develop against hardware.
     """
 
-    @staticmethod
-    def stub(payload, calls=None):
-        """A tiny HTTP server standing in for a Modbox."""
-        import json
-        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-        from threading import Thread
+    def panel_with_modules(self, zone):
+        from components.laser_panel.config import Module, Register
 
-        class Handler(BaseHTTPRequestHandler):
-            def do_GET(self):  # noqa: N802 - http.server's interface
-                if calls is not None:
-                    calls.append(self.path)
-                body = json.dumps(payload() if callable(payload) else payload)
-                self.send_response(200)
-                self.send_header("content-type", "application/json")
-                self.send_header("content-length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body.encode())
+        module = Module.model_validate(
+            {
+                "label": "PS1225:11",
+                "prefix": "L4-OPCPA-NL2:PS1225:11",
+                "registers": [
+                    # Not `ErrorCode`: the overview already declares that PV,
+                    # so it would pass this test without the tree declaring it.
+                    {"name": "T_out", "label": "Outlet temp"},
+                    {"name": "SetPoint", "label": "Setpoint", "write": True},
+                ],
+            }
+        )
+        return build_panel(zone, modules=[module])
 
-            def log_message(self, *_):  # keep the test output clean
-                pass
+    def test_every_register_is_declared(self, zone):
+        panel = self.panel_with_modules(zone)
+        declared = {spec.name for spec in panel.pv_specs()}
+        assert "L4-OPCPA-NL2:PS1225:11:T_out" in declared
+        assert "L4-OPCPA-NL2:PS1225:11:SetPoint" in declared
 
-        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        Thread(target=server.serve_forever, daemon=True).start()
-        return server, f"http://127.0.0.1:{server.server_port}/waveforms"
 
-    async def test_the_list_comes_from_the_lasers_own_endpoint(self, zone):
-        server, url = self.stub(["alpha", "beta"])
+class TestARegisterCanBeWrittenWithoutHardware:
+    """A setpoint is written to `<register>:W`, so that record has to exist
+    wherever the screen runs — or Confirm appears to work in dev and moves
+    nothing, which is the worst way for a control to fail."""
+
+    async def test_writing_the_setpoint_moves_the_readback(self, zone):
+        import asyncio
+
+        from core.epics.sim_backend import SimBackend, seed_from_specs
+
+        backend = SimBackend(tick_seconds=10, seed=1)
+        seed_from_specs(backend, [s for g in zone.guis for s in g.all_pv_specs()])
+        readback = "L4-OPCPA-NL2:PS1225:11:SetPoint"
+
+        assert backend.spec(f"{readback}:W") is not None, "nothing serves the write"
+        await backend.start()
         try:
-            panel = build_panel(zone, waveforms_url=url)
-            await panel.warm()
-            assert panel.context()["waveforms"] == ["alpha", "beta"]
+            await backend.caput(f"{readback}:W", 21)
+            await asyncio.sleep(0.05)
+            assert backend.spec(readback).value == 21
         finally:
-            server.shutdown()
-
-    async def test_the_list_reads_alphabetically(self, zone):
-        """A Modbox answers in whatever order its own store holds, which is
-        the order waveforms were created. An operator looking for one name in
-        a drop-down is reading, not browsing."""
-        server, url = self.stub(["ramp-up", "Broad-200ps", "std-100ps", "narrow-50ps"])
-        try:
-            panel = build_panel(zone, waveforms_url=url)
-            await panel.warm()
-            assert panel.context()["waveforms"] == [
-                "Broad-200ps",
-                "narrow-50ps",
-                "ramp-up",
-                "std-100ps",
-            ], "case must not decide the order either"
-        finally:
-            server.shutdown()
-
-    def test_a_configured_list_reads_alphabetically_too(self, zone):
-        panel = build_panel(zone, waveforms=["zulu", "alpha", "Mike"])
-        assert panel.context()["waveforms"] == ["alpha", "Mike", "zulu"]
-
-    async def test_nothing_can_be_sent_from_an_empty_catalog(self, zone):
-        """A device that answers with nothing, or stops answering, leaves both
-        waveform controls with nothing to send — so both Confirm buttons go
-        dead. `$signal === ''` alone does not cover it: a list that empties
-        under a selection already made would leave the button live, offering
-        to send a name the device no longer has.
-        """
-        server, url = self.stub([])
-        try:
-            panel = build_panel(zone, waveforms_url=url)
-            await panel.warm()
-            available = f"{panel.key}_waveforms_available"
-            assert panel.signals[available] is False
-        finally:
-            server.shutdown()
-
-    async def test_a_catalog_that_answers_puts_the_buttons_back(self, zone):
-        server, url = self.stub(["alpha"])
-        try:
-            panel = build_panel(zone, waveforms_url=url)
-            await panel.warm()
-            assert panel.signals[f"{panel.key}_waveforms_available"] is True
-        finally:
-            server.shutdown()
-
-    async def test_an_unreachable_modbox_leaves_the_screen_usable(self, zone):
-        """A device that does not answer must not take the page with it."""
-        panel = build_panel(zone, waveforms_url="http://127.0.0.1:9/waveforms")
-        await panel.warm()
-        assert panel.context()["waveforms"] == []
-
-    async def test_reopening_the_cog_picks_up_a_changed_catalog(self, zone):
-        """The catalog changes while the machine runs, so a list fetched once
-        at start-up is wrong by the second shift."""
-        served = [["alpha"]]
-        server, url = self.stub(lambda: served[0])
-        try:
-            panel = build_panel(zone, waveforms_url=url)
-            await panel.warm()
-            assert panel.context()["waveforms"] == ["alpha"]
-
-            served[0] = ["alpha", "gamma"]
-            await panel.warm()
-            assert panel.context()["waveforms"] == ["alpha", "gamma"]
-        finally:
-            server.shutdown()
+            await backend.stop()
 
 
-class TestModuleErrorCodes:
-    """The codes are numeric PVs, and what counts as a fault is the IOC's to
-    say. A panel deciding that 0 is healthy would be a second, private notion
-    of "bad" living in the screen — and the comparison that was here, against
-    the string "0000", would have called every numeric reading an error.
-    """
+class TestADeclarationlessRegister:
+    """A real zone declares a name, a label and whether it is writable. The
+    range and the states are the device's, read when the register is selected
+    — so a register that declares neither must offer no range at all, rather
+    than one this screen made up."""
 
-    def _overview(self, spec, panel, codes):
-        samples = all_good(spec)
-        for item, (value, severity) in zip(spec.module_errors, codes):
-            samples[PvId(item.pv)] = ok(item.pv, value, severity)
-        return panel.widgets["overview"].build(reader(samples))
+    async def test_no_range_means_no_range(self, zone):
+        from core.epics.sim_backend import SimBackend, seed_from_specs
+        from core.epics.types import PvId
+        from components.laser_panel.config import Module
 
-    def test_an_alarmed_code_is_counted(self, spec, panel):
-        codes = [(1024, 2)] + [(0, 0)] * (len(spec.module_errors) - 1)
-        context = self._overview(spec, panel, codes)
-        assert context["err"].text == f"1/{len(spec.module_errors)}"
-
-    def test_a_code_nobody_alarmed_is_not(self, spec, panel):
-        """Non-zero and unflagged: shown as it arrives, counted as nothing."""
-        codes = [(33, 0)] * len(spec.module_errors)
-        context = self._overview(spec, panel, codes)
-        assert context["err"].text == f"0/{len(spec.module_errors)}"
-        assert context["err"].tone == "positive-important"
-
-
-class TestYdfaCurrent:
-    """The laser under test has no YDFA current to set, so the shipped zone
-    does not list the command and the screen has no control for it (see
-    `TestOptionalCommands` in test_app.py).
-
-    The component still supports it for a laser that does — this is what that
-    support is. If no laser ever asks for it, this and the `SEND_YDFA_CURRENT`
-    entry in `commands.py` are what comes out.
-    """
-
-    COMMANDS = {
-        "SEND_YDFA_CURRENT": "SEND_YDFA_CURRENT",
-        "MODBOX_ON": "MODBOX_ON",
-    }
-
-    def test_a_laser_that_lists_it_gets_the_command(self, zone):
-        panel = build_panel(zone, commands=self.COMMANDS)
-        assert panel.config.can("SEND_YDFA_CURRENT")
-        assert panel.context()["cmd"]["SEND_YDFA_CURRENT"]["pv"] == (
-            "CMD_NL2_SEND_YDFA_CURRENT"
+        module = Module.model_validate(
+            {
+                "label": "PS9999:01",
+                "prefix": "L4-OPCPA-NL2:PS9999:01",
+                "registers": [{"name": "Bare", "label": "Bare", "write": True}],
+            }
+        )
+        panel = build_panel(zone, modules=[module])
+        backend = SimBackend(tick_seconds=10, seed=1)
+        seed_from_specs(backend, panel.pv_specs())
+        described = await backend.describe(PvId("L4-OPCPA-NL2:PS9999:01:Bare"))
+        assert described.low is None and described.high is None, (
+            f"a range nobody declared: {described}"
         )
 
-    def test_the_amplifier_s_range_is_declared_with_it(self, zone):
-        """The bounds travel with the command, not with the screen: the write
-        endpoint reads them from here for every route to the PV."""
-        panel = build_panel(zone, commands=self.COMMANDS)
-        limits = panel.limits["CMD_NL2_SEND_YDFA_CURRENT"]
-        assert (limits.min, limits.max, limits.precision) == (0, 6, 1)
 
-    def test_a_laser_that_does_not_declares_nothing(self, zone):
-        panel = build_panel(zone, commands={"MODBOX_ON": "MODBOX_ON"})
-        assert not panel.config.can("SEND_YDFA_CURRENT")
-        assert "CMD_NL2_SEND_YDFA_CURRENT" not in panel.limits
+class TestARegistersKindDecidesHowItIsRead:
+    """A register says what it is, and that one word decides the datatype it
+    is monitored at.
+
+    A tree is the generic case — hundreds of records of every type under one
+    heading — so the type is declared rather than discovered: the subscription
+    has to be right before the first reading arrives, and an enum read at its
+    native type delivers an index where the row should say RUN.
+    """
+
+    def tree_for(self, zone, **register):
+        from components.laser_panel.config import Module
+
+        module = Module.model_validate(
+            {
+                "label": "PS9999:01",
+                "prefix": "L4-OPCPA-NL2:PS9999:01",
+                "registers": [{"name": "Mode", "label": "Mode", **register}],
+            }
+        )
+        return build_panel(zone, modules=[module]).detail().components[0]
+
+    def datatype_of(self, tree, pv: str):
+        widget = next(
+            w for w in tree.widgets.values() if any(p.name == pv for p in w.pvs)
+        )
+        return next(p.datatype for p in widget.pvs if p.name == pv)
+
+    def test_an_enum_is_read_by_name(self, zone):
+        from core.epics.types import Datatype
+
+        tree = self.tree_for(zone, kind="enum", states=["STANDBY", "RUN"])
+        pv = "L4-OPCPA-NL2:PS9999:01:Mode"
+        assert self.datatype_of(tree, pv) is Datatype.ENUM_STRING
+
+    def test_a_two_state_record_is_read_by_name_too(self, zone):
+        """A bi/bo record names its states (ZNAM/ONAM) exactly as an mbbi
+        does — so it is read by name, and the row says what the record calls
+        the state, not ON/OFF chosen by this screen."""
+        from core.epics.types import Datatype
+
+        tree = self.tree_for(zone, kind="bool", states=["Closed", "Open"])
+        pv = "L4-OPCPA-NL2:PS9999:01:Mode"
+        assert self.datatype_of(tree, pv) is Datatype.ENUM_STRING
+        assert self.row(tree, pv, "Open") == "Open"
+
+    def test_anything_numeric_is_read_as_a_number(self, zone):
+        """Whatever record the device used — ai, longin, calc — the tree asks
+        for a number, so one column of readings is one kind of value."""
+        from core.epics.types import Datatype
+
+        tree = self.tree_for(zone)
+        pv = "L4-OPCPA-NL2:PS9999:01:Mode"
+        assert self.datatype_of(tree, pv) is Datatype.NUMBER
+
+    def row(self, tree, pv, value):
+        """What the tree's row for this register reads."""
+        from core.components import PvReader, PvSample
+        from core.epics.types import PvId
+
+        widget = next(
+            w for w in tree.widgets.values() if any(p.name == pv for p in w.pvs)
+        )
+        pv_id = next(p for p in widget.pvs if p.name == pv)
+        sample = PvSample(name=pv, ok=True, value=value, timestamp=1.0)
+        return widget.build(PvReader({pv_id: sample}, True))["readout"].text
+
+    def test_the_name_arrives_with_the_reading(self, zone):
+        """No index to translate and no second answer to wait for: the row
+        reads RUN from the first monitor update, not after a description
+        landed."""
+        tree = self.tree_for(zone, kind="enum", states=["STANDBY", "RUN"])
+        assert self.row(tree, "L4-OPCPA-NL2:PS9999:01:Mode", "RUN") == "RUN"
+
+
+class TestTheNvCheckboxIsTheWholeControl:
+    """One element: the box is ticked when the device is armed, follows the
+    PV's monitor, and ticks the moment it is pressed. No separate indicator —
+    the only thing worth saying beside it is that a write failed."""
+
+    NV = "L4-OPCPA-NL2:NVWriteEnable"
+
+    @pytest.fixture
+    def detail(self):
+        from core.page import build_pages
+
+        zone = load_zone("TESTZ")
+        page = build_pages(zone, create_environment())["l4-opcpa/NL2/registers"]
+        return page, page.gui.components[0]
+
+    def draw(self, detail, sample) -> str:
+        page, tree = detail
+        return str(page.render_widget(tree.widgets["nv"], reader({PvId(self.NV): sample})))
+
+    def box(self, detail, sample) -> dict[str, str | None]:
+        """The checkbox's attributes, parsed — so `checked` means the
+        attribute, not the word appearing in its click handler."""
+        from html.parser import HTMLParser
+
+        found: dict[str, str | None] = {}
+
+        class Inputs(HTMLParser):
+            def handle_starttag(self, tag, attrs):
+                if tag == "input" and not found:
+                    found.update(attrs)
+
+        Inputs().feed(self.draw(detail, sample))
+        return found
+
+    def test_there_is_no_separate_indicator(self, detail):
+        markup = self.draw(detail, ok(self.NV, 0))
+        assert 'type="checkbox"' in markup
+        assert "nv-state" not in markup, "the indicator chip is still drawn"
+
+    def test_the_box_follows_the_device(self, detail):
+        assert "checked" in self.box(detail, ok(self.NV, 1))
+        assert "checked" not in self.box(detail, ok(self.NV, 0))
+
+    def test_a_press_writes_what_the_box_now_shows(self, detail):
+        """From the box at the moment of the press, not from what the server
+        last drew: a second press before the device confirms the first must
+        write the opposite, not the same value again."""
+        markup = self.draw(detail, ok(self.NV, 0))
+        assert "el.checked" in markup, "the value written is fixed at render time"
+
+    def test_the_box_keeps_its_attribute_in_step(self, detail):
+        """Datastar's morph only corrects `checked` when the *attribute*
+        differs between the drawn box and the redraw. A press flips the
+        property alone, so without this a refused write redraws the same
+        attribute and the box stays wrong."""
+        markup = self.draw(detail, ok(self.NV, 0))
+        assert "toggleAttribute('checked'" in markup
+
+    def test_a_pv_that_cannot_be_read_disables_the_box(self, detail):
+        """Without the chip there is nothing else to say PV DSC — and an
+        unticked box that can still be pressed reads as 'volatile', which is
+        the dangerous way to be wrong about whether a write is permanent."""
+        from core.epics.types import PvSample
+
+        lost = PvSample(name=self.NV, ok=False, error="disconnected", severity=3)
+        assert "disabled" in self.box(detail, lost)
+        assert "checked" not in self.box(detail, lost)
+        assert "disabled" not in self.box(detail, ok(self.NV, 0))
+
+    def test_an_invalid_pv_can_still_be_written(self, detail):
+        """A write PV is processed only when it is written, so a write is the
+        one thing that clears its severity. One that has never been written
+        since the IOC started is UDF and INVALID — and disabling the box for
+        that would leave it so for good."""
+        from core.epics.types import PvSample
+
+        for status, value in ((17, 0), (17, 1)):  # UDF, as an IOC reports it
+            invalid = PvSample(
+                name=self.NV, ok=True, value=value, severity=3, status=status, timestamp=1.0
+            )
+            box = self.box(detail, invalid)
+            assert "disabled" not in box, "an INVALID write PV cannot be written again"
+            assert ("checked" in box) == (value == 1), "the box does not show the value"
+
+    def test_a_failure_is_reported_outside_the_box_s_own_element(self, detail):
+        """The write names a status line to report into, and that line is not
+        part of the widget — the redraw that puts the box right after a
+        failure would otherwise wipe the message that explains it."""
+        page, tree = detail
+        markup = self.draw(detail, ok(self.NV, 0))
+        assert f"status={tree.nv_status}" in markup
+        assert f'id="{tree.nv_status}"' not in markup
+
+
+class TestARegistersUnitIsTheDevices:
+    """A register's unit is the record's EGU, read from its control fields at
+    start-up — not the zone file's. A `units:` in the YAML is what the
+    simulator answers that read with, and a real zone leaves it out."""
+
+    PV = "L4-OPCPA-NL2:PS9999:01:Temp"
+
+    def tree_for(self, zone, **register):
+        from components.laser_panel.config import Module
+
+        module = Module.model_validate(
+            {
+                "label": "PS9999:01",
+                "prefix": "L4-OPCPA-NL2:PS9999:01",
+                "registers": [{"name": "Temp", "label": "Temp", **register}],
+            }
+        )
+        return build_panel(zone, modules=[module]).detail().components[0]
+
+    def row(self, tree, value) -> str:
+        from core.components import PvReader, PvSample
+
+        widget = next(
+            w for w in tree.widgets.values() if any(p.name == self.PV for p in w.pvs)
+        )
+        pv_id = next(p for p in widget.pvs if p.name == self.PV)
+        sample = PvSample(name=self.PV, ok=True, value=value, timestamp=1.0)
+        readout = widget.build(PvReader({pv_id: sample}, True))["readout"]
+        return f"{readout.text} {readout.units or ''}"
+
+    def test_the_tree_asks_about_every_register(self, zone):
+        assert self.PV in self.tree_for(zone).describes()
+
+    def test_a_string_is_not_asked_about(self, zone):
+        """A string record has no control fields — DBR_CTRL_STRING carries
+        the value and its alarm state, nothing else — so asking costs a read
+        and answers nothing."""
+        assert self.PV not in self.tree_for(zone, kind="string").describes()
+
+    def test_the_row_shows_the_unit_the_device_reports(self, zone):
+        from core.epics.types import PvDescription
+
+        tree = self.tree_for(zone, units="°C")
+        tree.described({self.PV: PvDescription(units="K")})
+        row = self.row(tree, 296.5)
+        assert "K" in row, f"the device's unit is not shown: {row!r}"
+        assert "°C" not in row, f"the zone file's unit is shown instead: {row!r}"
+
+    def test_a_record_that_has_not_answered_shows_no_unit(self, zone):
+        """Not the zone file's as a stand-in: two sources for one unit is how
+        a screen comes to show °C for a record that reads in K."""
+        tree = self.tree_for(zone, units="°C")
+        assert "°C" not in self.row(tree, 296.5)
+
+
+class TestAChannelThatComesBackIsDescribedAgain:
+    """A module powered down at start-up answers nothing about its records.
+    When its channel comes back it is asked again — and the row is drawn
+    again with the answer, because the reading itself may well be the same
+    one it had before, and a static setpoint would otherwise wait for its
+    next change to show its unit."""
+
+    T_OUT = "L4-OPCPA-NL2:PS1225:11:T_out"
+
+    async def test_the_row_is_redrawn_with_what_the_record_now_says(self):
+        from core.epics.hub import PvHub
+        from core.epics.sim_backend import SimBackend
+        from core.epics.types import PvDescription, PvSample
+        from core.page import build_pages, describe_on_reconnect
+
+        zone = load_zone("TESTZ")
+        pages = build_pages(zone, create_environment())
+        detail = pages["l4-opcpa/NL2/registers"]
+        backend = SimBackend(tick_seconds=60, seed=1)
+
+        async def kelvin(pv):
+            return PvDescription(units="K")
+
+        backend.describe = kelvin
+        hub = PvHub(backend)
+        await hub.start()
+        try:
+            describe_on_reconnect(hub, pages)
+            pv = next(p for p in detail.all_pvs if p.name == self.T_OUT)
+            watching = await hub.subscribe(detail.all_pvs)
+            hub._on_sample(pv, PvSample(name=self.T_OUT, ok=True, value=23.0, timestamp=1.0))
+            hub._on_sample(pv, PvSample(name=self.T_OUT, ok=False, error="disconnected"))
+            hub._on_sample(pv, PvSample(name=self.T_OUT, ok=True, value=23.0, timestamp=2.0))
+            watching.drain()  # what the reconnect itself woke
+
+            await asyncio.sleep(0.05)  # the record is asked, and answers
+
+            assert pv in watching.drain(), "the answer arrived and nothing was redrawn"
+            patch = detail.render_patch(PvReader(hub.snapshot(detail.all_pvs), True), [pv])
+            assert "K" in patch, patch
+            await watching.close()
+        finally:
+            await hub.stop()
+
+
+class TestARegistersKindDecidesWhatItsWriteTakes:
+    """The same word that chose the datatype chooses the write rule — and the
+    field the operator types into, which is built from that rule."""
+
+    def rule_for(self, zone, kind, described=None):
+        from components.laser_panel.config import Module
+        from core.epics.types import PvDescription
+
+        module = Module.model_validate(
+            {
+                "label": "PS9999:01",
+                "prefix": "L4-OPCPA-NL2:PS9999:01",
+                "registers": [{"name": "R", "kind": kind, "write": True}],
+            }
+        )
+        tree = build_panel(zone, modules=[module]).detail().components[0]
+        item = tree.register("L4-OPCPA-NL2:PS9999:01:R")
+        return tree.write_rule(item, described or PvDescription(low=0, high=3000))
+
+    def test_an_int_register_takes_whole_numbers(self, zone):
+        rule = self.rule_for(zone, "int")
+        assert rule.kind == "integer"
+        assert (rule.min, rule.max) == (0, 3000), "the device's limits are lost"
+
+    def test_a_float_register_takes_numbers(self, zone):
+        assert self.rule_for(zone, "float").kind == "number"
+
+    def test_a_string_register_takes_text(self, zone):
+        """Not a number with no bounds: that refused every word written to a
+        string register."""
+        assert self.rule_for(zone, "string").kind == "text"
+
+    def test_a_string_register_gets_a_field_that_takes_words(self, zone):
+        """The numeric field greys Confirm out while its text is not a
+        number — which, for a string register, is always."""
+        from components.laser_panel.config import Module
+        from core.epics.types import PvDescription
+
+        module = Module.model_validate(
+            {
+                "label": "PS9999:01",
+                "prefix": "L4-OPCPA-NL2:PS9999:01",
+                "registers": [{"name": "Note", "kind": "string", "write": True}],
+            }
+        )
+        tree = build_panel(zone, modules=[module]).detail().components[0]
+        item = tree.register("L4-OPCPA-NL2:PS9999:01:Note")
+        markup = create_environment().get_template("register_tree/write_panel.html").render(
+            comp=tree,
+            c=tree.config,
+            register=item,
+            described=PvDescription(),
+            rule=tree.write_rule(item, PvDescription()),
+            nv="",
+        )
+        assert 'class="preset-field"' in markup
+        assert "isNaN" not in markup, "Confirm is held dead until the text is a number"
+        assert "preventDefault" not in markup, "keys are blocked in a text field"
+        assert 'inputmode="decimal"' not in markup

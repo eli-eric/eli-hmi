@@ -850,6 +850,121 @@ record(bi, "L4-OPCPA-NL2:SEQ:FlashlampsStandby") {
     field(ZNAM, "IDLE")
     field(ONAM, "RUNNING")
 }
+record(bi, "L4-OPCPA-NL2:NVWriteEnable") {
+    field(DESC, "NL2 non-volatile write armed")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZNAM, "volatile")
+    field(ONAM, "non-volatile")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:11:SetPoint") {
+    field(DESC, "PS1225:11 Setpoint")
+    field(PINI, "YES")
+    field(VAL, "23.0")
+    field(EGU, "°C")
+    field(PREC, "3")
+    field(LOPR, "18.0")
+    field(HOPR, "28.0")
+}
+record(ao, "L4-OPCPA-NL2:PS1225:11:SetPoint:W") {
+    field(DESC, "PS1225:11 Setpoint setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:11:SetPoint PP")
+    field(EGU, "°C")
+    field(PREC, "3")
+    field(DRVL, "18.0")
+    field(DRVH, "28.0")
+    field(LOPR, "18.0")
+    field(HOPR, "28.0")
+}
+record(mbbi, "L4-OPCPA-NL2:PS1225:11:Mode") {
+    field(DESC, "PS1225:11 Mode")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "SERVICE")
+}
+record(mbbo, "L4-OPCPA-NL2:PS1225:11:Mode:W") {
+    field(DESC, "PS1225:11 Mode setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:11:Mode PP")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "SERVICE")
+}
+record(longin, "L4-OPCPA-NL2:PS1225:11:PumpSpeed") {
+    field(DESC, "PS1225:11 Pump speed")
+    field(PINI, "YES")
+    field(VAL, "1500")
+    field(EGU, "rpm")
+    field(LOPR, "0")
+    field(HOPR, "3000")
+}
+record(longout, "L4-OPCPA-NL2:PS1225:11:PumpSpeed:W") {
+    field(DESC, "PS1225:11 Pump speed setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:11:PumpSpeed PP")
+    field(EGU, "rpm")
+    field(DRVL, "0.0")
+    field(DRVH, "3000.0")
+    field(LOPR, "0.0")
+    field(HOPR, "3000.0")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:12:SetPoint") {
+    field(DESC, "PS1225:12 Setpoint")
+    field(PINI, "YES")
+    field(VAL, "23.0")
+    field(EGU, "°C")
+    field(PREC, "3")
+    field(LOPR, "18.0")
+    field(HOPR, "28.0")
+}
+record(ao, "L4-OPCPA-NL2:PS1225:12:SetPoint:W") {
+    field(DESC, "PS1225:12 Setpoint setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:12:SetPoint PP")
+    field(EGU, "°C")
+    field(PREC, "3")
+    field(DRVL, "18.0")
+    field(DRVH, "28.0")
+    field(LOPR, "18.0")
+    field(HOPR, "28.0")
+}
+record(mbbi, "L4-OPCPA-NL2:PS1225:12:Mode") {
+    field(DESC, "PS1225:12 Mode")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "SERVICE")
+}
+record(mbbo, "L4-OPCPA-NL2:PS1225:12:Mode:W") {
+    field(DESC, "PS1225:12 Mode setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:12:Mode PP")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "SERVICE")
+}
+record(longin, "L4-OPCPA-NL2:PS1225:12:PumpSpeed") {
+    field(DESC, "PS1225:12 Pump speed")
+    field(PINI, "YES")
+    field(VAL, "1500")
+    field(EGU, "rpm")
+    field(LOPR, "0")
+    field(HOPR, "3000")
+}
+record(longout, "L4-OPCPA-NL2:PS1225:12:PumpSpeed:W") {
+    field(DESC, "PS1225:12 Pump speed setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:12:PumpSpeed PP")
+    field(EGU, "rpm")
+    field(DRVL, "0.0")
+    field(DRVH, "3000.0")
+    field(LOPR, "0.0")
+    field(HOPR, "3000.0")
+}
 # One write, 16 records.
 record(dfanout, "SIM:CMD_NL2_START_LASER:fan0_1") {
     field(DESC, "CMD_NL2_START_LASER -> 16 records")

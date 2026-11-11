@@ -1,0 +1,45 @@
+{#- The register being written, and nothing else on the page.
+
+    Rendered on demand (`/api/register`) rather than once per row: a module
+    has dozens of registers, most of them readings, and a control on each
+    would mean asking the device for hundreds of sets of limits nobody is
+    looking at.
+
+    A plain template rather than a macro, because the shared controls read
+    `comp` from the render context — the component is who a signal and a
+    status line belong to. -#}
+{% import "controls.html" as controls with context %}
+{% if register %}
+{#- No name of its own: the panel opens directly under the register's row,
+    which has just said it. The controls keep it as their accessible name, for
+    anyone who reaches them without seeing the row. -#}
+<div class="register-write-inner">
+  {#- Which control this is, from the rule the endpoint will enforce rather
+      than from a second reading of the device's answer: a register offered a
+      list of names and then checked as a number is the one way these two can
+      go wrong. A record that declared neither states nor limits is a number
+      with no bounds — unknown limits do not make a register unwritable. -#}
+  {% if rule.kind == 'choice' %}
+  {{ controls.choice_select(register.write_pv, comp.set_register,
+                            rule.choices, 'Set ' ~ (register.label or register.name),
+                            prompt='Select value') }}
+  {% else %}
+  {#- No visible label, for the same reason the panel has no name. The unit
+      is the record's own (EGU, from the control fields read on selection),
+      drawn beside the value it qualifies rather than after the button. -#}
+  {{ controls.preset_input('Set ' ~ (register.label or register.name), [],
+                           register.write_pv, comp.set_register,
+                           min=rule.min, max=rule.max,
+                           precision=rule.precision, show_label=false,
+                           units=described.units, kind=rule.kind) }}
+  {% endif %}
+  {#- Whether this write is permanent, beside the value it applies to. Live:
+      it reports what the device is armed to do, not what this browser last
+      asked for. Dead unless this register supports it. -#}
+  {% if nv %}{{ nv }}
+  {#- Beside the box, not inside its widget: a refused write redraws the box
+      from the device, and that redraw must not take the message with it. -#}
+  <span class="control-status" id="{{ comp.nv_status }}"></span>
+  {% endif %}
+</div>
+{% endif %}

@@ -12,17 +12,22 @@ component tree a GUI's YAML produced, collects widgets and signals, and renders.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import asyncio
+import logging
+
+from dataclasses import dataclass, replace
 from typing import Any, Iterable, Sequence
 
 from jinja2 import Environment
 from markupsafe import Markup
 
-from core.components import Component, PvReader, Widget
+from core.components import Component, Detail, PvReader, Widget
 from core.epics import PvId
 from core.palette import DEFAULT_PALETTE, PALETTES
 from core.jinja import WidgetRenderer
 from core.zones import Gui, Zone
+
+logger = logging.getLogger(__name__)
 
 LINK_BANNER_ID = "link-banner"
 
@@ -71,6 +76,13 @@ class Page:
 
         self._by_pv: dict[PvId, list[Widget]] = {}
         for widget in gui.all_widgets():
+            for pv in widget.pvs:
+                self._by_pv.setdefault(pv, []).append(widget)
+
+    def reindex(self) -> None:
+        """Rebuild PV -> widgets, after a component re-declared its widgets."""
+        self._by_pv = {}
+        for widget in self.gui.all_widgets():
             for pv in widget.pvs:
                 self._by_pv.setdefault(pv, []).append(widget)
 
@@ -125,9 +137,17 @@ class Page:
         component (a `panel`) never has to know what it contains.
         """
         template = self._env.get_template(component.template)
+        detail = component.detail()
         return Markup(
             template.render(
                 c=component.config,
+                # Where this component's own page is, if it has one. Built
+                # here because only the page knows which screen it is on.
+                detail_url=(
+                    f"/{self.gui.slug}/{component.key}/{detail.slug}"
+                    if detail is not None
+                    else None
+                ),
                 w={role: self.render_widget(widget, reader) for role, widget in component.widgets.items()},
                 s=component.signals,
                 comp=component,
@@ -192,9 +212,111 @@ class Page:
         return str(self.render_widget(self.link_banner, reader))
 
 
+async def describe_components(hub: Any, pages: dict[str, "Page"]) -> None:
+    """Ask the device about the records its components asked about.
+
+    One read per PV, all of them at once, and only for the components that
+    said they need it (`Component.describes`). The answers go back through
+    `Component.described`, which may re-declare widgets — so every page is
+    indexed again afterwards, and this has to happen before anything
+    subscribes.
+    """
+    wanted: dict[str, list[Component]] = {}
+    for page in pages.values():
+        for component in page.gui.walk():
+            for name in component.describes():
+                wanted.setdefault(name, []).append(component)
+    if not wanted:
+        return
+
+    names = list(wanted)
+    logger.info("describing %d record(s) for the screens that asked", len(names))
+    answers = await asyncio.gather(
+        *(hub.describe(PvId(name)) for name in names), return_exceptions=True
+    )
+    for component in {id(c): c for cs in wanted.values() for c in cs}.values():
+        component.described(
+            {
+                name: answer
+                for name, answer in zip(names, answers)
+                if component in wanted[name] and not isinstance(answer, Exception)
+            }
+        )
+    for page in pages.values():
+        page.reindex()
+
+
+def describe_on_reconnect(hub: Any, pages: dict[str, "Page"]) -> None:
+    """Ask again about a record whose channel has come back.
+
+    Control fields are read once at start-up, so a module that was powered
+    down then would be described from nothing for the life of the process —
+    its registers reading as indices for the rest of the shift. A component
+    keeps what it was told as data, so answering again costs nothing but the
+    read.
+    """
+    wanted: dict[str, list[Component]] = {}
+    for page in pages.values():
+        for component in page.gui.walk():
+            for name in component.describes():
+                wanted.setdefault(name, []).append(component)
+    if not wanted:
+        return
+
+    async def ask(pv: PvId) -> None:
+        try:
+            description = await hub.describe(pv)
+        except Exception:  # noqa: BLE001 - a device that will not answer waits
+            logger.warning("could not describe %s after it reconnected", pv.name)
+            return
+        for component in wanted.get(pv.name, ()):
+            component.described({pv.name: description})
+        # The reconnect has already been drawn, before this answer existed;
+        # the reading may not change again for hours.
+        hub.invalidate(pv.name)
+
+    def reconnected(pv: PvId) -> None:
+        if pv.name in wanted:
+            # The hub's callback must stay cheap: the read happens on its own.
+            asyncio.get_running_loop().create_task(ask(pv))
+
+    hub.on_reconnect = reconnected
+
+
 def build_pages(zone: Zone, env: Environment) -> dict[str, Page]:
-    """One `Page` per GUI in the zone, keyed by slug."""
-    return {gui.slug: Page(zone, gui, env) for gui in zone.guis}
+    """One `Page` per GUI in the zone, plus one per component detail view.
+
+    A detail page is a page like any other — same renderer, same stream, same
+    index — reached at `/<screen>/<component key>/<detail slug>`. It is not in
+    the menu: the menu is the zone's folder listing, and a detail view is
+    reached from the component that owns it.
+    """
+    pages = {gui.slug: Page(zone, gui, env) for gui in zone.guis}
+    for gui in zone.guis:
+        for component in gui.walk():
+            detail = component.detail()
+            if detail is None:
+                continue
+            slug = f"{gui.slug}/{component.key}/{detail.slug}"
+            pages[slug] = Page(zone, _detail_gui(gui, slug, detail), env)
+    return pages
+
+
+def _detail_gui(gui: Gui, slug: str, detail: Detail) -> Gui:
+    """The detail view as a screen, so one `Page` serves both kinds.
+
+    `back` is what it was opened from: a detail view is left the way it was
+    entered, and an operator should not have to find the screen again among
+    the menu's others.
+    """
+    return replace(
+        gui,
+        slug=slug,
+        title=detail.title,
+        description="",
+        components=list(detail.components),
+        back={"href": gui.url, "label": gui.title},
+    )
 
 
 def all_pvs(pages: Sequence[Page]) -> set[PvId]:

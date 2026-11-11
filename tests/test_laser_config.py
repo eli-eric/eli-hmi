@@ -163,6 +163,33 @@ def with_signal(role: str, **options) -> str:
     )
 
 
+class TestModulesAndRegisters:
+    """Full control of a laser is its modules and their registers. A register
+    is named relative to its module, because a module repeats the same set on
+    every laser and spelling out each full PV is how a tree of hundreds goes
+    out of step with the device."""
+
+    MODULES = (
+        "    modules:\n"
+        "      - label: PS1225:11\n"
+        "        prefix: L4:NL2:PS1225:11\n"
+        "        registers:\n"
+        "          - {name: ErrorCode, label: Error code}\n"
+        "          - {name: SetPoint, label: Setpoint, write: true}\n"
+    )
+
+    def test_a_register_is_named_under_its_module(self):
+        laser = parse(MINIMAL + self.MODULES)
+        module = laser.modules[0]
+        assert [r.pv for r in module.registers] == [
+            "L4:NL2:PS1225:11:ErrorCode",
+            "L4:NL2:PS1225:11:SetPoint",
+        ]
+
+    def test_a_laser_without_modules_has_none(self):
+        assert parse(MINIMAL).modules == []
+
+
 class TestTheWriteSideOfADevice:
     """A device's setpoint record is not its readback. The shutter opened by
     writing to the record that reports its position only works where the two

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from urllib.parse import quote
 import socket
 import threading
 
@@ -341,17 +342,15 @@ class TestWriteGuards:
         """The endpoint is the guarantee; this is the courtesy. An operator
         should see that 60001 is not acceptable, not press Confirm and be told."""
         page = (await client.get("/l4-opcpa")).text
-        binding = re.search(r'data-attr="\{disabled:[^"]*"', page)
-        assert binding, "Confirm has no disabled binding"
-        assert "60000" in binding.group() and "10" in binding.group()
+        confirm = confirm_for(page, "NL2-set-trigger-delay-status")
+        assert "60000" in confirm and "10" in confirm
 
-    async def test_digits_the_device_cannot_resolve_are_dropped(self, client):
-        """Truncated, never rounded: 500.7 is 500. An operator watching a value
-        they did not type reach the machine is worse than a refused keystroke,
-        and rounding invents one."""
+    async def test_a_fraction_of_a_nanosecond_is_refused(self, client):
+        """The delay is an integer. Not truncated to 500 — that sends a value
+        nobody typed — but refused, and the field would not have let the
+        decimal point be typed in the first place."""
         response = await self._set(client, self.DELAY, "500.7")
-        assert "Refused" not in response.text
-        assert "500" in response.text and "500.7" not in response.text
+        assert "Refused" in response.text and "whole number" in response.text
 
     async def test_a_request_with_no_value_at_all_is_refused(self, client):
         # Falling through used to write the string "None" to the device.
@@ -391,8 +390,11 @@ class TestModboxActionLayout:
         """Side by side, the select was squeezed to a few characters — the
         names it holds are what the operator is choosing between."""
         css = (await client.get("/static/css/hmi.css")).text
-        rule = css[css.index(".waveform-select {") :][: css[css.index(".waveform-select {") :].index("}")]
-        assert "column" in rule
+        # The shared rule, at the start of a line — not one scoped to another
+        # panel (`.register-write-inner .waveform-select`), which has the
+        # width this one lacks and lays it out differently.
+        rule = re.search(r"^\.waveform-select \{([^}]*)\}", css, re.M)
+        assert rule and "column" in rule.group(1)
 
 
 class TestWaveformSelect:
@@ -432,13 +434,35 @@ class TestTruncationIsVisible:
     which is the one thing truncation must not cost.
     """
 
-    async def test_an_integer_field_drops_the_decimals_too(self, client):
-        """The delay resolves whole nanoseconds, so 500.7 is sent as 500 — the
-        field has to say so before the press, not after."""
-        page = (await client.get("/l4-opcpa")).text
-        field = page[page.index('aria-label="Set Trigger Delay custom value"') - 800 :][:800]
+    def test_a_field_with_decimals_says_what_will_be_sent(self):
+        """A current resolved to tenths (the YDFA's), so 2.55 is sent as 2.5 —
+        and the field rewrites itself to 2.5 on leaving it, before the press.
+        Rendered directly: no TESTZ laser exposes a field with decimals to
+        drop now that the trigger delay is an integer."""
+        from types import SimpleNamespace
+
+        from core.jinja import create_environment
+
+        markup = create_environment().from_string(
+            '{% import "controls.html" as controls with context %}'
+            '{{ controls.preset_input("YDFA current", [], "X:YDFA", "set_ydfa", precision=1) }}'
+        ).render(comp=SimpleNamespace(key="NL2"))
+        field = input_tag(markup, 'aria-label="YDFA current"')
         assert "data-on:blur" in field
-        assert "{0,0}" in field
+        assert "{0,1}" in field
+
+    async def test_the_trigger_delay_is_typed_in_whole_nanoseconds(self, client):
+        """An integer, so there is nothing to truncate: the decimal point
+        cannot be typed, the keypad does not offer one, and Confirm stays dead
+        for anything that is not a whole number."""
+        page = (await client.get("/l4-opcpa")).text
+        field = input_tag(page, 'aria-label="Set Trigger Delay custom value"')
+        assert 'inputmode="numeric"' in field, field
+        typeable = TestAFieldTakesOnlyWhatItsKindAllows.accepts(field)
+        assert not typeable("500.") and not typeable("5e"), "a decimal or exponent can be typed"
+        assert "data-on:blur" not in field, "a field with no decimals rewrites itself"
+        confirm = confirm_for(page, "NL2-set-trigger-delay-status")
+        assert "[0-9]" in confirm and "isNaN" not in confirm
 
     async def test_a_field_with_no_precision_is_left_alone(self, client):
         """Nothing to reconcile where every typed digit is sent."""
@@ -644,6 +668,435 @@ class TestTheWaveformConfirmButtons:
             "a catalog that empties while the page is open would leave the "
             f"buttons live: {body!r}"
         )
+
+
+class TestTheRegisterTree:
+    """Full control of a laser is its modules and every register under them.
+    That is far too much for the screen the panels live on, so it is its own
+    page: reached from the panel, and holding its own stream, so hundreds of
+    register monitors exist only while someone is looking at them.
+    """
+
+    async def test_a_laser_has_a_register_page(self, client):
+        answer = await client.get("/l4-opcpa/NL2/registers")
+        assert answer.status_code == 200
+        page = answer.text
+        assert "PS1225:11" in page, "the module is not in the tree"
+        assert "Outlet temp" in page, "its registers are not"
+
+
+class TestGettingToTheRegistersAndBack:
+    """A detail page is reached from the component that owns it and left by
+    the way it was entered. Not a menu entry: the menu is the zone's folder
+    listing, and a laser's registers belong to that laser, not to the zone."""
+
+    async def test_the_panel_offers_the_way_down(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        assert "/l4-opcpa/NL2/registers" in page, "no way to reach the tree"
+
+    async def test_the_tree_offers_the_way_back(self, client):
+        """Its own control, not the menu link that every page carries: the
+        way out of a detail view is the way back into what you were looking
+        at, and an operator should not have to find it among the screens."""
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        body = page[page.index("</nav>") :]
+        back = re.search(r'<a class="page-back"[^>]*href="([^"]+)"', body)
+        assert back, "no back control outside the menu"
+        assert back.group(1) == "/l4-opcpa"
+
+    async def test_the_menu_is_still_the_zone_s_folders(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        menu = page[page.index('class="nav"') : page.index("</nav>")]
+        assert "registers" not in menu, "a detail page crept into the menu"
+
+
+class TestWritingARegister:
+    """One write panel for the register being looked at, rather than a control
+    on every row: a module has dozens of registers and most are readings, and
+    the panel is where the device's own limits and choices are shown."""
+
+    SETPOINT = "L4-OPCPA-NL2:PS1225:11:SetPoint"
+    READING = "L4-OPCPA-NL2:PS1225:11:T_out"
+
+    async def test_only_a_setpoint_offers_to_be_written(self, client):
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        assert self.SETPOINT in page and self.READING in page, "registers missing"
+        # By what each control is for, rather than by position: a row's value
+        # cell is long enough to push its action column out of any window.
+        assert 'aria-label="Set Setpoint"' in page, "a setpoint cannot be selected"
+        assert 'aria-label="Set Outlet temp"' not in page, "a reading offers a write"
+
+    async def test_selecting_one_opens_a_panel_that_writes_it(self, client):
+        """The write goes to the register's own PV with `:W` appended — the
+        device's convention, derived so it cannot be mistyped."""
+        answer = await client.get(
+            "/api/register",
+            params={"component": "NL2-registers", "pv": self.SETPOINT},
+        )
+        body = answer.text
+        assert "Setpoint" in body, "the panel does not name the register"
+        assert quote(f"{self.SETPOINT}:W", safe="") in body, (
+            f"the write does not go to the setpoint record: {body!r}"
+        )
+
+
+class TestTheDeviceSuppliesItsOwnLimits:
+    """A register's range is in its control fields, not in the config.
+
+    Monitors deliberately ask for `FORMAT_TIME` — the control fields are a
+    heavier request, and there are hundreds of registers. So they are read
+    once, for the one register being written, when it is selected.
+    """
+
+    async def test_the_panel_offers_the_range_the_device_accepts(self, client):
+        body = (
+            await client.get(
+                "/api/register",
+                params={
+                    "component": "NL2-registers",
+                    "pv": "L4-OPCPA-NL2:PS1225:11:SetPoint",
+                },
+            )
+        ).text
+        # In the control, not as `min`/`max` on the field: the field holds
+        # text so that a half-typed decimal survives, so the range lives in
+        # what greys Confirm out and in what the row says when it does.
+        assert "18" in body and "28" in body, f"no range from the device: {body!r}"
+        assert "out of range (18" in body, f"nothing says what is allowed: {body!r}"
+
+
+class TestARegisterWithChoices:
+    async def test_the_panel_offers_the_states_the_device_has(self, client):
+        """An enum register is written by name, not by index — and the names
+        are the record's, not the config's."""
+        body = (
+            await client.get(
+                "/api/register",
+                params={
+                    "component": "NL2-registers",
+                    "pv": "L4-OPCPA-NL2:PS1225:11:Mode",
+                },
+            )
+        ).text
+        assert "STANDBY" in body and "SERVICE" in body, f"no choices: {body!r}"
+        assert "<select" in body, "a state register offers a number field"
+        assert "Waveform" not in body, (
+            "the prompt is the waveform control's, on a register that is not one"
+        )
+
+
+class TestTheWritePanelAppearsUnderItsRegister:
+    """A tree is hundreds of rows long. A panel at the foot of it would be
+    off-screen from the register it belongs to, and an operator would have no
+    way to tell which row it was written for."""
+
+    async def test_every_writable_register_has_a_slot_under_its_row(self, client):
+        """Between this register's row and the next one — measured against the
+        row that follows rather than a count of characters, which only says
+        how long the markup happens to be today."""
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        setpoint = page.index("L4-OPCPA-NL2:PS1225:11:SetPoint")
+        next_row = page.index("L4-OPCPA-NL2:PS1225:11:Mode", setpoint)
+        assert 'class="register-write"' in page[setpoint:next_row], (
+            "the panel does not follow the register it writes"
+        )
+
+    async def test_the_panel_is_patched_into_that_register_s_slot(self, client):
+        body = (
+            await client.get(
+                "/api/register",
+                params={
+                    "component": "NL2-registers",
+                    "pv": "L4-OPCPA-NL2:PS1225:11:SetPoint",
+                },
+            )
+        ).text
+        selector = re.search(r"data: selector (\S+)", body).group(1)
+        assert selector != "#NL2-registers-write", (
+            "every register still shares one panel at the foot of the tree"
+        )
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        assert selector.lstrip("#") in page, f"{selector} is not on the page"
+
+
+class TestThePanelsSignalsExistBeforeThePanelDoes:
+    """Every signal is declared with the page, never created by the markup
+    that first mentions it — the rule `Component.signal` states. A panel is
+    patched in later, so a signal it binds would otherwise spring into
+    existence on the first selection, and a control bound to one that does
+    not exist yet cannot report what was chosen.
+    """
+
+    async def test_the_write_field_binds_a_declared_signal(self, client):
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        # Every declaration on the page: the document element declares the
+        # palette, and the page its own.
+        declared = " ".join(re.findall(r'data-signals="([^"]*)"', page))
+        panel = (
+            await client.get(
+                "/api/register",
+                params={
+                    "component": "NL2-registers",
+                    "pv": "L4-OPCPA-NL2:PS1225:11:Mode",
+                },
+            )
+        ).text
+        bound = set(re.findall(r'data-bind="([^"]+)"', panel))
+        assert bound, "the panel binds nothing"
+        missing = [name for name in bound if name not in declared]
+        assert not missing, f"bound but never declared: {missing}"
+
+
+def confirm_for(page: str, status_id: str) -> str:
+    """One control's Confirm button, found by the status line it reports to.
+
+    By index rather than by pattern: the disabled expression contains `>`
+    characters, so a regex for a tag stops in the middle of one. The preset
+    chips report to the same status line, so it is the Confirm among them
+    that is wanted.
+    """
+    found = []
+    at = page.find('class="preset-confirm"')
+    while at != -1:
+        start = page.rindex("<button", 0, at)
+        end = page.index("</button>", at)
+        block = page[start:end]
+        if status_id in block:
+            found.append(block)
+        at = page.find('class="preset-confirm"', end)
+    assert found, f"no Confirm reports to {status_id}"
+    return found[0]
+
+
+class TestEverySetpointFieldSurvivesBeingTyped:
+    """`type="number"` reports a field as empty while its contents are not yet
+    a number — `21.`, `-`, `1e`. With a two-way binding that empty value goes
+    to the signal and straight back to the element, so the character just
+    typed disappears and the caret jumps to the front. Mid-edit states have to
+    be allowed to exist, so the field holds text and the value is checked
+    rather than the keystrokes being policed.
+    """
+
+    async def fields(self, client) -> list[str]:
+        page = (await client.get("/l4-opcpa")).text
+        found = re.findall(r"<input class=\"preset-field\"[^>]*>", page, re.S)
+        assert found, "no setpoint fields on the screen"
+        return found
+
+    async def test_none_of_them_is_a_number_input(self, client):
+        bad = [f for f in await self.fields(client) if 'type="number"' in f]
+        assert not bad, (
+            f"{len(bad)} field(s) will erase a half-typed decimal as it is typed"
+        )
+
+    async def test_they_still_ask_for_a_numeric_keypad(self, client):
+        """With a decimal point, or — for an integer like the trigger delay —
+        without one."""
+        for field in await self.fields(client):
+            assert 'inputmode="decimal"' in field or 'inputmode="numeric"' in field, field
+
+    async def test_confirm_refuses_what_is_not_a_number(self, client):
+        """Without the browser's own validation the control does it: `21.` is
+        a fine thing to be typing and not a fine thing to send. An integer
+        field holds the value to the whole-number pattern instead."""
+        page = (await client.get("/l4-opcpa")).text
+        assert "[0-9]" in confirm_for(page, "NL2-set-trigger-delay-status")
+        panel = (
+            await client.get(
+                "/api/register",
+                params={"component": "NL2-registers", "pv": "L4-OPCPA-NL2:PS1225:11:SetPoint"},
+            )
+        ).text
+        assert "isNaN" in confirm_for(panel, "status=")
+
+
+class TestTheWriteFieldStartsEmpty:
+    """Choosing a register is starting a new write.
+
+    One signal carries the value for whichever register is open, so without
+    clearing it a number typed for one register is still loaded when the next
+    is selected — a field reading blank while Confirm is live, and the old
+    number going to the new record.
+    """
+
+    async def test_selecting_a_register_clears_what_was_typed(self, client):
+        body = (
+            await client.get(
+                "/api/register",
+                params={
+                    "component": "NL2-registers",
+                    "pv": "L4-OPCPA-NL2:PS1225:11:Mode",
+                },
+            )
+        ).text
+        assert '"NL2_registers_set_register":""' in body, (
+            f"the previous register's value is still loaded: {body!r}"
+        )
+
+
+class TestWritingAStateByName:
+    """A state record takes a name, and a name is not a number — so none of
+    the checks a numeric field needs may be applied to it."""
+
+    async def test_a_state_with_an_e_in_it_goes_through(self, client):
+        pv = "L4-OPCPA-NL2:PS1225:11:Mode"
+        await client.get(
+            "/api/register", params={"component": "NL2-registers", "pv": pv}
+        )
+        answer = await client.post(
+            "/api/write", params={"pv": f"{pv}:W", "value": "SERVICE"}, json={}
+        )
+        assert "Refused" not in answer.text, answer.text
+        assert "SERVICE" in answer.text
+
+
+class TestWritingToNonVolatileMemory:
+    """Some registers can be written to the device's non-volatile memory, and
+    a single PV per laser arms it. The control is live — it shows what the
+    device is armed to do, not what this browser last asked for — and it is
+    offered only for the registers that support it."""
+
+    async def test_the_panel_says_whether_the_write_is_permanent(self, client):
+        """In the panel, beside the value it applies to — not standing apart
+        from the write it arms."""
+        panel = (
+            await client.get(
+                "/api/register",
+                params={
+                    "component": "NL2-registers",
+                    "pv": "L4-OPCPA-NL2:PS1225:11:SetPoint",
+                },
+            )
+        ).text
+        assert "non-volatile" in panel.lower(), "nothing says whether NV is armed"
+        assert quote("L4-OPCPA-NL2:NVWriteEnable", safe="") in panel, (
+            "the arming PV is not written by the control"
+        )
+
+    async def test_the_tree_itself_does_not_carry_it(self, client):
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        assert "non-volatile" not in page.lower(), (
+            "the arming control stands apart from the write it arms"
+        )
+
+
+class TestARegisterWriteIsHeldToTheDeviceRange:
+    """The field greys out its Confirm for a value outside the range the
+    device gave — but this endpoint is the one route to a write, and anything
+    that can post to it can post anything. The register's limits are recorded
+    when it is selected, and the write is held to them.
+    """
+
+    async def test_a_value_the_device_will_not_take_is_refused(self, client):
+        await client.get(
+            "/api/register",
+            params={
+                "component": "NL2-registers",
+                "pv": "L4-OPCPA-NL2:PS1225:11:SetPoint",
+            },
+        )
+        answer = await client.post(
+            "/api/write",
+            params={"pv": "L4-OPCPA-NL2:PS1225:11:SetPoint:W", "value": "99"},
+            json={},
+        )
+        assert "Refused" in answer.text, (
+            f"99 is outside the device's 18-28 and went through: {answer.text!r}"
+        )
+
+    async def test_a_value_it_will_take_goes_through(self, client):
+        await client.get(
+            "/api/register",
+            params={
+                "component": "NL2-registers",
+                "pv": "L4-OPCPA-NL2:PS1225:11:SetPoint",
+            },
+        )
+        answer = await client.post(
+            "/api/write",
+            params={"pv": "L4-OPCPA-NL2:PS1225:11:SetPoint:W", "value": "21"},
+            json={},
+        )
+        assert "Refused" not in answer.text, answer.text
+
+
+class TestTheTreeLooksLikeTheRestOfTheApp:
+    async def test_a_register_is_an_ordinary_row(self, client):
+        """Not a list of its own invention: the label column and the right
+        edge are the card's, so a register reads like every other reading in
+        the HMI and nothing new has to be kept aligned."""
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        tree = page[page.index("register-tree") :]
+        assert '<div class="row"' in tree, "the tree built its own geometry"
+
+    async def test_a_writable_row_is_as_wide_as_a_read_only_one(self, client):
+        """The Set button shares the value column rather than taking an action
+        column of its own: a row's reading would otherwise be narrower for
+        being writable, and a column of numbers has to line up to be read."""
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        tree = page[page.index("register-tree") :]
+        rows = re.findall(r'<div class="row" data-has-action="(\w+)"', tree)
+        assert rows, "no rows at all"
+        assert set(rows) == {"false"}, (
+            "a register row took an action column, narrowing its value"
+        )
+
+    async def test_a_module_says_whether_it_is_open(self, client):
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        assert "aria-expanded" in page, "a collapsed module announces nothing"
+
+    async def test_every_signal_on_the_page_is_one_identifier(self, client):
+        """`$a-b` is a subtraction, not a signal: a name that is not an
+        identifier fails silently in the browser and passes every test that
+        only reads the markup."""
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        bad = [
+            name
+            for name in set(re.findall(r"\$([A-Za-z0-9_-]+)", page))
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name)
+        ]
+        assert not bad, f"unusable in an expression: {sorted(bad)}"
+
+
+class TestRegisterMonitorsAreNotOnTheScreen:
+    """The whole reason the tree is a page of its own.
+
+    A register belongs to the detail page's index and to no other, so the
+    screen the panels live on never subscribes it. Hundreds of monitors per
+    laser would otherwise be held for every operator with that screen open,
+    whether or not anyone ever looks at a register.
+    """
+
+    def pages(self):
+        from core.jinja import create_environment
+        from core.page import build_pages
+        from core.zones import load_zone
+
+        return build_pages(load_zone("TESTZ"), create_environment())
+
+    def test_the_screen_does_not_subscribe_them(self):
+        pages = self.pages()
+        screen = {pv.name for pv in pages["l4-opcpa"].all_pvs}
+        detail = {pv.name for pv in pages["l4-opcpa/NL2/registers"].all_pvs}
+        register = "L4-OPCPA-NL2:PS1225:11:SetPoint"
+
+        assert register in detail, "the detail page is not reading it either"
+        assert register not in screen, (
+            "a register is monitored for everyone on the panel screen"
+        )
+
+    def test_the_detail_page_reads_nothing_but_its_registers(self):
+        """It is the laser's registers and the PV that arms a non-volatile
+        write — not a second copy of the panel."""
+        pages = self.pages()
+        detail = {pv.name for pv in pages["l4-opcpa/NL2/registers"].all_pvs}
+        assert detail, "no registers at all"
+        extra = {
+            name
+            for name in detail
+            if ":PS1225:" not in name and not name.endswith(":NVWriteEnable")
+        }
+        assert not extra, f"the tree reads something that is not its own: {extra}"
 
 
 class TestLabelsAndUnits:
@@ -986,3 +1439,470 @@ class TestAuthGate:
         assert 'class="nav-user"' in body
         assert ">test<" in body
         assert 'action="/logout"' in body
+
+
+class TestAWordWrittenToANumericSetpoint:
+    """A setpoint that takes a number takes nothing else.
+
+    The range check used to stand aside for any value that was not already a
+    number, so `SERVICE` typed into the trigger delay passed every guard and
+    reached the device, where it failed as a type error with no one to tell.
+    """
+
+    DELAY = "L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay"
+
+    async def test_it_is_refused_before_it_reaches_the_device(self, client):
+        response = await client.post(
+            "/api/write",
+            params={"pv": self.DELAY, "value": "SERVICE"},
+            json={},
+            headers={"Datastar-Request": "true"},
+        )
+        assert "Refused" in response.text, response.text
+        assert "number" in response.text
+
+
+class TestTheAttenuatorTakesAWholePosition:
+    """The attenuator is set to a step position, so its setpoint is an
+    integer: the field cannot take a decimal point, and the endpoint refuses
+    a fraction rather than sending it to be truncated by the record."""
+
+    SET = "L4-OPCPA-NL2:SM5-ATT1:51:SetPosition"
+
+    async def _write(self, client, text: str):
+        return await client.post(
+            "/api/write",
+            params={"pv": self.SET, "value": text},
+            json={},
+            headers={"Datastar-Request": "true"},
+        )
+
+    async def test_a_fraction_is_refused(self, client):
+        response = await self._write(client, "51.5")
+        assert "Refused" in response.text and "whole number" in response.text, response.text
+
+    async def test_a_word_is_refused(self, client):
+        response = await self._write(client, "OPEN")
+        assert "Refused" in response.text, response.text
+
+    async def test_a_whole_position_is_written(self, client):
+        response = await self._write(client, "52")
+        assert "Refused" not in response.text, response.text
+
+    async def test_confirm_holds_the_value_to_a_whole_number(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        confirm = confirm_for(page, "NL2-set-attenuator-status")
+        assert "[0-9]" in confirm and "isNaN" not in confirm, confirm
+
+
+class TestTheWritePanelOpensAndShutsLikeACog:
+    """A SET button is a disclosure, and every other disclosure on these
+    screens behaves one way: pressing it again shuts it, a click anywhere else
+    shuts it, and while it is open the button is filled in so an operator can
+    see at a glance which row the panel below belongs to."""
+
+    @staticmethod
+    def set_button(page: str) -> str:
+        """The SET button of the chiller setpoint."""
+        end = page.index('aria-label="Set Setpoint"')
+        return page[page.rindex("<button", 0, end) : end]
+
+    async def test_pressing_set_again_shuts_the_panel(self, client):
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        button = self.set_button(page)
+        assert "L4-OPCPA-NL2:PS1225:11:SetPoint" in button, (
+            "the button does not know which register it is already showing"
+        )
+        assert "= ''" in button, "pressing it again cannot clear the selection"
+
+    async def test_a_click_anywhere_else_shuts_it(self, client):
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        tree = page[page.index('class="panel register-tree"') :][:600]
+        assert "click__window" in tree, "nothing watches for a click outside"
+        assert "register-write" in tree and "register-select" in tree, (
+            "a click on the panel itself, or on another SET, would shut it"
+        )
+
+    async def test_the_open_button_is_filled_in(self, client):
+        page = (await client.get("/l4-opcpa/NL2/registers")).text
+        assert "aria-expanded" in self.set_button(page), (
+            "the button never says whether its panel is open"
+        )
+        css = (await client.get("/static/css/hmi.css")).text
+        assert ".register-select[aria-expanded='true']" in css, (
+            "an open SET button looks the same as a shut one"
+        )
+
+
+class TestTheNvControlIsOnlyWhereItApplies:
+    """A register that cannot be written to non-volatile memory has nothing to
+    arm, and a control that is there but dead still asks to be read — and
+    the indicator beside it would report a state that does not concern this
+    write. So neither is drawn for it."""
+
+    @staticmethod
+    async def select(client, pv: str) -> str:
+        return (
+            await client.get(
+                "/api/register", params={"component": "NL2-registers", "pv": pv}
+            )
+        ).text
+
+    async def test_a_register_without_nv_shows_neither_control_nor_indicator(
+        self, client
+    ):
+        panel = await self.select(client, "L4-OPCPA-NL2:PS1225:11:Mode")
+        assert "non-volatile" not in panel.lower(), "the NV control is drawn anyway"
+        assert "NVWriteEnable" not in panel and "nv-status" not in panel, (
+            "the NV control's status line is drawn anyway"
+        )
+
+    async def test_a_register_with_nv_has_the_box_and_its_status_line(self, client):
+        panel = await self.select(client, "L4-OPCPA-NL2:PS1225:11:SetPoint")
+        assert 'class="nv-box"' in panel
+        assert 'id="NL2-registers-nv-status"' in panel, (
+            "a refused NV write has nowhere beside the box to say so"
+        )
+
+    async def test_only_the_open_panel_holds_the_nv_widget(self, client):
+        """Hidden slots used to keep whatever they last held. Open the NV
+        setpoint of one module, then of the next, and the page held two
+        copies of the live NV widget under one id — and a live update goes to
+        the first element with that id, which was the stale, hidden one. Each
+        selection empties every slot before it fills its own."""
+        body = await self.select(client, "L4-OPCPA-NL2:PS1225:12:SetPoint")
+        clear = body.find("data: mode remove\ndata: selector .register-write > *")
+        fill = body.find("data: mode inner")
+        assert clear != -1, "the other slots keep their old panels"
+        assert clear < fill, "the slots are emptied after the new panel lands"
+
+
+class TestAFailedWriteIsPutRight:
+    """Controls are optimistic: a checkbox ticks the moment it is pressed,
+    because waiting a round trip for the device to confirm feels broken. The
+    price is that a write the device refuses leaves the control showing what
+    the operator meant. So a failure is said, beside the control, and then the
+    PV is read again and whatever displays it is redrawn from the answer."""
+
+    NV = "L4-OPCPA-NL2:NVWriteEnable"
+    STATUS = "NL2-registers-nv-status"
+
+    @pytest.fixture
+    async def refusing(self):
+        """The app, with a device that refuses every write and, read again
+        afterwards, reports NV as armed — which the simulator's cache does
+        not, so a redraw that shows it armed came from the fresh read."""
+        from core.epics.types import PvSample
+        from core.server import create_app
+        from core.settings import Settings
+
+        app = create_app(
+            Settings(
+                zone_code="TESTZ",
+                epics_backend="sim",
+                sim_tick_seconds=10,
+                log_level="WARNING",
+                dev=True,
+                session_secret="test-only-secret",
+            )
+        )
+        async with app.test_app() as running:
+            hub = app.hmi.hub
+
+            async def refuse(name, value):
+                raise RuntimeError("CA timeout")
+
+            async def armed(pv):
+                return PvSample(name=pv.name, ok=True, value=1, timestamp=1.0)
+
+            hub.caput = refuse
+            hub.caget = armed
+            client = running.test_client()
+            await client.post("/login", form={"username": "test", "password": "test"})
+            yield client
+
+    async def write(self, client) -> str:
+        response = await client.post(
+            "/api/write",
+            query_string={"pv": self.NV, "value": "0", "status": self.STATUS},
+            json={},
+            headers={"Datastar-Request": "true"},
+        )
+        return (await response.get_data()).decode()
+
+    async def test_the_failure_is_said_beside_the_control(self, refusing):
+        body = await self.write(refusing)
+        assert f'id="{self.STATUS}"' in body and "CA timeout" in body, body
+
+    async def test_the_control_is_redrawn_from_what_the_device_holds(self, refusing):
+        body = await self.write(refusing)
+        assert 'class="nv-toggle"' in body, "nothing displaying the PV was redrawn"
+        widget = body[body.index('class="nv-toggle"') :]
+        assert "checked" in widget.split("</label>")[0], (
+            "the box was not put back to what the device reported"
+        )
+
+    async def test_the_message_does_not_wait_for_the_read(self, refusing):
+        """A channel that refused a write may not answer a read either, and an
+        operator should not wait out a second timeout to learn the first."""
+        body = await self.write(refusing)
+        assert body.index(self.STATUS) < body.index('class="nv-toggle"')
+
+
+class TestTheWritePanelLayout:
+    """The panel sits directly under the register it writes, so the row has
+    already named it. What the panel holds is the field, its unit, and the
+    button that sends it — in that order, on one line."""
+
+    SETPOINT = "L4-OPCPA-NL2:PS1225:11:SetPoint"
+    MODE = "L4-OPCPA-NL2:PS1225:11:Mode"
+
+    @staticmethod
+    async def panel(client, pv: str) -> str:
+        body = (
+            await client.get(
+                "/api/register", params={"component": "NL2-registers", "pv": pv}
+            )
+        ).text
+        return body[body.index("register-write-inner") :]
+
+    @staticmethod
+    def visible(markup: str) -> str:
+        """Text an operator sees: tags and their attributes removed."""
+        return " ".join(re.sub(r"<[^>]*>", " ", markup).split())
+
+    async def test_the_register_is_not_named_again(self, client):
+        for pv, label in ((self.SETPOINT, "Setpoint"), (self.MODE, "Mode")):
+            panel = await self.panel(client, pv)
+            assert label not in self.visible(panel), (
+                f"the panel repeats {label!r}, which the row above already says"
+            )
+
+    async def test_the_unit_sits_between_the_field_and_confirm(self, client):
+        panel = await self.panel(client, self.SETPOINT)
+        field = panel.index('class="preset-field"')
+        unit = panel.index("°C")
+        confirm = panel.index('class="preset-confirm"')
+        assert field < unit < confirm, "the unit is not beside the value it qualifies"
+
+    async def test_confirm_is_to_the_right_of_the_field(self, client):
+        """In a cog panel the field and Confirm stack, for want of width. The
+        write panel spans the tree, so it puts them on one line — for a
+        number and for a list of states alike."""
+        css = (await client.get("/static/css/hmi.css")).text
+        rule = re.search(
+            r"\.register-write-inner \.preset-custom,\s*"
+            r"\.register-write-inner \.waveform-select\s*\{([^}]*)\}",
+            css,
+        )
+        assert rule, "nothing lays the write panel's controls out differently"
+        assert "flex-direction: row" in rule.group(1)
+
+
+class TestRegisterUnitsComeFromTheDevice:
+    """Asked once at start-up, before anything subscribes, so the first paint
+    of the tree already carries each record's EGU."""
+
+    T_OUT = "L4-OPCPA-NL2:PS1225:11:T_out"
+
+    async def test_the_first_paint_shows_the_unit_the_record_reports(self):
+        from core.epics.types import PvDescription
+        from core.server import create_app
+        from core.settings import Settings
+
+        app = create_app(
+            Settings(
+                zone_code="TESTZ",
+                epics_backend="sim",
+                sim_tick_seconds=10,
+                log_level="WARNING",
+                dev=True,
+                session_secret="test-only-secret",
+            )
+        )
+        simulated = app.hmi.hub.describe
+
+        async def kelvin(pv):
+            # The zone file says °C; the record says K. The record wins.
+            answer = await simulated(pv)
+            if pv.name == self.T_OUT:
+                return PvDescription(units="K")
+            return answer
+
+        app.hmi.hub.describe = kelvin
+        async with app.test_app() as running:
+            client = running.test_client()
+            await client.post("/login", form={"username": "test", "password": "test"})
+            page = (await (await client.get("/l4-opcpa/NL2/registers")).get_data()).decode()
+        row = page[page.index('id="NL2-registers-r0-0"') :][:300]
+        assert " K" in row or ">K<" in row, f"not the record's unit: {row!r}"
+        assert "°C" not in row, f"the zone file's unit: {row!r}"
+
+
+class TestAnIntegerRegistersField:
+    """An `int` register's field takes whole numbers: no decimal point and no
+    exponent can be typed, Confirm stays dead for anything else, and the
+    endpoint refuses what reaches it another way."""
+
+    PV = "L4-OPCPA-NL2:PS1225:11:PumpSpeed"
+
+    @staticmethod
+    def tag(markup: str, cls: str) -> str:
+        start = markup.rindex("<", 0, markup.index(f'class="{cls}"'))
+        return markup[start : _tag_end(markup, start)]
+
+    async def panel(self, client) -> str:
+        body = (
+            await client.get(
+                "/api/register", params={"component": "NL2-registers", "pv": self.PV}
+            )
+        ).text
+        return body[body.index("register-write-inner") :]
+
+    async def test_the_keypad_has_no_decimal_point(self, client):
+        field = self.tag(await self.panel(client), "preset-field")
+        assert 'inputmode="numeric"' in field, field
+
+    async def test_a_decimal_point_or_exponent_cannot_be_typed(self, client):
+        field = self.tag(await self.panel(client), "preset-field")
+        typeable = TestAFieldTakesOnlyWhatItsKindAllows.accepts(field)
+        assert typeable("1500")
+        assert not typeable("1500.") and not typeable("15e"), field
+
+    async def test_confirm_is_dead_for_anything_but_a_whole_number(self, client):
+        confirm = self.tag(await self.panel(client), "preset-confirm")
+        assert "[0-9]" in confirm and "isNaN" not in confirm, confirm
+
+    async def test_its_range_is_written_in_whole_numbers(self, client):
+        """DRVL/DRVH arrive as floats; an integer field saying 0.0..3000.0
+        offers a decimal point it will not let anyone type."""
+        assert "out of range (0..3000)" in await self.panel(client)
+
+    async def test_the_endpoint_refuses_a_decimal(self, client):
+        await self.panel(client)
+        answer = await client.post(
+            "/api/write", params={"pv": f"{self.PV}:W", "value": "2.5"}, json={}
+        )
+        assert "Refused" in answer.text and "whole number" in answer.text, answer.text
+
+
+def input_tag(page: str, marker: str) -> str:
+    """The whole `<input …>` tag carrying `marker`, attributes and all."""
+    start = page.rindex("<input", 0, page.index(marker))
+    return page[start : _tag_end(page, start)]
+
+
+def _tag_end(markup: str, start: int) -> int:
+    """End of the tag opened at `start`, skipping `>` inside quoted values —
+    an expression like `Number($v) > 10` lives in an attribute."""
+    quote = None
+    for index in range(start, len(markup)):
+        char = markup[index]
+        if quote:
+            if char == quote:
+                quote = None
+        elif char in ("'", '"'):
+            quote = char
+        elif char == ">":
+            return index + 1
+    return len(markup)
+
+
+class TestAFieldTakesOnlyWhatItsKindAllows:
+    """A setpoint field is text, so a half-typed `21.` survives (see
+    `TestEverySetpointFieldSurvivesBeingTyped`) — and so the browser no longer
+    filters what is typed, which `type="number"` used to. The field does it
+    instead, by its kind: an integer takes digits and a sign, a number takes a
+    decimal point as well. Checked on what would be inserted — a keystroke or
+    a paste — against the text it would leave, so a value can always be on
+    its way to being valid but never contain something that cannot be.
+    """
+
+    REGISTER = "L4-OPCPA-NL2:PS1225:11:"
+
+    async def delay(self, client) -> str:
+        page = (await client.get("/l4-opcpa")).text
+        return input_tag(page, 'aria-label="Set Trigger Delay custom value"')
+
+    async def register(self, client, name: str) -> str:
+        body = (
+            await client.get(
+                "/api/register",
+                params={"component": "NL2-registers", "pv": self.REGISTER + name},
+            )
+        ).text
+        return input_tag(body, 'class="preset-field"')
+
+    @staticmethod
+    def accepts(field: str):
+        """The pattern the field holds what it would leave to, as a test."""
+        import html
+
+        attribute = re.search(r'data-on:beforeinput="([^"]*)"', field)
+        assert attribute, f"nothing filters what is typed: {field}"
+        pattern = re.search(r"/(\^.*?\$)/\.test", html.unescape(attribute.group(1)))
+        assert pattern, attribute.group(1)
+        return lambda text: re.fullmatch(pattern.group(1), text) is not None
+
+    async def attenuator(self, client) -> str:
+        page = (await client.get("/l4-opcpa")).text
+        return input_tag(page, 'aria-label="Set Attenuator"')
+
+    async def test_each_field_says_which_kind_it_is(self, client):
+        assert 'data-kind="integer"' in await self.delay(client)
+        assert 'data-kind="integer"' in await self.attenuator(client)
+        assert 'data-kind="number"' in await self.register(client, "SetPoint")
+        assert 'data-kind="integer"' in await self.register(client, "PumpSpeed")
+
+    async def test_an_integer_field_takes_digits_and_a_sign(self, client):
+        for field in (
+            await self.delay(client),
+            await self.attenuator(client),
+            await self.register(client, "PumpSpeed"),
+        ):
+            ok = self.accepts(field)
+            for text in ("", "-", "+", "12", "-12"):
+                assert ok(text), f"{text!r} cannot be typed"
+            for text in ("1a", "a", "1.", "1e", "1!", "1 2", "--1", "1-"):
+                assert not ok(text), f"{text!r} can be typed"
+
+    async def test_a_number_field_takes_a_decimal_point_as_well(self, client):
+        ok = self.accepts(await self.register(client, "SetPoint"))
+        for text in ("", "-", "21", "21.", ".5", "-21.5"):
+            assert ok(text), f"{text!r} cannot be typed"
+        for text in ("21a", "x", "21.5.", "1e3", "2,5", "21 ", "#"):
+            assert not ok(text), f"{text!r} can be typed"
+
+    async def test_typing_and_pasting_into_the_real_field(self, client):
+        """The expression itself, run against simulated input: keystrokes in
+        sequence, then a paste into the middle of what is there."""
+        import html
+        import json
+        import shutil
+        import subprocess
+
+        node = shutil.which("node")
+        if node is None:
+            pytest.skip("no node here to run the field's own JavaScript")
+        field = await self.delay(client)
+        expression = html.unescape(re.search(r'data-on:beforeinput="([^"]*)"', field).group(1))
+        script = """
+const expr = %s;
+const run = new Function('el', 'evt', expr);
+function insert(el, data) {
+  let prevented = false;
+  run(el, {data, preventDefault() { prevented = true; }});
+  if (prevented) return;
+  el.value = el.value.slice(0, el.selectionStart) + data + el.value.slice(el.selectionEnd);
+  el.selectionStart = el.selectionEnd = el.selectionStart + data.length;
+}
+const typed = {value: '', selectionStart: 0, selectionEnd: 0};
+for (const key of '5a0.e!0') insert(typed, key);
+const pasted = {value: '500', selectionStart: 1, selectionEnd: 1};
+insert(pasted, '7x');
+insert(pasted, '7');
+console.log(JSON.stringify([typed.value, pasted.value]));
+""" % json.dumps(expression)
+        out = subprocess.run([node, "-e", script], capture_output=True, text=True, timeout=10)
+        assert out.returncode == 0, out.stderr
+        assert json.loads(out.stdout) == ["500", "5700"], out.stdout
