@@ -296,8 +296,15 @@ class TestWrite:
 
         task = asyncio.create_task(watch())
         await asyncio.sleep(0.6)
-        await client.post("/api/write", params={"pv": "CMD_NL2_START_LASER", "value": "1"}, json={})
-        await asyncio.sleep(1.5)
+        # Start is exclusive on this screen, so the tab takes control first.
+        start = "CMD_NL2_START_LASER"
+        await lock(client, "tab-a", "take", pv=start)
+        try:
+            assert "Refused" not in (await press(client, "tab-a", pv=start)).text
+            await asyncio.sleep(1.5)
+        finally:
+            # The server is shared by the module: leave the command free.
+            await lock(client, "tab-a", "release", pv=start)
         task.cancel()
         try:
             await task

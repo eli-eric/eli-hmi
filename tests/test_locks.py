@@ -428,16 +428,38 @@ class TestOnTheScreen:
         body = unescape(render(self.page(zone, "vacuum")))
         assert "sessionStorage" in body
 
-    def test_a_laser_command_marked_exclusive_is_locked_and_stop_is_not(self, zone):
-        body = render(self.page(zone, "l4-opcpa"))
+    def test_the_laser_start_and_stop_are_locked_and_alignment_is_not(self, zone):
+        page = self.page(zone, "l4-opcpa")
+        body = render(page)
+        for command in ("CMD_NL2_START_LASER", "CMD_NL2_STOP_LASER"):
+            [button] = buttons_writing(body, command)
+            assert disabled(button), command
+            assert f"$_locks.{page.locks.key(command)}.state !== 'mine'" in unescape(button)
         [alignment] = buttons_writing(body, "L4-OPCPA-NL2:SetAlignmentMode")
-        [stop] = buttons_writing(body, "CMD_NL2_STOP_LASER")
-        assert disabled(alignment)
-        assert "_locks" not in stop
+        assert "_locks" not in alignment
 
-    def test_an_exclusive_setpoint_locks_its_field_and_confirm(self, zone):
-        body = unescape(render(self.page(zone, "l4-opcpa")))
-        key = self.page(zone, "l4-opcpa").locks.key("L4-OPCPA-NL2:SM5-ATT1:51:SetPosition")
+    def test_an_exclusive_setpoint_locks_its_field_and_confirm(self, tmp_path, monkeypatch):
+        # No TESTZ screen has an exclusive setpoint, so this test brings its own.
+        monkeypatch.setenv("ZONES_ROOT", str(tmp_path))
+        (tmp_path / "Z" / "att").mkdir(parents=True)
+        (tmp_path / "Z" / "zone.yaml").write_text("title: Z\n")
+        (tmp_path / "Z" / "att" / "gui.yaml").write_text(textwrap.dedent("""
+            title: att
+            components:
+              - component: value
+                label: Attenuator
+                pv: ATT:Position
+                kind: integer
+                setpoint:
+                  label: Set Attenuator
+                  pv: ATT:SetPosition
+                  presets: [0, 25, 50]
+                  exclusive: true
+        """))
+        zone = load_zone("Z")
+        page = self.page(zone, "att")
+        body = unescape(render(page))
+        key = page.locks.key("ATT:SetPosition")
         section = body[body.index("Set Attenuator"):]
         field = re.search(r'<input class="preset-field"[^>]*>', section).group(0)
         confirm = re.search(r'<button[^>]*class="preset-confirm"[^>]*>', section).group(0)
