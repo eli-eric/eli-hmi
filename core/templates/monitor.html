@@ -15,9 +15,9 @@
 
 {% block content %}
 <div class="page monitor"
-     data-signals="{_age: 0, _pvq: '', _problems: false, _loglevel: 'DEBUG', _logcat: '', _logq: '', _pvfull: false, _logfull: false}"
+     data-signals="{_age: 0, _pvq: '', _problems: false, _loglevel: 'DEBUG', _logcat: '', _logq: '', _camfull: false, _pvfull: false, _logfull: false}"
      data-init="@get('/monitor/stream')"
-     data-on:keydown__window="evt.key === 'Escape' && ($_pvfull = false, $_logfull = false)">
+     data-on:keydown__window="evt.key === 'Escape' && ($_camfull = false, $_pvfull = false, $_logfull = false)">
 
   <div class="sticky-header">
     <header class="page-header">
@@ -52,13 +52,21 @@
       {{ panels.locks(view) }}
     </section>
 
-    {#- Both long lists are short by default, so the whole page reads at a
+    {#- The long lists are short by default, so the whole page reads at a
         glance, and each opens to the full window when it is the thing being
         studied. A class on the section, not a re-render: the stream keeps
         patching the rows inside while it is open. -#}
-    <section class="panel mon-panel" data-span="all" aria-label="Cameras">
+    <section class="panel mon-panel" data-span="all" aria-label="Cameras"
+             data-class="{'mon-full': $_camfull}">
       <header class="panel-header"><h2 class="panel-title">Cameras — open first</h2></header>
-      {{ panels.cameras(view) }}
+      <div class="mon-tools">
+        <button type="button" class="mon-expand" data-on:click="$_camfull = !$_camfull"
+                data-attr="{'aria-pressed': $_camfull ? 'true' : 'false'}"
+                data-text="$_camfull ? 'close full screen (Esc)' : 'full screen'">full screen</button>
+      </div>
+      <div class="mon-scroll">
+        {{ panels.cameras(view) }}
+      </div>
     </section>
 
     <section class="panel mon-panel" data-span="all" aria-label="CA monitors"
