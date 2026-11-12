@@ -1262,18 +1262,26 @@ class TestMonitor:
         )
         assert re.search(r"WARNING +core\.routes: write refused user=test pv='for the ticket'", response.text)
 
-    async def test_the_pv_list_and_the_log_each_open_to_the_full_screen(self, client):
-        """Both lists are short by default so the page reads at a glance; each
-        expands to the whole window when one of them is the thing to study,
-        and Escape puts it back."""
+    async def test_the_long_lists_each_open_to_the_full_screen(self, client):
+        """The cameras, the PV list and the log are short by default so the
+        page reads at a glance; each expands to the whole window when it is
+        the thing to study, and Escape puts it back."""
         body = (await client.get("/monitor")).text
         declared = re.search(r'data-signals="(\{[^"]*\})"', body.split('class="page monitor"')[1])
-        for signal, panel in (("_pvfull", "CA monitors"), ("_logfull", "Log")):
+        panels = (("_camfull", "Cameras"), ("_pvfull", "CA monitors"), ("_logfull", "Log"))
+        for signal, panel in panels:
             assert f"{signal}: false" in declared.group(1)
             section = re.search(rf'<section[^>]*aria-label="{panel}"[^>]*>', body).group(0)
             assert f"'mon-full': ${signal}" in section, panel
             assert f'data-on:click="${signal} = !${signal}"' in body, panel
-        assert "evt.key === 'Escape' && ($_pvfull = false, $_logfull = false)" in body
+        assert "evt.key === 'Escape' && ($_camfull = false, $_pvfull = false, $_logfull = false)" in body
+
+    async def test_the_camera_list_is_as_short_as_the_others(self, client):
+        """The camera table scrolls inside the same box as the PV list."""
+        body = (await client.get("/monitor")).text
+        section = body[body.index('aria-label="Cameras"'):body.index('aria-label="CA monitors"')]
+        scroll = section.index('class="mon-scroll"')
+        assert scroll < section.index('id="mon-cameras"')
 
 
 
