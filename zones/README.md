@@ -136,8 +136,8 @@ and since when, and may **Force** it after confirming.
   that would work. For `laser-panel`, a command that isn't in `commands:`
   stops it as well, because a lock on a button nobody can see is a mistake.
 - **Think twice before locking a Stop.** A stop that only another desk can
-  press is a stop the operator in front of the device can't use. That's why
-  the TESTZ laser leaves `STOP_LASER` out.
+  press is a stop the operator in front of the device can't use without
+  forcing control first.
 
 ## Which zone am I?
 
