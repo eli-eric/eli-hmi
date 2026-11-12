@@ -1844,8 +1844,9 @@ button:disabled {
   white-space: nowrap;
 }
 
-/* The two long lists — CA monitors and the log — are short by default, so the
- * whole page reads at a glance; `.mon-full` below opens either to the window. */
+/* The long lists — cameras, CA monitors and the log — are short by default, so
+ * the whole page reads at a glance; `.mon-full` below opens any of them to the
+ * window. */
 .monitor {
   --mon-list-height: max(22vh, 12rem);
 }
@@ -1924,7 +1925,8 @@ button:disabled {
   cursor: pointer;
 }
 
-.mon-tools > .mon-toggle + .mon-expand {
+.mon-tools > .mon-toggle + .mon-expand,
+.mon-tools > .mon-expand:only-child {
   margin-left: auto;
 }
 
