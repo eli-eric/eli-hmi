@@ -41,6 +41,11 @@ def spec(panel):
 def build_panel(zone, **overrides) -> LaserPanel:
     """The zone's NL2 panel, rebuilt with a few config fields changed."""
     template = zone.gui("l4-opcpa").components[0]
+    if "commands" in overrides:
+        # `exclusive:` names commands, and `model_copy` does not re-validate:
+        # a test that swaps the commands out must not keep locks on buttons
+        # the panel no longer has.
+        overrides.setdefault("exclusive", False)
     config = template.config.model_copy(update=overrides)
     return LaserPanel(key="test", config=config)
 
@@ -302,12 +307,16 @@ class TestSections:
         assert ("modbox_pill" in panel.widgets) == bool(spec.modbox)
 
 
-class TestPage:
-    @pytest.fixture(scope="class")
-    def view(self):
-        zone = load_zone("TESTZ")
-        return Page(zone, zone.gui("l4-opcpa"), create_environment())
+@pytest.fixture(scope="module")
+def view():
+    """The TESTZ OPCPA screen, built once: rendering it is the slow part, and
+    the tests below only read from it. Module-level rather than a method on
+    the class, which pytest 10 no longer allows for a shared fixture."""
+    zone = load_zone("TESTZ")
+    return Page(zone, zone.gui("l4-opcpa"), create_environment())
 
+
+class TestPage:
     def test_a_changed_pv_renders_only_the_widgets_that_read_it(self, view, spec):
         touched = view.widgets_for([PvId(spec.pvs.phd_mean)])
         assert [widget.id for widget in touched] == ["NL2-phd-mean"]
@@ -352,6 +361,15 @@ class TestAScreenWithoutSomeOfItsLasers:
         narrowed = view.without(["NL4"])
         assert not narrowed.all_pvs & nl4.all_pvs()
         assert narrowed.all_pvs, "NL2's PVs went with it"
+
+    def test_a_hidden_laser_s_control_is_not_kept_alive(self, zone):
+        """A stream keeps a tab's lock alive only on the exclusive PVs its
+        screen shows (`core.locks`): hidden, a laser's control lapses after
+        the grace period, as a closed tab's would."""
+        view = Page(zone, zone.gui("l4-opcpa"), create_environment())
+        assert view.exclusive_pvs, "NL2's start and stop are exclusive in TESTZ"
+        assert view.without(["NL2"]).exclusive_pvs == frozenset()
+        assert view.without(["NL4"]).exclusive_pvs == view.exclusive_pvs
 
     def test_a_pv_a_shown_laser_also_reads_still_reaches_it(self, zone, panel, spec):
         from dataclasses import replace
@@ -919,6 +937,7 @@ class TestARegistersKindDecidesWhatItsWriteTakes:
             described=PvDescription(),
             rule=tree.write_rule(item, PvDescription()),
             nv="",
+            lock_key=lambda pv: None,
         )
         assert 'class="preset-field"' in markup
         assert "isNaN" not in markup, "Confirm is held dead until the text is a number"

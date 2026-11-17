@@ -1,5 +1,5 @@
-# The Dockerfile copies only pyproject.toml, uv.lock, core/, components/ and
-# zones/. Everything else is kept out of the build context so it stays small
+# The Dockerfile copies only pyproject.toml, uv.lock, core/, components/,
+# cameras/ and zones/. Everything else is kept out of the build context so it stays small
 # and a local virtualenv or secret never reaches the daemon.
 .git
 .venv

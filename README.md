@@ -29,13 +29,16 @@ core/           how any of it reaches a browser  ← rarely touched
   per screen inside it. A folder *is* a screen: creating one adds a route and a
   menu entry, deleting one removes them. Screens are YAML.
 - **[components/](components/README.md)** — `value`, `group`, `grid`, `tally`,
-  `motor`, `valve`, `panel`, and the bespoke `laser-panel`. Python, written once,
-  used from YAML any number of times.
+  `motor`, `valve`, `panel`, `camera`, and the bespoke `laser-panel`. Python,
+  written once, used from YAML any number of times.
 - **core/** — zone resolution, the EPICS hub, severity and rendering, the
   routes. See `core/__init__.py`.
 
 Plus **[ioc/](ioc/README.md)** — a real local EPICS IOC, generated from what the
-components declare, so a screen can be developed against real Channel Access.
+components declare, so a screen can be developed against real Channel Access —
+and **[cameras/](cameras/README.md)**, the camera gateway: live images from
+waveform PVs, on a path of their own beside the PV hub, inside this process or
+as its own (`python -m cameras`).
 
 ## Quick start
 
@@ -52,7 +55,8 @@ Open <http://localhost:8082> and sign in as **test / test** (`make run` sets
 `DEV=1`, which is what turns that account on — see [Signing in](#signing-in)).
 Three screens in the menu: **L4 OPCPA** (the bespoke laser panel), **Chillers**
 and **Vacuum** (both pure YAML, no Python written for them). Values move, alarms
-appear, buttons write.
+appear, buttons write. **Monitor**, beside your name in the header, is the
+diagnostics dashboard — see [The monitor page](#the-monitor-page).
 
 With only Docker installed, the same thing in a container:
 
@@ -77,7 +81,7 @@ export LDAP_SERVER_URL=ldap://10.78.0.11
 uv run --extra epics python -m core   # zone from the hostname; see zones/README.md
 ```
 
-Tests: `make test` (411 tests, ~12 s — the end-to-end ones run a real Hypercorn
+Tests: `make test` (463 tests, ~12 s — the end-to-end ones run a real Hypercorn
 socket, because the thing under test is a streaming response).
 
 To *look* at a screen without a running IOC — for a layout review, or to send
@@ -220,6 +224,11 @@ One renderer serves both paths, so a cell pushed over SSE is byte-identical to
 the cell the page was rendered with. There is a test for exactly that
 (`test_patch_markup_matches_what_the_page_rendered`).
 
+A camera image does not take this path: 2 MiB ten times a second is not a
+value to cache, compare and render as HTML. Frames go from their own
+on-demand monitors to a binary WebSocket and a canvas — see
+[cameras/](cameras/README.md), including what a hundred cameras cost.
+
 ### Widget granularity
 
 A widget is a **value cell, pill or list — never a row**. Labels, cog buttons,
@@ -262,6 +271,47 @@ turns one press into a coordinated chain of writes, and a component declares tha
 chain once (`PvSpec(command=True, effects=…)`) for both the simulator and the
 local IOC.
 
+### Exclusive write control
+
+A control marked `exclusive:` in a screen's YAML can be written by **one
+browser tab at a time**. The lock is on the PV, so a PV that one screen marks
+exclusive is locked on every screen of the zone (`core/locks.py`).
+
+- **Take control.** An exclusive control starts disabled, with **Take
+  control** beside it. Taking it enables the control in that tab only.
+- **Read-only elsewhere.** Every other tab sees the control disabled, and who
+  holds it, from where and since when:
+  `jsvacha · 10.78.4.21 · vacuum · since 14:02`. The streams push this to each
+  tab as the lock moves.
+- **Release.** The holder gives control back.
+- **Force.** Anyone signed in can take control from the holder after a
+  `confirm()`. The holder's screen goes read-only and says
+  `taken over by … at 14:05`.
+- **Lapse.** If no screen showing the PV has been open in the holder's tab for
+  `LOCK_GRACE_SECONDS` (default 60), the lock is released. A reload or a stream
+  reconnect within that time keeps it.
+
+A tab is identified by an id the page puts in `sessionStorage` and sends as the
+`tab` signal. A holder is that tab *and* the user signed in on it, so the id is
+not a credential. `/api/write` refuses an exclusive PV to any other tab, a
+`curl` included. `POST /api/lock?pv=…&action=take|release|force` changes a lock.
+Screens with an exclusive PV keep their stream open while the tab is hidden,
+because a tab in the background is still the tab that holds control.
+
+Every take, release, force (a WARNING naming both users), lapse and refused
+write is logged under `core.locks` / `core.routes`. `/monitor` lists who holds
+what.
+
+Limits worth knowing:
+
+- Locks live in one HMI process, in memory. A restart releases all of them.
+  Two processes serving one zone (L4 lists both `aton-deploy20` and
+  `aton-debug20`) don't see each other's locks.
+- Only writes made through this HMI are governed. Phoebus, `caput` and other
+  tools bypass it. EPICS Access Security is what enforces anything at the IOC.
+- A browser's "Duplicate tab" copies `sessionStorage`, so the duplicate is the
+  same tab as far as the lock is concerned.
+
 ## Two kinds of "disconnected"
 
 Two failures with two different operator responses, so two sentences:
@@ -275,6 +325,43 @@ Two failures with two different operator responses, so two sentences:
 - **the `$_age` watchdog** — the *browser* is no longer receiving the stream.
   `data-on-interval` counts seconds, every heartbeat resets it, and the banner
   appears past 6. Without it a frozen page looks exactly like a quiet machine.
+
+## The monitor page
+
+`/monitor` answers the first questions asked when a station misbehaves, from
+state the process already keeps. Like every screen it is rendered on the
+server and patched live over one SSE stream, here on the heartbeat:
+
+- **Overview**: zone and how it was resolved, backend, uptime, EPICS link,
+  error and warning counts for this run, the process (PID, host, memory,
+  threads, event-loop lag), and the settings and `EPICS_CA_*` it runs with.
+- **Clients**: every open stream, with its user, address, browser, screen,
+  how long it has been open and when it last sent. Sessions are stateless
+  cookies, so the open streams are the honest list of who is connected
+  (`core/clients.py`).
+- **Screens**: for each one, how many are open, by whom, and its size.
+- **Write control**: every exclusive PV someone holds, with the user, address,
+  screen, when control was taken, and whether it is about to lapse
+  (`LockTable.held()`).
+- **CA monitors**: every (PV, datatype) the hub monitors, with problems first
+  (disconnected, INVALID, MAJOR, MINOR). Each row shows its subscriber count,
+  state, value, update count and last arrival (`PvHub.monitors()`).
+- **Log**: newest first, coloured by level, with `key=value` pairs picked out.
+  It can be filtered by level, by category (sign-in, writes, streams, EPICS)
+  and by text, and `/monitor/logs.txt` downloads all of it as text.
+
+The log comes from the **log book** (`core/logbook.py`), a second handler on
+the root logger beside the console. It keeps the last 2000 records in memory.
+With `LOG_DIR` set it also writes a rotating JSON-lines file there (10 MB × 6)
+and reads it back on start-up, so the run before a restart is still on the
+page, under a divider. A `LOG_DIR` that cannot be written stops the start.
+
+The CA monitors list and the log are kept short, so the whole page fits on
+one screen. Each has a **full screen** button that expands it to fill the
+window, and Esc closes it.
+
+Any signed-in user can open it, the same as `/stats`. All filtering happens in
+the browser, and the page never writes to the machine.
 
 ## Configuration
 
@@ -299,13 +386,17 @@ Two failures with two different operator responses, so two sentences:
 | `ZONES_ROOT` | `zones/` | Where the zone folders live |
 | `DEV` | `0` | Reload templates on every render, **and accept `test`/`test`** |
 | `LOG_LEVEL` | `INFO` | |
+| `LOG_DIR` | — | Keep the log book on disk here too (rotating `eli-hmi.jsonl`), so `/monitor` shows the run before a restart. Unset: memory only |
+| `CAMERA_GATEWAY` | `embedded` | Who serves camera frames: this process, a standalone gateway's URL (`http://station:8083`), or `off`. See [cameras/](cameras/README.md) |
+| `CAMERA_PORT` | `8083` | Where the standalone gateway (`python -m cameras`) listens |
 
 Channel Access reads its own environment too (`EPICS_CA_ADDR_LIST`,
 `EPICS_CA_AUTO_ADDR_LIST`); nothing here overrides it.
 
 Operational endpoints: `/health/live`, `/health/ready` (503 until the hub is
 up), `/stats` (screens, widget and PV counts, monitor and stream counts, and how
-the zone was resolved).
+the zone was resolved), `/monitor` (the dashboard above) and
+`/monitor/logs.txt` (the whole log book as text).
 
 ## What it replaced
 
@@ -346,6 +437,8 @@ ADRs. They are all in git history; this table maps each to its successor.
   only its own zone's network — so anyone the directory knows can sign in to a
   station and write to it. A
   `LDAP_REQUIRE_GROUP` would need a bind-and-search instead of a simple bind.
+  The same goes for `/monitor`: anyone signed in sees the other users' names
+  and addresses and the log.
 - **LDAPS does not verify the certificate** (`LDAP_USE_TLS=1` encrypts but
   trusts anything), as the React app's `rejectUnauthorized: false` did. Fine
   on a closed zone network, not fine over anything wider.

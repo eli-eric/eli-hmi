@@ -101,6 +101,7 @@ class TestPvCoverage:
         "motor": {"label": "M", "readback": "X:M:RBV", "setpoint": "X:M:VAL"},
         "valve": {"label": "V", "pv": "X:V:State"},
         "panel": {"title": "P"},
+        "camera": {"label": "C", "pv": "X:CAM:Image", "width": 64, "height": 48},
     }
 
     @pytest.mark.parametrize("name", sorted(CASES))
@@ -560,3 +561,100 @@ class TestWhatKindOfValueAPvTakes:
         fixed value is still converted for the wire."""
         assert WriteRule.text().resolve("Gauss 1e3.wfm") == ("Gauss 1e3.wfm", None)
         assert WriteRule.text().resolve("1") == (1, None)
+
+
+# ---------------------------------------------------------------------------
+# Exclusive write control: which PVs a screen marks as one-tab-at-a-time
+# ---------------------------------------------------------------------------
+
+
+class TestExclusive:
+    def test_nothing_is_exclusive_unless_a_screen_says_so(self):
+        row = build(
+            "value", label="Shutter", pv="S:State", kind="bool",
+            actions=[{"label": "Open", "value": 1, "pv": "S:Open"}],
+        )
+        assert row.exclusive_pvs == set()
+
+    def test_an_action_marked_exclusive_makes_its_pv_exclusive(self):
+        row = build(
+            "value", label="Shutter", pv="S:State", kind="bool",
+            actions=[
+                {"label": "Open", "value": 1, "pv": "S:Open", "exclusive": True},
+                {"label": "Close", "value": 0, "pv": "S:Close"},
+            ],
+        )
+        assert row.exclusive_pvs == {"S:Open"}
+
+    def test_an_exclusive_action_with_no_pv_of_its_own_locks_the_row_pv(self):
+        row = build(
+            "value", label="Shutter", pv="S:State", kind="bool",
+            actions=[{"label": "Open", "value": 1, "exclusive": True}],
+        )
+        assert row.exclusive_pvs == {"S:State"}
+
+    def test_a_setpoint_marked_exclusive_makes_its_pv_exclusive(self):
+        row = build(
+            "value", label="Attenuator", pv="A:Pos", kind="integer",
+            setpoint={"pv": "A:Set", "exclusive": True},
+        )
+        assert row.exclusive_pvs == {"A:Set"}
+
+    def test_a_valve_locks_both_commands_or_the_ones_named(self):
+        both = build("valve", label="VV1", pv="V:State", open_pv="V:Open",
+                     close_pv="V:Close", exclusive=True)
+        assert both.exclusive_pvs == {"V:Open", "V:Close"}
+        just_open = build("valve", label="VV1", pv="V:State", open_pv="V:Open",
+                          close_pv="V:Close", exclusive=["open"])
+        assert just_open.exclusive_pvs == {"V:Open"}
+
+    def test_a_valve_with_no_command_pvs_locks_its_state_pv(self):
+        valve = build("valve", label="VV1", pv="V:State", exclusive=True)
+        assert valve.exclusive_pvs == {"V:State"}
+
+    def test_a_motor_locks_move_or_stop_as_named(self):
+        motor = build("motor", label="Att", readback="M:RBV", setpoint="M:VAL",
+                      stop="M:STOP", exclusive=["move"])
+        assert motor.exclusive_pvs == {"M:VAL"}
+        both = build("motor", label="Att", readback="M:RBV", setpoint="M:VAL",
+                     stop="M:STOP", exclusive=True)
+        assert both.exclusive_pvs == {"M:VAL", "M:STOP"}
+
+    @pytest.mark.parametrize(
+        ("name", "block", "valid"),
+        [
+            ("valve", {"label": "VV1", "pv": "V:State"}, "open, close"),
+            ("motor", {"label": "Att", "readback": "M:RBV", "setpoint": "M:VAL"}, "move, stop"),
+        ],
+    )
+    def test_a_name_that_is_not_a_control_is_refused_with_the_choices(self, name, block, valid):
+        with pytest.raises(ValueError, match=valid):
+            build(name, **block, exclusive=["opne"])
+
+
+class TestCamera:
+    """A camera tile. Its image never goes through a widget: frames arrive on
+    their own WebSocket (`cameras/`), so the component's job is to declare the
+    camera and lay out the place a frame is drawn."""
+
+    BLOCK = {"label": "NL1 near field", "pv": "L4:CAM1:Image", "width": 1024, "height": 768}
+
+    def test_declares_the_camera_it_shows(self):
+        component = build("camera", **self.BLOCK, bits=16, rate=5, filters=True)
+
+        (spec,) = component.cameras()
+
+        assert spec.pv == "L4:CAM1:Image"
+        assert (spec.width, spec.height, spec.bits) == (1024, 768, 16)
+        assert spec.rate == 5
+        assert spec.filters is True
+        assert spec.label == "NL1 near field"
+
+    def test_renders_a_canvas_tagged_with_its_camera(self):
+        component = build("camera", **self.BLOCK)
+        html = create_environment().get_template(component.template).render(
+            c=component.config, w={}, s={}, comp=component, children=[], **component.context()
+        )
+        assert '<canvas' in html
+        assert 'data-camera="L4:CAM1:Image"' in html
+        assert "NL1 near field" in html

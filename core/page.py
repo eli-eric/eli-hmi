@@ -15,6 +15,7 @@ import copy
 import json
 import asyncio
 import logging
+import secrets
 
 from dataclasses import dataclass, replace
 from typing import Any, Iterable, Sequence
@@ -22,8 +23,10 @@ from typing import Any, Iterable, Sequence
 from jinja2 import Environment
 from markupsafe import Markup
 
+from cameras.protocol import SOCKET_PATH as CAMERA_SOCKET_PATH
 from core.components import Component, Detail, PvReader, Widget
 from core.epics import PvId
+from core.locks import LockTable
 from core.palette import DEFAULT_PALETTE, PALETTES
 from core.jinja import WidgetRenderer
 from core.zones import Gui, Zone
@@ -36,6 +39,12 @@ LINK_BANNER_ID = "link-banner"
 #: heartbeat), `_busy` is Datastar's indicator for an in-flight write, `_toast`
 #: is the write-result line, `_toast_age` ages it out, and `_palette` is the
 #: colour palette the header's selector is bound to.
+#:
+#: Two more are added per render (`Page.signals`): `_locks`, this tab's view of
+#: each exclusive PV on the screen, and `tab`, the id the browser keeps in
+#: `sessionStorage`. `tab` is the one page signal without a leading `_`, because
+#: Datastar sends no `_` signal with a request and the server needs this one
+#: with every write (`core.locks`).
 PAGE_SIGNALS: dict[str, Any] = {
     "_age": 0,
     "_busy": False,
@@ -43,6 +52,21 @@ PAGE_SIGNALS: dict[str, Any] = {
     "_toast_age": 0,
     "_palette": DEFAULT_PALETTE,
 }
+
+
+def written_pvs(gui: Gui) -> frozenset[str]:
+    """Every PV a control on this screen can write, from what its components
+    declared about their PVs."""
+    return frozenset(
+        spec.name for spec in gui.all_pv_specs() if spec.writable or spec.command
+    )
+
+
+def new_tab_id() -> str:
+    """A tab id for a browser that has none yet. The page offers one with
+    every render; the browser keeps the first it got for as long as the tab
+    lives, so a reload is the same tab."""
+    return secrets.token_urlsafe(16)
 
 #: Seconds a write result stays on screen, counted down by the page's own tick.
 TOAST_SECONDS = 5
@@ -68,12 +92,22 @@ class _Banner:
 class Page:
     """A renderable screen: one GUI of one zone."""
 
-    def __init__(self, zone: Zone, gui: Gui, env: Environment):
+    def __init__(self, zone: Zone, gui: Gui, env: Environment, locks: LockTable | None = None):
         self.zone = zone
         self.gui = gui
         self._env = env
         self._renderer = WidgetRenderer(env)
         self.link_banner = _Banner()
+        #: Shared by every screen of the app (`core.server`), so a lock taken
+        #: here shows on any screen with a control for the same PV. A page
+        #: built on its own gets a table of its own, with every PV free.
+        self.locks = locks if locks is not None else LockTable(zone.exclusive_pvs())
+        #: Every PV a control on this screen can write, from what the
+        #: components declared about their PVs.
+        self.written_pvs: frozenset[str] = written_pvs(gui)
+        #: The exclusive ones: what this screen's `_locks` signal carries and
+        #: what its stream keeps alive (`LockTable.watch`).
+        self.exclusive_pvs: frozenset[str] = self.written_pvs & self.locks.exclusive
 
         self._by_pv: dict[PvId, list[Widget]] = {}
         for widget in gui.all_widgets():
@@ -128,6 +162,11 @@ class Page:
             components=[c for c in self.gui.components if c.key not in hidden],
         )
         narrowed.reindex()
+        # Its exclusive PVs too: a stream keeps a tab's lock alive only on
+        # what the tab is showing, so control of a hidden component lapses
+        # after the grace period, as a closed tab's would (`core.locks`).
+        narrowed.written_pvs = written_pvs(narrowed.gui)
+        narrowed.exclusive_pvs = narrowed.written_pvs & self.locks.exclusive
         return narrowed
 
     # ------------------------------------------------------------------ queries
@@ -140,18 +179,38 @@ class Page:
     def widget_count(self) -> int:
         return sum(len(widgets) for widgets in self._by_pv.values())
 
+    def sizes(self) -> dict[str, int]:
+        """How big the screen is, as `/stats` and `/monitor` report it."""
+        return {
+            "components": sum(1 for _ in self.gui.walk()),
+            "widgets": len(list(self.gui.all_widgets())),
+            "pvs": len(self.all_pvs),
+        }
+
     def signals(
-        self, palette: str | None = None, hidden: Sequence[str] = ()
+        self,
+        palette: str | None = None,
+        hidden: Sequence[str] = (),
+        *,
+        tab: str | None = None,
+        user: str = "",
     ) -> dict[str, Any]:
         """Every signal the page declares, up front.
 
         `palette` seeds the header selector so it opens on the palette the
         page was actually rendered in, rather than snapping to the default
         after the first paint.
+
+        `_locks` is rendered without knowing which tab is asking — the browser
+        says that over the stream — so a held PV starts as someone else's and
+        its controls start locked. The stream's first event unlocks the ones
+        this tab holds.
         """
         signals = {
             **PAGE_SIGNALS,
             "_palette": palette or DEFAULT_PALETTE,
+            "_locks": self.lock_view(tab=None, user=user),
+            "tab": tab or new_tab_id(),
             **self.gui.signals(),
         }
         if self.gui.selectable:
@@ -160,6 +219,10 @@ class Page:
             # asked for when the page opens it.
             signals["hidden"] = list(hidden)
         return signals
+
+    def lock_view(self, *, tab: str | None, user: str) -> dict[str, Any]:
+        """This screen's `_locks` signal, as one tab should see it."""
+        return self.locks.view(self.exclusive_pvs, tab=tab, user=user)
 
     def widgets_for(self, dirty: Iterable[PvId]) -> list[Widget]:
         """Widgets touched by a set of changed PVs, each at most once.
@@ -200,6 +263,9 @@ class Page:
                 w={role: self.render_widget(widget, reader) for role, widget in component.widgets.items()},
                 s=component.signals,
                 comp=component,
+                # How a write control learns that its PV is exclusive, and
+                # which entry of `_locks` it follows (`controls.lock_strip`).
+                lock_key=self.locks.key,
                 children=[self.render_component(child, reader) for child in component.children],
                 **component.context(),
             )
@@ -225,6 +291,7 @@ class Page:
         palette: str | None = None,
         user: str | None = None,
         hidden: Sequence[str] = (),
+        camera_gateway: str | None = "",
     ) -> str:
         # Components are rendered BEFORE the signal list is serialised, and the
         # order matters: a template may create a signal as it goes (the cog on a
@@ -254,8 +321,15 @@ class Page:
             menu=self.zone.menu(),
             components=rendered,
             link_banner=self.render_widget(self.link_banner, reader),
-            signals_json=json.dumps(self.signals(palette, hidden), separators=(",", ":")),
+            signals_json=json.dumps(
+                self.signals(palette, hidden, user=user or ""), separators=(",", ":")
+            ),
             stream_url=self.gui.stream_url,
+            # A hidden tab is still the tab that holds control. Datastar closes
+            # a hidden tab's stream by default, which would let its locks lapse
+            # while the operator looks at another tab, and drop the "taken
+            # over by" notice; a screen with an exclusive PV keeps it open.
+            stream_hidden=bool(self.exclusive_pvs),
             hidden=hidden,
             # The slot each component's detail views open in, for the ones
             # that have any: hiding the component closes its view.
@@ -269,6 +343,7 @@ class Page:
             palette=palette,
             palettes=PALETTES,
             user=user,
+            camera_socket=self.camera_socket(camera_gateway),
         )
 
     def render_view(self, reader: PvReader) -> str:
@@ -286,6 +361,18 @@ class Page:
             signals_json=json.dumps(self.gui.signals(), separators=(",", ":")),
             stream_url=self.gui.stream_url,
         )
+
+    def camera_socket(self, gateway: str | None = "") -> str:
+        """Where this screen's camera frames come from, or "" for a screen
+        with no camera (which then loads no camera script at all).
+
+        `gateway` is the camera gateway's base URL when it runs as its own
+        process; "" means this app serves the cameras itself, and `None` that
+        nothing does (`CAMERA_GATEWAY=off`).
+        """
+        if gateway is None or not self.gui.cameras():
+            return ""
+        return gateway.rstrip("/") + CAMERA_SOCKET_PATH
 
     def render_all_widgets(self, reader: PvReader) -> str:
         """Every widget, concatenated into one patch payload.
@@ -383,8 +470,9 @@ def describe_on_reconnect(hub: Any, pages: dict[str, "Page"]) -> None:
     hub.on_reconnect = reconnected
 
 
-def build_pages(zone: Zone, env: Environment) -> dict[str, Page]:
-    """One `Page` per GUI in the zone, plus one per component detail view.
+def build_pages(zone: Zone, env: Environment, locks: LockTable | None = None) -> dict[str, Page]:
+    """One `Page` per GUI in the zone, plus one per component detail view,
+    all sharing one lock table.
 
     A detail view is a page like any other as far as its index and its
     stream go — same renderer, same stream, same widgets-by-PV — reached at
@@ -393,12 +481,13 @@ def build_pages(zone: Zone, env: Environment) -> dict[str, Page]:
     It is not in the menu: the menu is the zone's folder listing, and a
     detail view is reached from the component that owns it.
     """
-    pages = {gui.slug: Page(zone, gui, env) for gui in zone.guis}
+    locks = locks if locks is not None else LockTable(zone.exclusive_pvs())
+    pages = {gui.slug: Page(zone, gui, env, locks) for gui in zone.guis}
     for gui in zone.guis:
         for component in gui.walk():
             for detail in component.details():
                 slug = detail_slug(gui, component, detail)
-                pages[slug] = Page(zone, _detail_gui(gui, slug, component, detail), env)
+                pages[slug] = Page(zone, _detail_gui(gui, slug, component, detail), env, locks)
     return pages
 
 

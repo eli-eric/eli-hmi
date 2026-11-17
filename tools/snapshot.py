@@ -66,7 +66,7 @@ def write(out: Path, slug: str, html: str, title: str, pages: list[tuple[str, st
     # resolve for it to open from a file:// URL.
     html = re.sub(r'\s*data-init="[^"]*"', "", html)
     html = re.sub(r"\s*<script[^>]*></script>", "", html)
-    html = re.sub(r'href="/static/css/hmi\.css(\?v=[0-9a-f]+)?"', 'href="css/hmi.css"', html)
+    html = re.sub(r'href="/static/css/hmi\.css(\?v=\w+)?"', 'href="css/hmi.css"', html)
     # A detail view's slug has the screen in it, so the file is named flat
     # rather than nested in a folder nobody would look in.
     name = slug.replace("/", "-")

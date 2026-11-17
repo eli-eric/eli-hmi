@@ -19,11 +19,9 @@
   {#- Ahead of the stylesheet that asks for them: the face is what every
       column width in the panel was measured against, so fetching it late
       means a visible reflow of the whole screen. -#}
-  {#- Unversioned: a preload is used only if it is the stylesheet's `url()`
-      byte for byte, and that cannot carry a version. -#}
-  <link rel="preload" href="{{ static('/fonts/RobotoCondensed-Regular.ttf', versioned=false) }}"
+  <link rel="preload" href="{{ static('/fonts/RobotoCondensed-Regular.ttf') }}"
         as="font" type="font/ttf" crossorigin>
-  <link rel="preload" href="{{ static('/fonts/RobotoCondensed-Bold.ttf', versioned=false) }}"
+  <link rel="preload" href="{{ static('/fonts/RobotoCondensed-Bold.ttf') }}"
         as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="{{ static('/css/hmi.css') }}">
   {#
@@ -33,6 +31,12 @@
     generates events for should be pinned to the one the browser runs.
   #}
   <script type="module" src="{{ static('/vendor/datastar.js') }}"></script>
+  {#- The one exception: a camera frame is binary, on its own WebSocket, and
+      Datastar has no way to draw it. Only screens with a camera load this. -#}
+  {% if camera_socket | default('') %}
+  <meta name="hmi-camera-socket" content="{{ camera_socket }}">
+  <script type="module" src="{{ static('/js/cameras.js') }}"></script>
+  {% endif %}
 </head>
 <body>
   <div class="layout">
@@ -61,6 +65,11 @@
         page prefetch sign the operator out.
       #}
       {% if user %}
+      {#- The diagnostics dashboard (`core.monitor`). Its own class rather than
+          `nav-link`: it is a tool, not a screen, and the zone menu stays the
+          folder listing. -#}
+      <a class="nav-tool" href="/monitor"
+         {%- if gui.slug == "monitor" %} aria-current="page"{% endif %}>Monitor</a>
       <form class="nav-session" method="post" action="/logout">
         <span class="nav-user" title="Signed in as {{ user }}">{{ user }}</span>
         <button class="nav-logout" type="submit">Sign out</button>

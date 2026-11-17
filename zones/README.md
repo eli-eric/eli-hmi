@@ -18,6 +18,11 @@ zones/
 edit and no route to declare, and the main menu *is* the folder listing — so the
 menu cannot disagree with what the app serves.
 
+The folder name is the URL, so a few names are taken by paths the app serves
+itself: `api`, `health`, `login`, `logout`, `monitor`, `static` and `stats`. A
+screen folder with one of those names stops the start with an error saying so,
+rather than giving a menu entry that can never open.
+
 ## Adding a screen
 
 ```bash
@@ -109,6 +114,45 @@ signals per screen is worth doing: a screen where nothing is ever alarmed never
 shows an engineer what an alarm looks like, and `demo: { undefined: true }` is
 the only way to see `PV INV` on demand — the state an operator most needs to
 recognise.
+
+### `exclusive:` for a control only one desk may use
+
+Mark a control `exclusive` and only the browser tab that has taken control of
+it may write it. Everyone else sees it read-only, with who has it, from where
+and since when, and may **Force** it after confirming.
+
+```yaml
+- component: value                    # per button, per setpoint
+  label: Shutter
+  pv: L4-…:Shutter:State
+  kind: bool
+  actions:
+    - { label: Open,  value: 1, pv: "L4-…:Shutter:Open", exclusive: true }
+    - { label: Close, value: 0, pv: "L4-…:Shutter:Close" }
+  setpoint: { pv: "L4-…:Shutter:Set", exclusive: true }
+
+- component: valve                    # true = both buttons, or name them
+  label: VV1 gate valve
+  pv: L4-VCS-NL2:VV1:State
+  open_pv: L4-VCS-NL2:VV1:Open
+  close_pv: L4-VCS-NL2:VV1:Close
+  exclusive: true                     # or [open] / [close]
+
+- component: motor
+  exclusive: [move]                   # move, stop, or true for both
+
+- component: laser-panel
+  exclusive: [ALIGNMENT_MODE, SET_ATTENUATOR]   # command names, WAVEFORM_PRESET, or true
+```
+
+- **The lock is on the PV.** If one screen marks a PV exclusive, every control
+  that writes it, on any screen of the zone, is locked too.
+- **A name that isn't a control there stops the start-up** and lists the names
+  that would work. For `laser-panel`, a command that isn't in `commands:`
+  stops it as well, because a lock on a button nobody can see is a mistake.
+- **Think twice before locking a Stop.** A stop that only another desk can
+  press is a stop the operator in front of the device can't use without
+  forcing control first.
 
 ## Which zone am I?
 

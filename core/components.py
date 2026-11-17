@@ -34,11 +34,14 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable, ClassVar, Iterable, Iterator, Literal, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, Literal, Mapping, Sequence
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.epics import Datatype, PvId, PvSample
+
+if TYPE_CHECKING:
+    from cameras.spec import CameraSpec
 
 # ---------------------------------------------------------------------------
 # Reading PV values
@@ -426,6 +429,8 @@ class Component:
         self.signals: dict[str, Any] = {}
         #: PVs this component writes, and the bounds it accepts. See `writable`.
         self.limits: dict[str, WriteRule] = {}
+        #: PVs one browser tab at a time may write. See `exclusive`.
+        self.exclusive_pvs: set[str] = set()
         self.setup()
 
     # -- what a subclass implements -----------------------------------------
@@ -477,6 +482,15 @@ class Component:
         Returning nothing means the simulator and the local IOC have nothing to
         serve, so the screen reads `<>` everywhere — `tests/test_components.py`
         fails a component that omits a PV it reads.
+        """
+        return []
+
+    def cameras(self) -> list["CameraSpec"]:
+        """The camera images this component shows.
+
+        The camera counterpart of `pv_specs`: what the camera gateway serves,
+        the simulator draws and the local IOC publishes. An image never goes
+        through a widget — frames have their own WebSocket (`cameras/`).
         """
         return []
 
@@ -552,6 +566,21 @@ class Component:
         self.limits[pv] = rule or WriteRule.text()
         return pv
 
+    def exclusive(self, pv: str) -> str:
+        """Declare that only the tab holding control may write this PV.
+
+        What the screen asked for with `exclusive:` in its YAML. The lock is on
+        the PV, so declaring it here makes it exclusive on every screen of the
+        zone, and the write endpoint refuses it to any tab that has not taken
+        control (`core.locks`).
+
+        Kept apart from `writable` on purpose: bounds are about the value, and
+        an exclusive string PV with default bounds would be refused any value
+        with an `e` in it.
+        """
+        self.exclusive_pvs.add(pv)
+        return pv
+
     # -- what the framework uses -------------------------------------------
 
     @property
@@ -580,6 +609,9 @@ class Component:
             limits.update(component.limits)
         return limits
 
+    def all_exclusive_pvs(self) -> set[str]:
+        return {pv for component in self.walk() for pv in component.exclusive_pvs}
+
     def all_pv_specs(self) -> list[PvSpec]:
         specs: list[PvSpec] = []
         for component in self.walk():
@@ -588,6 +620,9 @@ class Component:
 
     def all_pvs(self) -> set[PvId]:
         return {pv for widget in self.all_widgets() for pv in widget.pvs}
+
+    def all_cameras(self) -> list["CameraSpec"]:
+        return [spec for component in self.walk() for spec in component.cameras()]
 
     def __repr__(self) -> str:  # pragma: no cover - diagnostics
         return f"<{type(self).__name__} {self.key}>"

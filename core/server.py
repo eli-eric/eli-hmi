@@ -31,15 +31,20 @@ import asyncio
 import logging
 import signal
 import sys
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
 from quart import Quart, jsonify
 
 from core.auth import Authenticator, SessionCodec, config_from_env, log_startup, session_secret
+from core.clients import ClientRegistry
 from core.epics.hub import PvHub
 from core.jinja import STATIC_ROOT, create_environment
-from core.login import build_login_blueprint, install_gate
+from core.locks import LockTable
+from core.logbook import LogBook
+from core.login import build_login_blueprint, install_gate, install_socket_gate
+from core.monitor import build_monitor_blueprint
 from core.page import (
     Page,
     build_pages,
@@ -79,6 +84,23 @@ class Hmi:
     #: once from what the components declared. The write endpoint consults it
     #: for every write, whatever posted it.
     write_limits: dict[str, Any] = field(default_factory=dict, repr=False)
+    #: Every open SSE stream — who, from where, on which screen. `/monitor`
+    #: reads it; sessions are stateless, so this is the list of who is connected.
+    clients: ClientRegistry = field(default_factory=ClientRegistry, repr=False)
+    #: Wall-clock start of the process, for the uptime `/monitor` shows.
+    started_at: float = field(default_factory=time.time)
+    #: Recent log records, structured, for `/monitor`. On the root logger
+    #: while the app is serving (see `start` / `stop` in `create_app`).
+    logbook: LogBook = field(default_factory=LogBook, repr=False)
+    #: Which tab holds each exclusive PV. One table for the whole app, shared
+    #: by every screen, the write endpoint and `/monitor` (`core.locks`).
+    locks: LockTable = field(default_factory=lambda: LockTable(()), repr=False)
+    #: The task that releases locks abandoned past the grace period.
+    lock_sweeper: Any = field(default=None, repr=False)
+    #: Camera frames, when this process serves them (`CAMERA_GATEWAY=embedded`):
+    #: a `cameras.routes.CameraService`. `None` when a standalone gateway or
+    #: nothing does; `/monitor` then asks the gateway, or says so.
+    cameras: Any = field(default=None, repr=False)
 
 
 def build_backend(settings: Settings, zone: Zone):
@@ -106,6 +128,24 @@ def build_backend(settings: Settings, zone: Zone):
     return backend
 
 
+def build_frame_source(settings: Settings, cameras):
+    """Where camera frames come from — the camera counterpart of
+    `build_backend`. The simulator needs nothing seeded: it draws from each
+    camera's own declaration when the camera is opened."""
+    if settings.epics_backend == "aioca":
+        import os
+
+        from cameras.ca import CaFrameSource, CameraError, array_bytes_problem
+
+        problem = array_bytes_problem(cameras.values(), os.environ)
+        if problem:
+            raise CameraError(problem)
+        return CaFrameSource()
+    from cameras.sim import SimFrameSource
+
+    return SimFrameSource(seed=settings.sim_seed)
+
+
 def create_app(settings: Settings | None = None) -> Quart:
     settings = settings or Settings.from_env()
     logging.basicConfig(
@@ -123,8 +163,14 @@ def create_app(settings: Settings | None = None) -> Quart:
         )
 
     env = create_environment(auto_reload=settings.dev)
-    pages = build_pages(zone, env)
+    # One table for the zone: a PV that one screen marks exclusive is locked
+    # on every screen with a control for it.
+    locks = LockTable(zone.exclusive_pvs(), grace_seconds=settings.lock_grace_seconds)
+    pages = build_pages(zone, env, locks)
     hub = PvHub(build_backend(settings, zone))
+    # Built here rather than at serve time so an unusable LOG_DIR stops the
+    # start, like a missing SESSION_SECRET; attached in `start` below.
+    logbook = LogBook(directory=settings.log_dir or None)
 
     # Sign-in, before anything is served. `session_secret` raises rather than
     # inventing a key outside development: a generated key works perfectly until
@@ -152,6 +198,8 @@ def create_app(settings: Settings | None = None) -> Quart:
         pages=pages,
         authenticator=authenticator,
         sessions=sessions,
+        logbook=logbook,
+        locks=locks,
         home=f"/{next(iter(pages))}" if pages else "/",
         write_limits={
             pv: limits
@@ -161,8 +209,26 @@ def create_app(settings: Settings | None = None) -> Quart:
         },
     )
 
+    # Camera frames, when this process serves them itself. Same shutdown event
+    # as the screens' streams, so Ctrl-C ends the camera sockets too.
+    app.cameras = None
+    if settings.cameras_embedded:
+        from cameras.hub import CameraHub
+        from cameras.routes import CameraService, build_camera_blueprint
+
+        cameras = zone.cameras()
+        app.cameras = CameraService(
+            hub=CameraHub(cameras, build_frame_source(settings, cameras)),
+            shutting_down=app.hmi.shutting_down,
+        )
+        app.register_blueprint(build_camera_blueprint())
+        install_socket_gate(app, sessions)
+    app.hmi.cameras = app.cameras
+
     @app.before_serving
     async def start() -> None:
+        # First, so the dashboard's log has the whole start-up in it.
+        app.hmi.logbook.attach()
         await hub.start()
         # What a monitor cannot answer, asked once: whether a record is an
         # enum and must be read by name, what it will accept, what it is
@@ -171,6 +237,8 @@ def create_app(settings: Settings | None = None) -> Quart:
         # subscription it holds is of the final PV set.
         await describe_components(hub, pages)
         describe_on_reconnect(hub, pages)
+        if app.cameras is not None:
+            await app.cameras.hub.start()
         if settings.prewarm:
             # Hold a subscription for every screen's PVs for the process
             # lifetime, so the cache is warm before anyone loads a page.
@@ -187,6 +255,14 @@ def create_app(settings: Settings | None = None) -> Quart:
         for page in pages.values():
             for component in page.gui.walk():
                 await component.warm()
+        app.hmi.lock_sweeper = asyncio.create_task(_sweep_locks(locks))
+        if locks.exclusive:
+            # Locks live in memory, so a restart is a release of every one of
+            # them — said once, so nobody wonders where their control went.
+            logger.info(
+                "exclusive write control: %d PV(s), all free after start-up",
+                len(locks.exclusive),
+            )
         log_startup(
             authenticator,
             cookie_secure=settings.session_cookie_secure,
@@ -205,12 +281,20 @@ def create_app(settings: Settings | None = None) -> Quart:
 
     @app.after_serving
     async def stop() -> None:
+        if app.hmi.lock_sweeper is not None:
+            app.hmi.lock_sweeper.cancel()
         if app.hmi.warm is not None:
             await app.hmi.warm.close()
         await hub.stop()
+        if app.cameras is not None:
+            await app.cameras.hub.stop()
+        # Last, for the same reason — and so a test run, which builds an app
+        # per module, does not leave a handler per app on the root logger.
+        app.hmi.logbook.detach()
 
     app.register_blueprint(build_login_blueprint(home=app.hmi.home))
     app.register_blueprint(build_blueprint(pages, home=app.hmi.home))
+    app.register_blueprint(build_monitor_blueprint())
     # Registered after the blueprints but runs before every one of their views:
     # `before_request` hooks run in registration order, and nothing above is
     # reachable without passing this one.
@@ -244,12 +328,7 @@ def create_app(settings: Settings | None = None) -> Quart:
                 # but it is shown in its component's place on a screen, not
                 # navigated to.
                 "screens": {
-                    slug: {
-                        "title": page.gui.title,
-                        "components": sum(1 for _ in page.gui.walk()),
-                        "widgets": len(list(page.gui.all_widgets())),
-                        "pvs": len(page.all_pvs),
-                    }
+                    slug: {"title": page.gui.title, **page.sizes()}
                     for slug, page in pages.items()
                     if "/" not in slug
                 },
@@ -261,6 +340,17 @@ def create_app(settings: Settings | None = None) -> Quart:
         )
 
     return app
+
+
+async def _sweep_locks(locks: LockTable, interval: float = 1.0) -> None:
+    """Release, once a second, every lock whose tab has been gone longer than
+    the grace period. The table tells every screen showing the PV."""
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            locks.sweep()
+        except Exception:  # noqa: BLE001 - one bad sweep must not end the sweeping
+            logger.exception("lock sweep failed")
 
 
 def serve_config(settings: Settings):
@@ -301,6 +391,17 @@ def _shutdown_trigger(app: Quart):
     sequence proceeds as it does with no stream open at all.
     """
 
+    def closing() -> None:
+        logger.info("shutting down — closing %d open stream(s)", app.hmi.hub.subscriber_count)
+
+    return signal_trigger(app.hmi.shutting_down, before=closing)
+
+
+def signal_trigger(shutting_down: asyncio.Event, *, before=None):
+    """Hypercorn's shutdown trigger for any of this repository's apps: wait for
+    SIGINT/SIGTERM/SIGBREAK, then set `shutting_down` so open streams and
+    sockets end themselves (see `_shutdown_trigger` for why they must)."""
+
     async def trigger() -> None:
         loop = asyncio.get_running_loop()
         stop = asyncio.Event()
@@ -314,8 +415,9 @@ def _shutdown_trigger(app: Quart):
                 # Windows: no loop-level handlers, but the C-level one works.
                 signal.signal(sig, lambda *_: stop.set())
         await stop.wait()
-        logger.info("shutting down — closing %d open stream(s)", app.hmi.hub.subscriber_count)
-        app.hmi.shutting_down.set()
+        if before is not None:
+            before()
+        shutting_down.set()
 
     return trigger
 

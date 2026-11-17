@@ -17,6 +17,7 @@ Templates are found in three places, searched in this order:
 from __future__ import annotations
 
 import hashlib
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -31,38 +32,6 @@ SHARED_TEMPLATES = COMPONENTS_ROOT / "templates"
 STATIC_ROOT = APP_ROOT / "core" / "static"
 #: Where `core/static` is mounted (see `core.server.create_app`).
 STATIC_URL = "/static"
-
-
-def asset_url(path: str, *, root: Path = STATIC_ROOT, versioned: bool = True) -> str:
-    """The URL of a static file, named for what it holds.
-
-    Quart serves static files to be kept for twelve hours, so a browser that
-    has the stylesheet does not ask for it again — and after a change, a
-    station renders new markup with old CSS until the cache runs out. A
-    version taken from the content makes a changed file a new URL, fetched at
-    once, while an unchanged one stays cached for as long as Quart says.
-
-    Hashed once per version of the file on disk (its mtime and size), so a
-    file edited under a running `make run` is a new URL on the next render
-    and an unchanged one costs a `stat`.
-
-    `versioned=False` for a URL that must match another byte for byte: a
-    font preload is used only if it is the stylesheet's `url()` exactly.
-    """
-    url = f"{STATIC_URL}{path}"
-    if not versioned:
-        return url
-    try:
-        stat = (root / path.lstrip("/")).stat()
-    except OSError:
-        # Not there: the plain URL, and the 404 says why.
-        return url
-    return f"{url}?v={_content_version(root / path.lstrip('/'), stat.st_mtime_ns, stat.st_size)}"
-
-
-@lru_cache(maxsize=64)
-def _content_version(file: Path, _mtime_ns: int, _size: int) -> str:
-    return hashlib.sha256(file.read_bytes()).hexdigest()[:12]
 
 
 def create_environment(*, auto_reload: bool = False) -> Environment:
@@ -86,8 +55,57 @@ def create_environment(*, auto_reload: bool = False) -> Environment:
     # Starlette's `url_for` is only available through its own Jinja integration,
     # and this app uses the environment directly (widgets render outside any
     # request). One mount point, one helper.
-    env.globals["static"] = asset_url
+    env.globals["static"] = static_url
     return env
+
+
+#: Files whose URL carries their own hash. Fonts do not: `@font-face` asks for
+#: them by a fixed URL, and a preload must name exactly that URL or the browser
+#: fetches the face twice.
+VERSIONED = (".css", ".js")
+
+#: A file modified this recently is hashed afresh rather than from the cache.
+#: Linux stamps file times from a coarse clock that ticks every few
+#: milliseconds, so a second edit within the same tick keeps the mtime, and if
+#: it keeps the size too, stat cannot tell the two versions apart. Once the
+#: mtime is this far in the past, any later edit gets a later timestamp, so
+#: the cache is safe again. Git treats its index the same way ("racily clean").
+RACY_NS = 2_000_000_000
+
+
+def static_url(path: str, *, root: Path = STATIC_ROOT) -> str:
+    """`/static/css/hmi.css?v=1a2b3c4d5e6f` — the URL of a static file, with a
+    hash of its content for a stylesheet or a script.
+
+    Static files are served with a twelve-hour cache. Without the hash, a
+    browser that has the stylesheet keeps using it after a deploy has changed
+    it, and the station shows today's markup in yesterday's styling until
+    someone forces a reload. With it, a changed file is a new URL.
+
+    The file is stat'ed on every call and hashed only when its size or mtime
+    changed, so an edit in development is picked up on the next render. A file
+    changed in the last two seconds is hashed every time (`RACY_NS`).
+    """
+    url = f"{STATIC_URL}{path}"
+    if not path.endswith(VERSIONED):
+        return url
+    file = root / path.lstrip("/")
+    try:
+        stat = file.stat()
+    except OSError:
+        return url
+    if time.time_ns() - stat.st_mtime_ns < RACY_NS:
+        return f"{url}?v={_hash(file)}"
+    return f"{url}?v={_digest(str(file), stat.st_mtime_ns, stat.st_size)}"
+
+
+@lru_cache(maxsize=32)
+def _digest(file: str, _mtime_ns: int, _size: int) -> str:
+    return _hash(Path(file))
+
+
+def _hash(file: Path) -> str:
+    return hashlib.sha256(file.read_bytes()).hexdigest()[:12]
 
 
 class WidgetRenderer:

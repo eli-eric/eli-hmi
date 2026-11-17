@@ -5,6 +5,7 @@
     GET  /<gui>/stream       Datastar SSE — element patches as PVs report
     GET  /<gui>/<key>/<view> a component's detail view, patched in its place
     POST /api/write          one PV write, with the result patched back
+    POST /api/lock           take, release or force control of an exclusive PV
 
 Every one of them requires a session; the gate is in `core.login`, not here, so
 a screen added tomorrow is protected without anyone remembering to protect it.
@@ -20,8 +21,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from html import escape
 from typing import Any, AsyncIterator
+from urllib.parse import urlparse
 
 from datastar_py import ServerSentEventGenerator as SSE
 from datastar_py.consts import ElementPatchMode
@@ -29,9 +32,12 @@ from datastar_py.quart import DatastarResponse, read_signals
 from quart import Blueprint, Response, current_app, g, make_response, redirect, request
 
 from core.auth import Identity
+from core.clients import ClientRegistry
 from core.components import PvReader, WriteRule
 from core.epics.hub import PvHub
 from core.epics.types import PvDescription, PvId
+from core.locks import LockTable, Watcher, clock_time, describe
+from core.login import client_ip
 from core.page import Page
 from core.palette import DEFAULT_PALETTE, PALETTE_COOKIE, PALETTES, usable
 from core.settings import Settings
@@ -68,6 +74,7 @@ def build_blueprint(pages: dict[str, Page], *, home: str) -> Blueprint:
         _add_gui_routes(screens, slug)
 
     screens.add_url_rule("/api/write", "write", write, methods=["POST"])
+    screens.add_url_rule("/api/lock", "lock", lock, methods=["POST"])
     screens.add_url_rule("/api/waveforms", "waveforms", waveforms, methods=["GET"])
     screens.add_url_rule("/api/register", "register", register_panel, methods=["GET"])
     screens.add_url_rule("/api/palette", "palette", set_palette, methods=["POST"])
@@ -189,6 +196,7 @@ def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:
             palette=current_palette(settings),
             user=who.user if who else None,
             hidden=current_hidden(view),
+            camera_gateway=settings.camera_gateway_url,
         )
         return Response(html, content_type="text/html; charset=utf-8")
 
@@ -199,13 +207,18 @@ def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:
         closed over. The generator outlives the request scope by design — it is
         the response — so reaching for `request` from inside it would need
         Quart's `stream_with_context` and tie a shift-long stream to machinery
-        it does not otherwise care about.
+        it does not otherwise care about. That includes who is asking and from
+        where, which `/monitor` lists for as long as the stream is open.
         """
         settings, hub, pages = state()
         who = actor()
+        hmi = current_app.hmi
+        signals = await read_signals() or {}
+        # Which browser tab this is, so the stream can say which locks are
+        # its own. Datastar sends it with the `@get` that opens the stream.
+        tab = tab_of(signals)
         # The components this workstation has hidden, as the page sends
         # them: not streamed, not subscribed to.
-        signals = await read_signals() or {}
         hidden = signals.get("hidden")
         hidden = [key for key in hidden if isinstance(key, str)] if isinstance(hidden, list) else []
         return DatastarResponse(
@@ -215,7 +228,11 @@ def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:
                 hub,
                 settings,
                 user=who.user if who else "-",
-                shutting_down=current_app.hmi.shutting_down,
+                shutting_down=hmi.shutting_down,
+                clients=hmi.clients,
+                ip=client_ip(),
+                user_agent=request.headers.get("user-agent", ""),
+                tab=tab,
             )
         )
 
@@ -307,6 +324,9 @@ async def register_panel() -> DatastarResponse:
         described=described,
         rule=rule,
         nv=nv,
+        # What every write control asks of the page it is on: whether its PV
+        # is under exclusive control (`controls.lock_gate`).
+        lock_key=current_app.hmi.locks.key,
     )
     who = actor()
     logger.info(
@@ -392,11 +412,16 @@ async def waveforms() -> DatastarResponse:
 
 
 async def _wait_for_change(
-    subscription, timeout: float, shutting_down: asyncio.Event
-) -> tuple[set, bool]:
-    """Wait for a PV to change, the heartbeat to fire, or the process to stop.
+    subscription,
+    timeout: float,
+    shutting_down: asyncio.Event,
+    watcher: Watcher | None = None,
+) -> tuple[set, bool, bool]:
+    """Wait for a PV to change, a lock to move, the heartbeat to fire, or the
+    process to stop.
 
-    Returns `(dirty, stopping)`. The shutdown arm is what lets Ctrl-C work: an
+    Returns `(dirty, locks_moved, stopping)`. The shutdown arm is what lets
+    Ctrl-C work: an
     SSE response is a connection that never completes on its own, and
     Hypercorn's shutdown waits for every connection to be dropped, so a stream
     that only ever woke on PV changes deadlocked the process against the
@@ -408,17 +433,21 @@ async def _wait_for_change(
     """
     waiter = asyncio.ensure_future(subscription.wait(timeout=timeout))
     stopping = asyncio.ensure_future(shutting_down.wait())
+    # A cancelled lock waiter loses nothing either: `Watcher.wait` clears its
+    # wakeup only after it returns.
+    moved = asyncio.ensure_future(watcher.wait()) if watcher is not None else None
+    tasks = {waiter, stopping} | ({moved} if moved is not None else set())
     try:
-        done, _ = await asyncio.wait(
-            {waiter, stopping}, return_when=asyncio.FIRST_COMPLETED
-        )
+        done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
     finally:
-        for task in (waiter, stopping):
+        for task in tasks:
             if not task.done():
                 task.cancel()
-    if waiter in done:
-        return waiter.result(), shutting_down.is_set()
-    return set(), True
+    if stopping in done:
+        return set(), False, True
+    dirty = waiter.result() if waiter in done else set()
+    locks_moved = moved is not None and moved in done and moved.result()
+    return dirty, locks_moved, shutting_down.is_set()
 
 
 async def _stream_events(
@@ -429,6 +458,10 @@ async def _stream_events(
     *,
     user: str,
     shutting_down: asyncio.Event | None = None,
+    clients: ClientRegistry | None = None,
+    ip: str = "-",
+    user_agent: str = "",
+    tab: str | None = None,
 ):
     """The live half of a screen.
 
@@ -451,25 +484,44 @@ async def _stream_events(
     A stopping *server* arrives as `shutting_down`, and the loop returns rather
     than waiting to be cancelled — nothing cancels it, because the shutdown is
     waiting for this very response to finish.
+
+    While it is open the stream is listed in `clients`, which is what `/monitor`
+    shows as a connected client; every event it sends is counted there.
+
+    It is also this tab's presence on the screen's exclusive PVs (`core.locks`):
+    while it is open, a lock the tab holds on one of them cannot lapse, and
+    every move of one of those locks wakes the loop to send the tab its new
+    `_locks` — with a toast when the move was someone forcing it away.
     """
     stopping = shutting_down or asyncio.Event()
     subscription = await hub.subscribe(view.all_pvs)
+    watcher = view.locks.watch(tab=tab, user=user, pvs=view.exclusive_pvs)
+    registry = clients if clients is not None else ClientRegistry()
+    client = registry.open(kind="screen", slug=slug, user=user, ip=ip, user_agent=user_agent)
     logger.info(
-        "SSE stream opened for /%s by user=%s (%d PVs, %d monitors, %d streams)",
+        "SSE stream opened for /%s by user=%s ip=%s (%d PVs, %d monitors, %d streams)",
         slug,
         user,
+        ip,
         len(view.all_pvs),
         hub.monitor_count,
         hub.subscriber_count,
     )
+
+    def sent(event):
+        client.sent()
+        return event
+
     try:
         reader = PvReader(subscription.snapshot(), hub.link_ok)
-        yield SSE.patch_signals({"_age": 0})
-        yield SSE.patch_elements(view.render_all_widgets(reader))
+        # The page rendered every held lock as someone else's, because it
+        # could not know which tab was asking; this is where the tab is told.
+        yield sent(SSE.patch_signals({"_age": 0, "_locks": view.lock_view(tab=tab, user=user)}))
+        yield sent(SSE.patch_elements(view.render_all_widgets(reader)))
 
         while not stopping.is_set():
-            dirty, stop_now = await _wait_for_change(
-                subscription, settings.heartbeat_seconds, stopping
+            dirty, locks_moved, stop_now = await _wait_for_change(
+                subscription, settings.heartbeat_seconds, stopping, watcher
             )
             if stop_now:
                 return
@@ -481,17 +533,30 @@ async def _stream_events(
                 dirty |= subscription.drain()
 
             reader = PvReader(subscription.snapshot(), hub.link_ok)
-            yield SSE.patch_signals({"_age": 0})
+            signals: dict[str, Any] = {"_age": 0}
+            if locks_moved:
+                signals["_locks"] = view.lock_view(tab=tab, user=user)
+                for forced in watcher.events():
+                    # Told, not discovered: an operator whose control was
+                    # taken should not learn it by pressing a dead button.
+                    signals["_toast"] = (
+                        f"Control of {forced.pv} taken over by {forced.by.user} "
+                        f"({forced.by.ip}) at {clock_time(forced.by.since, now=time.time())}"
+                    )
+                    signals["_toast_age"] = 0
+            yield sent(SSE.patch_signals(signals))
 
             if not dirty:
                 # Heartbeat tick: nothing changed, but the link state may have.
-                yield SSE.patch_elements(view.render_link_banner(reader))
+                yield sent(SSE.patch_elements(view.render_link_banner(reader)))
                 continue
 
             patch = view.render_patch(reader, dirty)
             if patch:
-                yield SSE.patch_elements(patch)
+                yield sent(SSE.patch_elements(patch))
     finally:
+        registry.close(client)
+        watcher.close()
         await subscription.close()
         logger.info(
             "SSE stream closed for /%s by user=%s (%d left)",
@@ -525,6 +590,16 @@ async def write() -> DatastarResponse:
     if not name or len(name) > 256 or any(character.isspace() for character in name):
         logger.warning("write refused user=%s pv=%r reason=unusable-pv-name", user, name)
         return _report(f"Refused: '{name}' is not a usable PV name.", status)
+
+    # Exclusive control, checked before anything else about the value: a tab
+    # that does not hold the PV has nothing to write, whatever it typed. Here
+    # rather than only in the button, for the reason the bounds are.
+    locks: LockTable = current_app.hmi.locks
+    if locks.key(name) is not None:
+        refusal = locks.refuses_write(name, tab=tab_of(await read_signals()), user=user)
+        if refusal is not None:
+            logger.warning("write refused user=%s pv=%s reason=exclusive: %s", user, name, refusal)
+            return _report(f"Refused: {refusal}.", status, pv=name)
 
     if signal is not None:
         signals = await read_signals()
@@ -572,6 +647,90 @@ async def write() -> DatastarResponse:
     return _report(f"{name} ← {payload}", status, ok=True, close=close, reset_age=True)
 
 
+#: What `/api/lock` can be asked to do.
+LOCK_ACTIONS = ("take", "release", "force")
+
+
+async def lock() -> DatastarResponse:
+    """Take, release or force control of one exclusive PV, for this tab.
+
+    Answers with the tab's new `_locks` entry, so its controls change at once
+    rather than a stream round-trip later; every other screen showing the PV
+    hears it from its own stream (`LockTable.watch`). Force is confirmed in
+    the browser before it is sent — by the time it arrives here it is meant.
+    """
+    _settings, _hub, pages = state()
+    locks: LockTable = current_app.hmi.locks
+    who = actor()
+    user = who.user if who else "-"
+    name = (request.args.get("pv") or "").strip()
+    action = (request.args.get("action") or "").strip()
+    status = (request.args.get("status") or "").strip() or None
+    tab = tab_of(await read_signals())
+
+    if locks.key(name) is None:
+        logger.warning("lock refused user=%s pv=%r reason=not-exclusive", user, name)
+        return _report(f"Refused: {name} is not under exclusive control.", status)
+    if action not in LOCK_ACTIONS:
+        logger.warning(
+            "lock refused user=%s pv=%s action=%r reason=unknown-action", user, name, action
+        )
+        return _report(f"Refused: '{action}' is not something control can do.", status)
+    if tab is None:
+        # A page from before this feature, or a request from no page at all:
+        # there is no tab to give control to.
+        logger.warning("lock refused user=%s pv=%s action=%s reason=no-tab", user, name, action)
+        return _report("Refused: this page did not say which tab it is — reload it.", status)
+
+    where = dict(tab=tab, user=user, ip=client_ip(), screen=_screen(pages))
+    ok = True
+    if action == "take":
+        outcome = locks.take(name, **where)
+        ok = outcome.granted
+        message = (
+            f"{name}: you have control"
+            if ok
+            else f"Refused: {name} is controlled by {describe(outcome.holder, now=time.time())} "
+            f"— ask them, or Force"
+        )
+    elif action == "force":
+        outcome = locks.force(name, **where)
+        message = (
+            f"{name}: control taken over from {outcome.previous.user}"
+            if outcome.previous is not None
+            else f"{name}: you have control"
+        )
+    else:
+        outcome = locks.release(name, tab=tab, user=user)
+        ok = outcome.granted
+        message = f"{name}: released" if ok else f"Refused: you do not have control of {name}"
+    if not ok:
+        logger.info("lock refused user=%s pv=%s action=%s", user, name, action)
+
+    return _report(
+        message,
+        status,
+        ok=ok,
+        extra=[SSE.patch_signals({"_locks": locks.view([name], tab=tab, user=user)})],
+    )
+
+
+def tab_of(signals: dict[str, Any] | None) -> str | None:
+    """The browser tab a request came from, from the `tab` signal every page
+    sends. `None` for a request that names none — it holds nothing."""
+    tab = (signals or {}).get("tab")
+    if not isinstance(tab, str) or not tab.strip() or len(tab) > 128:
+        return None
+    return tab.strip()
+
+
+def _screen(pages: dict[str, Page]) -> str:
+    """Which screen a control was pressed on, for "where" in the lock's text.
+    From the Referer: it only labels the lock, and decides nothing."""
+    path = urlparse(request.headers.get("referer", "")).path.strip("/")
+    return path if path in pages else "-"
+
+
 def _report(
     message: str,
     target: str | None,
@@ -580,6 +739,7 @@ def _report(
     close: str | None = None,
     reset_age: bool = False,
     pv: str | None = None,
+    extra: list[Any] | None = None,
 ) -> DatastarResponse:
     """Say what happened, beside the control that caused it when it named one.
 
@@ -607,6 +767,7 @@ def _report(
         )
     if ok and close:
         events.append(SSE.patch_signals({close: False}))
+    events.extend(extra or ())
     if ok or pv is None:
         return DatastarResponse(events)
     redraw = _redraw_from_device(pv)

@@ -52,6 +52,9 @@ class Settings:
     #: 8082, the port the React app used — operators have it bookmarked.
     port: int = 8082
     log_level: str = "INFO"
+    #: Where the log book (`core.logbook`) keeps its rotating file, so `/monitor`
+    #: still has the history after a restart. Empty: memory only.
+    log_dir: str = ""
 
     #: Which zone folder to serve. Empty means "work it out from the hostname".
     zone_code: str = ""
@@ -96,6 +99,34 @@ class Settings:
     #: is TLS in front, or the cookie travels in clear on the first request.
     session_cookie_secure: bool = False
 
+    #: How long an exclusive PV stays held after the last screen showing it
+    #: closed in the holder's tab (`core.locks`). Long enough for a reload or a
+    #: stream reconnect, short enough that a closed tab does not keep a valve
+    #: from everyone else for the rest of the shift.
+    lock_grace_seconds: float = 60.0
+
+    #: Who serves camera frames. `embedded`: this process. A URL such as
+    #: `http://station:8083`: a standalone gateway (`python -m cameras`), so
+    #: a burst of camera traffic cannot slow a control write; pages connect
+    #: there. `off`: no camera frames at all.
+    camera_gateway: str = "embedded"
+    #: Where the standalone camera gateway (`python -m cameras`) listens. The
+    #: HMI keeps 8082; the gateway is the next port up.
+    camera_port: int = 8083
+
+    @property
+    def cameras_embedded(self) -> bool:
+        return self.camera_gateway == "embedded"
+
+    @property
+    def camera_gateway_url(self) -> str | None:
+        """Base URL pages fetch frames from: "" for this app, `None` for none."""
+        if self.camera_gateway == "embedded":
+            return ""
+        if self.camera_gateway == "off":
+            return None
+        return self.camera_gateway.rstrip("/")
+
     @property
     def backend_label(self) -> str:
         return "simulated EPICS" if self.epics_backend == "sim" else "EPICS (aioca)"
@@ -110,6 +141,7 @@ class Settings:
             host=os.getenv("HOST", defaults.host),
             port=_env_int("PORT", defaults.port),
             log_level=os.getenv("LOG_LEVEL", defaults.log_level).upper(),
+            log_dir=os.getenv("LOG_DIR", defaults.log_dir).strip(),
             zone_code=os.getenv("ZONE_CODE", defaults.zone_code).strip(),
             epics_backend=os.getenv("EPICS_BACKEND", defaults.epics_backend).strip().lower(),
             sim_tick_seconds=_env_float("SIM_TICK_SECONDS", defaults.sim_tick_seconds),
@@ -126,4 +158,18 @@ class Settings:
             session_cookie_secure=_env_bool(
                 "SESSION_COOKIE_SECURE", defaults.session_cookie_secure
             ),
+            lock_grace_seconds=_env_float("LOCK_GRACE_SECONDS", defaults.lock_grace_seconds),
+            camera_gateway=_camera_gateway(os.getenv("CAMERA_GATEWAY", defaults.camera_gateway)),
+            camera_port=_env_int("CAMERA_PORT", defaults.camera_port),
         )
+
+
+def _camera_gateway(raw: str) -> str:
+    value = raw.strip() or "embedded"
+    if value.lower() in {"embedded", "off"}:
+        return value.lower()
+    if not value.startswith(("http://", "https://")):
+        raise SettingsError(
+            f"CAMERA_GATEWAY={raw!r} is not 'embedded', 'off' or an http(s):// URL"
+        )
+    return value

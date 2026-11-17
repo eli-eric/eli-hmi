@@ -18,13 +18,16 @@ from typing import Any
 
 from pydantic import Field, field_validator
 
-from components.common import state_names
+from components.common import Exclusive, exclusive_names, state_names
 from core.components import Component, ComponentConfig, Datatype, PvId, PvReader, PvSpec, register
 from core.render import mapped_readout
 
 #: What a valve record reports, in index order. `MOVING` matters: an operator
 #: pressing Open needs to see that something happened before it is open.
 STATES = ("CLOSED", "OPEN", "MOVING", "FAULT")
+
+#: The buttons `exclusive:` can name.
+CONTROLS = ("open", "close")
 
 
 class Config(ComponentConfig):
@@ -42,10 +45,22 @@ class Config(ComponentConfig):
         "IOC use them. Quote OFF / ON / NO / YES: YAML reads them as booleans.",
     )
 
+    exclusive: Exclusive = Field(
+        default=False,
+        description="Only the tab that has taken control may press these: "
+        "`true` for both buttons, or a list naming them (`[open, close]`).",
+    )
+
     @field_validator("states")
     @classmethod
     def _states(cls, value: list[Any]) -> list[str]:
         return state_names(value)
+
+    @field_validator("exclusive")
+    @classmethod
+    def _exclusive(cls, value: Exclusive) -> Exclusive:
+        exclusive_names(value, CONTROLS)
+        return value
 
 
 @register
@@ -61,6 +76,9 @@ class Valve(Component):
         cfg = self.config
         self.cog = self.signal("cog")
         self.add("state", "pill", [PvId(cfg.pv, Datatype.ENUM_STRING)], self._state)
+        targets = {"open": cfg.open_pv or cfg.pv, "close": cfg.close_pv or cfg.pv}
+        for control in exclusive_names(cfg.exclusive, CONTROLS):
+            self.exclusive(targets[control])
 
     def _state(self, read: PvReader) -> dict[str, Any]:
         cfg = self.config

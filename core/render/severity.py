@@ -330,3 +330,48 @@ def present_aggregate(
         text=DISCONNECTED_TEXT if all_disconnected else INVALID_TEXT,
         title="\n".join(title_lines),
     )
+
+
+def log_tone(levelno: int) -> Tone | None:
+    """Tone for a log record's level badge on `/monitor`.
+
+    Here rather than in the dashboard because this module is the one place
+    that decides which tone means what: an ERROR line wears the same tone as a
+    MAJOR alarm, a WARNING the same as a MINOR one. INFO is the normal case and
+    stays unstyled; DEBUG is muted like a reading that has not arrived.
+    """
+    if levelno >= 40:  # logging.ERROR, CRITICAL
+        return "error"
+    if levelno >= 30:  # logging.WARNING
+        return "warning"
+    if levelno < 20:  # logging.DEBUG
+        return "unknown"
+    return None
+
+
+#: What a camera tile's status chip says for each `cameras.protocol.Status`.
+#: Empty for a good frame: the chip is hidden while the image is live.
+CAMERA_STATUS_TEXT = ("", "SATURATED", "BAD FRAME", "CAMERA DSC")
+#: Shown by the page itself when frames stop arriving or the socket drops —
+#: the camera counterpart of the screen's `$_age` watchdog.
+CAMERA_STALE = {"text": "NO FRAMES", "tone": "unknown"}
+
+
+def camera_tone(status: int) -> Tone | None:
+    """Tone for a camera tile's status chip, from what the camera gateway
+    reports about a frame (`cameras.protocol.Status`).
+
+    Here for the same reason as `log_tone`: this module decides which tone
+    means what. Saturation is a warning — the image is still live, but a
+    reading taken from it is not trustworthy, like a MINOR alarm. A lost PV or
+    a frame that is not this camera's image reads like a disconnected PV.
+    A good frame stays unstyled.
+    """
+    from cameras.protocol import Status
+
+    return {
+        Status.OK: None,
+        Status.SATURATED: "warning",
+        Status.BAD_FRAME: "invalid",
+        Status.DISCONNECTED: "invalid",
+    }[Status(status)]

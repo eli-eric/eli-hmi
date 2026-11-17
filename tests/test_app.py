@@ -12,6 +12,7 @@ the built-in `test`/`test` account, which is what `dev=True` below turns on. The
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import html
 import json
 import logging
@@ -19,6 +20,8 @@ import re
 from urllib.parse import quote
 import socket
 import threading
+from contextlib import contextmanager
+from urllib.parse import urlencode
 
 import pytest
 
@@ -51,7 +54,14 @@ def accepting(port: int, timeout: float = 15.0) -> bool:
 
 @pytest.fixture(scope="module")
 def server():
-    settings = Settings(
+    with running() as url:
+        yield url
+
+
+@contextmanager
+def running(**overrides):
+    """A real server on a free port, for as long as the block runs."""
+    fields = dict(
         host="127.0.0.1",
         port=free_port(),
         zone_code="TESTZ",
@@ -65,6 +75,8 @@ def server():
         dev=True,
         session_secret="test-only-secret",
     )
+    fields.update(overrides)
+    settings = Settings(**fields)
     app = create_app(settings)
     config = serve_config(settings)
     config.accesslog = None
@@ -154,7 +166,7 @@ class TestPage:
     async def test_every_screen_in_the_zone_is_served(self, client):
         """The routes come from the zone's folders, so the menu cannot disagree
         with what the app serves."""
-        for slug in ("l4-opcpa", "chillers", "vacuum"):
+        for slug in ("l4-opcpa", "chillers", "vacuum", "cameras"):
             response = await client.get(f"/{slug}")
             assert response.status_code == 200, slug
 
@@ -164,7 +176,7 @@ class TestPage:
             body = (await client.get(f"/{slug}")).text
             menus.append(re.findall(r'class="nav-link"[^>]*>([^<]+)', body))
         assert menus[0] == menus[1] == menus[2]
-        assert menus[0] == ["L4 OPCPA", "Chillers", "Vacuum"]
+        assert menus[0] == ["L4 OPCPA", "Chillers", "Vacuum", "Cameras"]
 
     async def test_the_zone_is_named_on_every_screen(self, client):
         """Each zone is a separate network, so "which zone is this" must never
@@ -212,6 +224,15 @@ class TestPage:
         assert body.count("<script") == 1
         assert "datastar.js" in body
 
+    async def test_a_camera_screen_also_ships_the_camera_script(self, client):
+        """A camera tile is the one thing Datastar cannot draw: frames arrive
+        as binary on a WebSocket. The script comes only with screens that have
+        a camera; every other screen keeps exactly one (above)."""
+        body = (await client.get("/cameras")).text
+        assert body.count("<script") == 2
+        assert re.search(r'<script type="module" src="/static/js/cameras\.js\?v=\w+"', body)
+        assert body.count("data-camera=") >= 4
+
     async def test_index_redirects_to_the_zone_first_screen(self, client):
         response = await client.get("/", follow_redirects=False)
         assert response.status_code in (307, 308)
@@ -223,7 +244,9 @@ class TestStream:
         events = await read_events(client, "/l4-opcpa/stream", count=4)
         assert len(events) >= 4
         assert events[0].startswith("event: datastar-patch-signals")
-        assert '{"_age":0}' in events[0]
+        # The opening signals also carry this tab's view of the screen's
+        # exclusive PVs (`_locks`), which the page could not know.
+        assert '"_age":0' in events[0]
         assert events[1].startswith("event: datastar-patch-elements")
         # The opening sync carries every widget.
         assert 'id="NL2-overview"' in events[1]
@@ -316,7 +339,8 @@ class TestChoosingTheLasers:
         assert "$hidden" in change and "'NL4'" in change, change
         assert "hmi-choice" in change, "the box does not ask for the stream to reopen"
         opened = re.search(r'<div class="page"' + self.TAG, page).group(0)
-        assert "data-on:hmi-choice=\"@get('/l4-opcpa/stream')\"" in opened
+        first = re.search(r"(@get\('/l4-opcpa/stream'[^\"]*)\"", opened).group(1)
+        assert f'data-on:hmi-choice="{first}"' in opened, "not reopened the way it was opened"
 
     def column(self, page: str, key: str) -> str:
         """The opening tag of a laser's column."""
@@ -449,8 +473,15 @@ class TestWrite:
 
         task = asyncio.create_task(watch())
         await asyncio.sleep(0.6)
-        await client.post("/api/write", params={"pv": "CMD_NL2_START_LASER", "value": "1"}, json={})
-        await asyncio.sleep(1.5)
+        # Start is exclusive on this screen, so the tab takes control first.
+        start = "CMD_NL2_START_LASER"
+        await lock(client, "tab-a", "take", pv=start)
+        try:
+            assert "Refused" not in (await press(client, "tab-a", pv=start)).text
+            await asyncio.sleep(1.5)
+        finally:
+            # The server is shared by the module: leave the command free.
+            await lock(client, "tab-a", "release", pv=start)
         task.cancel()
         try:
             await task
@@ -489,7 +520,7 @@ class TestOps:
         # How the zone was chosen is the second question after "is anything
         # monitored", so /stats answers both.
         assert stats["zone_resolved_by"] == "ZONE_CODE"
-        assert set(stats["screens"]) == {"l4-opcpa", "chillers", "vacuum"}
+        assert set(stats["screens"]) == {"l4-opcpa", "chillers", "vacuum", "cameras"}
         assert stats["monitored_pvs"] > 0
         assert stats["link_ok"] is True
 
@@ -627,7 +658,7 @@ class TestTruncationIsVisible:
         markup = create_environment().from_string(
             '{% import "controls.html" as controls with context %}'
             '{{ controls.preset_input("YDFA current", [], "X:YDFA", "set_ydfa", precision=1) }}'
-        ).render(comp=SimpleNamespace(key="NL2"))
+        ).render(comp=SimpleNamespace(key="NL2"), lock_key=lambda pv: None)
         field = input_tag(markup, 'aria-label="YDFA current"')
         assert "data-on:blur" in field
         assert "{0,1}" in field
@@ -712,6 +743,62 @@ class TestTypography:
             response = await client.get(f"/static/fonts/{face}")
             assert response.status_code == 200, f"{face} is declared but not shipped"
             assert len(response.content) > 10_000
+
+
+class TestStaticVersions:
+    """Static files are cached for twelve hours. A stylesheet or script URL
+    that carries a hash of the file is fetched again the moment the file
+    changes; without it, a station shows yesterday's stylesheet over today's
+    markup for the rest of the day."""
+
+    async def test_the_stylesheet_and_script_urls_carry_the_files_hash(self, client, anonymous):
+        from core.jinja import STATIC_ROOT
+
+        def digest(path: str) -> str:
+            return hashlib.sha256((STATIC_ROOT / path).read_bytes()).hexdigest()[:12]
+
+        pages = [(await client.get(page)).text for page in ("/chillers", "/monitor")]
+        pages.append((await anonymous.get("/login")).text)
+        for body in pages:
+            assert f'href="/static/css/hmi.css?v={digest("css/hmi.css")}"' in body
+        assert f'src="/static/vendor/datastar.js?v={digest("vendor/datastar.js")}"' in pages[0]
+        served = await client.get(f"/static/css/hmi.css?v={digest('css/hmi.css')}")
+        assert served.status_code == 200
+
+    async def test_a_font_keeps_the_url_the_stylesheet_asks_for(self, client):
+        """The preload has to name exactly what `@font-face` fetches, or the
+        browser downloads the face twice."""
+        body = (await client.get("/chillers")).text
+        assert 'href="/static/fonts/RobotoCondensed-Regular.ttf"' in body
+
+    def test_the_version_follows_the_content(self, tmp_path):
+        from core.jinja import static_url
+
+        (tmp_path / "app.css").write_text("body { color: black }")
+        before = static_url("/app.css", root=tmp_path)
+        (tmp_path / "app.css").write_text("body { color: white }")
+        after = static_url("/app.css", root=tmp_path)
+        assert before.startswith("/static/app.css?v=") and before != after
+
+    def test_a_same_size_edit_within_one_clock_tick_still_changes_the_version(self, tmp_path):
+        """Linux stamps file times from a coarse clock that ticks every few
+        milliseconds, so two quick edits can share an mtime. With the same
+        size too, stat cannot tell them apart. Simulated here by pinning the
+        mtime, so the test fails the same way on any filesystem."""
+        import os
+        import time
+
+        from core.jinja import static_url
+
+        file = tmp_path / "app.css"
+        tick = time.time_ns()
+        file.write_text("body { color: black }")
+        os.utime(file, ns=(tick, tick))
+        before = static_url("/app.css", root=tmp_path)
+        file.write_text("body { color: white }")
+        os.utime(file, ns=(tick, tick))
+        after = static_url("/app.css", root=tmp_path)
+        assert before != after
 
 
 class TestCogPanels:
@@ -849,40 +936,6 @@ class TestTheWaveformConfirmButtons:
             "a catalog that empties while the page is open would leave the "
             f"buttons live: {body!r}"
         )
-
-
-class TestAChangedAssetIsFetchedAgain:
-    """Static files are served to be kept for twelve hours, so a browser that
-    has the stylesheet does not ask for it again — and after a change, a
-    station renders the new markup with the old CSS. The URL names the
-    content instead: a changed file is a new URL and fetched at once, an
-    unchanged one stays cached."""
-
-    async def test_the_stylesheet_and_the_script_are_named_for_their_content(self, client):
-        page = (await client.get("/l4-opcpa")).text
-        for path in ("/static/css/hmi.css", "/static/vendor/datastar.js"):
-            url = re.search(rf'(?:href|src)="({re.escape(path)}\?v=[0-9a-f]+)"', page)
-            assert url, f"{path} is linked without a version"
-            assert (await client.get(url.group(1))).status_code == 200
-
-    def test_the_version_follows_the_content(self, tmp_path):
-        from core.jinja import asset_url
-
-        (tmp_path / "a.css").write_text("x{}")
-        first = asset_url("/a.css", root=tmp_path)
-        assert asset_url("/a.css", root=tmp_path) == first, "unchanged, yet a new URL"
-        (tmp_path / "a.css").write_text("xy{}")
-        assert asset_url("/a.css", root=tmp_path) != first, "changed, yet the same URL"
-
-    async def test_a_preloaded_font_is_the_one_the_stylesheet_asks_for(self, client):
-        """The exception: a preload is only used if its URL is the
-        stylesheet's `url()` byte for byte, and that cannot carry a version."""
-        page = (await client.get("/l4-opcpa")).text
-        css = (await client.get("/static/css/hmi.css")).text
-        fonts = re.findall(r'<link rel="preload" href="([^"]+)"', page)
-        assert fonts, "no font is preloaded"
-        for href in fonts:
-            assert f"url('{href}')" in css, f"{href} is preloaded and never used"
 
 
 class TestTheRegisterTree:
@@ -2471,3 +2524,371 @@ console.log(JSON.stringify([typed.value, pasted.value]));
         out = subprocess.run([node, "-e", script], capture_output=True, text=True, timeout=10)
         assert out.returncode == 0, out.stderr
         assert json.loads(out.stdout) == ["500", "5700"], out.stdout
+
+
+class TestMonitor:
+    """`/monitor`: the one screen that is not a zone folder. It answers the
+    first questions asked when a station misbehaves — who is connected, which
+    screens are open, which monitors are dead, what the log said."""
+
+    async def test_a_signed_in_user_gets_the_dashboard(self, client):
+        response = await client.get("/monitor")
+        assert response.status_code == 200
+        assert "<title>Monitor — zone TESTZ</title>" in response.text
+        assert ">TESTZ<" in response.text
+
+    async def test_it_is_behind_the_sign_in_like_every_screen(self, anonymous):
+        response = await anonymous.get("/monitor", follow_redirects=False)
+        assert response.status_code == 307
+        assert response.headers["location"] == "/login?next=/monitor"
+
+    async def test_every_screen_links_to_it_without_joining_the_zone_menu(self, client):
+        """A tool, not a screen: the zone menu stays the folder listing."""
+        for slug in ("l4-opcpa", "chillers", "vacuum"):
+            body = (await client.get(f"/{slug}")).text
+            assert '<a class="nav-tool" href="/monitor">Monitor</a>' in body, slug
+        body = (await client.get("/monitor")).text
+        assert '<a class="nav-tool" href="/monitor" aria-current="page">Monitor</a>' in body
+        assert re.findall(r'class="nav-link"[^>]*>([^<]+)', body) == [
+            "L4 OPCPA",
+            "Chillers",
+            "Vacuum",
+            "Cameras",
+        ]
+
+    @staticmethod
+    def rows(body: str, panel: str) -> list[list[str]]:
+        """The body rows of one dashboard panel, each a list of cell texts."""
+        section = re.search(rf'id="{panel}".*?</section>', body, re.S)
+        assert section, f"no #{panel} on the page"
+        return [
+            [
+                " ".join(re.sub(r"<[^>]+>", " ", cell).split())
+                for cell in re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)
+            ]
+            for row in re.findall(r"<tr[^>]*>(.*?)</tr>", section.group(0), re.S)
+            if "<td" in row
+        ]
+
+    async def test_an_open_screen_is_listed_with_who_and_where_until_it_closes(self, client):
+        agent = "monitor-test/1.0"
+        mine = lambda rows: [row for row in rows if "monitor-test 1.0" in row]  # noqa: E731
+
+        async with client.stream(
+            "GET", "/chillers/stream", headers={"user-agent": agent}
+        ) as stream:
+            # Held, not discarded: a dropped iterator is finalised, and that
+            # closes the connection — the stream would be gone before we look.
+            chunks = stream.aiter_text()
+            await anext(chunks)  # the stream is registered by now
+            rows = mine(self.rows((await client.get("/monitor")).text, "mon-clients"))
+            assert len(rows) == 1, rows
+            assert rows[0][:2] == ["test", "127.0.0.1"]
+            assert rows[0][3] == "chillers"
+
+        # Closing the tab ends the stream on the server side shortly after.
+        for _ in range(50):
+            if not mine(self.rows((await client.get("/monitor")).text, "mon-clients")):
+                break
+            await asyncio.sleep(0.1)
+        else:
+            pytest.fail("a closed stream is still listed as a client")
+
+    async def test_every_screen_is_listed_with_its_size_and_who_has_it_open(self, client):
+        stats = (await client.get("/stats")).json()["screens"]
+        async with client.stream("GET", "/vacuum/stream") as stream:
+            chunks = stream.aiter_text()
+            await anext(chunks)
+            rows = {row[0]: row for row in self.rows((await client.get("/monitor")).text, "mon-screens")}
+
+        assert list(rows) == ["l4-opcpa", "chillers", "vacuum", "cameras"]
+        for slug, row in rows.items():
+            title, streams, users, components, widgets, pvs = row[1:]
+            assert title == stats[slug]["title"]
+            assert (components, widgets, pvs) == tuple(
+                str(stats[slug][key]) for key in ("components", "widgets", "pvs")
+            )
+        assert int(rows["vacuum"][2]) >= 1
+        assert "test" in rows["vacuum"][3]
+
+    async def test_every_open_ca_monitor_is_listed_with_its_traffic(self, client):
+        """One row per (PV, datatype) the hub monitors — the number `/stats`
+        reports — and the simulator has sent each its first value by now."""
+        stats = (await client.get("/stats")).json()
+        rows = self.rows((await client.get("/monitor")).text, "mon-monitors")
+        assert len(rows) == stats["monitored_pvs"]
+        pv, datatype, refs, state, value, updates, last, error = rows[0]
+        assert int(refs) >= 1
+        assert all(int(row[5]) >= 1 for row in rows), "a monitor with no update yet"
+
+    @staticmethod
+    def log_lines(body: str) -> list[str]:
+        section = re.search(r'<section[^>]*id="mon-log".*?</section>', body, re.S)
+        assert section, "no #mon-log on the page"
+        return re.findall(r'<li class="log-line".*?</li>', section.group(0), re.S)
+
+    async def test_the_log_shows_a_warning_with_its_details_picked_out(self, client):
+        await client.post("/api/write", params={"pv": "bad name", "value": "1"})
+        lines = self.log_lines((await client.get("/monitor")).text)
+        [line] = [line for line in lines if "bad name" in line][:1]
+        assert 'data-level="WARNING"' in line
+        assert 'data-cat="writes"' in line
+        assert 'data-tone="warning"' in line
+        assert '<span class="k">user</span>=<span class="v">test</span>' in line
+        assert lines.index(line) == min(
+            i for i, other in enumerate(lines) if "write refused" in other
+        ), "newest first"
+
+    async def test_what_a_request_put_in_the_log_cannot_put_markup_on_the_page(self, client):
+        await client.post("/api/write", params={"pv": "<script>alert(1)</script>"})
+        section = "".join(self.log_lines((await client.get("/monitor")).text))
+        assert "&lt;script&gt;" in section
+        assert "<script>alert" not in section
+
+    async def test_the_overview_says_what_this_process_is(self, client):
+        stats = (await client.get("/stats")).json()
+        overview = re.search(
+            r'id="mon-overview".*?</section>', (await client.get("/monitor")).text, re.S
+        ).group(0)
+        facts = dict(
+            re.findall(r"<dt>([^<]+)</dt>\s*<dd[^>]*>(.*?)</dd>", overview, re.S)
+        )
+        assert facts["Zone"] == "TESTZ"
+        assert facts["Backend"] == "simulated EPICS"
+        assert facts["Sign-in"] == stats["auth"]
+        assert re.fullmatch(r"\d+(s|m \d\ds|h \d\dm|d \d\dh)", facts["Up"])
+        assert facts["PID"].isdigit()
+        assert "positive-neutral" in facts["EPICS link"]
+
+    async def test_its_stream_opens_with_a_full_sync(self, client):
+        events = await read_events(client, "/monitor/stream", count=3)
+        assert events[0].startswith("event: datastar-patch-signals")
+        # The opening signals also carry this tab's view of the screen's
+        # exclusive PVs (`_locks`), which the page could not know.
+        assert '"_age":0' in events[0]
+        assert events[1].startswith("event: datastar-patch-elements")
+        for panel in ("mon-overview", "mon-clients", "mon-screens", "mon-monitors"):
+            assert f'id="{panel}"' in events[1], panel
+        assert "selector #log-lines" in events[2] and "mode inner" in events[2]
+
+    async def test_a_new_log_line_reaches_an_open_dashboard_on_top(self, client):
+        events: list[str] = []
+        task = asyncio.create_task(
+            read_events(client, "/monitor/stream", count=500, timeout=8, into=events)
+        )
+        await asyncio.sleep(0.6)  # past the opening sync
+        await client.post("/api/write", params={"pv": "live tail check"})
+        try:
+            for _ in range(40):
+                arrived = [e for e in events[3:] if "live tail check" in e]
+                if arrived:
+                    break
+                await asyncio.sleep(0.1)
+            else:
+                pytest.fail("the new log line never reached the open dashboard")
+        finally:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        assert "mode prepend" in arrived[0] and "selector #log-lines" in arrived[0]
+
+    async def test_the_whole_log_downloads_as_text_for_a_ticket(self, client):
+        await client.post("/api/write", params={"pv": "for the ticket"})
+        response = await client.get("/monitor/logs.txt")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/plain")
+        assert re.fullmatch(
+            r'attachment; filename="eli-hmi-TESTZ-\d{8}-\d{4}\.txt"',
+            response.headers["content-disposition"],
+        )
+        assert re.search(r"WARNING +core\.routes: write refused user=test pv='for the ticket'", response.text)
+
+    async def test_the_long_lists_each_open_to_the_full_screen(self, client):
+        """The cameras, the PV list and the log are short by default so the
+        page reads at a glance; each expands to the whole window when it is
+        the thing to study, and Escape puts it back."""
+        body = (await client.get("/monitor")).text
+        declared = re.search(r'data-signals="(\{[^"]*\})"', body.split('class="page monitor"')[1])
+        panels = (("_camfull", "Cameras"), ("_pvfull", "CA monitors"), ("_logfull", "Log"))
+        for signal, panel in panels:
+            assert f"{signal}: false" in declared.group(1)
+            section = re.search(rf'<section[^>]*aria-label="{panel}"[^>]*>', body).group(0)
+            assert f"'mon-full': ${signal}" in section, panel
+            assert f'data-on:click="${signal} = !${signal}"' in body, panel
+        assert "evt.key === 'Escape' && ($_camfull = false, $_pvfull = false, $_logfull = false)" in body
+
+    async def test_the_camera_list_is_as_short_as_the_others(self, client):
+        """The camera table scrolls inside the same box as the PV list."""
+        body = (await client.get("/monitor")).text
+        section = body[body.index('aria-label="Cameras"'):body.index('aria-label="CA monitors"')]
+        scroll = section.index('class="mon-scroll"')
+        assert scroll < section.index('id="mon-cameras"')
+
+
+
+# ---------------------------------------------------------------------------
+# Exclusive write control
+# ---------------------------------------------------------------------------
+
+#: VV1 is `exclusive: true` on the Vacuum screen; VV2 beside it is not.
+VV1_OPEN = "L4-VCS-NL2:VV1:Open"
+VV2_OPEN = "L4-VCS-NL2:VV2:Open"
+#: What the browser sends with every request: the Datastar header, and the
+#: signals — of which only `tab` matters here.
+DATASTAR = {"Datastar-Request": "true"}
+
+
+async def lock(client, tab: str | None, action: str, pv: str = VV1_OPEN):
+    return await client.post(
+        "/api/lock",
+        params={"pv": pv, "action": action, "status": "vv1-open-status"},
+        json={"tab": tab},
+        headers=DATASTAR,
+    )
+
+
+async def press(client, tab: str | None, pv: str = VV1_OPEN, value: int = 1):
+    return await client.post(
+        "/api/write", params={"pv": pv, "value": value}, json={"tab": tab}, headers=DATASTAR
+    )
+
+
+def stream_as(slug: str, tab: str) -> str:
+    """A screen's stream, opened the way a browser tab with this id opens it."""
+    return f"/{slug}/stream?" + urlencode({"datastar": json.dumps({"tab": tab})})
+
+
+async def until(check, timeout: float = 5.0) -> None:
+    """Wait for `check()` — sync or async — to be true."""
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        result = check()
+        if asyncio.iscoroutine(result):
+            result = await result
+        if result:
+            return
+        if asyncio.get_running_loop().time() > deadline:
+            pytest.fail("timed out waiting for the condition")
+        await asyncio.sleep(0.05)
+
+
+class TestExclusiveControl:
+    """One tab at a time may write an exclusive PV. Every route to the device
+    is checked at the endpoint, and every open screen hears the lock move."""
+
+    @pytest.fixture(autouse=True)
+    async def free_valve(self, client):
+        # The server is shared by the module, so every test starts — and
+        # leaves — with nobody holding VV1.
+        await lock(client, "janitor", "force")
+        await lock(client, "janitor", "release")
+        yield
+        await lock(client, "janitor", "force")
+        await lock(client, "janitor", "release")
+
+    async def test_a_write_nobody_took_control_for_is_refused(self, client):
+        response = await press(client, "tab-a")
+        assert "Refused" in response.text
+        assert "take control" in response.text
+
+    async def test_the_tab_that_took_control_may_write_and_no_other_may(self, client):
+        taken = await lock(client, "tab-a", "take")
+        assert '"state":"mine"' in taken.text
+
+        assert "Refused" not in (await press(client, "tab-a")).text
+        refused = (await press(client, "tab-b")).text
+        assert "Refused" in refused
+        assert "controlled by test at 127.0.0.1" in refused
+
+    async def test_a_request_that_names_no_tab_is_refused(self, client):
+        """A curl, or a page from before the feature: it is not the holder."""
+        await lock(client, "tab-a", "take")
+        response = await client.post("/api/write", params={"pv": VV1_OPEN, "value": 1})
+        assert "Refused" in response.text
+
+    async def test_a_second_tab_is_told_who_has_it_and_may_force_it(self, client):
+        await lock(client, "tab-a", "take")
+
+        refused = await lock(client, "tab-b", "take")
+        assert "controlled by test" in refused.text
+
+        forced = await lock(client, "tab-b", "force")
+        assert '"state":"mine"' in forced.text
+        assert "Refused" not in (await press(client, "tab-b")).text
+        assert "Refused" in (await press(client, "tab-a")).text
+
+    async def test_release_hands_it_back(self, client):
+        await lock(client, "tab-a", "take")
+        released = await lock(client, "tab-a", "release")
+        assert '"state":"free"' in released.text
+        assert '"state":"mine"' in (await lock(client, "tab-b", "take")).text
+
+    async def test_a_pv_that_is_not_exclusive_is_written_from_anywhere(self, client):
+        response = await client.post("/api/write", params={"pv": VV2_OPEN, "value": 1})
+        assert "Refused" not in response.text
+
+    async def test_an_action_that_is_not_one_is_refused(self, client):
+        response = await lock(client, "tab-a", "steal")
+        assert "Refused" in response.text
+
+    async def test_a_tab_that_holds_control_is_unlocked_by_its_stream(self, client):
+        """The page renders locked — it cannot know which tab is asking — and
+        the stream's first events say what this tab holds."""
+        await lock(client, "tab-a", "take")
+        events = await read_events(client, stream_as("vacuum", "tab-a"), 3, headers=DATASTAR)
+        assert any('"state":"mine"' in event for event in events)
+
+    async def test_every_screen_hears_the_lock_move(self, client):
+        events: list[str] = []
+        watching = asyncio.create_task(
+            read_events(client, stream_as("vacuum", "tab-b"), 1000, timeout=8,
+                        into=events, headers=DATASTAR)
+        )
+        try:
+            await until(lambda: len(events) >= 2)
+            await lock(client, "tab-a", "take")
+            await until(lambda: any('"state":"other"' in e and "since" in e for e in events))
+        finally:
+            watching.cancel()
+
+    async def test_the_holder_forced_out_is_told_by_whom(self, client):
+        events: list[str] = []
+        watching = asyncio.create_task(
+            read_events(client, stream_as("vacuum", "tab-a"), 1000, timeout=8,
+                        into=events, headers=DATASTAR)
+        )
+        try:
+            await until(lambda: len(events) >= 2)
+            await lock(client, "tab-a", "take")
+            await until(lambda: any('"state":"mine"' in e for e in events))
+            await lock(client, "tab-b", "force")
+            await until(lambda: any("taken over by test" in e for e in events))
+        finally:
+            watching.cancel()
+
+    async def test_the_monitor_lists_who_holds_what(self, client):
+        await lock(client, "tab-a", "take")
+        rows = TestMonitor.rows((await client.get("/monitor")).text, "mon-locks")
+        assert any(VV1_OPEN in row and "test" in row for row in rows), rows
+
+
+@pytest.fixture(scope="module")
+def short_grace():
+    with running(lock_grace_seconds=0.3) as url:
+        yield url
+
+
+async def test_a_lock_whose_tab_is_gone_lapses(short_grace):
+    import httpx
+
+    async with httpx.AsyncClient(base_url=short_grace, timeout=15) as client:
+        await client.post("/login", data={"username": "test", "password": "test"})
+        # Taken with no screen open in that tab: nothing keeps it alive.
+        assert '"state":"mine"' in (await lock(client, "tab-a", "take")).text
+
+        async def free() -> bool:
+            return '"state":"mine"' in (await lock(client, "tab-b", "take")).text
+
+        await until(free, timeout=5)

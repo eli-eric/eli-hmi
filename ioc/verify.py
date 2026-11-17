@@ -15,7 +15,9 @@ when something looks wrong:
 1. every PV in the zone connects at all;
 2. the readouts that should be alarmed are alarmed, with the right severity;
 3. a write lands (the shutter);
-4. a command actually runs its chain (Start Laser moves the flashlamps).
+4. a command actually runs its chain (Start Laser moves the flashlamps);
+5. every camera serves a whole image, at its rate, and the IOC honours the
+   `dec` channel filter the camera gateway asks for with `filters: true`.
 """
 
 from __future__ import annotations
@@ -74,11 +76,26 @@ async def run(zone: str, timeout: float) -> int:
             failures += 1
             print(f"{FAIL} no {label} reading — the database should inject one")
 
+    failures += await _laser_checks(loaded, timeout)
+    failures += await _camera_checks(loaded, timeout)
+
+    print()
+    if failures:
+        print(f"{failures} check(s) failed.")
+    else:
+        print("All checks passed — the HMI will see the same thing.")
+    return 1 if failures else 0
+
+
+async def _laser_checks(loaded, timeout: float) -> int:
+    import aioca
+
+    failures = 0
     spec = _first_laser(loaded)
     if spec is None:
         print("\n3. write path: skipped, no laser panel in this zone")
         print("\n4. command chain: skipped")
-        return 1 if failures else 0
+        return 0
     print(f"\n3. write path ({spec.laser} shutter)")
     shutter = spec.pvs.shutter
     before = await aioca.caget(shutter, datatype=aioca.DBR_ENUM_STR, throw=False)
@@ -120,13 +137,62 @@ async def run(zone: str, timeout: float) -> int:
         stop = spec.resolve_command("STOP_LASER")
         if spec.can("STOP_LASER"):
             await aioca.caput(stop.pv_name, stop.value, timeout=timeout)
+    return failures
 
-    print()
-    if failures:
-        print(f"{failures} check(s) failed.")
-    else:
-        print("All checks passed — the HMI will see the same thing.")
-    return 1 if failures else 0
+
+async def _camera_checks(loaded, timeout: float) -> int:
+    """Each camera serves width x height pixels; the first one updates at its
+    rate, and a fifth of that through the `dec` filter."""
+    import aioca
+
+    cameras = list(loaded.cameras().values())
+    print("\n5. cameras")
+    if not cameras:
+        print("       skipped: no camera in this zone")
+        return 0
+    failures = 0
+    values = await aioca.caget(
+        [spec.pv for spec in cameras], format=aioca.FORMAT_TIME, throw=False, timeout=timeout
+    )
+    for spec, value in zip(cameras, values):
+        if not value.ok:
+            failures += 1
+            print(f"{FAIL} {spec.pv} did not connect — was the IOC started with --zone?")
+        elif len(value) != spec.pixels:
+            failures += 1
+            print(f"{FAIL} {spec.pv} has {len(value)} elements, expected {spec.width}x{spec.height}")
+        else:
+            print(f"{PASS} {spec.pv}: {spec.width}x{spec.height}, peak {int(max(value))}")
+
+    spec = cameras[0]
+    window = 3.0
+    for channel, expected in (
+        (spec.pv, spec.rate),
+        (spec.pv + '.{"dec":{"n":5}}', spec.rate / 5),
+    ):
+        rate = await _update_rate(channel, window)
+        if 0.6 * expected <= rate <= 1.4 * expected:
+            print(f"{PASS} {channel}: {rate:.1f} frames/s (expected {expected:g})")
+        else:
+            failures += 1
+            print(f"{FAIL} {channel}: {rate:.1f} frames/s, expected about {expected:g}")
+    return failures
+
+
+async def _update_rate(channel: str, seconds: float) -> float:
+    """Updates per second on a channel, not counting the value a new monitor
+    delivers straight away."""
+    import aioca
+
+    stamps: list[float] = []
+    loop = asyncio.get_running_loop()
+    subscription = aioca.camonitor(channel, lambda _value: stamps.append(loop.time()))
+    await asyncio.sleep(seconds + 1.0)
+    subscription.close()
+    stamps = stamps[1:]
+    if len(stamps) < 2:
+        return 0.0
+    return (len(stamps) - 1) / (stamps[-1] - stamps[0])
 
 
 def _first_laser(zone):

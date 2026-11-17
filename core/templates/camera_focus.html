@@ -1,0 +1,43 @@
+{#- One camera, large: the focus view, opened by clicking a camera tile.
+
+    One dialog per screen, filled in by `core/static/js/cameras.js` with
+    whichever camera was clicked. Plain markup, no Datastar: everything in it
+    is driven by camera frames, which Datastar never sees.
+
+    By default it shows the camera's full-resolution JPEG at its full rate.
+    "16-bit" switches to every pixel exactly as the camera sent it — several
+    times the bytes, because sensor noise does not compress — and then the
+    levels, the colour map and the pixel readout work on true values. -#}
+<dialog class="camera-focus" data-camera-focus aria-label="Camera">
+  <header class="panel-header camera-focus-header">
+    <h2 class="panel-title" data-focus-title>Camera</h2>
+    <span class="panel-subtitle camera-pv" data-focus-pv></span>
+    <span class="nav-spacer"></span>
+    <button type="button" class="camera-focus-close" data-focus-close aria-label="Close">Close</button>
+  </header>
+  <div class="camera-focus-tools">
+    <label><input type="checkbox" data-focus-lossless> 16-bit</label>
+    <label>levels
+      <select data-focus-levels>
+        <option value="auto">auto</option>
+        <option value="full">full scale</option>
+        <option value="manual">manual</option>
+      </select>
+    </label>
+    <label>black <input type="number" class="camera-focus-level" data-focus-black value="0" min="0" max="65535"></label>
+    <label>white <input type="number" class="camera-focus-level" data-focus-white value="4095" min="0" max="65535"></label>
+    <label>colours
+      <select data-focus-palette>
+        <option value="grey">grey</option>
+        <option value="heat">heat</option>
+      </select>
+    </label>
+    <span class="camera-focus-readout" data-focus-readout></span>
+    <span class="camera-focus-info" data-focus-info></span>
+  </div>
+  <div class="camera-view camera-focus-view">
+    <canvas class="camera-canvas" data-focus-canvas width="1024" height="1024"></canvas>
+    <span class="camera-status" data-camera-status data-tone-surface="chip" data-tone="unknown" hidden></span>
+  </div>
+  <p class="camera-focus-hint">Levels and colours apply in 16-bit mode, where the page has the true pixel values.</p>
+</dialog>

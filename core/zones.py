@@ -55,6 +55,13 @@ ZONE_FILE = "zone.yaml"
 GUI_FILE = "gui.yaml"
 
 
+#: Paths the app serves itself. A screen is a route named after its folder, so a
+#: folder with one of these names would be shadowed: in the menu, never openable.
+RESERVED_SLUGS = frozenset(
+    {"api", "health", "login", "logout", "monitor", "static", "stats"}
+)
+
+
 class ZoneError(Exception):
     """Something about the zone layout an operator or engineer must fix."""
 
@@ -161,11 +168,22 @@ class Gui:
             specs.extend(component.all_pv_specs())
         return specs
 
+    def exclusive_pvs(self) -> set[str]:
+        """PVs this screen's YAML marked `exclusive`."""
+        pvs: set[str] = set()
+        for component in self.components:
+            pvs |= component.all_exclusive_pvs()
+        return pvs
+
     def signals(self) -> dict[str, Any]:
         signals: dict[str, Any] = {}
         for component in self.components:
             signals.update(component.all_signals())
         return signals
+
+    def cameras(self) -> list[Any]:
+        """Every camera this screen shows, in screen order."""
+        return [spec for component in self.components for spec in component.all_cameras()]
 
 
 @dataclass
@@ -181,6 +199,34 @@ class Zone:
 
     def gui(self, slug: str) -> Gui | None:
         return next((gui for gui in self.guis if gui.slug == slug), None)
+
+    def exclusive_pvs(self) -> set[str]:
+        """Every PV any screen of the zone marked `exclusive`. The lock is on
+        the PV, so one screen marking it makes it exclusive on all of them."""
+        pvs: set[str] = set()
+        for gui in self.guis:
+            pvs |= gui.exclusive_pvs()
+        return pvs
+
+    def cameras(self) -> dict[str, Any]:
+        """Every camera any screen shows, by image PV — what the camera gateway
+        serves, and the only images a browser may ask it for.
+
+        The first declaration of a PV wins. Two that disagree on its geometry
+        are a `ZoneError`: one of the screens would draw garbage, and which one
+        would depend on which loaded first.
+        """
+        cameras: dict[str, Any] = {}
+        for gui in self.guis:
+            for spec in gui.cameras():
+                first = cameras.setdefault(spec.pv, spec)
+                if first.geometry != spec.geometry:
+                    raise ZoneError(
+                        f"zone {self.code}: camera {spec.pv} is declared twice with "
+                        f"different geometry (width, height, bits): {first.geometry} "
+                        f"and {spec.geometry} on /{gui.slug}"
+                    )
+        return cameras
 
     @property
     def home(self) -> str:
@@ -300,11 +346,20 @@ def load_zone(code: str, *, resolved_by: str = "explicit") -> Zone:
         child for child in path.iterdir() if child.is_dir() and (child / GUI_FILE).is_file()
     )
     guis = [load_gui(folder) for folder in folders]
+    taken = sorted(gui.slug for gui in guis if gui.slug in RESERVED_SLUGS)
+    if taken:
+        raise ZoneError(
+            f"zone {code}: screen folder {', '.join(repr(s) for s in taken)} is reserved — "
+            f"the app already serves /{taken[0]}, so the screen could never be opened. "
+            f"Rename the folder (reserved: {', '.join(sorted(RESERVED_SLUGS))})"
+        )
 
     # Explicit `menu:` order first, then everyone else by their own `order:`.
     explicit = {name: index for index, name in enumerate(meta.menu)}
     guis.sort(key=lambda gui: (explicit.get(gui.slug, len(explicit)), gui.order, gui.slug))
     zone.guis = guis
+    # Checked here, at start-up, rather than when the gateway first asks.
+    zone.cameras()
 
     stray = [
         child.name

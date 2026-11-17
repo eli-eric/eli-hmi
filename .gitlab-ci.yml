@@ -52,19 +52,33 @@ python-hmi-test:
 # stages: a runner can reach neither the Debian repositories nor pypi.org, so
 # the toolchain comes from the full python image and the packages from the
 # internal PyPI mirror.
+#
+# Branch model: `main` is production, `dev` is integration, everything else is
+# work in progress. Every branch pushes `:<branch-slug>` (its newest build) and
+# `:<branch-slug>-<short-sha>` (that exact build, never overwritten). Only
+# `main` moves `:latest`, so `latest` is always the production image. The
+# branch is named literally: the repository's default branch is `dev`, so
+# $CI_DEFAULT_BRANCH would make `dev` production. A tag pipeline has no
+# $CI_COMMIT_BRANCH, so a git tag never moves `latest` either.
 docker-build-job-python-hmi:
   stage: build
   image: harbor.eli-beams.eu/proxy-dockerhub/docker:27.1.2
   tags:
     - docker-in-docker
+  variables:
+    IMAGE: ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr
   script:
     - docker info
     # Both stages: the full image compiles the dependencies, the slim one runs
     # them. Pulled here so the build does not depend on a cold fetch.
     - docker pull harbor.eli-beams.eu/proxy-dockerhub/python:3.12
     - docker pull harbor.eli-beams.eu/proxy-dockerhub/python:3.12-slim
-    - docker build -t ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:${CI_COMMIT_REF_SLUG} .
-    - docker login -u ${HARBOR_USERNAME} -p ${HARBOR_PASSWORD} ${HARBOR_URL}
-    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:${CI_COMMIT_REF_SLUG}
-    - docker tag ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:${CI_COMMIT_REF_SLUG} ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:latest
-    - docker push ${HARBOR_HOST}/${HARBOR_PROJECT}/eli-hmi-ssr:latest
+    - docker build -t "$IMAGE:$CI_COMMIT_REF_SLUG" -t "$IMAGE:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA" .
+    - echo "$HARBOR_PASSWORD" | docker login -u "$HARBOR_USERNAME" --password-stdin "$HARBOR_URL"
+    - docker push "$IMAGE:$CI_COMMIT_REF_SLUG"
+    - docker push "$IMAGE:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
+        docker tag "$IMAGE:$CI_COMMIT_REF_SLUG" "$IMAGE:latest"
+        docker push "$IMAGE:latest"
+      fi

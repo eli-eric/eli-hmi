@@ -16,6 +16,7 @@ a screen can show.
 | `motor` | A motor: position, setpoint, jog presets, stop, limit switches. |
 | `valve` | A valve: state, Open and Close. The smallest one — copy it. |
 | `register-tree` | Every module of one device, and every register under it. Built by `laser-panel` twice: from its `modules:` for the Registers button, and from the fixed ModBox table (`laser_panel/modbox.py`, read-only) for the ModBox button. Either is shown in the laser's place. |
+| `camera` | A live image from a waveform PV. Its frames bypass widgets and SSE entirely: see [`../cameras/`](../cameras/README.md). |
 | `laser-panel` | One L4 OPCPA laser. The one bespoke component, and the escape hatch. |
 
 Every setting of every component is documented in its `Config` class, which is
@@ -98,6 +99,33 @@ The simulator applies the writes; `ioc/generate.py` renders the same declaration
 as a `bo` record whose FLNK fires a `seq` with a delayed release step — and
 collapses "one value to many records" into a `dfanout`. Neither of them needs
 changing when you add a component.
+
+### Declaring an exclusive PV
+
+If a screen can mark one of your controls `exclusive:`, declare the PV behind
+it in `setup()`:
+
+```python
+for control in exclusive_names(cfg.exclusive, ("open", "close")):
+    self.exclusive(targets[control])
+```
+
+`components/common.py` has the pieces:
+
+- `Exclusive` is the `true | [names]` field type.
+- `exclusive_names()` validates it and names the valid choices on a typo.
+- `exclusive_targets()` does the same job for `actions:` / `setpoint:`.
+
+The write controls in `controls.html` handle the rest. A button, preset field
+or drop-down whose PV is exclusive renders `disabled`, follows the page's
+`_locks` signal, and shows the Take control / Release / Force strip. A
+component template doesn't have to do anything. The PV must also be among the
+ones your `pv_specs()` marks `writable` or `command`, because that's how a
+screen knows which locks it shows. `tests/test_locks.py` checks this for every
+TESTZ screen.
+
+`self.exclusive()` is separate from `self.writable()` on purpose: bounds are
+about the value, a lock is about who may send it.
 
 ### Shared pieces
 

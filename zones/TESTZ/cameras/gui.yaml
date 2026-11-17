@@ -1,0 +1,68 @@
+# Cameras — live images from waveform PVs, through the camera gateway (cameras/).
+#
+# Every camera here is simulated with `make run`: the simulator draws a laser
+# beam with pointing jitter, shot-to-shot energy fluctuation and a sensor's
+# noise floor, rather than random static. The PV names are made up (TESTZ-CAM:);
+# the hall's camera PVs are not known yet.
+#
+# One camera per `camera` block. A tile scrolled out of view costs nothing — the
+# page only asks the gateway for cameras it is actually showing.
+title: Cameras
+order: 40
+description: Beam cameras, simulated.
+
+components:
+  - component: camera
+    label: NL1 near field
+    pv: TESTZ-CAM:NL1-NF:Image
+    width: 1024
+    height: 1024
+    sim: { profile: flattop, waist: 300 }
+  - component: camera
+    label: NL1 far field
+    pv: TESTZ-CAM:NL1-FF:Image
+    width: 1024
+    height: 1024
+    sim: { waist: 40, pointing: 4 }
+  - component: camera
+    label: NL2 near field
+    pv: TESTZ-CAM:NL2-NF:Image
+    width: 1024
+    height: 1024
+    sim: { profile: flattop, waist: 260 }
+  - component: camera
+    label: NL2 far field
+    pv: TESTZ-CAM:NL2-FF:Image
+    width: 1024
+    height: 1024
+    sim: { waist: 55 }
+  - component: camera
+    label: Seed
+    pv: TESTZ-CAM:SEED:Image
+    width: 1024
+    height: 1024
+    # This IOC is on EPICS base 7: small tiles ask it to drop frames itself.
+    filters: true
+    sim: { waist: 120, jitter: 0.01 }
+  - component: camera
+    label: Pump (saturating)
+    pv: TESTZ-CAM:PUMP:Image
+    width: 1024
+    height: 1024
+    # Now and then a shot saturates the sensor, to show what that looks like.
+    sim: { profile: flattop, waist: 220, peak: 0.85, spikes: 0.1 }
+  - component: camera
+    label: Compressor (16-bit)
+    pv: TESTZ-CAM:COMP:Image
+    width: 1024
+    height: 1024
+    bits: 16
+    sim: { waist: 180 }
+  - component: camera
+    label: Alignment
+    pv: TESTZ-CAM:ALIGN:Image
+    width: 1280
+    height: 960
+    rate: 5
+    levels: [100, 3000]
+    sim: { waist: 70, pointing: 8 }
