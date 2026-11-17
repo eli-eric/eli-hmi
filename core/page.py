@@ -144,6 +144,14 @@ class Page:
         wanted = set(names)
         return [c.key for c in self.gui.components if c.key in wanted]
 
+    def exclusive_pvs_of(self, key: str) -> frozenset[str]:
+        """The exclusive PVs one top-level component writes: what hiding or
+        showing it moves control of. Empty for a key the screen lacks."""
+        component = next((c for c in self.gui.components if c.key == key), None)
+        if component is None:
+            return frozenset()
+        return written_pvs(replace(self.gui, components=[component])) & self.locks.exclusive
+
     def without(self, keys: Iterable[str]) -> "Page":
         """This screen minus some of its top-level components: what a
         workstation's stream carries when it has hidden them.

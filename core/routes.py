@@ -6,6 +6,7 @@
     GET  /<gui>/<key>/<view> a component's detail view, patched in its place
     POST /api/write          one PV write, with the result patched back
     POST /api/lock           take, release or force control of an exclusive PV
+    POST /api/hidden         which components a workstation hides; moves their control
 
 Every one of them requires a session; the gate is in `core.login`, not here, so
 a screen added tomorrow is protected without anyone remembering to protect it.
@@ -131,11 +132,14 @@ def current_hidden(view: Page) -> list[str]:
 
 
 async def set_hidden() -> Response:
-    """Remember which of a screen's components this workstation hides.
+    """Remember which of a screen's components this workstation hides, and
+    move this tab's control of the one whose box changed.
 
-    Like the palette: the screen has already changed by the time this
-    arrives, and the page has already reopened its stream. This only makes
-    the choice outlast the page.
+    Like the palette, the screen has already changed by the time this
+    arrives, and the page has already reopened its stream; the cookie makes
+    the choice outlast the page. The box that changed is named (`toggled`),
+    because a component an operator hides is one they have stopped
+    controlling, and one they show is one they mean to (`_follow_choice`).
     """
     _settings, _hub, pages = state()
     slug = (request.args.get("screen") or "").strip()
@@ -144,13 +148,14 @@ async def set_hidden() -> Response:
         return Response("no such screen to choose on", status=404)
     hidden = view.choosable((request.args.get("value") or "").split(","))
     who = actor()
-    logger.info(
-        "hidden %s on /%s chosen by user=%s",
-        ",".join(hidden) or "nothing",
-        slug,
-        who.user if who else "-",
-    )
-    response = await make_response(DatastarResponse([]))
+    user = who.user if who else "-"
+    logger.info("hidden %s on /%s chosen by user=%s", ",".join(hidden) or "nothing", slug, user)
+    toggled = (request.args.get("toggled") or "").strip()
+    tab = tab_of(await read_signals())
+    events: list[Any] = []
+    if tab is not None and view.choosable([toggled]):
+        events = _follow_choice(view, toggled, shown=toggled not in hidden, tab=tab, user=user)
+    response = await make_response(DatastarResponse(events))
     response.set_cookie(
         hidden_cookie(slug),
         ",".join(hidden),
@@ -159,6 +164,26 @@ async def set_hidden() -> Response:
         samesite="Lax",
     )
     return response
+
+
+def _follow_choice(view: Page, key: str, *, shown: bool, tab: str, user: str) -> list[Any]:
+    """Give up this tab's control of a component just hidden, or take control
+    of a component just shown wherever nobody has it. Never forced: showing
+    a laser is not reason enough to take it from the tab that holds it, and
+    hiding one cannot give up control another tab holds.
+
+    Answers with the tab's `_locks` for those PVs, so its controls change at
+    once; every other tab hears it from its own stream (`LockTable.watch`).
+    """
+    pvs = view.exclusive_pvs_of(key)
+    for pv in sorted(pvs):
+        if shown:
+            view.locks.take(pv, tab=tab, user=user, ip=client_ip(), screen=view.gui.slug)
+        else:
+            view.locks.release(pv, tab=tab, user=user)
+    if not pvs:
+        return []
+    return [SSE.patch_signals({"_locks": view.locks.view(pvs, tab=tab, user=user)})]
 
 
 def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:

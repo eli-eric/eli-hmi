@@ -357,7 +357,8 @@ class TestChoosingTheLasers:
         page = (await client.get("/l4-opcpa")).text
         box = re.search(r'<input type="checkbox" value="NL4"' + self.TAG, self.header(page)).group(0)
         change = html.unescape(re.search(r'data-on:change="([^"]*)"', box).group(1))
-        assert "@post('/api/hidden?screen=l4-opcpa&value=' + $hidden.join(','))" in change
+        # Which box changed, too: hiding or showing a laser moves its control.
+        assert "@post('/api/hidden?screen=l4-opcpa&toggled=NL4&value=' + $hidden.join(','))" in change
 
         saved = await client.post(
             "/api/hidden", params={"screen": "l4-opcpa", "value": "NL4"}, json={}, headers=self.DATASTAR
@@ -397,6 +398,62 @@ class TestChoosingTheLasers:
     async def test_a_stream_asked_to_hide_what_is_not_there_hides_nothing(self, client):
         events = await read_events(client, self.stream(["NL9"]), count=2, headers=self.DATASTAR)
         assert 'id="NL2-overview"' in events[1] and 'id="NL4-' in events[1]
+
+
+class TestChoosingALaserMovesItsControl:
+    """A laser a workstation hides is one its operator has stopped
+    controlling, and one it shows is one they mean to control. So hiding it
+    gives up this tab's exclusive control of it at once, and showing it takes
+    control of whatever is free — never forcing it from another tab."""
+
+    START = "CMD_NL2_START_LASER"
+    STOP = "CMD_NL2_STOP_LASER"
+
+    @pytest.fixture(autouse=True)
+    async def nobody_holds_nl2(self, client):
+        # The server is shared by the module: start and leave with NL2 free.
+        for pv in (self.START, self.STOP):
+            await lock(client, "janitor", "force", pv=pv)
+            await lock(client, "janitor", "release", pv=pv)
+        yield
+        for pv in (self.START, self.STOP):
+            await lock(client, "janitor", "force", pv=pv)
+            await lock(client, "janitor", "release", pv=pv)
+
+    @staticmethod
+    async def toggle(client, tab: str, key: str, hidden: list[str]):
+        """What the checkbox sends: the hidden set after the change, which
+        box changed, and the tab's id among its signals."""
+        return await client.post(
+            "/api/hidden",
+            params={"screen": "l4-opcpa", "value": ",".join(hidden), "toggled": key},
+            json={"tab": tab},
+            headers=DATASTAR,
+        )
+
+    async def test_hiding_a_laser_gives_up_its_control(self, client):
+        for pv in (self.START, self.STOP):
+            assert '"state":"mine"' in (await lock(client, "tab-a", "take", pv=pv)).text
+        hidden = await self.toggle(client, "tab-a", "NL2", ["NL2"])
+        assert '"state":"free"' in hidden.text, "the tab is not told it let go"
+        for pv in (self.START, self.STOP):
+            assert '"state":"mine"' in (await lock(client, "tab-b", "take", pv=pv)).text
+
+    async def test_showing_a_laser_takes_control_of_it(self, client):
+        shown = await self.toggle(client, "tab-a", "NL2", [])
+        assert shown.text.count('"state":"mine"') == 2, shown.text
+        assert "Refused" not in (await press(client, "tab-a", pv=self.START)).text
+        assert "controlled by test" in (await lock(client, "tab-b", "take", pv=self.START)).text
+
+    async def test_another_tab_s_control_is_neither_taken_nor_given_up(self, client):
+        """If possible, and only then: a laser held elsewhere stays held there,
+        whether this tab shows it or hides it."""
+        await lock(client, "tab-b", "take", pv=self.START)
+        shown = await self.toggle(client, "tab-a", "NL2", [])
+        assert '"state":"other"' in shown.text, "taken from the tab that had it"
+        await self.toggle(client, "tab-a", "NL2", ["NL2"])
+        assert "Refused" not in (await press(client, "tab-b", pv=self.START)).text
+        assert "Refused" in (await press(client, "tab-a", pv=self.START)).text
 
 
 class TestTheLaserChoiceIsSaved:
