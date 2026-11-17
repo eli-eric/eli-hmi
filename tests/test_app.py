@@ -12,6 +12,9 @@ the built-in `test`/`test` account, which is what `dev=True` below turns on. The
 from __future__ import annotations
 
 import asyncio
+import html
+import json
+import logging
 import re
 from urllib.parse import quote
 import socket
@@ -112,7 +115,12 @@ async def client(server):
 
 
 async def read_events(
-    client, path: str, count: int, timeout: float = 10.0, into: list[str] | None = None
+    client,
+    path: str,
+    count: int,
+    timeout: float = 10.0,
+    into: list[str] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> list[str]:
     """Collect `count` SSE events (blank-line separated) from a stream.
 
@@ -123,7 +131,7 @@ async def read_events(
     events: list[str] = into if into is not None else []
 
     async def reader():
-        async with client.stream("GET", path) as response:
+        async with client.stream("GET", path, headers=headers) as response:
             assert response.status_code == 200
             assert response.headers["content-type"].startswith("text/event-stream")
             buffer = ""
@@ -235,6 +243,179 @@ class TestStream:
     async def test_heartbeat_resets_the_browser_watchdog(self, client):
         events = await read_events(client, "/l4-opcpa/stream", count=6)
         assert sum(1 for e in events if "patch-signals" in e) >= 2
+
+
+class TestChoosingTheLasers:
+    """A workstation shows the lasers its operator controls. A screen that
+    says it is `selectable` offers each of its components as a checkbox in
+    the header, beside its title and description."""
+
+    @staticmethod
+    def header(page: str) -> str:
+        return page[page.index('<header class="page-header">') : page.index("</header>")]
+
+    #: One tag, read attribute by attribute: a Datastar expression in a
+    #: quoted attribute may hold a `>` (an arrow function), which is valid.
+    TAG = r'(?:[^>"]|"[^"]*")*>'
+
+    def boxes(self, header: str) -> list[str]:
+        return re.findall(r'<input type="checkbox"' + self.TAG, header)
+
+    @staticmethod
+    def signals(page: str) -> dict:
+        """What the page element declares."""
+        return json.loads(
+            html.unescape(re.search(r'<div class="page"\s+data-signals="([^"]*)"', page).group(1))
+        )
+
+    async def test_each_laser_is_offered_beside_the_title_ticked(self, client):
+        header = self.header((await client.get("/l4-opcpa")).text)
+        boxes = self.boxes(header)
+        assert [re.search(r'value="([^"]+)"', box).group(1) for box in boxes] == ["NL2", "NL4"]
+        assert all(" checked" in box for box in boxes), "a laser starts hidden"
+        assert header.index('class="page-description"') < header.index(boxes[0])
+
+    async def test_a_screen_that_is_not_selectable_offers_none(self, client):
+        assert self.boxes(self.header((await client.get("/chillers")).text)) == []
+
+    #: What Datastar sends with every request, and what tells the server the
+    #: signals in it are Datastar's.
+    DATASTAR = {"Datastar-Request": "true"}
+
+    @staticmethod
+    def stream(hidden: list[str]) -> str:
+        """The screen's stream as Datastar opens it: the signals it sends go
+        in one `datastar` query parameter."""
+        return "/l4-opcpa/stream?datastar=" + quote(json.dumps({"hidden": hidden}))
+
+    async def test_a_stream_opened_with_a_laser_hidden_carries_none_of_it(self, client):
+        """Neither the catch-up it opens with nor any patch after it: a
+        hidden laser costs the browser nothing."""
+        everything = await read_events(client, self.stream([]), count=2, headers=self.DATASTAR)
+        assert 'id="NL4-' in everything[1], "NL4 is not on this screen to hide"
+        events = await read_events(client, self.stream(["NL4"]), count=8, headers=self.DATASTAR)
+        elements = [event for event in events if "patch-elements" in event]
+        assert len(elements) >= 2, "expected the catch-up and at least one patch"
+        assert 'id="NL2-overview"' in elements[0], "the shown laser is missing"
+        assert not any('id="NL4-' in event for event in elements)
+
+    async def test_unticking_hides_the_laser_and_reopens_the_stream_without_it(self, client):
+        """One signal says which lasers are hidden: it hides their columns,
+        and it is what the stream is asked for when the page reopens it. The
+        reopened stream has the same URL, which is what makes Datastar cancel
+        the one it replaces."""
+        page = (await client.get("/l4-opcpa")).text
+        declared = self.signals(page)
+        assert declared.get("hidden") == [], "the hidden lasers are not a signal the page sends"
+        for key in ("NL2", "NL4"):
+            column = re.search(rf'<div class="component-choice"[^>]*data-show="([^"]*)"[^>]*>\s*(?:<div class="view-host">)?\s*(?:<div class="view-slot" id="{key}-view"></div>)?\s*<article[^>]*>\s*<header class="panel-header">\s*<h2 class="panel-title">{key}<', page)
+            assert column, f"{key}'s column is not shown by the signal"
+            assert html.unescape(column.group(1)) == f"!$hidden.includes('{key}')"
+        box = re.search(r'<input type="checkbox" value="NL4"' + self.TAG, self.header(page)).group(0)
+        change = html.unescape(re.search(r'data-on:change="([^"]*)"', box).group(1))
+        assert "$hidden" in change and "'NL4'" in change, change
+        assert "hmi-choice" in change, "the box does not ask for the stream to reopen"
+        opened = re.search(r'<div class="page"' + self.TAG, page).group(0)
+        assert "data-on:hmi-choice=\"@get('/l4-opcpa/stream')\"" in opened
+
+    def column(self, page: str, key: str) -> str:
+        """The opening tag of a laser's column."""
+        return re.search(
+            r'<div class="component-choice"' + self.TAG + rf'(?=(?:(?!component-choice).)*?<h2 class="panel-title">{key}<)',
+            page,
+            re.S,
+        ).group(0)
+
+    async def test_the_choice_outlasts_the_page(self, client):
+        """Saved for this workstation as it is made, and painted on the next
+        render: the hidden laser is hidden from the first frame, its box is
+        unticked, and the stream the page opens is asked without it."""
+        page = (await client.get("/l4-opcpa")).text
+        box = re.search(r'<input type="checkbox" value="NL4"' + self.TAG, self.header(page)).group(0)
+        change = html.unescape(re.search(r'data-on:change="([^"]*)"', box).group(1))
+        assert "@post('/api/hidden?screen=l4-opcpa&value=' + $hidden.join(','))" in change
+
+        saved = await client.post(
+            "/api/hidden", params={"screen": "l4-opcpa", "value": "NL4"}, json={}, headers=self.DATASTAR
+        )
+        assert saved.is_success, saved.status_code
+        page = (await client.get("/l4-opcpa")).text
+        declared = self.signals(page)
+        assert declared["hidden"] == ["NL4"]
+        boxes = {re.search(r'value="([^"]+)"', b).group(1): b for b in self.boxes(self.header(page))}
+        assert " checked" in boxes["NL2"] and " checked" not in boxes["NL4"]
+        assert 'style="display:none"' in self.column(page, "NL4"), "NL4 flashes up before it hides"
+        assert 'style="display:none"' not in self.column(page, "NL2")
+
+    async def test_a_laser_the_choice_does_not_name_is_shown(self, client):
+        """What is saved is what was hidden, so a laser added to the screen
+        after a workstation chose — NL2 here, as far as this cookie knows —
+        is shown there; and a name the screen does not have is dropped."""
+        client.cookies.set("hidden-l4-opcpa", "NL9,NL4")
+        page = (await client.get("/l4-opcpa")).text
+        declared = self.signals(page)
+        assert declared["hidden"] == ["NL4"]
+        assert 'style="display:none"' not in self.column(page, "NL2")
+
+    async def test_unticking_closes_the_laser_s_open_view(self, client):
+        """A Registers or ModBox view holds a stream of its own; a hidden
+        laser's view would keep it open with nobody looking. Emptying the
+        slot removes the view, which is what cancels its stream."""
+        header = self.header((await client.get("/l4-opcpa")).text)
+
+        def change(key: str) -> str:
+            box = re.search(rf'<input type="checkbox" value="{key}"' + self.TAG, header).group(0)
+            return html.unescape(re.search(r'data-on:change="([^"]*)"', box).group(1))
+
+        assert "el.checked || document.getElementById('NL2-view')?.replaceChildren()" in change("NL2")
+        assert "-view" not in change("NL4"), "NL4 has no views to close"
+
+    async def test_a_stream_asked_to_hide_what_is_not_there_hides_nothing(self, client):
+        events = await read_events(client, self.stream(["NL9"]), count=2, headers=self.DATASTAR)
+        assert 'id="NL2-overview"' in events[1] and 'id="NL4-' in events[1]
+
+
+class TestTheLaserChoiceIsSaved:
+    """The save behind the checkboxes: one cookie per screen, holding only
+    names that are that screen's components, and a line in the log saying
+    who chose — as the palette does."""
+
+    @pytest.fixture
+    async def signed_in(self):
+        app = create_app(
+            Settings(
+                zone_code="TESTZ",
+                epics_backend="sim",
+                sim_tick_seconds=10,
+                log_level="WARNING",
+                dev=True,
+                session_secret="test-only-secret",
+            )
+        )
+        async with app.test_app() as running:
+            client = running.test_client()
+            await client.post("/login", form={"username": "test", "password": "test"})
+            yield client
+
+    @staticmethod
+    async def save(client, screen: str, value: str):
+        return await client.post(
+            "/api/hidden",
+            query_string={"screen": screen, "value": value},
+            json={},
+            headers={"Datastar-Request": "true"},
+        )
+
+    async def test_it_says_who_chose_and_keeps_only_the_screen_s_lasers(self, signed_in, caplog):
+        with caplog.at_level(logging.INFO, logger="core.routes"):
+            response = await self.save(signed_in, "l4-opcpa", "NL4,NL9,<script>")
+        assert "user=test" in caplog.text and "/l4-opcpa" in caplog.text, caplog.text
+        assert "hidden-l4-opcpa=NL4;" in response.headers.get("set-cookie", "")
+
+    async def test_a_screen_without_the_choice_is_refused(self, signed_in):
+        response = await self.save(signed_in, "chillers", "chiller-bank")
+        assert response.status_code == 404
+        assert "hidden-" not in response.headers.get("set-cookie", "")
 
 
 class TestWrite:
@@ -720,6 +901,129 @@ class TestTheRegisterTree:
         assert "Outlet temp" in view, "its registers are not"
 
 
+class TestAModboxHasAViewOfItsOwn:
+    """A laser with a ModBox can open a view of the ModBox's registers the
+    way it opens its register tree: in the panel's place, from the panel's
+    header, and left by its own Back. A laser without one offers nothing."""
+
+    VIEW = "/l4-opcpa/NL2/modbox"
+
+    async def test_a_laser_with_a_modbox_offers_it(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        assert f"@get('{self.VIEW}')" in page, "no way to the ModBox view"
+
+    async def test_a_laser_without_one_does_not(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        assert "/l4-opcpa/NL4/modbox" not in page, "NL4 has no ModBox to show"
+
+    async def test_both_ways_down_are_in_the_panel_header(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        start = page.index('<h2 class="panel-title">NL2</h2>')
+        header = page[start : page.index("</header>", start)]
+        assert "@get('/l4-opcpa/NL2/registers')" in header
+        assert f"@get('{self.VIEW}')" in header
+
+    async def test_it_takes_the_panel_s_place_as_the_tree_does(self, client):
+        """One slot per laser, whichever view fills it: two views of one
+        laser cannot be open side by side in its one column."""
+        modbox = await client.get(self.VIEW)
+        tree = await client.get("/l4-opcpa/NL2/registers")
+        assert modbox.status_code == 200
+        assert modbox.headers.get("datastar-selector") == "#NL2-view"
+        assert tree.headers.get("datastar-selector") == "#NL2-view"
+        assert modbox.headers.get("datastar-mode") == "inner"
+        page = (await client.get("/l4-opcpa")).text
+        assert page.count('id="NL2-view"') == 1
+
+    async def test_it_holds_its_own_stream_and_its_own_way_back(self, client):
+        view = (await client.get(self.VIEW)).text
+        assert f"@get('{self.VIEW}/stream', {{requestCancellation: 'cleanup'}})" in view
+        back = re.search(r"<button[^>]*view-back[^>]*>", view)
+        assert back and "el.closest('.view-slot').replaceChildren()" in back.group(0)
+        assert "NL2 ModBox" in view, "the view does not say what it is"
+
+    async def test_it_is_not_in_the_menu(self, client):
+        page = (await client.get("/l4-opcpa")).text
+        menu = page[page.index('class="nav"') : page.index("</nav>")]
+        assert "modbox" not in menu.lower()
+
+
+class TestTheModboxSections:
+    """A ModBox's registers are grouped the way the device is built, and every
+    ModBox is built the same way: sections fixed by the component, each
+    opening like one of the laser's modules."""
+
+    VIEW = "/l4-opcpa/NL2/modbox"
+    SECTIONS = [
+        "Identification",
+        "AWG &amp; YDFA",
+        "MBC1",
+        "MBC2",
+        "RF &amp; LAS1 &amp; AOM",
+        "Delaygen",
+    ]
+
+    async def test_it_lists_them_in_order(self, client):
+        view = (await client.get(self.VIEW)).text
+        heads = re.findall(
+            r'<button[^>]*class="module-head".*?<span class="module-label">(.*?)</span>',
+            view,
+            re.S,
+        )
+        assert heads == self.SECTIONS
+
+    async def test_each_opens_on_its_own_and_starts_shut(self, client):
+        """A signal per section, declared shut, so the view arrives as its
+        headers alone; each header opens its own list and says so."""
+        view = (await client.get(self.VIEW)).text
+        declared = json.loads(
+            html.unescape(re.search(r'data-signals="([^"]*)"', view).group(1))
+        )
+        modules = re.findall(r'<div class="module">(.*?)</div>\s*</div>', view, re.S)
+        assert len(modules) == len(self.SECTIONS)
+        toggled = []
+        for module in modules:
+            head = re.search(r'<button[^>]*class="module-head"[^>]*>', module, re.S).group(0)
+            signal = re.search(r"\$(\w+) = !\$\1", head).group(1)
+            assert declared.get(signal) is False, f"{signal} is not declared shut"
+            assert f"'aria-expanded': ${signal} ? 'true' : 'false'" in head
+            listing = re.search(r'<div class="register-list"[^>]*>', module).group(0)
+            assert f'data-show="${signal}"' in listing
+            assert 'style="display:none"' in listing, "a section paints open"
+            toggled.append(signal)
+        assert len(set(toggled)) == len(self.SECTIONS), "two sections open together"
+
+    async def test_it_only_reads(self, client):
+        """No SET and no refresh: the ModBox's registers are watched, not
+        driven from here."""
+        view = (await client.get(self.VIEW)).text
+        assert 'class="register-select"' not in view, "a ModBox register offers SET"
+        assert 'class="register-refresh"' not in view, "a ModBox register offers refresh"
+
+    async def test_awg_and_ydfa_hold_their_seven_registers(self, client):
+        view = (await client.get(self.VIEW)).text
+        start = view.index('<span class="module-label">AWG &amp; YDFA</span>')
+        section = view[start : view.index('class="module-head"', start + 1)]
+        read = re.findall(r'title="L4-OPCPA-NL2:ModBox:([^"\n]+)', section)
+        assert read == [
+            "AWG:State",
+            "AWG:Waveform",
+            "AWG:PulseWidth",
+            "AWG:PulseAmplitude",
+            "YDFA:Current",
+            "YDFA:State",
+            "YDFA:SoftwareKey",
+        ]
+
+    async def test_a_register_is_read_under_the_laser_s_prefix(self, client):
+        """`<prefix>:ModBox:<suffix>`: the suffix is the component's, the
+        prefix is the laser's `prefix:`."""
+        view = (await client.get(self.VIEW)).text
+        start = view.index('<span class="module-label">AWG &amp; YDFA</span>')
+        section = view[start : view.index('class="module-head"', start + 1)]
+        assert 'title="L4-OPCPA-NL2:ModBox:AWG:State' in section, section[:600]
+
+
 class TestAnOpenModuleLooksLikeAnyOpenList:
     """A module opens the way the laser's own lists do, so it says it is open
     the same way: the thick box round what was pressed, and its corner
@@ -774,6 +1078,112 @@ class TestAnOpenModuleLooksLikeAnyOpenList:
             )
 
 
+class TestAllModulesShareOneBox:
+    """The modules are one device's, so they sit in one card: one label
+    column and one right edge for every register of the device, whichever
+    module it is in."""
+
+    async def test_the_tree_is_one_card(self, client):
+        view = (await client.get("/l4-opcpa/NL2/registers")).text
+        assert view.count('class="card"') == 1, "a card per module"
+        card = view.index('class="card"')
+        heads = [m.start() for m in re.finditer('class="module-head"', view)]
+        assert len(heads) > 1, "the test zone needs more than one module for this"
+        assert all(head > card for head in heads)
+
+    async def test_a_header_and_its_list_are_a_row_gap_apart(self, client):
+        """As they were as children of a card: the list's own padding is the
+        box's reach, and the row gap is on top of it."""
+        css = (await client.get("/static/css/hmi.css")).text
+        rule = re.search(r"(?m)^\.module\s*\{([^}]*)\}", css)
+        assert rule, "a module lays out its header and list with no gap"
+        assert "flex-direction: column" in rule.group(1)
+        assert "gap: var(--hmi-gap-sm)" in rule.group(1)
+
+    async def test_an_open_module_s_box_clears_the_one_above(self, client):
+        """Its box reaches above its header further than the row gap, into
+        the module before it; the space between modules is that reach."""
+        css = (await client.get("/static/css/hmi.css")).text
+        rule = re.search(r"(?m)^\.module \+ \.module\s*\{([^}]*)\}", css)
+        assert rule and (
+            "margin-top: calc(var(--hmi-open-outline) + var(--hmi-open-offset))"
+            in rule.group(1)
+        ), "an open module's box overlaps the module above it"
+
+
+class TestEveryRegisterCanBeReadAgain:
+    """Some registers are processed rarely, so a reading can be minutes old.
+    Each row has a refresh button: it processes the register's record — 1
+    written to its `.PROC` — and the monitor brings the fresh reading. A
+    setpoint's readback is a register like any other, so it has one too."""
+
+    VIEW = "/l4-opcpa/NL2/registers"
+    READING = ("L4-OPCPA-NL2:PS1225:11:T_out", "Outlet temp")
+    SETPOINT = ("L4-OPCPA-NL2:PS1225:11:SetPoint", "Setpoint")
+
+    @staticmethod
+    def refresh(view: str, label: str) -> str:
+        found = re.search(rf'<button[^>]*aria-label="Refresh {re.escape(label)}"[^>]*>', view)
+        assert found, f"{label} has no refresh button"
+        return found.group(0)
+
+    async def test_a_reading_and_a_setpoint_both_have_one(self, client):
+        view = (await client.get(self.VIEW)).text
+        for pv, label in (self.READING, self.SETPOINT):
+            button = self.refresh(view, label)
+            assert f"pv={quote(pv + '.PROC', safe='')}&amp;value=1'" in button, button
+
+    async def test_every_register_has_one(self, client):
+        view = (await client.get(self.VIEW)).text
+        rows = view.count('class="register-cell"')
+        assert rows and view.count('class="register-refresh"') == rows
+
+    async def test_processing_is_the_only_thing_it_can_write(self, client):
+        """The endpoint takes 1 for a register's `.PROC` and nothing else:
+        anything that can post there can post anything."""
+        name = self.READING[0] + ".PROC"
+
+        async def write(value):
+            return (
+                await client.post(
+                    "/api/write",
+                    params={"pv": name, "value": value},
+                    json={},
+                    headers={"Datastar-Request": "true"},
+                )
+            ).text
+
+        assert "Refused" not in await write("1")
+        assert "Refused" in await write("2")
+        assert "Refused" in await write("now")
+
+    async def test_pressing_it_leaves_an_open_write_panel_open(self, client):
+        """Reading a register again is not leaving the write being made: an
+        operator refreshes the value they are about to change."""
+        view = (await client.get(self.VIEW)).text
+        handler = re.search(r'data-on:click__window="([^"]*)"', view).group(1)
+        assert ".register-refresh" in handler, handler
+
+
+class TestARegisterReadsFromTheLeft:
+    """A register tree mixes states and numbers in one column, so they all
+    start at the left edge rather than numbers sitting right and states left.
+    Both views are register trees; the panel's own rows are not touched."""
+
+    async def test_numbers_are_not_pushed_right(self, client):
+        css = (await client.get("/static/css/hmi.css")).text
+        number = re.search(r"\.register-tree \.number\s*\{([^}]*)\}", css)
+        assert number and "margin-left: 0" in number.group(1), "a number still sits right"
+        units = re.search(r"\.register-tree \.value-with-units\s*\{([^}]*)\}", css)
+        assert units and "justify-content: flex-start" in units.group(1), (
+            "a number with a unit still sits right"
+        )
+
+    async def test_both_views_are_register_trees(self, client):
+        for view in ("/l4-opcpa/NL2/registers", "/l4-opcpa/NL2/modbox"):
+            assert 'class="panel register-tree"' in (await client.get(view)).text, view
+
+
 class TestARegisterRowIsJustItsLabel:
     """No info icon on a register: a tree of hundreds with an icon on every
     row is a column of icons. The PV is on the reading's own tooltip."""
@@ -794,7 +1204,7 @@ class TestGettingToTheRegistersAndBack:
     listing, and a laser's registers belong to that laser, not to the zone."""
 
     VIEW = "/l4-opcpa/NL2/registers"
-    SLOT = "NL2-registers-view"
+    SLOT = "NL2-view"
 
     async def test_the_panel_asks_for_the_view_in_place(self, client):
         """A request patched into the screen, not a link to another page."""

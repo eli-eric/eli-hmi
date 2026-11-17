@@ -97,6 +97,11 @@ class GuiFile(Strict):
     title: str = Field(description="Menu label and page heading.")
     order: int = Field(default=100, description="Menu position; lower comes first.")
     description: str = Field(default="", description="Free text, shown under the heading.")
+    selectable: bool = Field(
+        default=False,
+        description="Offer each top-level component as a checkbox in the "
+        "header, so a workstation shows only the ones its operator controls.",
+    )
     components: list[dict[str, Any]] = Field(
         default_factory=list,
         description="The screen: a list of component blocks. Each needs a "
@@ -121,6 +126,8 @@ class Gui:
     path: Path
     #: Top-level components, already built.
     components: list[Component]
+    #: Whether a workstation chooses which top-level components it shows.
+    selectable: bool = False
     #: For a component's detail view: the id of the element on its screen
     #: that it is patched into, in place of the component. None for a screen,
     #: which is a page of its own.
@@ -356,6 +363,7 @@ def load_gui(folder: Path) -> Gui:
         description=meta.description,
         path=folder,
         components=components,
+        selectable=meta.selectable,
     )
 
 

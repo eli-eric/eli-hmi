@@ -453,22 +453,23 @@ class Component:
         the answer is in.
         """
 
-    def detail(self) -> "Detail | None":
-        """A view of this component's own, or None — the usual answer.
+    def details(self) -> tuple["Detail", ...]:
+        """This component's own views, or none — the usual answer.
 
         Some components hold far more than they show: every module of a
         device and every register under them. That is a detail view, shown in
         the component's place and at its width when the component asks for it
-        (`@get(detail_url)` from its template), and holding its own stream —
-        so the screen's stream never carries its rows, and it is streamed only
-        while someone has it open.
+        (`@get(detail_urls['<slug>'])` from its template), and holding its own
+        stream — so the screen's stream never carries its rows, and it is
+        streamed only while someone has it open. A component may have several;
+        they share its one slot, so one is open at a time.
 
-        The route is `/<screen>/<component key>/<detail slug>` and answers
-        with a fragment for the component's slot (`Page.render_view`). It is
-        not a menu entry: the menu is the zone's folder listing, and this is
-        reached from the component that owns it.
+        Each is routed at `/<screen>/<component key>/<detail slug>` and
+        answers with a fragment for the component's slot (`Page.render_view`).
+        None is a menu entry: the menu is the zone's folder listing, and a
+        view is reached from the component that owns it.
         """
-        return None
+        return ()
 
     def pv_specs(self) -> list[PvSpec]:
         """What kind of signal each PV this component reads is.

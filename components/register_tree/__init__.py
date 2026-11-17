@@ -8,7 +8,9 @@ while someone has the tree open. Back removes it, which closes the stream.
 
 Not written in YAML directly, though nothing stops it: `laser-panel` builds
 one from its own `modules:` block, because the modules belong to the laser and
-configuring them twice is how the two would come to disagree.
+configuring them twice is how the two would come to disagree. It builds a
+second one for its ModBox, from the fixed table in `laser_panel/modbox.py` and
+the laser's `prefix:`, with nothing writable and no refresh.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from core.components import (
     slug,
 )
 from core.render import (
+    ValueFormatOptions,
     bool_readout,
     number_readout,
     string_readout,
@@ -61,8 +64,14 @@ NAMED_STATES = {"enum", "bool"}
 HAS_CONTROL_FIELDS = {"float", "int", "enum", "bool"}
 
 
+def process_pv(pv: str) -> str:
+    """The field that processes a register's record: writing 1 to it makes
+    the device be read now rather than at the record's next scan."""
+    return f"{pv}.PROC"
+
+
 class Config(ComponentConfig):
-    title: str = Field(description="What the page is called, e.g. 'NL2 registers'.")
+    title: str = Field(description="What the view is called, e.g. 'NL2 registers'.")
     modules: list[Module] = Field(
         default_factory=list,
         description="The device's modules, each a prefix and the registers "
@@ -71,6 +80,12 @@ class Config(ComponentConfig):
     nv_write: str | None = Field(
         default=None,
         description="PV that arms writing to non-volatile memory, one per laser.",
+    )
+    refresh: bool = Field(
+        default=True,
+        description="Whether every register has a button that reads it again "
+        "(writes 1 to its `.PROC`). Off for a ModBox, whose registers are "
+        "only watched.",
     )
 
 
@@ -90,10 +105,14 @@ class RegisterTree(Component):
     #: baked into a widget: it is answered at start-up and again whenever a
     #: channel comes back, and the next draw of the row simply uses it.
     _units: dict[str, str]
+    #: Each float register's decimals, from its record's PREC, the same way.
+    _decimals: dict[str, int]
 
     def setup(self) -> None:
         if not hasattr(self, "_units"):
             self._units = {}
+        if not hasattr(self, "_decimals"):
+            self._decimals = {}
         self._module_signals: dict[int, str] = {}
         # Which register's write panel is open, in this browser. One panel is
         # filled and shown; the others stay hidden with whatever they last
@@ -123,6 +142,11 @@ class RegisterTree(Component):
                 f"module_{module_index}", False
             )
             for register_index, item in enumerate(module.registers):
+                # Every register can be read again on demand, unless the tree
+                # says otherwise. 1 and nothing else: the button sends 1, and
+                # anything that can post to the endpoint can post anything.
+                if self.config.refresh:
+                    self.writable(process_pv(item.pv), WriteRule.integer(min=1, max=1))
                 # At the datatype the register's kind asks for, so the first
                 # reading to arrive is already the right kind of value.
                 pv = PvId(item.pv, DATATYPES.get(item.kind, Datatype.NUMBER))
@@ -157,6 +181,11 @@ class RegisterTree(Component):
                     # for one unit is how a row comes to say °C for a record
                     # that reads in K.
                     units=self._units.get(item.pv),
+                    # The record's PREC, for a float; one whose record has not
+                    # answered keeps the HMI's default of three. An integer
+                    # record sends no PREC, and an `int` register is drawn
+                    # whole even when its record is a double that does.
+                    value_format=self._format(item),
                     integer=item.kind == "int",
                     is_connected=read.is_connected,
                 )
@@ -220,14 +249,31 @@ class RegisterTree(Component):
         return item.kind in HAS_CONTROL_FIELDS
 
     def described(self, descriptions: dict[str, Any]) -> None:
-        """What the records said. Answered at start-up and again when a
-        channel comes back, so a record that says nothing now forgets what it
-        said before rather than keeping a unit it may no longer have."""
+        """What the records said: a unit, and a float's PREC. Answered at
+        start-up and again when a channel comes back, so a record that says
+        nothing now forgets what it said before rather than keeping a unit it
+        may no longer have."""
         for pv, description in descriptions.items():
             if description.units:
                 self._units[pv] = description.units
             else:
                 self._units.pop(pv, None)
+            if description.precision is not None:
+                # Held to what a fixed format can take: PREC is the device's
+                # to set, and a negative one would fail at render time.
+                self._decimals[pv] = min(max(description.precision, 0), 100)
+            else:
+                self._decimals.pop(pv, None)
+
+    def _format(self, item: Any) -> ValueFormatOptions | None:
+        """How a float register's reading is rounded: to its record's PREC,
+        once the record has said. None leaves the readout's own default —
+        three decimals for a float, whole for an `int`, whose record (a
+        longin, DBR_CTRL_LONG) sends no PREC to use."""
+        decimals = self._decimals.get(item.pv)
+        if item.kind != "float" or decimals is None:
+            return None
+        return ValueFormatOptions(format="fixed", to_fixed=decimals)
 
     def write_rule(self, item: Any, described: Any) -> WriteRule:
         """What a write to this register is held to.
@@ -275,6 +321,7 @@ class RegisterTree(Component):
                         {
                             "label": item.label or item.name,
                             "pv": item.pv,
+                            "process": process_pv(item.pv),
                             "write": item.write,
                             "write_pv": item.write_pv,
                             "widget": f"r{module_index}_{register_index}",
@@ -290,5 +337,6 @@ class RegisterTree(Component):
             # limits nobody is looking at — but each register has its own slot
             # so the panel appears under the row it writes.
             "selected_signal": self.selected,
+            "refresh": self.config.refresh,
             "select_url": f"/api/register?component={self.key}",
         }

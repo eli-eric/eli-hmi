@@ -193,6 +193,30 @@ async def test_the_cache_is_what_makes_server_side_rendering_worth_anything(hub)
 
 
 class TestSimulator:
+    async def test_processing_a_record_reports_it_again(self):
+        """A write to `.PROC` processes the record, the way an IOC does: the
+        reading is reported afresh, with its value untouched — not a new
+        string PV named after the field."""
+        backend = SimBackend(tick_seconds=10, seed=1)
+        backend.declare(SimSpec("PV:R", "float", value=4.5, drifts=False))
+        hub = PvHub(backend)
+        await hub.start()
+        try:
+            pv = PvId("PV:R")
+            await hub.subscribe([pv])
+            await asyncio.sleep(0.01)
+            before = hub.get(pv).timestamp
+            await asyncio.sleep(0.01)
+            await hub.caput("PV:R.PROC", 1)
+            after = hub.get(pv)
+            assert after.timestamp > before, "the record was not processed"
+            assert after.value == 4.5
+            assert not (await backend.caget(PvId("PV:R.PROC"))).ok, (
+                "the field became a PV of its own"
+            )
+        finally:
+            await hub.stop()
+
     async def test_a_write_is_held_against_the_drift(self):
         backend = SimBackend(tick_seconds=0.01, seed=1)
         backend.declare(SimSpec("PV:F", "float", value=1.0, low=0.0, high=10.0, hold_seconds=5.0))

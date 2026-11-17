@@ -44,6 +44,15 @@
 
 {#- A single write. `variant` is kept for semantics but every variant renders
     identically — see `common.Action`. -#}
+{#- The way out of a detail view, for its panel header. Emptying the slot is
+    the whole of going back: the component the view stood in for reappears
+    when the slot is `:empty` — every node gone, text included — and Datastar
+    cancels the view's stream with the element that opened it. No round-trip. -#}
+{%- macro view_back() -%}
+<button type="button" class="panel-detail view-back"
+        data-on:click="el.closest('.view-slot').replaceChildren()">← Back</button>
+{%- endmacro -%}
+
 {%- macro action_button(label, pv, value, variant='primary', close=none) -%}
 {%- set target = status_id(label) -%}
 <span class="action-with-status">

@@ -13,7 +13,7 @@ own or the PV with what the panel should do with it::
         pv: L4-OPCPA-NL4:PHD1K000:12:Mean
         label: PHD1K000:12/Mean                   # what the row is called
       modboxMbc1:
-        pv: L4-OPCPA-NL4::ModBox:MBC1:BiasValue
+        pv: L4-OPCPA-NL4:ModBox:MBC1:BiasValue
         format: 0                                 # display rounding only
 
 There is no `units:`, `format:` or `labels:` block: they were three parallel
@@ -35,10 +35,12 @@ What the schema still guarantees, because each rule caught a real edit mistake:
   change the name).
 
 The config holds the **full PV name** for every signal — exactly the strings the
-controls team provides. Nothing is assembled from prefixes. The one exception is
-the **command PV** (`CMD_<laser>_<NAME>`), because a command maps to a
-coordinated sequence of writes dispatched by the control system, not to a single
-record.
+controls team provides. Nothing is assembled from prefixes, with two
+exceptions. The **command PV** (`CMD_<laser>_<NAME>`), because a command maps
+to a coordinated sequence of writes dispatched by the control system, not to a
+single record. And the **ModBox's registers** (`<prefix>:ModBox:<suffix>`),
+because every ModBox has the same ones: the suffixes are the component's
+(`modbox.py`), and only the laser's `prefix:` differs.
 """
 
 from __future__ import annotations
@@ -54,7 +56,7 @@ from pydantic import (
     model_validator,
 )
 
-from core.components import ComponentConfig
+from core.components import ComponentConfig, PvKind
 from components.common import ValueText
 from core.render import ValueFormatOptions, parse_format
 
@@ -141,7 +143,7 @@ class Register(Strict):
     #: from it: the datatype the register is monitored at, the readout its row
     #: is drawn with, whether its write panel is a field or a list of states,
     #: and the record the generated IOC emits for it.
-    kind: str = Field(
+    kind: PvKind = Field(
         default="float",
         description="float | int | bool | enum | string. Declared, not "
         "discovered: it chooses the datatype the register is monitored at, "
@@ -397,6 +399,12 @@ class Config(ComponentConfig):
     id: Name = Field(
         description="Laser id, e.g. NL2. The panel heading, the component's key, "
         "and the <LASER> in command PVs (CMD_<id>_<NAME>)."
+    )
+    prefix: Name | None = Field(
+        default=None,
+        description="The laser's PV prefix, e.g. L4-OPCPA-NL2. The ModBox's "
+        "registers are named from it, <prefix>:ModBox:<suffix>, so it is "
+        "required for a laser with a `modbox:` and unused otherwise.",
     )
     pvs: LaserPvs = Field(description="The single-signal read/write PVs; see LaserPvs.")
     trigger_delay: list[Name] = Field(
@@ -658,6 +666,11 @@ class Config(ComponentConfig):
             raise ValueError(
                 "pvs.loadedWaveform is required when the laser has a modbox "
                 "(omit `modbox` for a laser that has none)"
+            )
+        if self.modbox and not self.prefix:
+            raise ValueError(
+                "prefix is required when the laser has a modbox: its registers "
+                "are named <prefix>:ModBox:<suffix>"
             )
         return self
 

@@ -27,7 +27,8 @@ from typing import Any
 from core.components import PvKind, PvSpec
 
 from .commands import LASER_COMMANDS, OPERATOR_VALUED_COMMANDS
-from .config import Config
+from .config import Config, Module
+from .modbox import modbox_modules
 
 #: Flashlamp channel states, in the order the enum record publishes them.
 FLASHLAMP_ENUM = ("STANDBY", "RUN", "STOP", "FAILURE", "IGNITION", "BUSY", "OFF")
@@ -244,18 +245,25 @@ def laser_pv_specs(cfg: Config) -> list[PvSpec]:
             )
         )
 
-    specs += _register_specs(cfg)
+    # A register the panel already reads is the panel's: its description is
+    # the one kept anyway, and declaring it again only reports a disagreement
+    # that is not one.
+    declared = {spec.name for spec in specs}
+    specs += [spec for spec in _register_specs(cfg) if spec.name not in declared]
     specs += _command_specs(cfg)
     return specs
 
 
 def _register_specs(cfg: Config) -> list[PvSpec]:
-    """One spec per register of every module.
+    """One spec per register of every module, and of every ModBox section.
 
     Declared here with the rest of the laser's PVs, so the register tree works
     against the simulator and the generated IOC exactly as the panel does. A
     register's kind is what the config says it is; `float` is the default
     because most of a module's registers are analogue readings.
+
+    A ModBox register the panel also reads (its AWG state, its bias) is left
+    to the panel's own declaration by the caller.
     """
     specs: list[PvSpec] = []
     if cfg.nv_write:
@@ -269,7 +277,10 @@ def _register_specs(cfg: Config) -> list[PvSpec]:
                 desc=f"{cfg.laser} non-volatile write armed",
             )
         )
-    for module in cfg.modules:
+    modules = list(cfg.modules)
+    if cfg.modbox:
+        modules += [Module.model_validate(m) for m in modbox_modules(cfg.prefix)]
+    for module in modules:
         for register in module.registers:
             # The band a simulated value wanders inside, and — only when the
             # config declared one — the range the record advertises. A screen

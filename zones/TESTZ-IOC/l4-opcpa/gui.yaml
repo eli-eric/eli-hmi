@@ -14,17 +14,21 @@
 # L4 OPCPA — one laser side by side, one `laser-panel` component each.
 #
 # The PV names are the full strings the controls team provides; nothing is
-# assembled from prefixes here. The only exception is a command PV
-# (CMD_<laser>_<NAME>), which a placeholder in `commands:` falls back to.
+# assembled from prefixes here, with two exceptions: a command PV
+# (CMD_<laser>_<NAME>), which a placeholder in `commands:` falls back to, and
+# the ModBox view's registers (<prefix>:ModBox:<suffix>), which are the same on
+# every laser and so belong to the component.
 #
-# To add a laser: copy a block and change the id and the PV names. To hide a
-# button: remove its entry from `commands:`.
+# To add a laser: copy a block and change the id, the prefix and the PV names.
+# To hide a button: remove its entry from `commands:`.
 title: L4 OPCPA
 order: 10
 description: Operator interface for the L4 OPCPA laser system.
+selectable: true
 components:
 - component: laser-panel
   id: NL2
+  prefix: L4-OPCPA-NL2
   pvs:
     connection: L4-OPCPA-NL2:PortControl:CNCT
     fullPower: L4-OPCPA-NL2:FullPower
@@ -36,8 +40,8 @@ components:
     attenuator: L4-OPCPA-NL2:SM5-ATT1:51:CurrentPosition
     loadedWaveform: SI_NL2_LOADED_WAVEFORM
     latestWaveform: SI_NL2_LATEST_WAVEFORM
-    modboxMbc1: L4-OPCPA-NL2::ModBox:MBC1:BiasValue
-    modboxMbc2: L4-OPCPA-NL2::ModBox:MBC2:BiasValue
+    modboxMbc1: L4-OPCPA-NL2:ModBox:MBC1:BiasValue
+    modboxMbc2: L4-OPCPA-NL2:ModBox:MBC2:BiasValue
   # Arms writing a register to the device's non-volatile memory. One per
   # laser, and only the registers declaring `nv: true` may use it.
   nvWrite: L4-OPCPA-NL2:NVWriteEnable
@@ -242,6 +246,7 @@ components:
 # laser's hardware.
 - component: laser-panel
   id: NL4
+  prefix: L4-OPCPA-NL4
   pvs:
     connection: L4-OPCPA-NL4:PortControl:CNCT
     fullPower: L4-OPCPA-NL4:FullPower

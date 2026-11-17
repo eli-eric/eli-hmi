@@ -341,6 +341,29 @@ class TestPage:
         assert patch in page
 
 
+class TestAScreenWithoutSomeOfItsLasers:
+    """What a workstation's stream carries when it has hidden lasers: their
+    PVs are not subscribed to and their widgets are not drawn — unless a
+    shown laser reads the same PV, which then still reaches the shown one."""
+
+    def test_a_hidden_laser_s_pvs_are_not_asked_for(self, zone):
+        view = Page(zone, zone.gui("l4-opcpa"), create_environment())
+        nl4 = next(c for c in view.gui.components if c.key == "NL4")
+        narrowed = view.without(["NL4"])
+        assert not narrowed.all_pvs & nl4.all_pvs()
+        assert narrowed.all_pvs, "NL2's PVs went with it"
+
+    def test_a_pv_a_shown_laser_also_reads_still_reaches_it(self, zone, panel, spec):
+        from dataclasses import replace
+
+        twin = LaserPanel(key="twin", config=panel.config)
+        gui = replace(zone.gui("l4-opcpa"), components=[panel, twin])
+        narrowed = Page(zone, gui, create_environment()).without(["twin"])
+        phd = PvId(spec.pvs.phd_mean)
+        assert phd in narrowed.all_pvs
+        assert [widget.id for widget in narrowed.widgets_for([phd])] == ["NL2-phd-mean"]
+
+
 class TestOverviewStrictBooleans:
     def test_a_value_that_is_neither_0_nor_1_is_not_a_confident_no(self, spec, panel):
         # `OverviewBoolCell` is a three-way branch: an mbbi reporting 2 must
@@ -554,7 +577,7 @@ class TestARegistersKindDecidesHowItIsRead:
                 "registers": [{"name": "Mode", "label": "Mode", **register}],
             }
         )
-        return build_panel(zone, modules=[module]).detail().components[0]
+        return build_panel(zone, modules=[module]).details()[0].components[0]
 
     def datatype_of(self, tree, pv: str):
         widget = next(
@@ -703,10 +726,11 @@ class TestTheNvCheckboxIsTheWholeControl:
         assert f'id="{tree.nv_status}"' not in markup
 
 
-class TestARegistersUnitIsTheDevices:
-    """A register's unit is the record's EGU, read from its control fields at
-    start-up — not the zone file's. A `units:` in the YAML is what the
-    simulator answers that read with, and a real zone leaves it out."""
+class TestARegistersUnitAndPrecisionAreTheDevices:
+    """A register's unit is the record's EGU, and a float's decimals are its
+    PREC, both read from its control fields at start-up — not the zone
+    file's. A `units:` in the YAML is what the simulator answers that read
+    with, and a real zone leaves it out."""
 
     PV = "L4-OPCPA-NL2:PS9999:01:Temp"
 
@@ -720,7 +744,7 @@ class TestARegistersUnitIsTheDevices:
                 "registers": [{"name": "Temp", "label": "Temp", **register}],
             }
         )
-        return build_panel(zone, modules=[module]).detail().components[0]
+        return build_panel(zone, modules=[module]).details()[0].components[0]
 
     def row(self, tree, value) -> str:
         from core.components import PvReader, PvSample
@@ -756,6 +780,44 @@ class TestARegistersUnitIsTheDevices:
         a screen comes to show °C for a record that reads in K."""
         tree = self.tree_for(zone, units="°C")
         assert "°C" not in self.row(tree, 296.5)
+
+    def test_a_float_shows_the_decimals_its_record_asks_for(self, zone):
+        from core.epics.types import PvDescription
+
+        tree = self.tree_for(zone)
+        tree.described({self.PV: PvDescription(precision=1)})
+        assert self.row(tree, 296.54).split() == ["296.5"]
+
+    def test_a_record_that_has_not_answered_keeps_three(self, zone):
+        assert self.row(self.tree_for(zone), 296.5).split() == ["296.500"]
+
+    def test_an_integer_record_sends_no_precision_and_reads_whole(self, zone):
+        """DBR_CTRL_LONG carries a unit and no PREC: what an integer record's
+        control fields actually say."""
+        from core.epics.types import PvDescription
+
+        tree = self.tree_for(zone, kind="int")
+        tree.described({self.PV: PvDescription(units="mV")})
+        assert self.row(tree, 296.4).split() == ["296", "mV"]
+
+    def test_an_int_register_stays_whole_on_a_record_that_has_a_prec(self, zone):
+        """A register declared `int` whose record is a double — the local IOC
+        serves a drifting integer from a `calc` — is still drawn whole: the
+        declared kind decides, not what the record happens to be."""
+        from core.epics.types import PvDescription
+
+        tree = self.tree_for(zone, kind="int")
+        tree.described({self.PV: PvDescription(precision=3)})
+        assert self.row(tree, 296.5).split() == ["297"]
+
+    def test_a_precision_no_format_can_take_does_not_break_the_row(self, zone):
+        """PREC is the device's to set, and a negative one would otherwise be
+        an error at render time, which takes the view's stream down with it."""
+        from core.epics.types import PvDescription
+
+        tree = self.tree_for(zone)
+        tree.described({self.PV: PvDescription(precision=-2)})
+        assert self.row(tree, 296.6).split() == ["297"]
 
 
 class TestAChannelThatComesBackIsDescribedAgain:
@@ -818,7 +880,7 @@ class TestARegistersKindDecidesWhatItsWriteTakes:
                 "registers": [{"name": "R", "kind": kind, "write": True}],
             }
         )
-        tree = build_panel(zone, modules=[module]).detail().components[0]
+        tree = build_panel(zone, modules=[module]).details()[0].components[0]
         item = tree.register("L4-OPCPA-NL2:PS9999:01:R")
         return tree.write_rule(item, described or PvDescription(low=0, high=3000))
 
@@ -848,7 +910,7 @@ class TestARegistersKindDecidesWhatItsWriteTakes:
                 "registers": [{"name": "Note", "kind": "string", "write": True}],
             }
         )
-        tree = build_panel(zone, modules=[module]).detail().components[0]
+        tree = build_panel(zone, modules=[module]).details()[0].components[0]
         item = tree.register("L4-OPCPA-NL2:PS9999:01:Note")
         markup = create_environment().get_template("register_tree/write_panel.html").render(
             comp=tree,

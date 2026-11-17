@@ -389,32 +389,50 @@ class LaserPanel(Component):
 
     # -- declarations ------------------------------------------------------
 
-    def detail(self) -> Detail | None:
-        """Every module of this laser and every register under them.
+    def details(self) -> tuple[Detail, ...]:
+        """This laser's own views, each shown in the panel's place: every
+        module and register under them, and — for a laser that has one — the
+        ModBox's registers.
 
-        A separate `register-tree` instance rather than this component's own
+        Separate component instances rather than this component's own
         widgets: a widget belongs to exactly one page's index, and that is
-        what keeps hundreds of register rows out of the screen's stream. It
-        is shown in this panel's place, at its width, when Registers is
-        pressed. The modules are configured here, once, because they belong
-        to the laser.
+        what keeps a view's rows out of the screen's stream. The modules are
+        configured here, once, because they belong to the laser; the ModBox's
+        registers are the same on every laser (`modbox.py`), so its view needs
+        nothing from the laser but its prefix.
         """
-        if not self.config.modules:
-            return None
         from components.register_tree import Config as TreeConfig, RegisterTree
 
-        tree = RegisterTree(
-            key=f"{self.key}-registers",
-            config=TreeConfig.model_validate(
-                {
-                    "component": "register-tree",
-                    "title": f"{self.config.laser} registers",
-                    "modules": [m.model_dump(by_alias=True) for m in self.config.modules],
-                    "nv_write": self.config.nv_write,
-                }
-            ),
-        )
-        return Detail(slug="registers", title=tree.config.title, components=(tree,))
+        from .modbox import modbox_modules
+
+        views: list[Detail] = []
+        if self.config.modules:
+            tree = RegisterTree(
+                key=f"{self.key}-registers",
+                config=TreeConfig.model_validate(
+                    {
+                        "component": "register-tree",
+                        "title": f"{self.config.laser} registers",
+                        "modules": [m.model_dump(by_alias=True) for m in self.config.modules],
+                        "nv_write": self.config.nv_write,
+                    }
+                ),
+            )
+            views.append(Detail(slug="registers", title=tree.config.title, components=(tree,)))
+        if self.config.modbox:
+            modbox = RegisterTree(
+                key=f"{self.key}-modbox",
+                config=TreeConfig.model_validate(
+                    {
+                        "component": "register-tree",
+                        "title": f"{self.config.laser} ModBox",
+                        "modules": modbox_modules(self.config.prefix),
+                        "refresh": False,
+                    }
+                ),
+            )
+            views.append(Detail(slug="modbox", title=modbox.config.title, components=(modbox,)))
+        return tuple(views)
 
     def pv_specs(self) -> list[PvSpec]:
         return laser_pv_specs(self.config)

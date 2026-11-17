@@ -345,6 +345,28 @@ body {
   color: var(--color-gray-800);
 }
 
+/* Which of the screen's components this workstation shows: a row of
+ * checkboxes beside the title, in the description's type. */
+.page-choice {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: var(--hmi-font-size);
+}
+
+.page-choice-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.page-choice-item input {
+  margin: 0;
+  cursor: pointer;
+}
+
 .page-title {
   margin: 0;
   font-size: var(--hmi-font-size);
@@ -782,6 +804,21 @@ body {
   background: var(--color-surface-light);
 }
 
+/* A module's header and its list, a row gap apart as the card's own rows
+ * are. */
+.module {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hmi-gap-sm);
+}
+
+/* Modules share one card, a row gap apart — less than an open module's box
+ * reaches above its header. The space between them is that reach, so the box
+ * never lies over the module before it. */
+.module + .module {
+  margin-top: calc(var(--hmi-open-outline) + var(--hmi-open-offset));
+}
+
 /* How many registers are behind it: a module with four is worth opening on a
  * glance, one with sixty is a decision. */
 .module-count {
@@ -817,6 +854,13 @@ body {
 
 .panel-detail:hover {
   text-decoration: underline;
+}
+
+/* A panel's ways down into its detail views, side by side opposite its
+ * title. */
+.panel-views {
+  display: flex;
+  gap: 0.75rem;
 }
 
 /* The slot a detail view is patched into, ahead of its component in one grid
@@ -871,6 +915,16 @@ body {
   min-width: 0;
 }
 
+/* A tree mixes states and numbers in one column, so every reading starts at
+ * the left edge, the way a state does, instead of numbers sitting right. */
+.register-tree .number {
+  margin-left: 0;
+}
+
+.register-tree .value-with-units {
+  justify-content: flex-start;
+}
+
 /* The reading's own type and weight, so the row reads as one thing — and
  * `stretch` above makes it exactly as tall as the field beside it. */
 .register-select {
@@ -887,6 +941,26 @@ body {
 }
 
 .register-select:hover:not(:disabled) {
+  background: var(--color-surface-light);
+}
+
+/* Read this register again: a square beside the reading, in the Set
+ * button's chrome, holding an icon rather than a word so a column of them
+ * stays narrow. */
+.register-refresh {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  padding: 0 0.1875rem;
+  background: var(--color-surface-lighter);
+  border: 1px solid var(--color-text);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.register-refresh:hover:not(:disabled) {
   background: var(--color-surface-light);
 }
 

@@ -1,9 +1,11 @@
 # OPCPA: control of 5 pump lasers
 
 title: OPCPA
+selectable: true
 components:
 - component: laser-panel
   id: NL1
+  prefix: L4-OPCPA-NL1
   waveformsUrl: http://10.76.1.220:8010/api/wf/list/L4-NSOPCPA-NL1
   pvs:
     connection: L4-OPCPA-NL1:PortControl.CNCT
@@ -136,6 +138,7 @@ components:
     LOAD_WAVEFORM: L4-OPCPA-NL1:ModBox:SetWaveformByName
 - component: laser-panel
   id: NL2
+  prefix: L4-OPCPA-NL2
   waveformsUrl: http://10.76.1.220:8010/api/wf/list/L4-NSOPCPA-NL2
   pvs:
     connection: L4-OPCPA-NL2:PortControl.CNCT
@@ -321,6 +324,7 @@ components:
     LOAD_WAVEFORM: L4-OPCPA-NL2:ModBox:SetWaveformByName
 - component: laser-panel
   id: NL3
+  prefix: L4-OPCPA-NL3
   waveformsUrl: http://10.76.1.220:8010/api/wf/list/L4-NSOPCPA-NL3
   pvs:
     connection: L4-OPCPA-NL3:PortControl.CNCT
@@ -506,6 +510,7 @@ components:
     LOAD_WAVEFORM: L4-OPCPA-NL3:ModBox:SetWaveformByName
 - component: laser-panel
   id: NL4
+  prefix: L4-OPCPA-NL4
   waveformsUrl: http://10.76.1.220:8010/api/wf/list/L4-NSOPCPA-NL4
   pvs:
     connection: L4-OPCPA-NL4:PortControl.CNCT
@@ -691,6 +696,7 @@ components:
     LOAD_WAVEFORM: L4-OPCPA-NL4:ModBox:SetWaveformByName
 - component: laser-panel
   id: NL5
+  prefix: L4-OPCPA-NL5
   waveformsUrl: http://10.76.1.220:8010/api/wf/list/L4-NSOPCPA-NL5
   pvs:
     connection: L4-OPCPA-NL5:PortControl.CNCT

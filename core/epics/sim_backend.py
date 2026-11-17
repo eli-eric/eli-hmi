@@ -191,6 +191,14 @@ class SimBackend:
             task.add_done_callback(self._effects.discard)
             return
 
+        record, dot, field = name.partition(".")
+        if dot and field == "PROC" and record in self._specs:
+            # Processing, as an IOC does it: the record reports again, its
+            # value untouched — which is what a refresh button asks for.
+            logger.info("SIM process %s", record)
+            self._publish(record)
+            return
+
         spec = self._specs.get(name)
         if spec is None:
             # An unknown PV is still writable — the operator asked for it, and

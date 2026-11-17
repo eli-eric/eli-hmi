@@ -11,6 +11,7 @@ component tree a GUI's YAML produced, collects widgets and signals, and renders.
 
 from __future__ import annotations
 
+import copy
 import json
 import asyncio
 import logging
@@ -79,12 +80,55 @@ class Page:
             for pv in widget.pvs:
                 self._by_pv.setdefault(pv, []).append(widget)
 
+        # Where each component's detail views are fetched from, by view slug.
+        # Asked once: building a view builds its components, and a register
+        # tree is hundreds of widgets — not something to do per render just
+        # to learn a URL.
+        self._detail_urls: dict[str, dict[str, str]] = {
+            component.key: {
+                detail.slug: f"/{detail_slug(gui, component, detail)}"
+                for detail in details
+            }
+            for component in gui.walk()
+            if (details := component.details())
+        }
+
     def reindex(self) -> None:
         """Rebuild PV -> widgets, after a component re-declared its widgets."""
         self._by_pv = {}
         for widget in self.gui.all_widgets():
             for pv in widget.pvs:
                 self._by_pv.setdefault(pv, []).append(widget)
+
+    def choosable(self, names: Iterable[str]) -> list[str]:
+        """The names among these that a workstation can hide on this screen:
+        its top-level components', in the screen's order. Nothing on a screen
+        that is not `selectable`, and a name it does not have is dropped —
+        whether it came from a cookie, a request or an older build."""
+        if not self.gui.selectable:
+            return []
+        wanted = set(names)
+        return [c.key for c in self.gui.components if c.key in wanted]
+
+    def without(self, keys: Iterable[str]) -> "Page":
+        """This screen minus some of its top-level components: what a
+        workstation's stream carries when it has hidden them.
+
+        Its PVs and its widgets are only the remaining components', so a
+        stream built from it neither subscribes to nor patches what is hidden.
+        Only what `choosable` allows is hidden. Cheap — it shares this page's
+        renderer and detail URLs, and indexes a handful of components.
+        """
+        hidden = set(self.choosable(keys))
+        if not hidden:
+            return self
+        narrowed = copy.copy(self)
+        narrowed.gui = replace(
+            self.gui,
+            components=[c for c in self.gui.components if c.key not in hidden],
+        )
+        narrowed.reindex()
+        return narrowed
 
     # ------------------------------------------------------------------ queries
 
@@ -96,18 +140,26 @@ class Page:
     def widget_count(self) -> int:
         return sum(len(widgets) for widgets in self._by_pv.values())
 
-    def signals(self, palette: str | None = None) -> dict[str, Any]:
+    def signals(
+        self, palette: str | None = None, hidden: Sequence[str] = ()
+    ) -> dict[str, Any]:
         """Every signal the page declares, up front.
 
         `palette` seeds the header selector so it opens on the palette the
         page was actually rendered in, rather than snapping to the default
         after the first paint.
         """
-        return {
+        signals = {
             **PAGE_SIGNALS,
             "_palette": palette or DEFAULT_PALETTE,
             **self.gui.signals(),
         }
+        if self.gui.selectable:
+            # The top-level components this workstation has hidden. Not
+            # underscored, because it is sent: it is what the stream is
+            # asked for when the page opens it.
+            signals["hidden"] = list(hidden)
+        return signals
 
     def widgets_for(self, dirty: Iterable[PvId]) -> list[Widget]:
         """Widgets touched by a set of changed PVs, each at most once.
@@ -137,18 +189,14 @@ class Page:
         component (a `panel`) never has to know what it contains.
         """
         template = self._env.get_template(component.template)
-        detail = component.detail()
+        detail_urls = self._detail_urls.get(component.key, {})
         markup = Markup(
             template.render(
                 c=component.config,
-                # Where this component's detail view is fetched from, if it
-                # has one. Built here because only the page knows which screen
-                # it is on.
-                detail_url=(
-                    f"/{detail_slug(self.gui, component, detail)}"
-                    if detail is not None
-                    else None
-                ),
+                # Where each of this component's detail views is fetched
+                # from, by slug — `detail_urls['registers']`. Built by the
+                # page because only the page knows which screen it is on.
+                detail_urls=detail_urls,
                 w={role: self.render_widget(widget, reader) for role, widget in component.widgets.items()},
                 s=component.signals,
                 comp=component,
@@ -156,17 +204,18 @@ class Page:
                 **component.context(),
             )
         )
-        if detail is None:
+        if not detail_urls:
             return markup
-        # The slot its detail view is patched into, and the component, as one
-        # item of the grid: the view takes the component's place and its
-        # width. The slot comes first so the stylesheet can hide what follows
+        # The slot its detail views are patched into, and the component, as
+        # one item of the grid: a view takes the component's place and its
+        # width. One slot for all of them — the column has room for one
+        # thing, so opening a view puts whichever was there aside. The slot comes first so the stylesheet can hide what follows
         # it while it is not empty — a sibling selector, which every browser
         # has, where `:has()` is missing from a Firefox before 121. Empty in
         # the markup, with no whitespace: `:empty` counts a text node.
         return Markup(
             '<div class="view-host"><div class="view-slot" id="{}"></div>{}</div>'
-        ).format(detail_slot(component, detail), markup)
+        ).format(detail_slot(component), markup)
 
     def render(
         self,
@@ -175,6 +224,7 @@ class Page:
         backend_label: str,
         palette: str | None = None,
         user: str | None = None,
+        hidden: Sequence[str] = (),
     ) -> str:
         # Components are rendered BEFORE the signal list is serialised, and the
         # order matters: a template may create a signal as it goes (the cog on a
@@ -183,6 +233,20 @@ class Page:
         # exist yet evaluates against `undefined`, which is how an expandable
         # list ends up rendered open on the first paint.
         rendered = [self.render_component(component, reader) for component in self.gui.components]
+        if self.gui.selectable:
+            # Each component as one item of the grid, shown while this
+            # workstation has not hidden it — and hidden from the first
+            # frame when it has, rather than flashing up until Datastar runs.
+            rendered = [
+                Markup(
+                    '<div class="component-choice" data-show="!$hidden.includes(\'{}\')"{}>{}</div>'
+                ).format(
+                    component.key,
+                    Markup(' style="display:none"') if component.key in hidden else "",
+                    markup,
+                )
+                for component, markup in zip(self.gui.components, rendered)
+            ]
         template = self._env.get_template("page.html")
         return template.render(
             zone=self.zone,
@@ -190,8 +254,16 @@ class Page:
             menu=self.zone.menu(),
             components=rendered,
             link_banner=self.render_widget(self.link_banner, reader),
-            signals_json=json.dumps(self.signals(palette), separators=(",", ":")),
+            signals_json=json.dumps(self.signals(palette, hidden), separators=(",", ":")),
             stream_url=self.gui.stream_url,
+            hidden=hidden,
+            # The slot each component's detail views open in, for the ones
+            # that have any: hiding the component closes its view.
+            view_slots={
+                component.key: detail_slot(component)
+                for component in self.gui.components
+                if self._detail_urls.get(component.key)
+            },
             backend_label=backend_label,
             toast_seconds=TOAST_SECONDS,
             palette=palette,
@@ -324,11 +396,9 @@ def build_pages(zone: Zone, env: Environment) -> dict[str, Page]:
     pages = {gui.slug: Page(zone, gui, env) for gui in zone.guis}
     for gui in zone.guis:
         for component in gui.walk():
-            detail = component.detail()
-            if detail is None:
-                continue
-            slug = detail_slug(gui, component, detail)
-            pages[slug] = Page(zone, _detail_gui(gui, slug, component, detail), env)
+            for detail in component.details():
+                slug = detail_slug(gui, component, detail)
+                pages[slug] = Page(zone, _detail_gui(gui, slug, component, detail), env)
     return pages
 
 
@@ -337,9 +407,10 @@ def detail_slug(gui: Gui, component: Component, detail: Detail) -> str:
     return f"{gui.slug}/{component.key}/{detail.slug}"
 
 
-def detail_slot(component: Component, detail: Detail) -> str:
-    """The id of the element a component's detail view is patched into."""
-    return f"{component.key}-{detail.slug}-view"
+def detail_slot(component: Component) -> str:
+    """The id of the element a component's detail views are patched into:
+    one per component, whichever view fills it."""
+    return f"{component.key}-view"
 
 
 def _detail_gui(gui: Gui, slug: str, component: Component, detail: Detail) -> Gui:
@@ -350,7 +421,7 @@ def _detail_gui(gui: Gui, slug: str, component: Component, detail: Detail) -> Gu
         title=detail.title,
         description="",
         components=list(detail.components),
-        slot=detail_slot(component, detail),
+        slot=detail_slot(component),
     )
 
 

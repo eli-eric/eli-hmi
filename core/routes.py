@@ -71,6 +71,7 @@ def build_blueprint(pages: dict[str, Page], *, home: str) -> Blueprint:
     screens.add_url_rule("/api/waveforms", "waveforms", waveforms, methods=["GET"])
     screens.add_url_rule("/api/register", "register", register_panel, methods=["GET"])
     screens.add_url_rule("/api/palette", "palette", set_palette, methods=["POST"])
+    screens.add_url_rule("/api/hidden", "hidden", set_hidden, methods=["POST"])
     return screens
 
 
@@ -99,6 +100,53 @@ async def set_palette() -> Response:
     response.set_cookie(
         PALETTE_COOKIE,
         value if value in PALETTES else DEFAULT_PALETTE,
+        max_age=365 * 24 * 3600,
+        httponly=True,
+        samesite="Lax",
+    )
+    return response
+
+
+def hidden_cookie(slug: str) -> str:
+    """The cookie holding which of a screen's components this workstation
+    has hidden: one per screen, since each screen has its own components."""
+    return f"hidden-{slug}"
+
+
+def current_hidden(view: Page) -> list[str]:
+    """The components of this screen the workstation has hidden.
+
+    The hidden ones rather than the shown ones, so a component added to the
+    screen later is shown on a workstation that chose before it existed. A
+    name the screen does not have is dropped.
+    """
+    return view.choosable((request.cookies.get(hidden_cookie(view.gui.slug)) or "").split(","))
+
+
+async def set_hidden() -> Response:
+    """Remember which of a screen's components this workstation hides.
+
+    Like the palette: the screen has already changed by the time this
+    arrives, and the page has already reopened its stream. This only makes
+    the choice outlast the page.
+    """
+    _settings, _hub, pages = state()
+    slug = (request.args.get("screen") or "").strip()
+    view = pages.get(slug)
+    if view is None or not view.gui.selectable:
+        return Response("no such screen to choose on", status=404)
+    hidden = view.choosable((request.args.get("value") or "").split(","))
+    who = actor()
+    logger.info(
+        "hidden %s on /%s chosen by user=%s",
+        ",".join(hidden) or "nothing",
+        slug,
+        who.user if who else "-",
+    )
+    response = await make_response(DatastarResponse([]))
+    response.set_cookie(
+        hidden_cookie(slug),
+        ",".join(hidden),
         max_age=365 * 24 * 3600,
         httponly=True,
         samesite="Lax",
@@ -140,6 +188,7 @@ def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:
             backend_label=settings.backend_label,
             palette=current_palette(settings),
             user=who.user if who else None,
+            hidden=current_hidden(view),
         )
         return Response(html, content_type="text/html; charset=utf-8")
 
@@ -154,10 +203,15 @@ def _add_gui_routes(blueprint: Blueprint, slug: str) -> None:
         """
         settings, hub, pages = state()
         who = actor()
+        # The components this workstation has hidden, as the page sends
+        # them: not streamed, not subscribed to.
+        signals = await read_signals() or {}
+        hidden = signals.get("hidden")
+        hidden = [key for key in hidden if isinstance(key, str)] if isinstance(hidden, list) else []
         return DatastarResponse(
             _stream_events(
                 slug,
-                pages[slug],
+                pages[slug].without(hidden),
                 hub,
                 settings,
                 user=who.user if who else "-",

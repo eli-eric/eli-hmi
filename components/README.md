@@ -15,7 +15,7 @@ a screen can show.
 | `tally` | How many channels are in each state, expanding into the per-channel detail. |
 | `motor` | A motor: position, setpoint, jog presets, stop, limit switches. |
 | `valve` | A valve: state, Open and Close. The smallest one — copy it. |
-| `register-tree` | Every module of one device, and every register under it. Built by `laser-panel`, and shown in the laser's place by its Registers button. |
+| `register-tree` | Every module of one device, and every register under it. Built by `laser-panel` twice: from its `modules:` for the Registers button, and from the fixed ModBox table (`laser_panel/modbox.py`, read-only) for the ModBox button. Either is shown in the laser's place. |
 | `laser-panel` | One L4 OPCPA laser. The one bespoke component, and the escape hatch. |
 
 Every setting of every component is documented in its `Config` class, which is
@@ -109,7 +109,8 @@ changing when you add a component.
   `num_cell`, `pill`, `state_pill`, `detail_list`, `state_list`, `tally_cells`,
   `pair_row`. Declare `macros = "…"` on your class to add one of your own; it is
   searched before these.
-- `components/templates/rows.html` — `row`, `expandable_row`, `card_open`, and
+- `components/templates/rows.html` — `row`, `expandable_row`, `module` (a
+  section that collapses under a full-width header), `card_open`, and
   `write_controls`, which builds the cog and its contents from `actions:` and
   `setpoint:` so a component never has to know how `@post` works.
 - `components/templates/controls.html` — the buttons, the cog, the setpoint
