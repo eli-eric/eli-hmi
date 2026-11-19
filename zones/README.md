@@ -63,6 +63,26 @@ gui.yaml#0.1: component 'value' is misconfigured:
   kind, label, off_text, on_text, pv, range, setpoint, states, title, units, values
 ```
 
+### `selectable:` when a workstation shows only some of it
+
+```yaml
+title: OPCPA
+selectable: true         # one checkbox per top-level component, in the header
+```
+
+Each top-level component gets a checkbox beside the title, labelled with its
+id. Unticking one hides it at once, closes its open Registers or ModBox view,
+and reopens the screen's stream without it: a hidden component is neither
+subscribed to nor patched. The choice is this workstation's, kept in a cookie
+the server reads when it renders, so a hidden component is hidden from the
+first frame. What is kept is what was *hidden*, so a component added to the
+screen later shows up on workstations that chose before it existed.
+
+Hiding a component also gives up this tab's exclusive control of it at once,
+and ticking it back takes control of whatever is free — never from another
+tab that holds it. Only the box that changed moves control: loading the page
+takes nothing.
+
 ### Splitting a big screen
 
 `gui.yaml` holds the screen's settings. Any *other* `*.yaml` in the folder is

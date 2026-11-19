@@ -45,7 +45,12 @@ from core.locks import LockTable
 from core.logbook import LogBook
 from core.login import build_login_blueprint, install_gate, install_socket_gate
 from core.monitor import build_monitor_blueprint
-from core.page import Page, build_pages
+from core.page import (
+    Page,
+    build_pages,
+    describe_components,
+    describe_on_reconnect,
+)
 from core.routes import build_blueprint
 from core.settings import Settings, SettingsError
 from core.zones import Zone, ZoneError, load_zone, resolve_zone_code
@@ -225,6 +230,13 @@ def create_app(settings: Settings | None = None) -> Quart:
         # First, so the dashboard's log has the whole start-up in it.
         app.hmi.logbook.attach()
         await hub.start()
+        # What a monitor cannot answer, asked once: whether a record is an
+        # enum and must be read by name, what it will accept, what it is
+        # measured in. Before anything subscribes, because a component may
+        # re-declare its widgets on the answer — and before `prewarm`, so the
+        # subscription it holds is of the final PV set.
+        await describe_components(hub, pages)
+        describe_on_reconnect(hub, pages)
         if app.cameras is not None:
             await app.cameras.hub.start()
         if settings.prewarm:
@@ -311,10 +323,16 @@ def create_app(settings: Settings | None = None) -> Quart:
                 "zone_resolved_by": zone.resolved_by,
                 "backend": settings.epics_backend,
                 "auth": authenticator.mode,
+                # The zone's screens, which is what the menu offers. A
+                # component's detail view is served too, and listed below,
+                # but it is shown in its component's place on a screen, not
+                # navigated to.
                 "screens": {
                     slug: {"title": page.gui.title, **page.sizes()}
                     for slug, page in pages.items()
+                    if "/" not in slug
                 },
+                "detail_views": sorted(slug for slug in pages if "/" in slug),
                 "monitored_pvs": hub.monitor_count,
                 "open_streams": hub.subscriber_count,
                 "link_ok": hub.link_ok,

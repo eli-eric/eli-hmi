@@ -163,6 +163,59 @@ def with_signal(role: str, **options) -> str:
     )
 
 
+class TestModulesAndRegisters:
+    """Full control of a laser is its modules and their registers. A register
+    is named relative to its module, because a module repeats the same set on
+    every laser and spelling out each full PV is how a tree of hundreds goes
+    out of step with the device."""
+
+    MODULES = (
+        "    modules:\n"
+        "      - label: PS1225:11\n"
+        "        prefix: L4:NL2:PS1225:11\n"
+        "        registers:\n"
+        "          - {name: ErrorCode, label: Error code}\n"
+        "          - {name: SetPoint, label: Setpoint, write: true}\n"
+    )
+
+    def test_a_register_is_named_under_its_module(self):
+        laser = parse(MINIMAL + self.MODULES)
+        module = laser.modules[0]
+        assert [r.pv for r in module.registers] == [
+            "L4:NL2:PS1225:11:ErrorCode",
+            "L4:NL2:PS1225:11:SetPoint",
+        ]
+
+    def test_a_laser_without_modules_has_none(self):
+        assert parse(MINIMAL).modules == []
+
+    def test_an_unknown_kind_is_refused(self):
+        """`str` for `string` used to load, and the register was then read as
+        a number: the kind decides the datatype, so a misspelt one is a
+        register that can never show its value."""
+        with pytest.raises(ValidationError, match="string"):
+            parse(MINIMAL + self.MODULES.replace("label: Error code", "label: Error code, kind: str"))
+
+
+class TestTheModboxPrefix:
+    """A ModBox's registers are the same on every laser, so what differs is
+    the laser's prefix, and it is declared once: a laser with a ModBox and no
+    prefix would have a ModBox view with no names to read."""
+
+    MODBOX = "modbox:\n      - {label: AWG state, pv: L4:NL2:ModBox:AWG:State}"
+
+    def test_a_laser_with_a_modbox_has_to_name_its_prefix(self):
+        with pytest.raises(ValidationError, match="prefix"):
+            parse(MINIMAL.replace("modbox: []", self.MODBOX))
+
+    def test_with_one_it_parses(self):
+        laser = parse(MINIMAL.replace("modbox: []", self.MODBOX) + "    prefix: L4:NL2\n")
+        assert laser.prefix == "L4:NL2"
+
+    def test_a_laser_without_a_modbox_needs_none(self):
+        assert parse(MINIMAL).prefix is None
+
+
 class TestTheWriteSideOfADevice:
     """A device's setpoint record is not its readback. The shutter opened by
     writing to the record that reports its position only works where the two

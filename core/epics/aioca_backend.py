@@ -19,7 +19,7 @@ import asyncio
 import logging
 from typing import Any
 
-from core.epics.types import Datatype, MonitorCallback, PvId, PvSample
+from core.epics.types import PvDescription, Datatype, MonitorCallback, PvId, PvSample
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,11 @@ class AiocaBackend:
             return self._aioca.DBR_ENUM_STR
         if datatype is Datatype.STRING:
             return str
+        if datatype is Datatype.NUMBER:
+            # `float` is aioca's spelling of DBR_DOUBLE. Not DBR_FLOAT: that
+            # is the 32-bit request, and a setpoint read back through it comes
+            # home with digits the operator did not type.
+            return float
         return None
 
     async def add_monitor(self, pv: PvId, callback: MonitorCallback) -> None:
@@ -89,6 +94,18 @@ class AiocaBackend:
             connect_timeout=self._connect_timeout,
         )
 
+    async def describe(self, pv: PvId) -> PvDescription:
+        """What this record will accept. An unanswered read is an empty
+        description, not an error: a register whose limits are unknown is
+        still writable, just without a range on the field."""
+        aioca = self._aioca
+        assert aioca is not None, "start() must run first"
+        try:
+            return await _describe(aioca, pv, self._connect_timeout)
+        except Exception as exc:  # noqa: BLE001 - any failure degrades the same
+            logger.warning("control fields unavailable for %s: %s", pv.name, exc)
+            return PvDescription()
+
     async def remove_monitor(self, pv: PvId) -> None:
         subscription = self._subscriptions.pop(pv, None)
         if subscription is None:
@@ -102,6 +119,44 @@ class AiocaBackend:
         aioca = self._aioca
         assert aioca is not None, "start() must run first"
         await aioca.caput(name, value, timeout=10.0, throw=True)
+
+    async def caget(self, pv: PvId) -> PvSample:
+        """One read at the datatype the monitors use, so the answer renders
+        exactly as a monitor update would. `throw=False`: a channel that will
+        not answer comes back as a failed value, which `to_sample` turns into
+        a not-ok sample rather than an exception."""
+        aioca = self._aioca
+        assert aioca is not None, "start() must run first"
+        value = await aioca.caget(
+            pv.name,
+            datatype=self._datatype(pv.datatype),
+            format=aioca.FORMAT_TIME,
+            timeout=self._connect_timeout,
+            throw=False,
+        )
+        return to_sample(pv.name, value)
+
+
+async def _describe(aioca_module: Any, pv: PvId, timeout: float) -> PvDescription:
+    """One `FORMAT_CTRL` read: what the record will accept.
+
+    Deliberately not what the monitors ask for — the control fields are a
+    heavier request and a device has hundreds of registers, so this is done
+    for the one being written, when it is selected.
+    """
+    value = await aioca_module.caget(
+        pv.name, format=aioca_module.FORMAT_CTRL, timeout=timeout
+    )
+    enums = tuple(getattr(value, "enums", ()) or ())
+    return PvDescription(
+        units=getattr(value, "units", None) or None,
+        precision=getattr(value, "precision", None),
+        # Drive limits, not display limits: DRVL/DRVH are what the record
+        # will take, while LOPR/HOPR are only how it likes to be drawn.
+        low=getattr(value, "lower_ctrl_limit", None),
+        high=getattr(value, "upper_ctrl_limit", None),
+        states=enums,
+    )
 
 
 def to_sample(name: str, value: Any) -> PvSample:

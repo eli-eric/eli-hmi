@@ -1,0 +1,82 @@
+{#- One device's modules, each collapsing to hide its registers: a tree of
+    hundreds is unreadable with everything open.
+
+    The registers are the app's own rows, not a list of this view's invention:
+    the label column and the right edge are the card's, so a register reads
+    like every other reading in the HMI and there is no second geometry to
+    keep aligned. -#}
+{% import "rows.html" as rows with context %}
+{% import "controls.html" as controls with context %}
+{#- The tree shuts its open panel the way every cog on these screens does: a
+    click that lands neither on a SET button nor inside a write panel puts the
+    selection back to nothing, and Escape does the same. One handler for the
+    whole tree rather than one per register — a module has hundreds, and that
+    would be hundreds of window listeners for one behaviour. -#}
+<article class="panel register-tree"
+         data-on:click__window="evt.target.closest('.register-select, .register-write, .register-refresh') || (${{ selected_signal }} = '')"
+         data-on:keydown__window="evt.key === 'Escape' && (${{ selected_signal }} = '')">
+  <header class="panel-header">
+    <h2 class="panel-title">{{ c.title }}</h2>
+    {{ controls.view_back() }}
+  </header>
+  <div class="body">
+    {#- One card for the whole device: one label column and one right edge for
+        every register, whichever module it is in. -#}
+    <section class="card">
+    {% for module in modules %}
+    {% call rows.module(module.label, module.signal, module.registers | length) %}
+        {% for register in module.registers %}
+        {#- The reading and its Set button share the value column, rather than
+            the button taking an action column of its own: a row's reading
+            would otherwise be narrower for being writable, and a column of
+            numbers has to line up to be read. -#}
+        {%- set cell %}
+        <span class="register-cell">
+          {{- w[register.widget] }}
+          {%- if register.write %}
+          {#- Pressing it again shuts the panel, without asking the server:
+              the selection is this browser's, and a round-trip to be told
+              that nothing is selected is a round-trip to display nothing.
+              `aria-expanded` is what fills the button in while its panel is
+              open — the same mark, and the same styling, as a cog. -#}
+          <button type="button" class="register-select"
+                  data-on:click="${{ selected_signal }} === '{{ register.pv }}'
+                  ? (${{ selected_signal }} = '')
+                  : @get('{{ select_url }}&amp;pv={{ register.pv | urlencode }}')"
+                  data-attr="{'aria-expanded': ${{ selected_signal }} === '{{ register.pv }}' ? 'true' : 'false'}"
+                  aria-label="Set {{ register.label }}">SET</button>
+          {%- endif %}
+          {#- Last, so every row's refresh is in one column at the right edge
+              whether or not the row can be written. It processes the
+              record; the fresh reading comes back on the monitor like any
+              other. A failure is reported in the header, where every write
+              without a control line of its own is. -#}
+          {%- if refresh %}
+          <button type="button" class="register-refresh" data-indicator="_busy"
+                  data-on:click="@post('{{ controls.write_url(register.process, value=1) }}')"
+                  aria-label="Refresh {{ register.label }}"
+                  title="Read {{ register.label }} again"><svg xmlns="http://www.w3.org/2000/svg"
+               viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="currentColor"
+               d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button>
+          {%- endif %}
+        </span>
+        {%- endset %}
+        {#- No hint icon: on hundreds of rows it is a column of icons, and the
+            reading's own tooltip already names the PV. -#}
+        {{ rows.row(register.label, cell) }}
+        {%- if register.write %}
+        {#- This register's write panel: filled when it is selected, and shown
+            only then. Every slot is emptied before one is filled, so the page
+            holds one panel — and one copy of the live NV widget — at a time. -#}
+        <div id="{{ register.slot }}" class="register-write"
+             data-show="${{ selected_signal }} === '{{ register.pv }}'"
+             style="display:none"></div>
+        {%- endif %}
+        {% endfor %}
+    {% endcall %}
+    {% endfor %}
+    </section>
+    {#- The write panel for whichever register is selected. Empty until one
+        is, and replaced whole each time: one panel, not one per row. -#}
+  </div>
+</article>

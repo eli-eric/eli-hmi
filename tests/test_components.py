@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from core.components import WriteLimits, Component, PvReader, PvSpec, registry, slug
+from core.components import WriteRule, Component, PvReader, PvSpec, registry, slug
 from core.epics import Datatype, PvId, PvSample
 from core.jinja import create_environment
 
@@ -460,24 +460,22 @@ class TestRowLayout:
         assert "overflow-wrap: normal" in rule
 
 
-class TestWriteLimits:
-    """What a component will accept being written to one of its PVs."""
+class TestASignalIsUsableInAnExpression:
+    """A signal name goes into a Datastar expression as `$name`, so it has to
+    read as one identifier. A component key with a hyphen in it — which a
+    detail view has, being named after what it belongs to — would otherwise
+    produce `$NL2-registers_open`, which is a subtraction.
+    """
 
-    def test_scientific_notation_is_refused_unless_asked_for(self):
-        assert WriteLimits().rejects_notation("1e3") is not None
-        assert WriteLimits().rejects_notation("1000") is None
+    def test_a_key_with_a_hyphen_still_makes_one_identifier(self):
+        import re
 
-    def test_a_setpoint_can_ask_for_it(self):
-        """Some readings are genuinely set that way — a pressure, a leak rate
-        — and the field that sets them should take the notation they are
-        written in."""
-        assert WriteLimits(exponential=True).rejects_notation("5.05e-6") is None
-
-    def test_the_check_is_about_notation_not_value(self):
-        """1e3 and 1000 are the same number; only one of them is refused."""
-        limits = WriteLimits(min=0, max=2000)
-        assert limits.rejects(1000) is None
-        assert limits.rejects_notation("1000") is None
+        component = build("value", label="X", pv="L4:X")
+        component.key = "NL2-registers"
+        name = component.signal("module_0", False)
+        assert re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name), (
+            f"{name!r} is not usable as $name in an expression"
+        )
 
 
 class TestDisabledControls:
@@ -507,6 +505,62 @@ class TestDisabledControls:
         for selector in (".preset-confirm:hover", ".btn:hover", ".preset-chip:hover"):
             if selector in css:
                 assert f"{selector}:not(:disabled)" in css, selector
+
+
+class TestWhatKindOfValueAPvTakes:
+    """Every writable PV declares what kind of value it takes, and the kind
+    decides which checks run.
+
+    The checks used to be numeric rules that stepped aside whenever the text
+    did not parse as a number, which meant a word reached a setpoint record
+    unchecked and a state name was examined for an exponent. A rule knows
+    what it is guarding, so there are no exceptions to it.
+    """
+
+    def test_a_number_pv_refuses_a_word(self):
+        rule = WriteRule.number(min=0, max=10)
+        assert rule.resolve("7") == (7, None)
+        value, refusal = rule.resolve("SERVICE")
+        assert value is None
+        assert refusal is not None and "number" in refusal
+
+    def test_a_number_pv_applies_every_numeric_rule(self):
+        """Notation, precision and range are not three independent habits: a
+        number PV has all of them, every time."""
+        rule = WriteRule.number(min=0, max=10, precision=1)
+        assert rule.resolve("2.59") == (2.5, None), "extra digits are dropped"
+        assert rule.resolve("1e1")[1] is not None, "notation is refused"
+        assert rule.resolve("11")[1] is not None, "out of range is refused"
+        assert WriteRule.number(exponential=True).resolve("5.05e-6") == (5.05e-6, None)
+
+    def test_an_integer_pv_takes_whole_numbers_only(self):
+        """Not truncated to one, as a number with no decimals is: an integer
+        register given `2.5` was asked for something it cannot hold, and
+        sending 2 instead is a value nobody typed."""
+        rule = WriteRule.integer(min=0, max=3000)
+        assert rule.resolve("1500") == (1500, None)
+        assert rule.resolve("0") == (0, None)
+        assert WriteRule.integer().resolve("-12") == (-12, None), "a sign is fine"
+        for text in ("2.5", "2.", "1e3", "abc", "0021"):
+            value, refusal = rule.resolve(text)
+            assert value is None and refusal, f"{text!r} was accepted as an integer"
+        assert rule.resolve("3001")[1] is not None, "out of range is refused"
+
+    def test_a_choice_pv_is_checked_against_its_states_and_nothing_else(self):
+        """A state record takes names. `SERVICE` is not scientific notation
+        for having an `e` in it, and `v1.2` has no digits to drop."""
+        rule = WriteRule.choice(["STANDBY", "SERVICE", "v1.2"])
+        assert rule.resolve("SERVICE") == ("SERVICE", None)
+        assert rule.resolve("v1.2") == ("v1.2", None)
+        value, refusal = rule.resolve("SLEEP")
+        assert value is None
+        assert refusal is not None and "STANDBY" in refusal
+
+    def test_a_text_pv_takes_what_it_is_given(self):
+        """A waveform name is whatever the device calls it, and a command's
+        fixed value is still converted for the wire."""
+        assert WriteRule.text().resolve("Gauss 1e3.wfm") == ("Gauss 1e3.wfm", None)
+        assert WriteRule.text().resolve("1") == (1, None)
 
 
 # ---------------------------------------------------------------------------

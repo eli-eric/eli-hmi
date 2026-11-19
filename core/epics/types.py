@@ -17,12 +17,22 @@ class Datatype(str, Enum):
 
     ``ENUM_STRING`` matters: an mbbi record read at its native type delivers the
     state's *index*, not its name, so the Regen state row and the flashlamp
-    channels must ask for the name. Everything else reads native.
+    channels must ask for the name.
+
+    ``NUMBER`` is the other way a reading can arrive as something other than
+    what the screen needs: a value declared numeric is asked for as a number
+    whatever record carries it, so a column of readings is one kind of value
+    and not a mixture of ints, floats and strings from ai, longin and calc
+    records. Asked for as a double rather than DBR_FLOAT, which is 32-bit and
+    would round a setpoint on its way to being displayed.
+
+    Everything else reads native.
     """
 
     NATIVE = "native"
     ENUM_STRING = "enum_string"
     STRING = "string"
+    NUMBER = "number"
 
 
 @dataclass(frozen=True, order=True)
@@ -88,6 +98,24 @@ class PvSample:
 MonitorCallback = Callable[[PvId, PvSample], None]
 
 
+@dataclass(frozen=True)
+class PvDescription:
+    """A record's control fields: what it will accept, in its own words.
+
+    Read once for the one PV being written, never on a monitor: the control
+    fields are a heavier Channel Access request than `FORMAT_TIME`, and a
+    device has hundreds of registers. Every field is optional — a record that
+    declares no drive limits has none, and the control simply offers no range.
+    """
+
+    units: str | None = None
+    precision: int | None = None
+    low: float | None = None
+    high: float | None = None
+    #: State names in index order, for an enum record.
+    states: tuple[str, ...] = ()
+
+
 class EpicsBackend(Protocol):
     """What the hub needs from a source of PV data.
 
@@ -107,4 +135,21 @@ class EpicsBackend(Protocol):
 
     async def caput(self, name: str, value: Any) -> None:
         """Write `value` to `name`. Raises on failure."""
+
+    async def caget(self, pv: PvId) -> PvSample:
+        """Read `pv` once, now — not a monitor, and not the cache.
+
+        A read that fails is a sample with `ok=False`, never an exception: it
+        is made after something has already gone wrong (a refused write), and
+        must not turn that failure into a second, louder one.
+        """
+
+    async def describe(self, pv: PvId) -> PvDescription:
+        """What this record will accept: drive limits, enum states, units.
+
+        One read, on demand — not a monitor. A device that will not answer
+        gives back an empty description rather than raising: a register whose
+        limits are unknown is still writable, just without a range on the
+        field.
+        """
 

@@ -72,6 +72,27 @@
 </div>
 {%- endmacro -%}
 
+{#- A section that collapses: a full-width header that opens it, and under it
+    whatever the call block holds. Shut at first paint, so `signal` has to be
+    declared false. `count` is how many rows are behind it.
+
+        {% call rows.module(label, signal, count) %} …rows… {% endcall %}
+    -#}
+{%- macro module(label, signal, count) -%}
+<div class="module">
+  <button type="button" class="module-head"
+          data-on:click="${{ signal }} = !${{ signal }}"
+          data-attr="{'aria-expanded': ${{ signal }} ? 'true' : 'false'}">
+    <span class="module-label">{{ label }}</span>
+    <span class="module-count">{{ count }}</span>
+    <span class="corner-triangle" data-class="{expanded: ${{ signal }}}" aria-hidden="true"></span>
+  </button>
+  <div class="register-list" data-show="${{ signal }}" style="display:none">
+    {{- caller() }}
+  </div>
+</div>
+{%- endmacro -%}
+
 {#- The cog and its panel for a row's buttons and setpoint, built from the
     component's config. A component template calls this and is done with
     writing — it never has to know how `@post` works. -#}
@@ -90,7 +111,7 @@
 {% else %}
 {{ controls.preset_input(cfg.setpoint.label, cfg.setpoint.presets, cfg.setpoint.pv or cfg.pv,
                          comp.signal('set_' ~ (cfg.id or cfg.label), ''), signal, cfg.setpoint.step,
-                         exponential=cfg.setpoint.exponential) }}
+                         exponential=cfg.setpoint.exponential, kind='number') }}
 {% endif %}
 {% endif %}
 {% endcall %}

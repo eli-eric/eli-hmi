@@ -42,18 +42,37 @@ async def render_all(out: Path) -> list[tuple[str, str]]:
         # screen would render as a redirect to the login form.
         await client.post("/login", form={"username": "test", "password": "test"})
         stats = await (await client.get("/stats")).get_json()
+        screens: dict[str, str] = {}
         for slug, screen in stats["screens"].items():
+            screens[slug] = (await (await client.get(f"/{slug}")).get_data()).decode()
+            write(out, slug, screens[slug], screen["title"], pages)
+        # The detail views components own, each frozen open: its screen with
+        # the view patched into its slot, the way Datastar would. A register
+        # tree is layout too, and it is laid out in its laser's column.
+        for slug in stats.get("detail_views", []):
             response = await client.get(f"/{slug}")
-            html = (await response.get_data()).decode()
-            # No stream, no vendored JS: a frozen page, and one less thing that
-            # has to resolve for it to open from a file:// URL.
-            html = re.sub(r'\s*data-init="[^"]*"', "", html)
-            html = re.sub(r"\s*<script[^>]*></script>", "", html)
-            html = re.sub(r'href="/static/css/hmi\.css(\?v=\w+)?"', 'href="css/hmi.css"', html)
-            (out / f"{slug}.html").write_text(html)
-            pages.append((slug, screen["title"]))
-            print(f"{out / (slug + '.html')}  ({len(html)} bytes)")
+            fragment = (await response.get_data()).decode()
+            slot = response.headers["datastar-selector"].removeprefix("#")
+            empty = f'id="{slot}"></div>'
+            screen = screens[slug.split("/", 1)[0]]
+            assert empty in screen, f"no slot for {slug} on its screen"
+            write(out, slug, screen.replace(empty, f'id="{slot}">{fragment}</div>', 1), slug, pages)
     return pages
+
+
+def write(out: Path, slug: str, html: str, title: str, pages: list[tuple[str, str]]) -> None:
+    """Freeze one render into a file that opens from anywhere."""
+    # No stream, no vendored JS: a frozen page, and one less thing that has to
+    # resolve for it to open from a file:// URL.
+    html = re.sub(r'\s*data-init="[^"]*"', "", html)
+    html = re.sub(r"\s*<script[^>]*></script>", "", html)
+    html = re.sub(r'href="/static/css/hmi\.css(\?v=\w+)?"', 'href="css/hmi.css"', html)
+    # A detail view's slug has the screen in it, so the file is named flat
+    # rather than nested in a folder nobody would look in.
+    name = slug.replace("/", "-")
+    (out / f"{name}.html").write_text(html)
+    pages.append((name, title))
+    print(f"{out / (name + '.html')}  ({len(html)} bytes)")
 
 
 def main() -> int:

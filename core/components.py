@@ -31,6 +31,7 @@ accidentally paint over an alarm.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, Literal, Mapping, Sequence
@@ -94,6 +95,11 @@ class PvSpec:
     kind: PvKind
     #: Where the signal sits at rest. `None` picks the middle of the band.
     value: Any = None
+    #: The range the record *declares* — DRVL/DRVH on a writable record, and
+    #: what a screen reads back as the range it may offer. None means the
+    #: component declared none, and nothing should invent one: a simulated
+    #: band is where a value wanders, not what a device will accept.
+    limits: tuple[float, float] | None = None
     #: Band a `float`/`int` wanders inside, and how far per tick. **A step of 0
     #: means the signal holds still**, which is the default on purpose: a
     #: simulator that invents movement nobody asked for teaches an engineer that
@@ -131,6 +137,12 @@ class PvSpec:
     #: local IOC without anyone touching the generator.
     command: bool = False
     effects: tuple[tuple[str, Any], ...] = ()
+    #: For the write side of a device that reports from one record and is
+    #: written through another: whatever is written here lands there. Unlike
+    #: `effects`, the value is the operator's and not the configuration's —
+    #: which is why this is an output record forwarding to its readback,
+    #: rather than a trigger running a chain of constants.
+    forwards_to: str | None = None
     busy: tuple[str, ...] = ()
     busy_seconds: float = 3.0
     #: Never initialise it, so it reads INVALID/UDF. One per screen is worth
@@ -194,29 +206,155 @@ class ComponentConfig(BaseModel):
     title: str | None = Field(default=None, description="Heading, where the component shows one.")
 
 
-@dataclass(frozen=True)
-class WriteLimits:
-    """What a component will accept being written to one of its PVs.
+#: A whole number, written the one way: an optional sign and digits, no
+#: decimal point, no exponent, no leading zero.
+INTEGER = re.compile(r"^[+-]?(0|[1-9]\d*)$")
 
-    Declared by the component that owns the control, and enforced by the write
-    endpoint rather than by the field the operator types into: a disabled
-    button is a convenience the browser can be talked out of, and the endpoint
-    is the only place every route to the device passes through.
+#: What may be typed into a numeric field. Deliberately not `float()`, which
+#: accepts `1_000` (Python's digit separators), `nan` and `infinity` — none of
+#: which an operator meant to type, and all of which would reach a device. A
+#: leading zero is excluded too: "0021" is a code, and turning it into 21 would
+#: change what reaches the record.
+NUMERIC = re.compile(r"^[+-]?(0|[1-9]\d*)?(\.\d+)?([eE][+-]?\d+)?$")
+
+
+@dataclass(frozen=True)
+class WriteRule:
+    """What one PV accepts, and the only thing that decides how it is checked.
+
+    A writable PV declares a *kind* — a number, one of a set of names, or free
+    text — and the kind alone selects the checks. Nothing here looks at the
+    text first and decides which rules it seems to deserve: that is how a
+    state called `SERVICE` came to be read as scientific notation and how a
+    word came to reach a setpoint record unexamined.
+
+    Build one with `number()`, `choice()` or `text()`, and ask it one
+    question: `resolve()`.
     """
 
+    kind: Literal["number", "integer", "choice", "text"] = "text"
+    #: `number` and `integer`: bounds the device will take.
     min: float | None = None
     max: float | None = None
-    #: Decimal places the device resolves. `None` accepts whatever was typed;
-    #: `0` means integers. Extra digits are dropped, never rounded.
+    #: `number` only: the decimals the device resolves. `None` accepts
+    #: whatever was typed, `0` drops every decimal — which is a number with
+    #: nothing after the point, not an integer: `2.7` is written as 2. An
+    #: integer register is `integer`, which refuses `2.7` outright.
     precision: int | None = None
-    #: Whether "1e3" is a way of writing 1000 here. Off unless a setpoint asks
-    #: for it: no reading on these screens is set in scientific notation, and
-    #: allowing it costs more than it gives — `<input type="number">` reports
-    #: an empty value while an exponent is half-typed, so pressing `e` appears
-    #: to erase whatever was in the field.
+    #: `number` only: whether "1e3" is a way of writing 1000 here. Off unless
+    #: the setpoint asks for it — no reading on these screens is set that way.
     exponential: bool = False
+    #: `choice` only: the names the device declared. Nothing else is written.
+    choices: tuple[str, ...] = ()
 
-    def truncate(self, text: str) -> str:
+    @classmethod
+    def number(
+        cls,
+        *,
+        min: float | None = None,
+        max: float | None = None,
+        precision: int | None = None,
+        exponential: bool = False,
+    ) -> "WriteRule":
+        return cls(
+            kind="number", min=min, max=max, precision=precision, exponential=exponential
+        )
+
+    @classmethod
+    def integer(
+        cls, *, min: float | None = None, max: float | None = None
+    ) -> "WriteRule":
+        return cls(kind="integer", min=min, max=max)
+
+    @classmethod
+    def choice(cls, choices: Iterable[str]) -> "WriteRule":
+        return cls(kind="choice", choices=tuple(choices))
+
+    @classmethod
+    def text(cls) -> "WriteRule":
+        return cls(kind="text")
+
+    def resolve(self, raw: Any) -> tuple[Any, str | None]:
+        """The value to write, or the reason it will not be written.
+
+        Returns `(value, None)` or `(None, reason)`. The value is what goes to
+        the device, which is not always what was typed: a number is converted
+        from the text a query parameter or a text input delivers, and digits
+        the device cannot resolve are dropped.
+        """
+        if self.kind == "number":
+            return self._resolve_number(raw)
+        if self.kind == "integer":
+            return self._resolve_integer(raw)
+        if self.kind == "choice":
+            return self._resolve_choice(raw)
+        return self._resolve_text(raw)
+
+    # -- one method per kind, and no rule outside the kind it belongs to ----
+
+    def _resolve_number(self, raw: Any) -> tuple[Any, str | None]:
+        text = str(raw).strip()
+        if not NUMERIC.match(text) or not any(c.isdigit() for c in text):
+            return None, f"{text!r} is not a number"
+        if "e" in text.lower() and not self.exponential:
+            return None, (
+                f"{text!r} is written in scientific notation, "
+                "which this field does not take"
+            )
+        text = self._truncate(text)
+        number = float(text)
+        value: Any = (
+            int(number)
+            if number.is_integer() and "." not in text and "e" not in text.lower()
+            else number
+        )
+        if self.min is not None and value < self.min:
+            return None, f"{value} is {self.describe()}"
+        if self.max is not None and value > self.max:
+            return None, f"{value} is {self.describe()}"
+        return value, None
+
+    def _resolve_integer(self, raw: Any) -> tuple[Any, str | None]:
+        text = str(raw).strip()
+        if not INTEGER.match(text):
+            # Refused, not truncated: the register cannot hold 2.5, and
+            # writing 2 in its place sends a value nobody typed.
+            return None, f"{text!r} is not a whole number"
+        value = int(text)
+        if self.min is not None and value < self.min:
+            return None, f"{value} is {self.describe()}"
+        if self.max is not None and value > self.max:
+            return None, f"{value} is {self.describe()}"
+        return value, None
+
+    def _resolve_choice(self, raw: Any) -> tuple[Any, str | None]:
+        text = str(raw).strip()
+        if text in self.choices:
+            return text, None
+        offered = ", ".join(self.choices) or "nothing"
+        return None, f"{text!r} is not one of the states this record takes ({offered})"
+
+    def _resolve_text(self, raw: Any) -> tuple[Any, str | None]:
+        if isinstance(raw, bool):
+            return int(raw), None
+        if isinstance(raw, (int, float)):
+            if isinstance(raw, float) and not math.isfinite(raw):
+                return None, "a non-finite number cannot be written to a PV"
+            return raw, None
+        # A PV that wants a number and gets "1" is a type error at the CA
+        # layer, so the conversion happens here; anything else passes through
+        # as the string it is.
+        text = str(raw).strip()
+        if not NUMERIC.match(text) or not any(c.isdigit() for c in text):
+            return text, None
+        number = float(text)
+        return (
+            int(number)
+            if number.is_integer() and "." not in text and "e" not in text.lower()
+            else number
+        ), None
+
+    def _truncate(self, text: str) -> str:
         """Drop digits the device cannot resolve.
 
         Works on the text rather than the number: `int(2.55 * 100)` is at the
@@ -232,26 +370,25 @@ class WriteLimits:
             return whole or "0"
         return f"{whole}.{fraction[: self.precision]}"
 
-    def rejects_notation(self, text: str) -> str | None:
-        """The reason this *text* is not an acceptable way to write a number."""
-        if self.exponential or "e" not in text.lower():
-            return None
-        return "written in scientific notation, which this field does not take"
-
-    def rejects(self, value: Any) -> str | None:
-        """The reason this value is not acceptable, or `None`."""
-        if not isinstance(value, (int, float)) or isinstance(value, bool):
-            return None  # a string setpoint (a waveform name) has no range
-        if self.min is not None and value < self.min:
-            return self.describe()
-        if self.max is not None and value > self.max:
-            return self.describe()
-        return None
-
     def describe(self) -> str:
         low = "−∞" if self.min is None else f"{self.min:g}"
         high = "∞" if self.max is None else f"{self.max:g}"
         return f"out of range ({low}..{high})"
+
+
+@dataclass(frozen=True)
+class Detail:
+    """A view belonging to one component, shown in its place on the screen.
+    See `Component.detail`."""
+
+    #: Last segment of the route, e.g. `registers`.
+    slug: str
+    #: What the view is called.
+    title: str
+    #: What the view renders. Separate instances from the ones on the screen,
+    #: deliberately: widgets belong to exactly one page's index, which is what
+    #: keeps a detail view's PVs out of the screen's stream.
+    components: tuple["Component", ...]
 
 
 class Component:
@@ -291,7 +428,7 @@ class Component:
         self.widgets: dict[str, Widget] = {}
         self.signals: dict[str, Any] = {}
         #: PVs this component writes, and the bounds it accepts. See `writable`.
-        self.limits: dict[str, WriteLimits] = {}
+        self.limits: dict[str, WriteRule] = {}
         #: PVs one browser tab at a time may write. See `exclusive`.
         self.exclusive_pvs: set[str] = set()
         self.setup()
@@ -300,6 +437,44 @@ class Component:
 
     def setup(self) -> None:
         """Declare widgets and signals. Called once, at start-up."""
+
+    def describes(self) -> tuple[str, ...]:
+        """PVs whose control fields this component draws with.
+
+        For what a time-stamped monitor update does not carry — a record's
+        unit, above all. Read at start-up, before anything subscribes, and
+        again whenever one of these channels comes back (`core.page`), with
+        each answer handed to `described`. A component that needs none — most
+        of them — says nothing and nothing is read.
+        """
+        return ()
+
+    def described(self, descriptions: "dict[str, Any]") -> None:
+        """What the device said about the PVs named in `describes`.
+
+        Called at start-up and again after a reconnect, so keep the answer as
+        data the next draw reads — never re-declare a widget here: by the
+        second call its subscription is live. The row is redrawn for you once
+        the answer is in.
+        """
+
+    def details(self) -> tuple["Detail", ...]:
+        """This component's own views, or none — the usual answer.
+
+        Some components hold far more than they show: every module of a
+        device and every register under them. That is a detail view, shown in
+        the component's place and at its width when the component asks for it
+        (`@get(detail_urls['<slug>'])` from its template), and holding its own
+        stream — so the screen's stream never carries its rows, and it is
+        streamed only while someone has it open. A component may have several;
+        they share its one slot, so one is open at a time.
+
+        Each is routed at `/<screen>/<component key>/<detail slug>` and
+        answers with a fragment for the component's slot (`Page.render_view`).
+        None is a menu entry: the menu is the zone's folder listing, and a
+        view is reached from the component that owns it.
+        """
+        return ()
 
     def pv_specs(self) -> list[PvSpec]:
         """What kind of signal each PV this component reads is.
@@ -369,28 +544,26 @@ class Component:
         makes `data-show` evaluate against `undefined` on the first paint, which
         is how an expandable list ends up rendered open.
         """
-        full = f"{self.key}_{slug(name, '_')}"
+        # The key is slugged too: a signal goes into a Datastar expression as
+        # `$name`, and a key with a hyphen in it — which a detail view has,
+        # being named after what it belongs to — would make `$a-b_open`, which
+        # is a subtraction rather than a signal.
+        full = f"{slug(self.key, '_')}_{slug(name, '_')}"
         self.signals[full] = default
         return full
 
-    def writable(
-        self,
-        pv: str,
-        *,
-        min: float | None = None,
-        max: float | None = None,
-        precision: int | None = None,
-        exponential: bool = False,
-    ) -> str:
-        """Declare a PV this component writes, and the bounds it accepts.
+    def writable(self, pv: str, rule: "WriteRule | None" = None) -> str:
+        """Declare a PV this component writes, and what it accepts.
+
+        The rule says what *kind* of value the PV takes — `WriteRule.number`,
+        `WriteRule.choice`, `WriteRule.text` — and that is the only thing
+        deciding which checks the write endpoint runs. A PV declared with no
+        rule takes text, which is to say it is simply recorded as one this
+        component writes.
 
         Returns the PV name, so a `setup()` can declare and use it in one line.
-        Bounds are optional: declaring a PV with none simply records that this
-        component writes it.
         """
-        self.limits[pv] = WriteLimits(
-            min=min, max=max, precision=precision, exponential=exponential
-        )
+        self.limits[pv] = rule or WriteRule.text()
         return pv
 
     def exclusive(self, pv: str) -> str:
@@ -430,8 +603,8 @@ class Component:
             signals.update(component.signals)
         return signals
 
-    def all_limits(self) -> dict[str, WriteLimits]:
-        limits: dict[str, WriteLimits] = {}
+    def all_limits(self) -> dict[str, WriteRule]:
+        limits: dict[str, WriteRule] = {}
         for component in self.walk():
             limits.update(component.limits)
         return limits

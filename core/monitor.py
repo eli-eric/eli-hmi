@@ -394,6 +394,11 @@ def _client_row(client: Client, now: float) -> ClientRow:
 def _screen_rows(pages, active: list[Client]) -> list[ScreenRow]:
     rows = []
     for slug, page in pages.items():
+        if page.gui.slot is not None:
+            # A component's detail view: shown in its component's place on a
+            # screen, as `/stats` says, not a screen of its own. Its stream is
+            # still listed among the clients.
+            continue
         watching = [c for c in active if c.kind == "screen" and c.slug == slug]
         rows.append(
             ScreenRow(

@@ -1,0 +1,16 @@
+{#
+  A component's detail view, patched into its slot on the screen in the
+  component's place. Not a page: it lands inside one.
+
+  So it brings what a page would have given it. `data-signals` first, because
+  Datastar applies an element's attributes in order and its children after
+  it: every signal the view's markup reads exists before anything reads it.
+  Then its own stream, cancelled by Datastar when this element is removed —
+  which is how the view is closed — so the view's monitors are held for
+  exactly as long as it is on screen.
+#}
+<div class="in-place-view"
+     data-signals="{{ signals_json }}"
+     data-init="@get('{{ stream_url }}', {requestCancellation: 'cleanup'})">
+  {%- for component in components %}{{ component }}{% endfor -%}
+</div>

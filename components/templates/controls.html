@@ -92,6 +92,15 @@ data-attr="{disabled: {{ extra }}}"
 
 {#- A single write. `variant` is kept for semantics but every variant renders
     identically — see `common.Action`. -#}
+{#- The way out of a detail view, for its panel header. Emptying the slot is
+    the whole of going back: the component the view stood in for reappears
+    when the slot is `:empty` — every node gone, text included — and Datastar
+    cancels the view's stream with the element that opened it. No round-trip. -#}
+{%- macro view_back() -%}
+<button type="button" class="panel-detail view-back"
+        data-on:click="el.closest('.view-slot').replaceChildren()">← Back</button>
+{%- endmacro -%}
+
 {%- macro action_button(label, pv, value, variant='primary', close=none) -%}
 {%- set target = status_id(label) -%}
 <span class="action-with-status">
@@ -135,9 +144,24 @@ data-attr="{disabled: {{ extra }}}"
 {#- Preset chips plus a free-text field for anything not on the list. The
     presets are the values operators actually use; the field is there because
     the list is never complete. -#}
-{%- macro preset_input(label, presets, pv, signal, close=none, step=1, min=none, max=none, exponential=false, precision=none) -%}
+{#- `kind` is the `WriteRule` kind the endpoint will hold the value to, so
+    the field and the endpoint agree on what may be sent:
+
+    - `number`: digits, a sign, a decimal point; an exponent only if
+      `exponential`. Truncated to `precision` decimals on leaving the field.
+    - `integer`: digits and a sign, nothing else. The keypad offers no
+      decimal point.
+    - `text`: anything. Nothing filtered; Confirm needs only something typed.
+
+    Every call states its kind, even where it is the default: which field an
+    operator gets should be readable at the call, not inferred from a
+    default. -#}
+{%- macro preset_input(label, presets, pv, signal, close=none, step=1, min=none, max=none, exponential=false, precision=none, show_label=true, units=none, kind='number') -%}
 <span class="preset-input">
-<span class="preset-label">{{ label }}</span>
+{#- `show_label` for a control whose surroundings have already named what is
+    being set: a second name beside it is noise, and the field's accessible
+    name carries it for anyone who arrives without seeing the first. -#}
+{% if show_label %}<span class="preset-label">{{ label }}</span>{% endif %}
 {{ lock_strip(pv, label) }}
 {% if presets %}
 <span class="preset-chips">
@@ -154,16 +178,37 @@ data-attr="{disabled: {{ extra }}}"
     nothing to contrast with, and the field is simply the value — so the word
     goes, and the control's own label names the field instead. -#}
 {% if presets %}<span class="preset-custom-label">Custom</span>{% endif %}
-{#- `type="number"` accepts scientific notation, and reports the field as
-    EMPTY while an exponent is half-typed — so pressing `e` after a value
-    appears to erase it. Nothing here is set that way, so the key is refused
-    unless the setpoint asks for it. -#}
-<input class="preset-field" type="number" step="{{ step }}"
+{#- Text, not `type="number"`. A number input reports its value as EMPTY
+    whenever the contents are not yet a number — `21.`, `-`, `1e` — and with a
+    two-way binding that empty value goes to the signal and straight back to
+    the element: the character just typed vanishes and the caret jumps to the
+    front. Deleting the last decimal of `21.5` took the dot with it that way.
+
+    A value being typed is allowed to be unfinished, so the value is checked
+    rather than the keystrokes policed: Confirm stays dead until the field
+    holds a number the device will take, and the endpoint refuses it anyway.
+    `inputmode` keeps the numeric keypad on a touchscreen, which is what the
+    number input was buying here. -#}
+{#- What the field may hold on the way to a value: anything that can still
+    become one (`-`, `21.`), nothing that never can (`21a`). Checked in
+    `beforeinput` — a keystroke and a paste alike, before the text changes —
+    against the text the insertion would leave. Refusing the insertion, rather
+    than cleaning the value up after it, is what keeps the caret where it was:
+    rewriting a bound field's value is what made it jump to the front.
+
+    Character classes rather than backslashes, so the pattern survives Jinja,
+    HTML and JavaScript unchanged. The closing `$/` is a regex anchor, not a
+    signal: Datastar only rewrites a `$` that a name follows. -#}
+{%- set accept = {
+      'integer': '^[+-]?[0-9]*$',
+      'number': '^[+-]?[0-9]*[.]?[0-9]*([eE][+-]?[0-9]*)?$' if exponential else '^[+-]?[0-9]*[.]?[0-9]*$',
+    }.get(kind) %}
+<input class="preset-field" type="text" autocomplete="off" data-kind="{{ kind }}"
+       inputmode="{{ {'number': 'decimal', 'integer': 'numeric'}.get(kind, 'text') }}"
        {% if lock_key(pv) %}{{ lock_gate(pv) }}
        {% endif -%}
-       {% if min is not none %}min="{{ min }}" {% endif %}
-       {%- if max is not none %}max="{{ max }}" {% endif %}data-bind="{{ signal }}"
-       {% if not exponential %}data-on:keydown="(evt.key === 'e' || evt.key === 'E') && evt.preventDefault()"
+       data-bind="{{ signal }}"
+       {%- if accept %} data-on:beforeinput="evt.data != null && !/{{ accept }}/.test(el.value.slice(0, el.selectionStart) + evt.data + el.value.slice(el.selectionEnd)) && evt.preventDefault()"
        {% endif -%}
        {#- Leaving the field rewrites it as the value that will actually be
            written: the device resolves `precision` decimals and the server
@@ -171,34 +216,45 @@ data-attr="{disabled: {{ extra }}}"
            amplifier is the one thing that truncation must not cost. Pressing
            Confirm blurs the field first, so the value settles in front of the
            operator before it is sent. -#}
-       {% if precision is not none %}data-on:blur="${{ signal }} !== '' && (${{ signal }} = Number(String(${{ signal }}).replace(/^(-?\d*\.?\d{0,{{ precision }}}).*$/, '$1')))"
+       {% if kind == 'number' and precision is not none %}data-on:blur="${{ signal }} !== '' && !isNaN(Number(${{ signal }})) && (${{ signal }} = Number(String(${{ signal }}).replace(/^(-?\d*\.?\d{0,{{ precision }}}).*$/, '$1')))"
        {% endif -%}
        aria-label="{{ label }}{% if presets %} custom value{% endif %}">
+{#- Directly after the field: a unit qualifies the number, not the button. -#}
+{% if units %}<span class="preset-units">{{ units }}</span>{% endif %}
 {#- Confirm greys out for a value the device will not take. The endpoint
     refuses it too (`Component.writable`); this is so the operator sees it
     before pressing rather than after. -#}
-{%- set out_of_range -%}
-{%- if min is not none or max is not none -%}
-${{ signal }} === '' || ${{ signal }} === null
-{%- if min is not none %} || Number(${{ signal }}) < {{ min }}{% endif %}
-{%- if max is not none %} || Number(${{ signal }}) > {{ max }}{% endif %}
-{%- endif -%}
-{%- endset -%}
 <button type="button" class="preset-confirm" data-indicator="_busy"
-        {% if out_of_range or lock_key(pv) -%}
-        {{ lock_gate(pv, out_of_range or none) }}
-        {% endif -%}
+        {#- `isNaN` is what the number input used to do for us: `21.` is a
+            fine thing to be typing and not a fine thing to send. An integer
+            is held to the same pattern the endpoint uses — `2.0` is a number
+            but not a whole one written as such. A `$` before the closing `/`
+            is a regex anchor, not a signal: Datastar only rewrites `$` when
+            a name follows it. Held, too, until this tab has control of an
+            exclusive PV (`lock_gate`). -#}
+        {%- set invalid -%}
+        ${{ signal }} === '' || ${{ signal }} === null
+        {%- if kind == 'number' %} || isNaN(Number(${{ signal }}))
+        {%- elif kind == 'integer' %} || !/^[+-]?(0|[1-9][0-9]*)$/.test(String(${{ signal }}).trim()){% endif %}
+        {%- if kind != 'text' and min is not none %} || Number(${{ signal }}) < {{ min }}{% endif %}
+        {%- if kind != 'text' and max is not none %} || Number(${{ signal }}) > {{ max }}{% endif %}
+        {%- endset %}
+        {{ lock_gate(pv, invalid) }}
         data-on:click="@post('{{ write_url(pv, signal=signal, status=status_id(label), close=close) }}')">Confirm</button>
 </span>
 {#- Says why Confirm is greyed out. The endpoint refuses the value too; this
     is so the operator is told before pressing rather than after. -#}
-{% if min is not none or max is not none %}
+{% if kind != 'text' and (min is not none or max is not none) %}
 <span class="control-status"
       data-show="${{ signal }} !== '' && ${{ signal }} !== null &&
       {%- if min is not none %} Number(${{ signal }}) < {{ min }}{% endif %}
       {%- if min is not none and max is not none %} ||{% endif %}
       {%- if max is not none %} Number(${{ signal }}) > {{ max }}{% endif %}"
-      style="display:none">out of range ({{ min if min is not none else '−∞' }}..{{ max if max is not none else '∞' }})</span>
+      {#- An integer's bounds as integers: DRVL/DRVH arrive as floats, and
+          0.0..3000.0 offers a decimal point the field will not take. -#}
+      {%- set low = (min | int if kind == 'integer' else min) if min is not none else '−∞' %}
+      {%- set high = (max | int if kind == 'integer' else max) if max is not none else '∞' %}
+      style="display:none">out of range ({{ low }}..{{ high }})</span>
 {% endif %}
 <span class="control-status" id="{{ status_id(label) }}"></span>
 </span>
@@ -220,7 +276,7 @@ ${{ signal }} === '' || ${{ signal }} === null
 {#- A drop-down of named choices: a waveform preset, an operating mode. The list
     comes from config rather than a fetch, because it changes when the machine is
     reconfigured, not while an operator is looking at it. -#}
-{%- macro choice_select(pv, signal, choices, label='Set', close=none, catalog=none, available=none) -%}
+{%- macro choice_select(pv, signal, choices, label='Set', close=none, catalog=none, available=none, prompt=none) -%}
 <span class="waveform-select">
 {#- `catalog` makes the options patchable: a device's catalog changes while the
     machine runs, and the control re-reads it when opened. The patch lands
@@ -231,7 +287,7 @@ ${{ signal }} === '' || ${{ signal }} === null
     by selector lands in every copy, while an id can only name one. -#}
 {{ lock_strip(pv, label) }}
 <select class="waveform-field" {% if catalog %}data-waveforms="{{ catalog }}" {% endif %}data-bind="{{ signal }}" aria-label="{{ label }}">
-{{ choice_options.options(choices) }}
+{{ choice_options.options(choices, prompt) if prompt else choice_options.options(choices) }}
 </select>
 {#- Nothing selected is not a value: without this the button offers to send
     the empty string, and the operator cannot tell what would arrive.

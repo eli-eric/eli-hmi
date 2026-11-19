@@ -13,7 +13,7 @@ own or the PV with what the panel should do with it::
         pv: L4-OPCPA-NL4:PHD1K000:12:Mean
         label: PHD1K000:12/Mean                   # what the row is called
       modboxMbc1:
-        pv: L4-OPCPA-NL4::ModBox:MBC1:BiasValue
+        pv: L4-OPCPA-NL4:ModBox:MBC1:BiasValue
         format: 0                                 # display rounding only
 
 There is no `units:`, `format:` or `labels:` block: they were three parallel
@@ -35,10 +35,12 @@ What the schema still guarantees, because each rule caught a real edit mistake:
   change the name).
 
 The config holds the **full PV name** for every signal — exactly the strings the
-controls team provides. Nothing is assembled from prefixes. The one exception is
-the **command PV** (`CMD_<laser>_<NAME>`), because a command maps to a
-coordinated sequence of writes dispatched by the control system, not to a single
-record.
+controls team provides. Nothing is assembled from prefixes, with two
+exceptions. The **command PV** (`CMD_<laser>_<NAME>`), because a command maps
+to a coordinated sequence of writes dispatched by the control system, not to a
+single record. And the **ModBox's registers** (`<prefix>:ModBox:<suffix>`),
+because every ModBox has the same ones: the suffixes are the component's
+(`modbox.py`), and only the laser's `prefix:` differs.
 """
 
 from __future__ import annotations
@@ -54,7 +56,7 @@ from pydantic import (
     model_validator,
 )
 
-from core.components import ComponentConfig
+from core.components import ComponentConfig, PvKind
 from components.common import Exclusive, ValueText, exclusive_names
 from core.render import ValueFormatOptions, parse_format
 
@@ -95,6 +97,108 @@ class MappedPv(LabeledPv):
     """
 
     values: ValueText | None = None
+
+
+class Register(Strict):
+    """One register of one module.
+
+    Named relative to its module rather than in full: a module repeats the
+    same register set on every laser, so the names are the part worth writing
+    once and the prefix is the part that differs. `pv` is derived, never
+    configured, which is why a tree of hundreds cannot drift from the device
+    one typo at a time.
+
+    A real zone declares `name`, `label`, `kind` where it is not a plain
+    reading, `write`, and `nv` for the registers that take a non-volatile
+    write. **`units`, `states` and `range` are not needed and should be left
+    out**: everything they describe is in the record's control fields — its
+    EGU, its state strings (ZRST… for an mbbi, ZNAM/ONAM for a bi), its
+    DRVL/DRVH — and those are read from the device: the unit at start-up and
+    whenever a channel comes back, the states and limits when the register is
+    selected to be written. The three exist here only so the simulator and the
+    local IOC have something to answer those reads with.
+
+    What a register *is* (`kind`) is the one thing that is declared, because
+    it decides the datatype the register is monitored at, and that has to be
+    right before the first reading arrives.
+    """
+
+    name: Name = Field(description="Register name under the module's prefix.")
+    label: Name | None = Field(default=None, description="What the row reads.")
+    units: Name | None = Field(
+        default=None,
+        description="Engineering unit, for the simulator and the local IOC "
+        "only: it is what they answer a control-field read with. The row shows "
+        "the record's own EGU. Omit it in a real zone.",
+    )
+    write: bool = Field(
+        default=False,
+        description="True for a setpoint. The write goes to this register's "
+        "own PV with ':W' appended — the device's convention, derived rather "
+        "than configured so a write target cannot be mistyped.",
+    )
+    nv: bool = Field(
+        default=False,
+        description="True if this register can be written to non-volatile "
+        "memory. The laser's `nvWrite` PV is what arms it.",
+    )
+
+    #: What the register *is*. One word, and everything downstream follows
+    #: from it: the datatype the register is monitored at, the readout its row
+    #: is drawn with, whether its write panel is a field or a list of states,
+    #: and the record the generated IOC emits for it.
+    kind: PvKind = Field(
+        default="float",
+        description="float | int | bool | enum | string. Declared, not "
+        "discovered: it chooses the datatype the register is monitored at, "
+        "and that has to be right before the first reading arrives. `enum` "
+        "and `bool` (an mbbi/bi — anything with named states) are read by "
+        "name, `float` and `int` as a number whatever record the device used, "
+        "`string` as a string. Most registers are analogue readings, so "
+        "`float` is the default.",
+    )
+    states: list[Name] = Field(
+        default_factory=list,
+        description="State names in index order, for `enum` and `bool`. Only "
+        "the local IOC and the simulator use them — the real record supplies "
+        "its own, read when the register is selected.",
+    )
+    range: tuple[float, float] | None = Field(
+        default=None,
+        description="Engineering range [low, high]. Only the local IOC and "
+        "the simulator use it: it is the band a simulated reading drifts "
+        "inside and the DRVL/DRVH the generated record carries. NOT the "
+        "limits a write is held to — those are the device's own control "
+        "fields, read when the register is selected. Omit it in a real zone.",
+    )
+    value: Any = Field(default=None, description="Value at rest.")
+
+    #: Set from the module's prefix when the laser is validated.
+    pv: str = Field(default="", description="Derived: <module prefix>:<name>.")
+
+    @property
+    def write_pv(self) -> str:
+        """Where a setpoint is written: the register's own record with ':W'.
+
+        The device's convention, derived rather than configured — a write
+        target spelled out per register is a write that can be mistyped into
+        another device's record.
+        """
+        return f"{self.pv}:W"
+
+
+class Module(Strict):
+    """One device module: a prefix, and the registers under it."""
+
+    label: Name = Field(description="What the module is called in the tree.")
+    prefix: Name = Field(description="PV prefix every register hangs off.")
+    registers: list[Register] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _name_the_registers(self) -> "Module":
+        for register in self.registers:
+            object.__setattr__(register, "pv", f"{self.prefix}:{register.name}")
+        return self
 
 
 class SequenceSpec(Strict):
@@ -300,6 +404,12 @@ class Config(ComponentConfig):
         description="Laser id, e.g. NL2. The panel heading, the component's key, "
         "and the <LASER> in command PVs (CMD_<id>_<NAME>)."
     )
+    prefix: Name | None = Field(
+        default=None,
+        description="The laser's PV prefix, e.g. L4-OPCPA-NL2. The ModBox's "
+        "registers are named from it, <prefix>:ModBox:<suffix>, so it is "
+        "required for a laser with a `modbox:` and unused otherwise.",
+    )
     pvs: LaserPvs = Field(description="The single-signal read/write PVs; see LaserPvs.")
     trigger_delay: list[Name] = Field(
         alias="triggerDelay",
@@ -324,6 +434,18 @@ class Config(ComponentConfig):
     flashlamps: list[LabeledPv] = Field(
         description="Flashlamp channels (label + state PV). An empty list hides "
         "the Flashlamps section."
+    )
+    modules: list[Module] = Field(
+        default_factory=list,
+        description="The laser's device modules and their registers — the "
+        "tree behind the panel's own rows. Omitted or empty means this laser "
+        "offers no register view.",
+    )
+    nv_write: Name | None = Field(
+        default=None,
+        alias="nvWrite",
+        description="PV that arms writing to non-volatile memory, one per "
+        "laser. Required for a register declaring `nv: true`.",
     )
     sequences: list[SequenceSpec] = Field(
         default_factory=list,
@@ -600,6 +722,11 @@ class Config(ComponentConfig):
             raise ValueError(
                 "pvs.loadedWaveform is required when the laser has a modbox "
                 "(omit `modbox` for a laser that has none)"
+            )
+        if self.modbox and not self.prefix:
+            raise ValueError(
+                "prefix is required when the laser has a modbox: its registers "
+                "are named <prefix>:ModBox:<suffix>"
             )
         return self
 

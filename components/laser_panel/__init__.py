@@ -35,11 +35,12 @@ from typing import Any
 
 from core.components import (
     Component,
+    Detail,
     Datatype,
     PvId,
     PvReader,
     PvSpec,
-    WriteLimits,
+    WriteRule,
     register,
 )
 from core.render import ON_OFF_TEXT, YES_NO_TEXT, mapped_readout, number_readout, string_readout
@@ -50,7 +51,7 @@ from .config import Config
 from .readings import ERR_NOTE, FLASHLAMP_STATES, MSS_NOTE
 from .simulate import laser_pv_specs
 
-_NO_LIMITS = WriteLimits()
+_NO_LIMITS = WriteRule.text()
 
 #: Trigger delay the flashlamp power supplies accept, in nanoseconds.
 DELAY_MIN = 10
@@ -194,6 +195,10 @@ class LaserPanel(Component):
             [PvId(pvs.attenuator)],
             self._number(pvs.attenuator, "attenuator", integer=True),
         )
+        if cfg.can("SET_ATTENUATOR"):
+            # A step position: 51.5 is refused, not truncated to 51 by the
+            # record. No range is declared — the motor's own limits apply.
+            self.writable(cfg.resolve_command("SET_ATTENUATOR").pv_name, WriteRule.integer())
 
         # -- Chillers -------------------------------------------------------
         for index, chiller in enumerate(cfg.chillers):
@@ -241,9 +246,8 @@ class LaserPanel(Component):
                 # endpoint for every route to the PV.
                 self.writable(
                     cfg.resolve_command("SET_DELAY").pv_name,
-                    min=DELAY_MIN,
-                    max=DELAY_MAX,
-                    precision=0,
+                    # Whole nanoseconds: 500.7 is refused, not sent as 500.
+                    WriteRule.integer(min=DELAY_MIN, max=DELAY_MAX),
                 )
 
         # -- Modbox ---------------------------------------------------------
@@ -278,9 +282,7 @@ class LaserPanel(Component):
             if cfg.can("SEND_YDFA_CURRENT"):
                 self.writable(
                     cfg.resolve_command("SEND_YDFA_CURRENT").pv_name,
-                    min=YDFA_MIN,
-                    max=YDFA_MAX,
-                    precision=YDFA_PRECISION,
+                    WriteRule.number(min=YDFA_MIN, max=YDFA_MAX, precision=YDFA_PRECISION),
                 )
             self.add(
                 "waveform_preset",
@@ -389,6 +391,51 @@ class LaserPanel(Component):
 
     # -- declarations ------------------------------------------------------
 
+    def details(self) -> tuple[Detail, ...]:
+        """This laser's own views, each shown in the panel's place: every
+        module and register under them, and — for a laser that has one — the
+        ModBox's registers.
+
+        Separate component instances rather than this component's own
+        widgets: a widget belongs to exactly one page's index, and that is
+        what keeps a view's rows out of the screen's stream. The modules are
+        configured here, once, because they belong to the laser; the ModBox's
+        registers are the same on every laser (`modbox.py`), so its view needs
+        nothing from the laser but its prefix.
+        """
+        from components.register_tree import Config as TreeConfig, RegisterTree
+
+        from .modbox import modbox_modules
+
+        views: list[Detail] = []
+        if self.config.modules:
+            tree = RegisterTree(
+                key=f"{self.key}-registers",
+                config=TreeConfig.model_validate(
+                    {
+                        "component": "register-tree",
+                        "title": f"{self.config.laser} registers",
+                        "modules": [m.model_dump(by_alias=True) for m in self.config.modules],
+                        "nv_write": self.config.nv_write,
+                    }
+                ),
+            )
+            views.append(Detail(slug="registers", title=tree.config.title, components=(tree,)))
+        if self.config.modbox:
+            modbox = RegisterTree(
+                key=f"{self.key}-modbox",
+                config=TreeConfig.model_validate(
+                    {
+                        "component": "register-tree",
+                        "title": f"{self.config.laser} ModBox",
+                        "modules": modbox_modules(self.config.prefix),
+                        "refresh": False,
+                    }
+                ),
+            )
+            views.append(Detail(slug="modbox", title=modbox.config.title, components=(modbox,)))
+        return tuple(views)
+
     def pv_specs(self) -> list[PvSpec]:
         return laser_pv_specs(self.config)
 
@@ -433,6 +480,11 @@ class LaserPanel(Component):
                     "precision": self.limits.get(
                         cfg.resolve_command(command).pv_name, _NO_LIMITS
                     ).precision,
+                    # Which field the control is: the same kind the endpoint
+                    # holds the value to.
+                    "kind": self.limits.get(
+                        cfg.resolve_command(command).pv_name, _NO_LIMITS
+                    ).kind,
                 }
                 for command in cfg.command_names
             },

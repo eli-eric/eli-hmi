@@ -14,7 +14,25 @@
 {% import "controls.html" as controls with context %}
 
 <article class="panel">
-  <header class="panel-header"><h2 class="panel-title">{{ c.laser }}</h2></header>
+  <header class="panel-header">
+    <h2 class="panel-title">{{ c.laser }}</h2>
+    {#- This laser's detail views, each shown in this panel's place: no
+        wider than the laser they belong to. Fetched when asked for rather
+        than rendered with the screen, so their rows are streamed only while
+        someone has one open. -#}
+    {% if detail_urls %}
+    <span class="panel-views">
+      {% if 'registers' in detail_urls %}
+      <button type="button" class="panel-detail" data-on:click="@get('{{ detail_urls['registers'] }}')"
+              title="Every module and register of {{ c.laser }}">Registers →</button>
+      {% endif %}
+      {% if 'modbox' in detail_urls %}
+      <button type="button" class="panel-detail" data-on:click="@get('{{ detail_urls['modbox'] }}')"
+              title="The registers of {{ c.laser }}'s ModBox">ModBox →</button>
+      {% endif %}
+    </span>
+    {% endif %}
+  </header>
   <div class="panel-body">
 
     {# ------------------------------------------------------------- Sequencer #}
@@ -93,7 +111,9 @@
       {% set atten_actions %}
       {% call controls.cog(atten_cog, 'Set attenuator') %}
         {{ controls.preset_input('Set Attenuator', [], cmd.SET_ATTENUATOR.pv,
-                                 comp.signal('set_atten', ''), atten_cog) }}
+                                 comp.signal('set_atten', ''), atten_cog,
+                                 min=cmd.SET_ATTENUATOR.min, max=cmd.SET_ATTENUATOR.max,
+                                 kind=cmd.SET_ATTENUATOR.kind) }}
       {% endcall %}
       {% endset %}
       {{ rows.row(labels.attenuator, w['attenuator'], atten_actions) }}
@@ -167,7 +187,8 @@
         {{ controls.preset_input('Set Trigger Delay', c.delay_presets, cmd.SET_DELAY.pv,
                                  comp.signal('set_delay', ''), delay_cog,
                                  min=cmd.SET_DELAY.min, max=cmd.SET_DELAY.max,
-                                 precision=cmd.SET_DELAY.precision) }}
+                                 precision=cmd.SET_DELAY.precision,
+                                 kind=cmd.SET_DELAY.kind) }}
       {% endcall %}
       {% endset %}
       {{ rows.row(labels.triggerDelay, w['trigger_delay'], delay_actions) }}
@@ -231,7 +252,8 @@
                                        comp.signal('set_ydfa', ''), modbox_cog, step=0.1,
                                        min=cmd.SEND_YDFA_CURRENT.min,
                                        max=cmd.SEND_YDFA_CURRENT.max,
-                                       precision=cmd.SEND_YDFA_CURRENT.precision) }}
+                                       precision=cmd.SEND_YDFA_CURRENT.precision,
+                                       kind=cmd.SEND_YDFA_CURRENT.kind) }}
             {% endcall %}
           {% endif %}
           {% if c.can('LOAD_WAVEFORM') %}

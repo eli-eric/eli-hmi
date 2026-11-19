@@ -11,21 +11,27 @@ component tree a GUI's YAML produced, collects widgets and signals, and renders.
 
 from __future__ import annotations
 
+import copy
 import json
+import asyncio
+import logging
 import secrets
-from dataclasses import dataclass
+
+from dataclasses import dataclass, replace
 from typing import Any, Iterable, Sequence
 
 from jinja2 import Environment
 from markupsafe import Markup
 
 from cameras.protocol import SOCKET_PATH as CAMERA_SOCKET_PATH
-from core.components import Component, PvReader, Widget
+from core.components import Component, Detail, PvReader, Widget
 from core.epics import PvId
 from core.locks import LockTable
 from core.palette import DEFAULT_PALETTE, PALETTES
 from core.jinja import WidgetRenderer
 from core.zones import Gui, Zone
+
+logger = logging.getLogger(__name__)
 
 LINK_BANNER_ID = "link-banner"
 
@@ -46,6 +52,14 @@ PAGE_SIGNALS: dict[str, Any] = {
     "_toast_age": 0,
     "_palette": DEFAULT_PALETTE,
 }
+
+
+def written_pvs(gui: Gui) -> frozenset[str]:
+    """Every PV a control on this screen can write, from what its components
+    declared about their PVs."""
+    return frozenset(
+        spec.name for spec in gui.all_pv_specs() if spec.writable or spec.command
+    )
 
 
 def new_tab_id() -> str:
@@ -90,9 +104,7 @@ class Page:
         self.locks = locks if locks is not None else LockTable(zone.exclusive_pvs())
         #: Every PV a control on this screen can write, from what the
         #: components declared about their PVs.
-        self.written_pvs: frozenset[str] = frozenset(
-            spec.name for spec in gui.all_pv_specs() if spec.writable or spec.command
-        )
+        self.written_pvs: frozenset[str] = written_pvs(gui)
         #: The exclusive ones: what this screen's `_locks` signal carries and
         #: what its stream keeps alive (`LockTable.watch`).
         self.exclusive_pvs: frozenset[str] = self.written_pvs & self.locks.exclusive
@@ -101,6 +113,69 @@ class Page:
         for widget in gui.all_widgets():
             for pv in widget.pvs:
                 self._by_pv.setdefault(pv, []).append(widget)
+
+        # Where each component's detail views are fetched from, by view slug.
+        # Asked once: building a view builds its components, and a register
+        # tree is hundreds of widgets — not something to do per render just
+        # to learn a URL.
+        self._detail_urls: dict[str, dict[str, str]] = {
+            component.key: {
+                detail.slug: f"/{detail_slug(gui, component, detail)}"
+                for detail in details
+            }
+            for component in gui.walk()
+            if (details := component.details())
+        }
+
+    def reindex(self) -> None:
+        """Rebuild PV -> widgets, after a component re-declared its widgets."""
+        self._by_pv = {}
+        for widget in self.gui.all_widgets():
+            for pv in widget.pvs:
+                self._by_pv.setdefault(pv, []).append(widget)
+
+    def choosable(self, names: Iterable[str]) -> list[str]:
+        """The names among these that a workstation can hide on this screen:
+        its top-level components', in the screen's order. Nothing on a screen
+        that is not `selectable`, and a name it does not have is dropped —
+        whether it came from a cookie, a request or an older build."""
+        if not self.gui.selectable:
+            return []
+        wanted = set(names)
+        return [c.key for c in self.gui.components if c.key in wanted]
+
+    def exclusive_pvs_of(self, key: str) -> frozenset[str]:
+        """The exclusive PVs one top-level component writes: what hiding or
+        showing it moves control of. Empty for a key the screen lacks."""
+        component = next((c for c in self.gui.components if c.key == key), None)
+        if component is None:
+            return frozenset()
+        return written_pvs(replace(self.gui, components=[component])) & self.locks.exclusive
+
+    def without(self, keys: Iterable[str]) -> "Page":
+        """This screen minus some of its top-level components: what a
+        workstation's stream carries when it has hidden them.
+
+        Its PVs and its widgets are only the remaining components', so a
+        stream built from it neither subscribes to nor patches what is hidden.
+        Only what `choosable` allows is hidden. Cheap — it shares this page's
+        renderer and detail URLs, and indexes a handful of components.
+        """
+        hidden = set(self.choosable(keys))
+        if not hidden:
+            return self
+        narrowed = copy.copy(self)
+        narrowed.gui = replace(
+            self.gui,
+            components=[c for c in self.gui.components if c.key not in hidden],
+        )
+        narrowed.reindex()
+        # Its exclusive PVs too: a stream keeps a tab's lock alive only on
+        # what the tab is showing, so control of a hidden component lapses
+        # after the grace period, as a closed tab's would (`core.locks`).
+        narrowed.written_pvs = written_pvs(narrowed.gui)
+        narrowed.exclusive_pvs = narrowed.written_pvs & self.locks.exclusive
+        return narrowed
 
     # ------------------------------------------------------------------ queries
 
@@ -121,7 +196,12 @@ class Page:
         }
 
     def signals(
-        self, palette: str | None = None, *, tab: str | None = None, user: str = ""
+        self,
+        palette: str | None = None,
+        hidden: Sequence[str] = (),
+        *,
+        tab: str | None = None,
+        user: str = "",
     ) -> dict[str, Any]:
         """Every signal the page declares, up front.
 
@@ -134,13 +214,19 @@ class Page:
         its controls start locked. The stream's first event unlocks the ones
         this tab holds.
         """
-        return {
+        signals = {
             **PAGE_SIGNALS,
             "_palette": palette or DEFAULT_PALETTE,
             "_locks": self.lock_view(tab=None, user=user),
             "tab": tab or new_tab_id(),
             **self.gui.signals(),
         }
+        if self.gui.selectable:
+            # The top-level components this workstation has hidden. Not
+            # underscored, because it is sent: it is what the stream is
+            # asked for when the page opens it.
+            signals["hidden"] = list(hidden)
+        return signals
 
     def lock_view(self, *, tab: str | None, user: str) -> dict[str, Any]:
         """This screen's `_locks` signal, as one tab should see it."""
@@ -174,9 +260,14 @@ class Page:
         component (a `panel`) never has to know what it contains.
         """
         template = self._env.get_template(component.template)
-        return Markup(
+        detail_urls = self._detail_urls.get(component.key, {})
+        markup = Markup(
             template.render(
                 c=component.config,
+                # Where each of this component's detail views is fetched
+                # from, by slug — `detail_urls['registers']`. Built by the
+                # page because only the page knows which screen it is on.
+                detail_urls=detail_urls,
                 w={role: self.render_widget(widget, reader) for role, widget in component.widgets.items()},
                 s=component.signals,
                 comp=component,
@@ -187,6 +278,18 @@ class Page:
                 **component.context(),
             )
         )
+        if not detail_urls:
+            return markup
+        # The slot its detail views are patched into, and the component, as
+        # one item of the grid: a view takes the component's place and its
+        # width. One slot for all of them — the column has room for one
+        # thing, so opening a view puts whichever was there aside. The slot comes first so the stylesheet can hide what follows
+        # it while it is not empty — a sibling selector, which every browser
+        # has, where `:has()` is missing from a Firefox before 121. Empty in
+        # the markup, with no whitespace: `:empty` counts a text node.
+        return Markup(
+            '<div class="view-host"><div class="view-slot" id="{}"></div>{}</div>'
+        ).format(detail_slot(component), markup)
 
     def render(
         self,
@@ -195,6 +298,7 @@ class Page:
         backend_label: str,
         palette: str | None = None,
         user: str | None = None,
+        hidden: Sequence[str] = (),
         camera_gateway: str | None = "",
     ) -> str:
         # Components are rendered BEFORE the signal list is serialised, and the
@@ -204,6 +308,20 @@ class Page:
         # exist yet evaluates against `undefined`, which is how an expandable
         # list ends up rendered open on the first paint.
         rendered = [self.render_component(component, reader) for component in self.gui.components]
+        if self.gui.selectable:
+            # Each component as one item of the grid, shown while this
+            # workstation has not hidden it — and hidden from the first
+            # frame when it has, rather than flashing up until Datastar runs.
+            rendered = [
+                Markup(
+                    '<div class="component-choice" data-show="!$hidden.includes(\'{}\')"{}>{}</div>'
+                ).format(
+                    component.key,
+                    Markup(' style="display:none"') if component.key in hidden else "",
+                    markup,
+                )
+                for component, markup in zip(self.gui.components, rendered)
+            ]
         template = self._env.get_template("page.html")
         return template.render(
             zone=self.zone,
@@ -211,19 +329,45 @@ class Page:
             menu=self.zone.menu(),
             components=rendered,
             link_banner=self.render_widget(self.link_banner, reader),
-            signals_json=json.dumps(self.signals(palette, user=user or ""), separators=(",", ":")),
+            signals_json=json.dumps(
+                self.signals(palette, hidden, user=user or ""), separators=(",", ":")
+            ),
             stream_url=self.gui.stream_url,
             # A hidden tab is still the tab that holds control. Datastar closes
             # a hidden tab's stream by default, which would let its locks lapse
             # while the operator looks at another tab, and drop the "taken
             # over by" notice; a screen with an exclusive PV keeps it open.
             stream_hidden=bool(self.exclusive_pvs),
+            hidden=hidden,
+            # The slot each component's detail views open in, for the ones
+            # that have any: hiding the component closes its view.
+            view_slots={
+                component.key: detail_slot(component)
+                for component in self.gui.components
+                if self._detail_urls.get(component.key)
+            },
             backend_label=backend_label,
             toast_seconds=TOAST_SECONDS,
             palette=palette,
             palettes=PALETTES,
             user=user,
             camera_socket=self.camera_socket(camera_gateway),
+        )
+
+    def render_view(self, reader: PvReader) -> str:
+        """A detail view: the fragment patched into its component's slot.
+
+        Not a page — it lands inside one — so it carries what a page would
+        have given it: its own signals, which the screen never declared, and
+        its own stream. The stream is opened by the view and cancelled when
+        the view is removed, so its monitors are someone's for exactly as
+        long as it is on screen.
+        """
+        rendered = [self.render_component(component, reader) for component in self.gui.components]
+        return self._env.get_template("view.html").render(
+            components=rendered,
+            signals_json=json.dumps(self.gui.signals(), separators=(",", ":")),
+            stream_url=self.gui.stream_url,
         )
 
     def camera_socket(self, gateway: str | None = "") -> str:
@@ -263,10 +407,119 @@ class Page:
         return str(self.render_widget(self.link_banner, reader))
 
 
+async def describe_components(hub: Any, pages: dict[str, "Page"]) -> None:
+    """Ask the device about the records its components asked about.
+
+    One read per PV, all of them at once, and only for the components that
+    said they need it (`Component.describes`). The answers go back through
+    `Component.described`, which may re-declare widgets — so every page is
+    indexed again afterwards, and this has to happen before anything
+    subscribes.
+    """
+    wanted: dict[str, list[Component]] = {}
+    for page in pages.values():
+        for component in page.gui.walk():
+            for name in component.describes():
+                wanted.setdefault(name, []).append(component)
+    if not wanted:
+        return
+
+    names = list(wanted)
+    logger.info("describing %d record(s) for the screens that asked", len(names))
+    answers = await asyncio.gather(
+        *(hub.describe(PvId(name)) for name in names), return_exceptions=True
+    )
+    for component in {id(c): c for cs in wanted.values() for c in cs}.values():
+        component.described(
+            {
+                name: answer
+                for name, answer in zip(names, answers)
+                if component in wanted[name] and not isinstance(answer, Exception)
+            }
+        )
+    for page in pages.values():
+        page.reindex()
+
+
+def describe_on_reconnect(hub: Any, pages: dict[str, "Page"]) -> None:
+    """Ask again about a record whose channel has come back.
+
+    Control fields are read once at start-up, so a module that was powered
+    down then would be described from nothing for the life of the process —
+    its registers reading as indices for the rest of the shift. A component
+    keeps what it was told as data, so answering again costs nothing but the
+    read.
+    """
+    wanted: dict[str, list[Component]] = {}
+    for page in pages.values():
+        for component in page.gui.walk():
+            for name in component.describes():
+                wanted.setdefault(name, []).append(component)
+    if not wanted:
+        return
+
+    async def ask(pv: PvId) -> None:
+        try:
+            description = await hub.describe(pv)
+        except Exception:  # noqa: BLE001 - a device that will not answer waits
+            logger.warning("could not describe %s after it reconnected", pv.name)
+            return
+        for component in wanted.get(pv.name, ()):
+            component.described({pv.name: description})
+        # The reconnect has already been drawn, before this answer existed;
+        # the reading may not change again for hours.
+        hub.invalidate(pv.name)
+
+    def reconnected(pv: PvId) -> None:
+        if pv.name in wanted:
+            # The hub's callback must stay cheap: the read happens on its own.
+            asyncio.get_running_loop().create_task(ask(pv))
+
+    hub.on_reconnect = reconnected
+
+
 def build_pages(zone: Zone, env: Environment, locks: LockTable | None = None) -> dict[str, Page]:
-    """One `Page` per GUI in the zone, keyed by slug, sharing one lock table."""
+    """One `Page` per GUI in the zone, plus one per component detail view,
+    all sharing one lock table.
+
+    A detail view is a page like any other as far as its index and its
+    stream go — same renderer, same stream, same widgets-by-PV — reached at
+    `/<screen>/<component key>/<detail slug>`. What it renders is a fragment,
+    patched into the screen in its component's place (`Page.render_view`).
+    It is not in the menu: the menu is the zone's folder listing, and a
+    detail view is reached from the component that owns it.
+    """
     locks = locks if locks is not None else LockTable(zone.exclusive_pvs())
-    return {gui.slug: Page(zone, gui, env, locks) for gui in zone.guis}
+    pages = {gui.slug: Page(zone, gui, env, locks) for gui in zone.guis}
+    for gui in zone.guis:
+        for component in gui.walk():
+            for detail in component.details():
+                slug = detail_slug(gui, component, detail)
+                pages[slug] = Page(zone, _detail_gui(gui, slug, component, detail), env, locks)
+    return pages
+
+
+def detail_slug(gui: Gui, component: Component, detail: Detail) -> str:
+    """Where a component's detail view is served, under its screen."""
+    return f"{gui.slug}/{component.key}/{detail.slug}"
+
+
+def detail_slot(component: Component) -> str:
+    """The id of the element a component's detail views are patched into:
+    one per component, whichever view fills it."""
+    return f"{component.key}-view"
+
+
+def _detail_gui(gui: Gui, slug: str, component: Component, detail: Detail) -> Gui:
+    """The detail view as a screen, so one `Page` indexes and streams both."""
+    return replace(
+        gui,
+        slug=slug,
+        title=detail.title,
+        description="",
+        components=list(detail.components),
+        slot=detail_slot(component),
+    )
 
 
 def all_pvs(pages: Sequence[Page]) -> set[PvId]:

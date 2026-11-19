@@ -62,6 +62,21 @@ def test_every_pv_a_screen_reads_has_a_record(records):
     assert not missing, f"the IOC would serve nothing for: {missing}"
 
 
+def test_every_pv_a_view_reads_has_a_record(records):
+    """A component's views (a laser's registers, its ModBox) are pages of
+    their own, outside the screen's PVs, and are served the same way."""
+    zone = load_zone(IOC_ZONE)
+    missing: list[str] = []
+    for gui in zone.guis:
+        for component in gui.walk():
+            for detail in component.details():
+                for view in detail.components:
+                    for pv in sorted(view.all_pvs()):
+                        if pv.name not in records:
+                            missing.append(f"{gui.slug}/{detail.slug}: {pv.name}")
+    assert not missing, f"the IOC would serve nothing for: {missing}"
+
+
 def test_every_button_writes_to_a_record_that_exists(records):
     zone = load_zone(IOC_ZONE)
     missing = []
@@ -122,10 +137,33 @@ class TestRecordChoices:
         developed against the simulator and demonstrated against the IOC must
         not disagree about whether a record is alive.
         """
-        bias = "L4-OPCPA-NL2::ModBox:MBC1:BiasValue"
+        bias = "L4-OPCPA-NL2:ModBox:MBC1:BiasValue"
         assert records[bias] == "calc", "a drifting integer became a static record"
         record = re.search(rf'record\(calc, "{re.escape(bias)}"\) \{{(.*?)\n\}}', db_text, re.S)
         assert record and 'field(PREC, "0")' in record.group(1), "bias is whole millivolts"
+
+    def test_a_setpoint_forwards_to_its_readback(self, records, db_text):
+        """A register is reported from one record and written through
+        another. The write record is an output record carrying the drive
+        limits a screen asks for, and what is written lands in the readback —
+        a `seq` of constants cannot do that, because the value is the
+        operator's and not the configuration's.
+        """
+        write = "L4-OPCPA-NL2:PS1225:11:SetPoint:W"
+        assert records[write] in ("ao", "longout"), (
+            f"a setpoint is a {records[write]}, which cannot take a value"
+        )
+        rule = re.search(
+            rf'record\({records[write]}, "{re.escape(write)}"\) \{{(.*?)\n\}}',
+            db_text,
+            re.S,
+        ).group(1)
+        assert 'field(OUT, "L4-OPCPA-NL2:PS1225:11:SetPoint' in rule, (
+            f"the write goes nowhere: {rule}"
+        )
+        assert 'field(DRVL, "18' in rule and 'field(DRVH, "28' in rule, (
+            f"no drive limits for a screen to read: {rule}"
+        )
 
     def test_a_command_becomes_a_trigger_plus_a_sequence(self, records, db_text):
         sequences = [name for name, rtype in records.items() if rtype == "seq"]
@@ -192,3 +230,14 @@ class TestSharedPvs:
         result = generate()
         assert "described differently" in result.stdout or True  # zone-dependent
         assert result.returncode == 0
+
+    def test_a_modbox_register_the_panel_reads_is_not_a_disagreement(self):
+        """The ModBox view reads some of the PVs the panel's Modbox rows do.
+        The panel's description is the one kept, and the view has nothing to
+        add to it: that is one signal, not two components disagreeing, and
+        reporting it buries the notes that are."""
+        notes = [
+            line for line in generate().stdout.splitlines()
+            if "described differently" in line and ":ModBox:" in line
+        ]
+        assert not notes, notes

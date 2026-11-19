@@ -26,12 +26,33 @@
     context, and a station is plain http. -#}
 <div class="page"
      data-signals="{{ signals_json }}"
-     data-init="$tab = sessionStorage.getItem('hmiTab') || (sessionStorage.setItem('hmiTab', $tab), $tab); @get('{{ stream_url }}'{% if stream_hidden %}, {openWhenHidden: true}{% endif %})">
+     data-init="$tab = sessionStorage.getItem('hmiTab') || (sessionStorage.setItem('hmiTab', $tab), $tab); @get('{{ stream_url }}'{% if stream_hidden %}, {openWhenHidden: true}{% endif %})"
+     {#- Reopened when a workstation changes which components it shows, the
+         way it was first opened: the same URL, so Datastar cancels the
+         stream it replaces, and the new one is asked for the components
+         still shown. -#}
+     {%- if gui.selectable %}
+     data-on:hmi-choice="@get('{{ stream_url }}'{% if stream_hidden %}, {openWhenHidden: true}{% endif %})"{% endif %}>
 
   <div class="sticky-header">
     <header class="page-header">
       <h1 class="page-title">{{ gui.title }}</h1>
       {% if gui.description %}<span class="page-description">{{ gui.description }}</span>{% endif %}
+      {#- Which of the screen's components this workstation shows. -#}
+      {% if gui.selectable %}
+      <span class="page-choice">
+        {% for component in gui.components %}
+        {#- Hides or shows the component at once, saves the choice for this
+            workstation, and asks the page to reopen its stream for the
+            components still shown. Hiding one also closes its open detail
+            view: removing the view is what cancels the view's own stream.
+            The save names the box, because hiding a component gives up this
+            tab's control of it and showing one takes control where free. -#}
+        <label class="page-choice-item"><input type="checkbox" value="{{ component.key }}"{% if component.key not in hidden %} checked{% endif %}
+               data-on:change="$hidden = el.checked ? $hidden.filter(key => key !== '{{ component.key }}') : [...$hidden, '{{ component.key }}'];{% if component.key in view_slots %} el.checked || document.getElementById('{{ view_slots[component.key] }}')?.replaceChildren();{% endif %} @post('/api/hidden?screen={{ gui.slug | urlencode }}&amp;toggled={{ component.key | urlencode }}&amp;value=' + $hidden.join(',')); el.dispatchEvent(new CustomEvent('hmi-choice', {bubbles: true}))"> {{ component.key }}</label>
+        {% endfor %}
+      </span>
+      {% endif %}
       {# Two independent failure reports. `#link-banner` is pushed by the server
          when it cannot reach EPICS. The watchdog below is the browser noticing
          that the stream itself has stopped arriving: `$_age` counts seconds and

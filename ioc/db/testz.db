@@ -778,12 +778,12 @@ record(stringin, "SI_NL2_LATEST_WAVEFORM") {
     field(PINI, "YES")
     field(VAL, "narrow-50ps")
 }
-record(calc, "L4-OPCPA-NL2::ModBox:MBC1:BiasValue") {
+record(calc, "L4-OPCPA-NL2:ModBox:MBC1:BiasValue") {
     field(DESC, "NL2 modboxMbc")
     field(SCAN, "1 second")
     field(PINI, "YES")
     field(VAL, "0.0")
-    field(INPA, "L4-OPCPA-NL2::ModBox:MBC1:BiasValue.VAL NPP NMS")
+    field(INPA, "L4-OPCPA-NL2:ModBox:MBC1:BiasValue.VAL NPP NMS")
     field(B, "1000.0")
     field(C, "-10000.0")
     field(D, "10000.0")
@@ -793,12 +793,12 @@ record(calc, "L4-OPCPA-NL2::ModBox:MBC1:BiasValue") {
     field(LOPR, "-10000.0")
     field(HOPR, "10000.0")
 }
-record(calc, "L4-OPCPA-NL2::ModBox:MBC2:BiasValue") {
+record(calc, "L4-OPCPA-NL2:ModBox:MBC2:BiasValue") {
     field(DESC, "NL2 modboxMbc")
     field(SCAN, "1 second")
     field(PINI, "YES")
     field(VAL, "0.0")
-    field(INPA, "L4-OPCPA-NL2::ModBox:MBC2:BiasValue.VAL NPP NMS")
+    field(INPA, "L4-OPCPA-NL2:ModBox:MBC2:BiasValue.VAL NPP NMS")
     field(B, "1000.0")
     field(C, "-10000.0")
     field(D, "10000.0")
@@ -849,6 +849,347 @@ record(bi, "L4-OPCPA-NL2:SEQ:FlashlampsStandby") {
     field(VAL, "0")
     field(ZNAM, "IDLE")
     field(ONAM, "RUNNING")
+}
+record(bi, "L4-OPCPA-NL2:NVWriteEnable") {
+    field(DESC, "NL2 non-volatile write armed")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZNAM, "volatile")
+    field(ONAM, "non-volatile")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:11:SetPoint") {
+    field(DESC, "PS1225:11 Setpoint")
+    field(PINI, "YES")
+    field(VAL, "23.0")
+    field(EGU, "°C")
+    field(PREC, "3")
+    field(LOPR, "18.0")
+    field(HOPR, "28.0")
+}
+record(ao, "L4-OPCPA-NL2:PS1225:11:SetPoint:W") {
+    field(DESC, "PS1225:11 Setpoint setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:11:SetPoint PP")
+    field(EGU, "°C")
+    field(PREC, "3")
+    field(DRVL, "18.0")
+    field(DRVH, "28.0")
+    field(LOPR, "18.0")
+    field(HOPR, "28.0")
+}
+record(mbbi, "L4-OPCPA-NL2:PS1225:11:Mode") {
+    field(DESC, "PS1225:11 Mode")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "SERVICE")
+}
+record(mbbo, "L4-OPCPA-NL2:PS1225:11:Mode:W") {
+    field(DESC, "PS1225:11 Mode setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:11:Mode PP")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "SERVICE")
+}
+record(longin, "L4-OPCPA-NL2:PS1225:11:PumpSpeed") {
+    field(DESC, "PS1225:11 Pump speed")
+    field(PINI, "YES")
+    field(VAL, "1500")
+    field(EGU, "rpm")
+    field(LOPR, "0")
+    field(HOPR, "3000")
+}
+record(longout, "L4-OPCPA-NL2:PS1225:11:PumpSpeed:W") {
+    field(DESC, "PS1225:11 Pump speed setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:11:PumpSpeed PP")
+    field(EGU, "rpm")
+    field(DRVL, "0.0")
+    field(DRVH, "3000.0")
+    field(LOPR, "0.0")
+    field(HOPR, "3000.0")
+}
+record(calc, "L4-OPCPA-NL2:PS1225:12:SetPoint") {
+    field(DESC, "PS1225:12 Setpoint")
+    field(PINI, "YES")
+    field(VAL, "23.0")
+    field(EGU, "°C")
+    field(PREC, "3")
+    field(LOPR, "18.0")
+    field(HOPR, "28.0")
+}
+record(ao, "L4-OPCPA-NL2:PS1225:12:SetPoint:W") {
+    field(DESC, "PS1225:12 Setpoint setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:12:SetPoint PP")
+    field(EGU, "°C")
+    field(PREC, "3")
+    field(DRVL, "18.0")
+    field(DRVH, "28.0")
+    field(LOPR, "18.0")
+    field(HOPR, "28.0")
+}
+record(mbbi, "L4-OPCPA-NL2:PS1225:12:Mode") {
+    field(DESC, "PS1225:12 Mode")
+    field(PINI, "YES")
+    field(VAL, "0")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "SERVICE")
+}
+record(mbbo, "L4-OPCPA-NL2:PS1225:12:Mode:W") {
+    field(DESC, "PS1225:12 Mode setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:12:Mode PP")
+    field(ZRST, "STANDBY")
+    field(ONST, "RUN")
+    field(TWST, "SERVICE")
+}
+record(longin, "L4-OPCPA-NL2:PS1225:12:PumpSpeed") {
+    field(DESC, "PS1225:12 Pump speed")
+    field(PINI, "YES")
+    field(VAL, "1500")
+    field(EGU, "rpm")
+    field(LOPR, "0")
+    field(HOPR, "3000")
+}
+record(longout, "L4-OPCPA-NL2:PS1225:12:PumpSpeed:W") {
+    field(DESC, "PS1225:12 Pump speed setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:PS1225:12:PumpSpeed PP")
+    field(EGU, "rpm")
+    field(DRVL, "0.0")
+    field(DRVH, "3000.0")
+    field(LOPR, "0.0")
+    field(HOPR, "3000.0")
+}
+record(stringin, "L4-OPCPA-NL2:ModBox:Product") {
+    field(DESC, "Identification Product")
+    field(PINI, "YES")
+    field(VAL, "")
+}
+record(stringin, "L4-OPCPA-NL2:ModBox:SN") {
+    field(DESC, "Identification Serial Number")
+    field(PINI, "YES")
+    field(VAL, "")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:AWG:Waveform") {
+    field(DESC, "AWG & YDFA AWG Waveform")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:AWG:PulseWidth") {
+    field(DESC, "AWG & YDFA AWG Pulse Width")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:AWG:PulseAmplitude") {
+    field(DESC, "AWG & YDFA AWG Pulse Amplitude")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(calc, "L4-OPCPA-NL2:ModBox:YDFA:Current") {
+    field(DESC, "AWG & YDFA YDFA Current")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:MBC1:DitherAmplitude") {
+    field(DESC, "MBC1 MBC1 Dither Amplitude")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(bi, "L4-OPCPA-NL2:ModBox:MBC1:RunningMode") {
+    field(DESC, "MBC1 MBC1 Running Mode")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:MBC1:DitherFrequency") {
+    field(DESC, "MBC1 MBC1 Dither Frequency")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:MBC1:BiasAlarm") {
+    field(DESC, "MBC1 MBC1 Bias Alarm")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(calc, "L4-OPCPA-NL2:ModBox:MBC1:TransferLevel") {
+    field(DESC, "MBC1 MBC1 Transfer Level")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:MBC1:PDGain") {
+    field(DESC, "MBC1 MBC1 Photodiode Gain")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:MBC1:PDPolarity") {
+    field(DESC, "MBC1 MBC1 Photodiode Polarity")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:MBC2:DitherAmplitude") {
+    field(DESC, "MBC2 MBC2 Dither Amplitude")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(bi, "L4-OPCPA-NL2:ModBox:MBC2:RunningMode") {
+    field(DESC, "MBC2 MBC2 Running Mode")
+    field(PINI, "YES")
+    field(VAL, "1")
+    field(ZNAM, "off")
+    field(ONAM, "on")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:MBC2:DitherFrequency") {
+    field(DESC, "MBC2 MBC2 Dither Frequency")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:MBC2:BiasAlarm") {
+    field(DESC, "MBC2 MBC2 Bias Alarm")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(calc, "L4-OPCPA-NL2:ModBox:MBC2:TransferLevel") {
+    field(DESC, "MBC2 MBC2 Transfer Level")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:MBC2:PDGain") {
+    field(DESC, "MBC2 MBC2 Photodiode Gain")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:MBC2:PDPolarity") {
+    field(DESC, "MBC2 MBC2 Photodiode Polarity")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:RF1:Gain") {
+    field(DESC, "RF & LAS1 & AOM RF1 Gain")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longin, "L4-OPCPA-NL2:ModBox:RF2:Gain") {
+    field(DESC, "RF & LAS1 & AOM RF2 Gain")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(calc, "L4-OPCPA-NL2:ModBox:LAS1:Temperature") {
+    field(DESC, "RF & LAS1 & AOM LAS1 Temperature")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(calc, "L4-OPCPA-NL2:ModBox:LAS1:Power") {
+    field(DESC, "RF & LAS1 & AOM LAS1 Power")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(mbbi, "L4-OPCPA-NL2:ModBox:SCOPE:Config") {
+    field(DESC, "Delaygen SCOPE Config")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(mbbi, "L4-OPCPA-NL2:ModBox:AOM:Config") {
+    field(DESC, "Delaygen AOM Config")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(calc, "L4-OPCPA-NL2:ModBox:AOM:Delay") {
+    field(DESC, "Delaygen AOM Delay")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(mbbi, "L4-OPCPA-NL2:ModBox:EOM:Config") {
+    field(DESC, "Delaygen EOM Config")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(calc, "L4-OPCPA-NL2:ModBox:EOM:Delay") {
+    field(DESC, "Delaygen EOM Delay")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(mbbi, "L4-OPCPA-NL2:ModBox:SB:Config") {
+    field(DESC, "Delaygen SB Config")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(calc, "L4-OPCPA-NL2:ModBox:SB:Delay") {
+    field(DESC, "Delaygen SB Delay")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(mbbi, "L4-OPCPA-NL2:ModBox:AMP:Config") {
+    field(DESC, "Delaygen AMP Config")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(calc, "L4-OPCPA-NL2:ModBox:AMP:Delay") {
+    field(DESC, "Delaygen AMP Delay")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
 }
 # One write, 16 records.
 record(dfanout, "SIM:CMD_NL2_START_LASER:fan0_1") {
