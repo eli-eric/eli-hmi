@@ -5,12 +5,16 @@ two desks at once is one whose last value nobody chose. A screen marks a
 control `exclusive` in its YAML, and from then on the PV behind it is held by
 at most one tab:
 
+* **first** — the first tab to show a PV nobody holds has it, with nothing
+  to press: a page opening a screen takes every free control on it;
 * **take** — a tab claims a free PV explicitly ("Take control");
 * **release** — the holder gives it back;
 * **force** — anyone signed in takes it from the holder, after confirming, and
   the holder is told who and when;
 * **lapse** — a holder whose tab has had no screen showing the PV open for the
-  grace period loses it, because a closed tab cannot press Release.
+  grace period loses it, because a closed tab cannot press Release. If
+  exactly one other tab is showing it then, control **passes** to that tab,
+  which is told; with none, or with several waiting, it is left free.
 
 The key is the PV, not the button: the write endpoint is the one place every
 route to a device passes through, and the only thing it knows is the PV.
@@ -77,6 +81,14 @@ class Forced:
     by: Holder
 
 
+@dataclass(frozen=True)
+class Given:
+    """Control of `pv` passed to this tab when `previous` went away."""
+
+    pv: str
+    previous: Holder
+
+
 class Watcher:
     """One open screen in one tab: the PVs it shows, for as long as it is open.
 
@@ -85,14 +97,26 @@ class Watcher:
     it in the same `finally`.
     """
 
-    def __init__(self, table: "LockTable", *, tab: str | None, user: str, pvs: Iterable[str]):
+    def __init__(
+        self,
+        table: "LockTable",
+        *,
+        tab: str | None,
+        user: str,
+        pvs: Iterable[str],
+        ip: str = "-",
+        screen: str = "-",
+    ):
         self._table = table
         self.tab = tab
         self.user = user
         self.pvs = frozenset(pvs)
+        #: Where the screen is open, for a lock it is given rather than takes.
+        self.ip = ip
+        self.screen = screen
         self.closed = False
         self._changed = asyncio.Event()
-        self._events: list[Forced] = []
+        self._events: list[Forced | Given] = []
 
     async def wait(self, timeout: float | None = None) -> bool:
         """Until a lock on one of `pvs` moves. False if `timeout` ran out."""
@@ -103,13 +127,14 @@ class Watcher:
         self._changed.clear()
         return True
 
-    def events(self) -> list[Forced]:
-        """Forces against this tab since the last call — what its operator
-        must be told, rather than discover by pressing a dead button."""
+    def events(self) -> list[Forced | Given]:
+        """Forces against this tab, and control passed to it, since the last
+        call — what its operator must be told, rather than discover by
+        pressing a dead button or by not knowing a live one is theirs."""
         events, self._events = self._events, []
         return events
 
-    def _notify(self, event: Forced | None = None) -> None:
+    def _notify(self, event: Forced | Given | None = None) -> None:
         if event is not None:
             self._events.append(event)
         self._changed.set()
@@ -199,9 +224,24 @@ class LockTable:
         )
         return Outcome(granted=True, holder=current)
 
-    def watch(self, *, tab: str | None, user: str, pvs: Iterable[str]) -> Watcher:
-        """Note that a screen showing `pvs` is open in `tab`."""
-        watcher = Watcher(self, tab=tab, user=user, pvs=pvs)
+    def watch(
+        self,
+        *,
+        tab: str | None,
+        user: str,
+        pvs: Iterable[str],
+        ip: str = "-",
+        screen: str = "-",
+    ) -> Watcher:
+        """Note that a screen showing `pvs` is open in `tab`, and give the tab
+        every one of them nobody holds: the first page to show a control is
+        the one that has it, with nothing to press."""
+        watcher = Watcher(self, tab=tab, user=user, pvs=pvs, ip=ip, screen=screen)
+        # A page that has not said which tab it is has nobody to give it to.
+        if tab is not None:
+            for pv in sorted(watcher.pvs & self._exclusive):
+                if pv not in self._held:
+                    self.take(pv, tab=tab, user=user, ip=ip, screen=screen)
         self._watchers.append(watcher)
         self._remark()
         return watcher
@@ -218,13 +258,30 @@ class LockTable:
             if now - since >= self._grace
         ]
         for pv, holder in lapsed:
-            self._set(pv, None)
             logger.info(
                 "control lapsed %s (no screen showing it in that tab for %.0fs)",
                 _who(pv, holder),
                 self._grace,
             )
+            heir = self._heir(pv)
+            if heir is None:
+                self._set(pv, None)
+                continue
+            # The one other tab still showing it: two desks on one control,
+            # and the one that had it has gone.
+            given = Holder(tab=heir.tab, user=heir.user, ip=heir.ip, screen=heir.screen, since=now)
+            self._set(pv, given, given_from=holder)
+            logger.info("control passed %s from user=%s", _who(pv, given), holder.user)
         return lapsed
+
+    def _heir(self, pv: str) -> "Watcher | None":
+        """The one tab showing `pv`, or `None` if none does or several do —
+        when several are waiting, nobody here can say which of them it is."""
+        tabs: dict[tuple[str, str], Watcher] = {}
+        for watcher in self._watchers:
+            if pv in watcher.pvs and watcher.tab is not None:
+                tabs.setdefault((watcher.tab, watcher.user), watcher)
+        return next(iter(tabs.values())) if len(tabs) == 1 else None
 
     def view(self, pvs: Iterable[str], *, tab: str | None, user: str) -> dict[str, dict[str, Any]]:
         """What one tab should show for each exclusive PV among `pvs`.
@@ -264,7 +321,14 @@ class LockTable:
 
     # -- bookkeeping --------------------------------------------------------
 
-    def _set(self, pv: str, holder: Holder | None, *, forced_from: Holder | None = None) -> None:
+    def _set(
+        self,
+        pv: str,
+        holder: Holder | None,
+        *,
+        forced_from: Holder | None = None,
+        given_from: Holder | None = None,
+    ) -> None:
         if holder is None:
             self._held.pop(pv, None)
         else:
@@ -279,7 +343,18 @@ class LockTable:
                 and watcher.tab is not None
                 and _same(forced_from, watcher.tab, watcher.user)
             )
-            watcher._notify(Forced(pv=pv, by=holder) if robbed else None)
+            heir = (
+                given_from is not None
+                and holder is not None
+                and watcher.tab is not None
+                and _same(holder, watcher.tab, watcher.user)
+            )
+            if robbed:
+                watcher._notify(Forced(pv=pv, by=holder))
+            elif heir:
+                watcher._notify(Given(pv=pv, previous=given_from))
+            else:
+                watcher._notify()
 
     def _closed(self, watcher: Watcher) -> None:
         self._watchers.remove(watcher)

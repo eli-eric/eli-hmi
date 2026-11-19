@@ -456,6 +456,43 @@ class TestChoosingALaserMovesItsControl:
         assert "Refused" in (await press(client, "tab-a", pv=self.START)).text
 
 
+class TestTheFirstTabToOpenAScreenHasControl:
+    """Whoever opens a screen first is the operator: every exclusive control
+    on it that nobody holds is theirs the moment their stream opens."""
+
+    START = "CMD_NL2_START_LASER"
+    STOP = "CMD_NL2_STOP_LASER"
+
+    @pytest.fixture(autouse=True)
+    async def nobody_holds_nl2(self, client):
+        for pv in (self.START, self.STOP):
+            await lock(client, "janitor", "force", pv=pv)
+            await lock(client, "janitor", "release", pv=pv)
+        yield
+        for pv in (self.START, self.STOP):
+            await lock(client, "janitor", "force", pv=pv)
+            await lock(client, "janitor", "release", pv=pv)
+
+    @staticmethod
+    async def open_screen(client, tab: str, hidden: list[str] | None = None) -> None:
+        signals = {"tab": tab, **({"hidden": hidden} if hidden is not None else {})}
+        path = "/l4-opcpa/stream?" + urlencode({"datastar": json.dumps(signals)})
+        await read_events(client, path, count=1, headers=DATASTAR)
+
+    async def test_the_first_tab_may_start_the_laser_without_taking_control(self, client):
+        await self.open_screen(client, "tab-a")
+        assert "Refused" not in (await press(client, "tab-a", pv=self.START)).text
+        await self.open_screen(client, "tab-b")
+        refused = (await press(client, "tab-b", pv=self.START)).text
+        # Named the way a lock taken by hand is: who, from where, on what.
+        assert "controlled by test at 127.0.0.1" in refused, refused
+        assert "l4-opcpa" in refused, refused
+
+    async def test_a_hidden_laser_is_not_taken(self, client):
+        await self.open_screen(client, "tab-a", hidden=["NL2"])
+        assert "take control first" in (await press(client, "tab-a", pv=self.START)).text
+
+
 class TestTheLaserChoiceIsSaved:
     """The save behind the checkboxes: one cookie per screen, holding only
     names that are that screen's components, and a line in the log saying
@@ -2898,15 +2935,23 @@ class TestExclusiveControl:
         assert any('"state":"mine"' in event for event in events)
 
     async def test_every_screen_hears_the_lock_move(self, client):
+        """The listening screen opens while tab-a holds VV1: opened on a free
+        one, it would take VV1 itself (`TestTheFirstTabToOpenAScreenHasControl`).
+        VV1's own entry is followed, since the screen has other locks."""
+        vv1 = '"pv_L4_VCS_NL2_VV1_Open":{"state":'
+        await lock(client, "tab-a", "take")
         events: list[str] = []
         watching = asyncio.create_task(
             read_events(client, stream_as("vacuum", "tab-b"), 1000, timeout=8,
                         into=events, headers=DATASTAR)
         )
         try:
-            await until(lambda: len(events) >= 2)
-            await lock(client, "tab-a", "take")
-            await until(lambda: any('"state":"other"' in e and "since" in e for e in events))
+            await until(lambda: any(vv1 + '"other"' in e for e in events))
+            await lock(client, "tab-a", "release")
+            await until(lambda: any(vv1 + '"free"' in e for e in events))
+            freed = next(i for i, e in enumerate(events) if vv1 + '"free"' in e)
+            await lock(client, "tab-c", "take")
+            await until(lambda: any(vv1 + '"other"' in e and "since" in e for e in events[freed:]))
         finally:
             watching.cancel()
 
@@ -2949,3 +2994,32 @@ async def test_a_lock_whose_tab_is_gone_lapses(short_grace):
             return '"state":"mine"' in (await lock(client, "tab-b", "take")).text
 
         await until(free, timeout=5)
+
+
+async def test_a_control_whose_holder_left_passes_to_the_tab_still_showing_it(short_grace):
+    """Two desks on the vacuum screen. The first to open it has VV1; when it
+    closes, the other desk has VV1 once the grace period is over, and is told
+    so on its own screen."""
+    import httpx
+
+    async with httpx.AsyncClient(base_url=short_grace, timeout=15) as client:
+        await client.post("/login", data={"username": "test", "password": "test"})
+        first: list[str] = []
+        second: list[str] = []
+        desk_a = asyncio.create_task(
+            read_events(client, stream_as("vacuum", "tab-a"), 1000, timeout=10,
+                        into=first, headers=DATASTAR)
+        )
+        await until(lambda: any('"state":"mine"' in e for e in first))
+        desk_b = asyncio.create_task(
+            read_events(client, stream_as("vacuum", "tab-b"), 1000, timeout=10,
+                        into=second, headers=DATASTAR)
+        )
+        try:
+            await until(lambda: any('"state":"other"' in e for e in second))
+            desk_a.cancel()
+            await until(lambda: any("passed to you" in e for e in second), timeout=6)
+            assert "Refused" not in (await press(client, "tab-b")).text
+        finally:
+            desk_a.cancel()
+            desk_b.cancel()

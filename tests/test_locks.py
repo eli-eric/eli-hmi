@@ -219,6 +219,78 @@ class TestAnAbandonedLockLapses:
         assert [pv for pv, _ in table.sweep()] == [VALVE]
 
 
+class TestTheFirstTabToShowAPvTakesIt:
+    """A control nobody holds goes to the first tab that shows it: the page
+    that connects first is the operator's, with nothing to press."""
+
+    def test_a_tab_that_starts_showing_a_free_pv_holds_it(self, table, clock):
+        table.watch(tab="tab-a", user="alice", pvs=[VALVE], ip="10.78.4.21", screen="vacuum")
+        holder = table.holder(VALVE)
+        assert holder is not None, "the first tab to show it did not get it"
+        assert (holder.tab, holder.user, holder.ip, holder.screen, holder.since) == (
+            "tab-a", "alice", "10.78.4.21", "vacuum", clock.now,
+        )
+
+    def test_a_tab_that_opens_later_takes_nothing_from_the_holder(self, table):
+        take(table, tab="tab-a", user="alice")
+        table.watch(tab="tab-b", user="bob", pvs=[VALVE])
+        assert table.holder(VALVE).tab == "tab-a"
+
+    def test_a_page_that_has_not_said_which_tab_it_is_takes_nothing(self, table):
+        """A page from before this feature, or a stream from no page at all:
+        there is no tab to give control to."""
+        table.watch(tab=None, user="alice", pvs=[VALVE])
+        assert table.holder(VALVE) is None
+
+
+class TestALapsedControlPassesToTheOneTabLeft:
+    """Two desks on one control, and the one holding it goes away: once the
+    grace period is over — a reload keeps it — the other desk has it, rather
+    than both of them looking at a control nobody holds."""
+
+    def test_the_one_other_tab_showing_it_gets_it(self, table, clock):
+        alices = table.watch(tab="tab-a", user="alice", pvs=[VALVE], ip="10.78.4.21", screen="vacuum")
+        table.watch(tab="tab-b", user="bob", pvs=[VALVE], ip="10.78.4.22", screen="vacuum")
+        alices.close()
+
+        clock.advance(59)
+        table.sweep()
+        assert table.holder(VALVE).tab == "tab-a", "handed over inside the grace period"
+
+        clock.advance(2)
+        table.sweep()
+        holder = table.holder(VALVE)
+        assert holder is not None, "left free with one tab waiting for it"
+        assert (holder.tab, holder.user, holder.ip, holder.screen, holder.since) == (
+            "tab-b", "bob", "10.78.4.22", "vacuum", clock.now,
+        )
+
+    def test_the_tab_it_passes_to_is_told_from_whom(self, table, clock):
+        """Control arriving unannounced is control nobody knows they have."""
+        alices = table.watch(tab="tab-a", user="alice", pvs=[VALVE])
+        bobs = table.watch(tab="tab-b", user="bob", pvs=[VALVE])
+        bobs.events()
+        alices.close()
+
+        clock.advance(61)
+        table.sweep()
+        [event] = bobs.events()
+        assert (event.pv, event.previous.user) == (VALVE, "alice")
+        assert bobs.events() == []
+
+    def test_with_two_tabs_waiting_it_is_left_free(self, table, clock):
+        """Nobody here can say which of them it should be: it lapses as
+        before, and whoever takes it next has it."""
+        alices = table.watch(tab="tab-a", user="alice", pvs=[VALVE])
+        table.watch(tab="tab-b", user="bob", pvs=[VALVE])
+        table.watch(tab="tab-c", user="carol", pvs=[VALVE])
+        alices.close()
+
+        clock.advance(61)
+        table.sweep()
+        assert table.holder(VALVE) is None
+
+
 class TestWhatEachTabSees:
     def test_a_free_pv_offers_take_control(self, table):
         key = table.key(VALVE)
@@ -294,16 +366,21 @@ class TestScreensHearAboutChanges:
     """Every screen showing a PV re-renders its lock when the lock moves —
     that is how the other desk learns the button just went dead."""
 
+    # The screen listening opens while another desk holds the PV — opened on
+    # a free one, it would be the holder itself (`TestTheFirstTabToShowAPvTakesIt`).
+
     async def test_a_take_wakes_every_screen_showing_the_pv(self, table):
+        take(table, tab="tab-a", user="alice")
         other = table.watch(tab="tab-b", user="bob", pvs=[VALVE])
+        table.release(VALVE, tab="tab-a", user="alice")
+        assert await other.wait(timeout=1)
         take(table, tab="tab-a", user="alice")
         assert await other.wait(timeout=1)
 
     async def test_a_release_a_force_and_a_lapse_all_wake_it(self, table, clock):
+        take(table, tab="tab-a", user="alice")
         other = table.watch(tab="tab-c", user="carol", pvs=[VALVE])
 
-        take(table, tab="tab-a", user="alice")
-        assert await other.wait(timeout=1)
         table.force(VALVE, tab="tab-b", user="bob", ip="-", screen="vacuum")
         assert await other.wait(timeout=1)
         table.release(VALVE, tab="tab-b", user="bob")

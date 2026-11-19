@@ -277,8 +277,12 @@ A control marked `exclusive:` in a screen's YAML can be written by **one
 browser tab at a time**. The lock is on the PV, so a PV that one screen marks
 exclusive is locked on every screen of the zone (`core/locks.py`).
 
-- **Take control.** An exclusive control starts disabled, with **Take
-  control** beside it. Taking it enables the control in that tab only.
+- **First come.** The first tab to open a screen gets every exclusive control
+  on it that nobody holds, with nothing to press. A laser hidden with the
+  screen's checkboxes is not taken.
+- **Take control.** A control someone released starts disabled, with **Take
+  control** beside it. Taking it enables the control in that tab only. Any
+  page that opens while it is free takes it too.
 - **Read-only elsewhere.** Every other tab sees the control disabled, and who
   holds it, from where and since when:
   `jsvacha · 10.78.4.21 · vacuum · since 14:02`. The streams push this to each
@@ -290,6 +294,9 @@ exclusive is locked on every screen of the zone (`core/locks.py`).
 - **Lapse.** If no screen showing the PV has been open in the holder's tab for
   `LOCK_GRACE_SECONDS` (default 60), the lock is released. A reload or a stream
   reconnect within that time keeps it.
+- **Pass.** If exactly one other tab is showing the PV when it lapses, control
+  passes to that tab, which is told `Control of … passed to you`. With two or
+  more waiting it is left free.
 
 A tab is identified by an id the page puts in `sessionStorage` and sends as the
 `tab` signal. A holder is that tab *and* the user signed in on it, so the id is
@@ -298,7 +305,7 @@ not a credential. `/api/write` refuses an exclusive PV to any other tab, a
 Screens with an exclusive PV keep their stream open while the tab is hidden,
 because a tab in the background is still the tab that holds control.
 
-Every take, release, force (a WARNING naming both users), lapse and refused
+Every take, release, force (a WARNING naming both users), lapse, pass and refused
 write is logged under `core.locks` / `core.routes`. `/monitor` lists who holds
 what.
 

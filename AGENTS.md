@@ -50,7 +50,8 @@ All from the repo root:
   - `/api/write` refuses the PV unless the request's `tab` signal and user match the holder. `POST /api/lock` takes, releases or forces it.
   - The page mints `tab` and the browser keeps it in `sessionStorage`. It is the one page signal without a `_` prefix, because Datastar doesn't send `_` signals.
   - Each screen stream opens a `LockTable.watch()` that keeps its tab's locks alive and wakes the loop to push `_locks`, plus a toast when someone forced the lock away.
-  - A lock lapses `LOCK_GRACE_SECONDS` after its tab stops showing the PV.
+  - The first tab to show a free exclusive PV gets it: `LockTable.watch()` takes it when a screen's stream opens.
+  - A lock lapses `LOCK_GRACE_SECONDS` after its tab stops showing the PV. If exactly one other tab shows it then, it passes to that tab (a `Given` event, toasted); otherwise it is left free.
   - The controls in `controls.html` follow `$_locks.<key>.state`. They are never patched.
 - **Camera frames** (`cameras/`) never touch the PV hub, widgets or SSE.
   - A component declares `cameras()` (a `CameraSpec` each) beside `pv_specs()`. `Zone.cameras()` unions them by PV and refuses conflicting geometry.

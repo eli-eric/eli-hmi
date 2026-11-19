@@ -80,8 +80,8 @@ screen later shows up on workstations that chose before it existed.
 
 Hiding a component also gives up this tab's exclusive control of it at once,
 and ticking it back takes control of whatever is free — never from another
-tab that holds it. Only the box that changed moves control: loading the page
-takes nothing.
+tab that holds it. Opening the screen takes every free control on the
+components it shows, and none on the hidden ones.
 
 ### Splitting a big screen
 

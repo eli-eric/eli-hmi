@@ -37,7 +37,7 @@ from core.clients import ClientRegistry
 from core.components import PvReader, WriteRule
 from core.epics.hub import PvHub
 from core.epics.types import PvDescription, PvId
-from core.locks import LockTable, Watcher, clock_time, describe
+from core.locks import Forced, Given, LockTable, Watcher, clock_time, describe
 from core.login import client_ip
 from core.page import Page
 from core.palette import DEFAULT_PALETTE, PALETTE_COOKIE, PALETTES, usable
@@ -520,7 +520,11 @@ async def _stream_events(
     """
     stopping = shutting_down or asyncio.Event()
     subscription = await hub.subscribe(view.all_pvs)
-    watcher = view.locks.watch(tab=tab, user=user, pvs=view.exclusive_pvs)
+    # Also how a tab that opens first gets every free control it shows, so
+    # the lock records where it was taken, as a Take control press would.
+    watcher = view.locks.watch(
+        tab=tab, user=user, pvs=view.exclusive_pvs, ip=ip, screen=slug
+    )
     registry = clients if clients is not None else ClientRegistry()
     client = registry.open(kind="screen", slug=slug, user=user, ip=ip, user_agent=user_agent)
     logger.info(
@@ -561,13 +565,11 @@ async def _stream_events(
             signals: dict[str, Any] = {"_age": 0}
             if locks_moved:
                 signals["_locks"] = view.lock_view(tab=tab, user=user)
-                for forced in watcher.events():
+                for event in watcher.events():
                     # Told, not discovered: an operator whose control was
-                    # taken should not learn it by pressing a dead button.
-                    signals["_toast"] = (
-                        f"Control of {forced.pv} taken over by {forced.by.user} "
-                        f"({forced.by.ip}) at {clock_time(forced.by.since, now=time.time())}"
-                    )
+                    # taken should not learn it by pressing a dead button,
+                    # nor one given control by not knowing a live one is theirs.
+                    signals["_toast"] = _lock_toast(event)
                     signals["_toast_age"] = 0
             yield sent(SSE.patch_signals(signals))
 
@@ -589,6 +591,19 @@ async def _stream_events(
             user,
             hub.subscriber_count,
         )
+
+
+def _lock_toast(event: Forced | Given) -> str:
+    """What a tab is told when a lock moved to or from it without its asking."""
+    if isinstance(event, Given):
+        return (
+            f"Control of {event.pv} passed to you: {event.previous.user} "
+            f"({event.previous.ip}) has left"
+        )
+    return (
+        f"Control of {event.pv} taken over by {event.by.user} "
+        f"({event.by.ip}) at {clock_time(event.by.since, now=time.time())}"
+    )
 
 
 async def write() -> DatastarResponse:
