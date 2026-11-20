@@ -659,6 +659,42 @@ class TestOnTheScreen:
         assert 'class="lock-strip"' in body[header : header + 200], "not under the NL2 header"
         assert "confirm('Take control of NL2, all of it, from '" in body
 
+    #: One tag, read attribute by attribute: an expression may hold a `>`.
+    TAG = r'(?:[^>"]|"[^"]*")*>'
+
+    def test_a_laser_s_write_dialogs_open_only_for_the_desk_that_has_it(self, zone):
+        """A cog that opens onto controls this desk may not use is a dialog of
+        dead buttons: it stays shut until the desk has the laser."""
+        page = self.page(zone, "l4-opcpa")
+        body = unescape(render(page))
+        nl2 = body[body.index('<h2 class="panel-title">NL2</h2>') : body.index('<h2 class="panel-title">NL4</h2>')]
+        cogs = re.findall(r'<button type="button" class="cog-button"' + self.TAG, nl2)
+        assert len(cogs) >= 5, "NL2's cogs are not where they were"
+        key = page.locks.key("CMD_NL2_START_LASER")
+        for cog in cogs:
+            assert disabled(cog), cog
+            assert f"disabled: $_locks.{key}.state !== 'mine'" in cog, cog
+            assert "'aria-expanded'" in cog, "the cog no longer says it is open"
+
+    def test_a_register_s_set_opens_only_for_the_desk_that_has_the_laser(self, zone):
+        from core.page import build_pages
+
+        view = build_pages(zone, create_environment())["l4-opcpa/NL2/registers"]
+        body = unescape(view.render_view(PvReader({}, True)))
+        key = view.locks.key("CMD_NL2_START_LASER")
+        sets = re.findall(r'<button type="button" class="register-select"' + self.TAG, body)
+        assert sets, "no register can be set"
+        for button in sets:
+            assert disabled(button), button
+            assert f"disabled: $_locks.{key}.state !== 'mine'" in button, button
+
+    def test_a_valve_s_cog_still_opens_onto_its_strip(self, zone):
+        """Laser only, for now: a valve keeps its strip inside its cog, so the
+        cog has to open for a desk to take control."""
+        body = unescape(render(self.page(zone, "vacuum")))
+        cogs = re.findall(r'<button type="button" class="cog-button"' + self.TAG, body)
+        assert cogs and not any(disabled(cog) for cog in cogs)
+
     def test_the_laser_s_views_carry_its_strip(self, zone):
         from core.page import build_pages
 

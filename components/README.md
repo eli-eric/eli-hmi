@@ -125,7 +125,9 @@ The write controls in `controls.html` handle the rest. A button, preset field
 or drop-down whose PV is under control renders `disabled` and follows the
 page's `_locks` signal (`lock_gate`). Your template draws its unit's one strip
 with `{{ controls.unit_strip(unit) }}` where an operator will look for it — in
-the cog with the controls, or under a panel's header. `unit` is in every
+the cog with the controls, or under a panel's header. When the strip is not
+in the cog, pass `held=unit` to `controls.cog` so the cog itself waits for
+control, as the laser panel does; a cog holding the strip must stay openable. `unit` is in every
 component's context, and is none for a component that is not a unit.
 `tests/test_locks.py` checks that every control on a TESTZ screen writes a PV
 the screen declares.

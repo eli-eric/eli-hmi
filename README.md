@@ -287,7 +287,8 @@ register's refresh) is shared by the type's code.
 - **One strip per unit.** Under a laser's header (and its Registers and ModBox
   views), or in a valve's or motor's cog: **Take control**, **Release**,
   **Force**. Its controls carry no strip of their own; they are enabled only in
-  the tab that has the unit.
+  the tab that has the unit. On a laser, so are the buttons that open a write
+  dialog — its cogs and its registers' SET — so another desk cannot open one.
 - **Read-only elsewhere.** Every other tab sees the unit's controls disabled,
   and who holds it, from where and since when:
   `jsvacha · 10.78.4.21 · vacuum · since 14:02`. The streams push this to each

@@ -65,7 +65,7 @@
       {% if c.can('OPEN_SHUTTER') or c.can('CLOSE_SHUTTER') %}
       {% set shutter_cog = comp.signal('cog_shutter') %}
       {% set shutter_actions %}
-      {% call controls.cog(shutter_cog, 'Shutter actions') %}
+      {% call controls.cog(shutter_cog, 'Shutter actions', held=unit) %}
         {% if c.can('OPEN_SHUTTER') %}
           {{ controls.action_button('Open Shutter', cmd.OPEN_SHUTTER.pv, cmd.OPEN_SHUTTER.value, 'secondary', shutter_cog) }}
         {% endif %}
@@ -84,7 +84,7 @@
       {% if c.can('START_LASER') or c.can('STOP_LASER') or c.can('ALIGNMENT_MODE') or c.can('SYSTEM_STANDBY') %}
       {% set general_cog = comp.signal('cog_general') %}
       <div class="action-row">
-        {% call controls.cog(general_cog, 'General Actions', 'General Actions') %}
+        {% call controls.cog(general_cog, 'General Actions', 'General Actions', held=unit) %}
           {% if c.can('START_LASER') %}
             {{ controls.action_button('Start Laser', cmd.START_LASER.pv, cmd.START_LASER.value, 'primary', general_cog) }}
           {% endif %}
@@ -112,7 +112,7 @@
       {% if c.can('SET_ATTENUATOR') %}
       {% set atten_cog = comp.signal('cog_atten') %}
       {% set atten_actions %}
-      {% call controls.cog(atten_cog, 'Set attenuator') %}
+      {% call controls.cog(atten_cog, 'Set attenuator', held=unit) %}
         {{ controls.preset_input('Set Attenuator', [], cmd.SET_ATTENUATOR.pv,
                                  comp.signal('set_atten', ''), atten_cog,
                                  min=cmd.SET_ATTENUATOR.min, max=cmd.SET_ATTENUATOR.max,
@@ -167,7 +167,7 @@
         {% if c.can('FLASHLAMPS_RUN') or c.can('FLASHLAMPS_STANDBY') %}
         {% set fl_cog = comp.signal('cog_flashlamps') %}
         <span>
-          {% call controls.cog(fl_cog, 'Flashlamps actions') %}
+          {% call controls.cog(fl_cog, 'Flashlamps actions', held=unit) %}
             {% if c.can('FLASHLAMPS_RUN') %}
               {{ controls.action_button('Set All to Run', cmd.FLASHLAMPS_RUN.pv, cmd.FLASHLAMPS_RUN.value, 'primary', fl_cog) }}
             {% endif %}
@@ -186,7 +186,7 @@
       {% if c.can('SET_DELAY') %}
       {% set delay_cog = comp.signal('cog_delay') %}
       {% set delay_actions %}
-      {% call controls.cog(delay_cog, 'Set trigger delay') %}
+      {% call controls.cog(delay_cog, 'Set trigger delay', held=unit) %}
         {{ controls.preset_input('Set Trigger Delay', c.delay_presets, cmd.SET_DELAY.pv,
                                  comp.signal('set_delay', ''), delay_cog,
                                  min=cmd.SET_DELAY.min, max=cmd.SET_DELAY.max,
@@ -219,7 +219,7 @@
           read before, which looks like a write that did nothing. -#}
       {% set wf_cog = comp.signal('cog_waveform') %}
       {% set wf_actions %}
-      {% call controls.cog(wf_cog, 'Set waveform preset', on_open=waveforms_url) %}
+      {% call controls.cog(wf_cog, 'Set waveform preset', on_open=waveforms_url, held=unit) %}
         {{ controls.choice_select(c.pvs.loaded_waveform, comp.signal('set_waveform', ''),
                                   waveforms, 'Set waveform', wf_cog,
                                   catalog=waveform_catalog,
@@ -241,7 +241,7 @@
             waveform list inside this panel comes from the device, and a
             catalog read once at start-up is wrong by the second shift. -#}
         {% call controls.cog(modbox_cog, 'Modbox actions', 'Modbox Actions',
-                             on_open=waveforms_url) %}
+                             on_open=waveforms_url, held=unit) %}
           {% if c.can('MODBOX_ON') %}
             {{ controls.action_button('Set Modbox ON', cmd.MODBOX_ON.pv, cmd.MODBOX_ON.value, 'primary', modbox_cog) }}
           {% endif %}

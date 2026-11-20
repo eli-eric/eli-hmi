@@ -45,7 +45,10 @@
                   data-on:click="${{ selected_signal }} === '{{ register.pv }}'
                   ? (${{ selected_signal }} = '')
                   : @get('{{ select_url }}&amp;pv={{ register.pv | urlencode }}')"
-                  data-attr="{'aria-expanded': ${{ selected_signal }} === '{{ register.pv }}' ? 'true' : 'false'}"
+                  {#- Opens a write panel, so it waits for this tab to have the
+                      laser, as the panel's own controls do. -#}
+                  {%- if unit %} disabled{% endif %}
+                  data-attr="{'aria-expanded': ${{ selected_signal }} === '{{ register.pv }}' ? 'true' : 'false'{% if unit %}, disabled: $_locks.{{ unit.key }}.state !== 'mine'{% endif %}}"
                   aria-label="Set {{ register.label }}">SET</button>
           {%- endif %}
           {#- Last, so every row's refresh is in one column at the right edge

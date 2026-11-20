@@ -120,7 +120,12 @@ data-attr="{disabled: {{ extra }}}"
     Two modes: with an `inline_label` the panel expands in normal flow inside the
     card (so the card grows and nothing escapes its border); without one it is a
     dropdown anchored to the cog. -#}
-{%- macro cog(signal, aria_label, inline_label=none, on_open=none) -%}
+{#- `held` is the unit whose controls the panel holds (the page's `unit`):
+    given, the cog itself waits for this tab to have control, as the controls
+    inside it do — a dialog of dead buttons is not worth opening. Not given by
+    a component whose strip is inside its cog, which has to open for a desk
+    to take control. -#}
+{%- macro cog(signal, aria_label, inline_label=none, on_open=none, held=none) -%}
 <span class="cog-wrapper" data-inline="{{ 'true' if inline_label else 'false' }}">
 {#- `on_open` is for a panel whose contents come from a device that can change
     while the machine runs: it is asked again each time the panel is opened. -#}
@@ -133,7 +138,8 @@ data-attr="{disabled: {{ extra }}}"
         data-on:click="${{ signal }} = !${{ signal }}{% if on_open %}; ${{ signal }} && @get('{{ on_open }}'){% endif %}"
         data-on:click__window="evt.target.closest('.cog-wrapper') === el.closest('.cog-wrapper') || (${{ signal }} = false)"
         data-on:keydown__window="evt.key === 'Escape' && (${{ signal }} = false)"
-        data-attr="{'aria-expanded': ${{ signal }} ? 'true' : 'false'}">
+        {%- if held %} disabled{% endif %}
+        data-attr="{'aria-expanded': ${{ signal }} ? 'true' : 'false'{% if held %}, disabled: $_locks.{{ held.key }}.state !== 'mine'{% endif %}}">
 {% if inline_label %}<span class="cog-inline-label">{{ inline_label }}</span>{% endif %}
 <span class="cog-glyph" aria-hidden="true">&#9881;</span>
 </button>
