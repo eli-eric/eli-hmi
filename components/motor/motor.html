@@ -5,6 +5,7 @@
 {% set actions %}
 {% if setpoint_pv or stop_pv %}
 {% call controls.cog(cog, c.label ~ ' move') %}
+{{ controls.unit_strip(unit) }}
 {% if setpoint_pv %}
 {{ controls.preset_input('Move to', c.presets, setpoint_pv, set_signal, cog, c.step, kind='number') }}
 {% endif %}

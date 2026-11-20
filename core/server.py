@@ -165,7 +165,7 @@ def create_app(settings: Settings | None = None) -> Quart:
     env = create_environment(auto_reload=settings.dev)
     # One table for the zone: a PV that one screen marks exclusive is locked
     # on every screen with a control for it.
-    locks = LockTable(zone.exclusive_pvs(), grace_seconds=settings.lock_grace_seconds)
+    locks = LockTable(zone.control_units(), grace_seconds=settings.lock_grace_seconds)
     pages = build_pages(zone, env, locks)
     hub = PvHub(build_backend(settings, zone))
     # Built here rather than at serve time so an unusable LOG_DIR stops the

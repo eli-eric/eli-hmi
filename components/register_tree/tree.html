@@ -19,6 +19,8 @@
     <h2 class="panel-title">{{ c.title }}</h2>
     {{ controls.view_back() }}
   </header>
+  {#- Its device's strip: the setpoints here are the laser's, taken with it. -#}
+  {{ controls.unit_strip(unit) }}
   <div class="body">
     {#- One card for the whole device: one label column and one right edge for
         every register, whichever module it is in. -#}

@@ -9,6 +9,7 @@ period is tested without waiting for it.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import textwrap
 from html import unescape
@@ -18,7 +19,7 @@ import pytest
 
 from core.components import PvReader
 from core.jinja import create_environment
-from core.locks import LockTable
+from core.locks import LockTable, Unit
 from core.page import Page
 from core.zones import load_zone
 
@@ -219,6 +220,162 @@ class TestAnAbandonedLockLapses:
         assert [pv for pv, _ in table.sweep()] == [VALVE]
 
 
+OPEN = "L4-VCS-NL2:VV1:Open"
+CLOSE = "L4-VCS-NL2:VV1:Close"
+
+
+class TestAUnitIsTakenWhole:
+    """Control is registered per PV, but taken and released per component: a
+    device is controlled from one desk or not at all."""
+
+    @pytest.fixture
+    def units(self, clock) -> LockTable:
+        return LockTable(
+            [Unit(key="vacuum/VV1", name="VV1", pvs=frozenset({OPEN, CLOSE}))],
+            grace_seconds=60,
+            clock=clock,
+        )
+
+    def test_taking_one_pv_of_a_unit_takes_all_of_it(self, units):
+        assert units.take(OPEN, tab="tab-a", user="alice", ip="-", screen="vacuum").granted
+        assert units.holder(CLOSE).tab == "tab-a"
+        assert units.refuses_write(CLOSE, tab="tab-a", user="alice") is None
+        assert units.refuses_write(CLOSE, tab="tab-b", user="bob") is not None
+
+    def test_a_unit_can_be_named_instead_of_one_of_its_pvs(self, units):
+        units.take("vacuum/VV1", tab="tab-a", user="alice", ip="-", screen="vacuum")
+        assert units.holder(OPEN).tab == units.holder(CLOSE).tab == "tab-a"
+
+    def test_releasing_one_pv_releases_all_of_it(self, units):
+        units.take(OPEN, tab="tab-a", user="alice", ip="-", screen="vacuum")
+        assert units.release(CLOSE, tab="tab-a", user="alice").granted
+        assert units.holder(OPEN) is None
+
+    def test_forcing_one_pv_takes_all_of_it_from_the_holder(self, units):
+        units.take(OPEN, tab="tab-a", user="alice", ip="-", screen="vacuum")
+        outcome = units.force(CLOSE, tab="tab-b", user="bob", ip="-", screen="overview")
+        assert outcome.previous.tab == "tab-a"
+        assert units.holder(OPEN).tab == "tab-b"
+        assert units.refuses_write(OPEN, tab="tab-a", user="alice") is not None
+
+    def test_a_tab_showing_part_of_a_unit_keeps_all_of_it(self, units, clock):
+        """An overview with one of a device's buttons is still a screen
+        showing that device: control does not lapse under it."""
+        units.watch(tab="tab-a", user="alice", pvs=[OPEN])
+        clock.advance(600)
+        assert units.sweep() == []
+        assert units.holder(CLOSE).tab == "tab-a"
+
+    def test_it_passes_whole_to_the_one_tab_showing_any_of_it(self, units, clock):
+        alices = units.watch(tab="tab-a", user="alice", pvs=[OPEN, CLOSE])
+        units.watch(tab="tab-b", user="bob", pvs=[CLOSE])
+        alices.close()
+        clock.advance(61)
+        units.sweep()
+        assert units.holder(OPEN).tab == units.holder(CLOSE).tab == "tab-b"
+
+    def test_its_pvs_share_one_entry_in_the_page_s_signal(self, units):
+        assert units.key(OPEN) == units.key(CLOSE) is not None
+        assert list(units.view([OPEN, CLOSE], tab="tab-a", user="alice")) == [units.key(OPEN)]
+
+
+class TestUnitsThatShareAPvAreOne:
+    """Control is separated by device. Two units writing the same PV are
+    almost certainly a slip in one screen; the station still runs, takes them
+    as one — the safe way round — and says so."""
+
+    SHARED = "L4-OPCPA-NL2:SetAlignmentMode"
+
+    def test_they_are_taken_together_and_the_overlap_is_logged(self, clock, caplog):
+        nl2 = Unit(key="opcpa/NL2", name="NL2", pvs=frozenset({"CMD_NL2_START", self.SHARED}))
+        apl = Unit(key="spfe/APL", name="APL", pvs=frozenset({"CMD_APL_START", self.SHARED}))
+        with caplog.at_level(logging.WARNING, logger="core.locks"):
+            table = LockTable([nl2, apl], clock=clock)
+        assert "opcpa/NL2" in caplog.text and "spfe/APL" in caplog.text
+        assert self.SHARED in caplog.text
+
+        table.take("CMD_NL2_START", tab="tab-a", user="alice", ip="-", screen="opcpa")
+        assert table.holder("CMD_APL_START").tab == "tab-a"
+        assert table.key("CMD_NL2_START") == table.key("CMD_APL_START")
+
+    def test_the_same_device_on_two_screens_is_one_unit_without_a_warning(self, clock, caplog):
+        pvs = frozenset({"CMD_NL1_START", "CMD_NL1_STOP"})
+        with caplog.at_level(logging.WARNING, logger="core.locks"):
+            table = LockTable(
+                [Unit(key="opcpa/NL1", name="NL1", pvs=pvs), Unit(key="overview/NL1", name="NL1", pvs=pvs)],
+                clock=clock,
+            )
+        assert caplog.text == ""
+        table.take("overview/NL1", tab="tab-a", user="alice", ip="-", screen="overview")
+        assert table.holder("opcpa/NL1").tab == "tab-a"
+
+
+@pytest.fixture(scope="module")
+def testz_units() -> dict[str, Unit]:
+    return {unit.key: unit for unit in load_zone("TESTZ").control_units()}
+
+
+class TestAComponentIsAUnitOfControl:
+    """A device is the component that writes to it: everything it writes is
+    taken together, unless its own code says a write is shared."""
+
+    @pytest.fixture
+    def units(self, testz_units) -> dict[str, Unit]:
+        return testz_units
+
+    def test_a_laser_is_everything_it_writes_its_registers_included(self, units):
+        nl2 = units["l4-opcpa/NL2"]
+        assert nl2.name == "NL2"
+        assert {"CMD_NL2_START_LASER", "CMD_NL2_STOP_LASER"} <= nl2.pvs
+        assert "L4-OPCPA-NL2:SM5-SH:50:SetPosition" in nl2.pvs, "the shutter is left out"
+        assert "L4-OPCPA-NL2:PS1225:11:SetPoint:W" in nl2.pvs, "a register setpoint is left out"
+        assert "L4-OPCPA-NL2:NVWriteEnable" in nl2.pvs, "the NV arm is left out"
+
+    def test_reading_a_register_again_is_shared(self, units):
+        """The register tree says so itself: processing a record changes
+        nothing on the device, so any desk may ask for a fresh reading."""
+        assert not any(pv.endswith(".PROC") for pv in units["l4-opcpa/NL2"].pvs)
+
+
+def screen(*blocks: dict) -> "Gui":
+    """A screen built from YAML blocks, as a `gui.yaml` would build it."""
+    from pathlib import Path
+
+    from core.zones import Gui, build_component
+
+    counters: dict[str, int] = {}
+    components = [build_component(block, "test.yaml", counters) for block in blocks]
+    return Gui(slug="vacuum", title="Vacuum", order=1, description="", path=Path("."), components=components)
+
+
+class TestEveryComponentThatWritesIsExclusive:
+    """Exclusive is the default: leaving a component's writes outside control
+    is something a screen says, not something it forgets to say."""
+
+    VALVE = {"component": "valve", "label": "VV2", "pv": "V2:State", "open_pv": "V2:Open", "close_pv": "V2:Close"}
+
+    def test_a_component_that_says_nothing_is_under_control(self):
+        [unit] = screen(self.VALVE).control_units()
+        assert {"V2:Open", "V2:Close"} <= unit.pvs
+
+    def test_a_panel_is_not_a_unit_but_what_it_holds_is(self):
+        other = {**self.VALVE, "label": "VV3", "pv": "V3:State", "open_pv": "V3:Open", "close_pv": "V3:Close"}
+        units = screen({"component": "panel", "title": "Valves", "components": [self.VALVE, other]}).control_units()
+        assert len(units) == 2
+        assert {"V2:Open", "V2:Close"} <= units[0].pvs and {"V3:Open", "V3:Close"} <= units[1].pvs
+
+    def test_exclusive_false_leaves_the_whole_component_out(self):
+        assert screen({**self.VALVE, "exclusive": False}).control_units() == []
+
+    def test_the_old_list_of_controls_is_read_as_the_whole_component(self, caplog):
+        """Control is per component now: a list from before still loads — a
+        station must not stop over one screen — and says what it became."""
+        with caplog.at_level(logging.WARNING):
+            [unit] = screen({**self.VALVE, "exclusive": ["open"]}).control_units()
+        assert {"V2:Open", "V2:Close"} <= unit.pvs
+        assert "exclusive" in caplog.text and "open" in caplog.text
+
+
 class TestTheFirstTabToShowAPvTakesIt:
     """A control nobody holds goes to the first tab that shows it: the page
     that connects first is the operator's, with nothing to press."""
@@ -275,7 +432,7 @@ class TestALapsedControlPassesToTheOneTabLeft:
         clock.advance(61)
         table.sweep()
         [event] = bobs.events()
-        assert (event.pv, event.previous.user) == (VALVE, "alice")
+        assert (event.unit.key, event.previous.user) == (VALVE, "alice")
         assert bobs.events() == []
 
     def test_with_two_tabs_waiting_it_is_left_free(self, table, clock):
@@ -351,7 +508,7 @@ class TestWhatIsHeld:
         table.watch(tab="tab-a", user="alice", pvs=[VALVE])
         take(table, tab="tab-a", user="alice")
         [held] = table.held()
-        assert (held.pv, held.holder.user, held.lapses_at) == (VALVE, "alice", None)
+        assert (held.unit.key, held.holder.user, held.lapses_at) == (VALVE, "alice", None)
 
     def test_an_abandoned_lock_says_when_it_will_lapse(self, table, clock):
         take(table, tab="tab-a", user="alice")
@@ -406,7 +563,7 @@ class TestScreensHearAboutChanges:
         table.force(VALVE, tab="tab-b", user="bob", ip="10.78.4.22", screen="vacuum")
 
         [event] = alices.events()
-        assert (event.pv, event.by.user, event.by.ip) == (VALVE, "bob", "10.78.4.22")
+        assert (event.unit.key, event.by.user, event.by.ip) == (VALVE, "bob", "10.78.4.22")
         assert alices.events() == []
         assert bystander.events() == []
 
@@ -481,13 +638,38 @@ class TestOnTheScreen:
         assert disabled(button)
         assert f"$_locks.{key}.state !== 'mine'" in unescape(button)
 
-    def test_it_offers_to_take_control_and_to_force_it(self, zone):
-        body = unescape(render(self.page(zone, "vacuum")))
+    def test_it_offers_to_take_control_of_the_unit_and_to_force_it(self, zone):
+        page = self.page(zone, "vacuum")
+        body = unescape(render(page))
         assert "Take control" in body and "Force" in body and "Release" in body
-        assert "/api/lock?pv=L4-VCS-NL2%3AVV1%3AOpen&action=take" in body
+        unit = page.locks.unit(VV1_OPEN).key
+        assert f"/api/lock?unit={quote(unit, safe='/')}&action=take" in body
         assert "confirm(" in body
 
-    def test_a_button_that_is_not_exclusive_is_left_alone(self, zone):
+    def test_a_unit_draws_one_strip_and_its_controls_none(self, zone):
+        for slug in ("vacuum", "l4-opcpa", "chillers"):
+            page = self.page(zone, slug)
+            body = render(page)
+            shown = {page.locks.unit(pv).key for pv in page.exclusive_pvs}
+            assert body.count('class="lock-strip"') == len(shown), slug
+
+    def test_a_laser_s_strip_is_under_its_header_and_force_names_the_laser(self, zone):
+        body = unescape(render(self.page(zone, "l4-opcpa")))
+        header = body.index("</header>", body.index('<h2 class="panel-title">NL2</h2>'))
+        assert 'class="lock-strip"' in body[header : header + 200], "not under the NL2 header"
+        assert "confirm('Take control of NL2, all of it, from '" in body
+
+    def test_the_laser_s_views_carry_its_strip(self, zone):
+        from core.page import build_pages
+
+        view = build_pages(zone, create_environment())["l4-opcpa/NL2/registers"]
+        body = view.render_view(PvReader({}, True))
+        key = view.locks.key("CMD_NL2_START_LASER")
+        strip = body[body.index('class="lock-strip"') :][:400]
+        assert f"$_locks.{key}.state" in strip
+
+    def test_a_component_left_out_of_control_is_left_alone(self, zone):
+        """VV2 says `exclusive: false`: any desk may press it."""
         [button] = buttons_writing(render(self.page(zone, "vacuum")), VV2_OPEN)
         assert "disabled" not in button and "_locks" not in button
 
@@ -505,18 +687,16 @@ class TestOnTheScreen:
         body = unescape(render(self.page(zone, "vacuum")))
         assert "sessionStorage" in body
 
-    def test_the_laser_start_and_stop_are_locked_and_alignment_is_not(self, zone):
+    def test_every_button_of_the_laser_follows_the_laser_s_one_lock(self, zone):
         page = self.page(zone, "l4-opcpa")
         body = render(page)
-        for command in ("CMD_NL2_START_LASER", "CMD_NL2_STOP_LASER"):
-            [button] = buttons_writing(body, command)
-            assert disabled(button), command
-            assert f"$_locks.{page.locks.key(command)}.state !== 'mine'" in unescape(button)
-        [alignment] = buttons_writing(body, "L4-OPCPA-NL2:SetAlignmentMode")
-        assert "_locks" not in alignment
+        key = page.locks.key("CMD_NL2_START_LASER")
+        for pv in ("CMD_NL2_START_LASER", "CMD_NL2_STOP_LASER", "L4-OPCPA-NL2:SetAlignmentMode"):
+            [button] = buttons_writing(body, pv)
+            assert disabled(button), pv
+            assert f"$_locks.{key}.state !== 'mine'" in unescape(button), pv
 
-    def test_an_exclusive_setpoint_locks_its_field_and_confirm(self, tmp_path, monkeypatch):
-        # No TESTZ screen has an exclusive setpoint, so this test brings its own.
+    def test_a_setpoint_locks_its_field_and_confirm(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ZONES_ROOT", str(tmp_path))
         (tmp_path / "Z" / "att").mkdir(parents=True)
         (tmp_path / "Z" / "zone.yaml").write_text("title: Z\n")
@@ -531,7 +711,6 @@ class TestOnTheScreen:
                   label: Set Attenuator
                   pv: ATT:SetPosition
                   presets: [0, 25, 50]
-                  exclusive: true
         """))
         zone = load_zone("Z")
         page = self.page(zone, "att")
@@ -554,7 +733,9 @@ class TestOnTheScreen:
             assert written <= declared, f"/{gui.slug}: {sorted(written - declared)}"
 
 
-def test_a_pv_exclusive_on_one_screen_is_locked_on_every_screen(tmp_path, monkeypatch):
+def test_a_pv_under_control_on_one_screen_is_locked_on_every_screen(tmp_path, monkeypatch):
+    """Even where that screen leaves its own component out: the safe way
+    round, since the other screen's operator relies on holding it."""
     monkeypatch.setenv("ZONES_ROOT", str(tmp_path))
     (tmp_path / "Z").mkdir()
     (tmp_path / "Z" / "zone.yaml").write_text("title: Z\n")
@@ -567,8 +748,9 @@ def test_a_pv_exclusive_on_one_screen_is_locked_on_every_screen(tmp_path, monkey
                 label: Shutter
                 pv: S:State
                 kind: bool
+                exclusive: {flag}
                 actions:
-                  - {{ label: Open, value: 1, pv: "S:Open", exclusive: {flag} }}
+                  - {{ label: Open, value: 1, pv: "S:Open" }}
         """))
     zone = load_zone("Z")
     loose = Page(zone, zone.gui("loose"), create_environment())
@@ -590,5 +772,5 @@ class TestAHiddenTabKeepsItsControl:
         assert "openWhenHidden: true" in call
 
     def test_a_screen_without_one_keeps_the_default(self, zone):
-        call = self.stream_call(Page(zone, zone.gui("chillers"), create_environment()))
+        call = self.stream_call(Page(zone, zone.gui("cameras"), create_environment()))
         assert "openWhenHidden" not in call

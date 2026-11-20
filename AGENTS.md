@@ -44,15 +44,14 @@ All from the repo root:
 - **Widget granularity:** a widget is a value cell, pill or list, never a row. Labels, inputs and cog buttons are rendered once and never patched.
 - **Colour:** components own geometry and emit `data-tone-surface` / `data-tone`. `core/static/css/hmi.css` owns colour. `core/render/severity.py` is the only thing that decides which tone applies (transport loss > EPICS severity > component emphasis), so never hard-code a colour in a component.
 - **Writes:** every control posts to `POST /api/write` (`?pv=…&value=…` or `?pv=…&signal=…`). Command PVs and their effects are declared once in `pv_specs()` and drive both the simulator and the generated IOC.
-- **Exclusive write control:** `exclusive:` on a control in screen YAML lets one browser tab at a time write that PV.
-  - A component declares the PV with `Component.exclusive()`. `Zone.exclusive_pvs()` unions them, and one `core/locks.py` `LockTable` on `app.hmi.locks` holds the state.
-  - The lock is keyed by PV, so a PV marked exclusive on one screen is exclusive on all of them.
-  - `/api/write` refuses the PV unless the request's `tab` signal and user match the holder. `POST /api/lock` takes, releases or forces it.
+- **Exclusive write control:** everything a component writes is under control by default; one browser tab at a time may use it. Taken and released per unit (a device), registered per PV.
+  - A unit is the outermost component that writes PVs itself, with everything under it and its detail views (`Gui.control_units()` in `core/zones.py`). A laser is one unit, register setpoints included. `exclusive: false` on the component leaves it out; `self.writable(pv, rule, exclusive=False)` is a component type sharing one write (the register refresh).
+  - One `core/locks.py` `LockTable` on `app.hmi.locks` holds the state per unit. Units sharing a PV are joined into one, with a start-up warning. Every operation accepts a unit key or any of its PVs.
+  - `/api/write` refuses the PV unless the request's `tab` signal and user hold its unit. `POST /api/lock?unit=…` takes, releases or forces it.
   - The page mints `tab` and the browser keeps it in `sessionStorage`. It is the one page signal without a `_` prefix, because Datastar doesn't send `_` signals.
-  - Each screen stream opens a `LockTable.watch()` that keeps its tab's locks alive and wakes the loop to push `_locks`, plus a toast when someone forced the lock away.
-  - The first tab to show a free exclusive PV gets it: `LockTable.watch()` takes it when a screen's stream opens.
-  - A lock lapses `LOCK_GRACE_SECONDS` after its tab stops showing the PV. If exactly one other tab shows it then, it passes to that tab (a `Given` event, toasted); otherwise it is left free.
-  - The controls in `controls.html` follow `$_locks.<key>.state`. They are never patched.
+  - Each screen stream opens a `LockTable.watch()` that takes every free unit it shows (first tab wins), keeps its tab's units alive, and wakes the loop to push `_locks`, with a toast when one was forced away or passed to it.
+  - A unit lapses `LOCK_GRACE_SECONDS` after its tab shows none of it. If exactly one other tab shows any of it then, it passes to that tab (a `Given` event); otherwise it is left free.
+  - One strip per unit (`controls.unit_strip`, given the page's `unit` context). Controls follow `$_locks.<key>.state` through `lock_gate` and draw no strip. They are never patched.
 - **Camera frames** (`cameras/`) never touch the PV hub, widgets or SSE.
   - A component declares `cameras()` (a `CameraSpec` each) beside `pv_specs()`. `Zone.cameras()` unions them by PV and refuses conflicting geometry.
   - `CameraHub` opens a source (aioca or the beam simulator) when a camera's first viewer arrives and closes it when the last one leaves. It encodes once per (camera, scale) on a thread pool, and delivers to per-viewer latest-wins slots.

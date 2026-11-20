@@ -367,9 +367,11 @@ class TestAScreenWithoutSomeOfItsLasers:
         screen shows (`core.locks`): hidden, a laser's control lapses after
         the grace period, as a closed tab's would."""
         view = Page(zone, zone.gui("l4-opcpa"), create_environment())
-        assert view.exclusive_pvs, "NL2's start and stop are exclusive in TESTZ"
-        assert view.without(["NL2"]).exclusive_pvs == frozenset()
-        assert view.without(["NL4"]).exclusive_pvs == view.exclusive_pvs
+        nl2 = view.exclusive_pvs_of("NL2")
+        nl4 = view.exclusive_pvs_of("NL4")
+        assert nl2 and nl4, "both lasers are under control in TESTZ"
+        assert view.without(["NL2"]).exclusive_pvs == nl4
+        assert view.without(["NL4"]).exclusive_pvs == nl2
 
     def test_a_pv_a_shown_laser_also_reads_still_reaches_it(self, zone, panel, spec):
         from dataclasses import replace

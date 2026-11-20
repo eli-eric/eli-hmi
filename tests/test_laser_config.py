@@ -9,6 +9,7 @@ proof-read by eye.
 
 from __future__ import annotations
 
+import logging
 import textwrap
 
 import pytest
@@ -337,41 +338,23 @@ class TestStrictness:
 
 
 class TestExclusive:
-    """`exclusive:` names which of this laser's controls only the tab holding
-    control may use. The names are the command vocabulary, plus the waveform
-    preset, which writes a record rather than a command."""
+    """A laser is under control whole — its registers' setpoints with it —
+    unless the screen leaves it out. Lists of commands from before still
+    load, as the whole laser."""
 
-    def with_exclusive(self, value, extra: str = "") -> Config:
-        text = textwrap.dedent(MINIMAL) + textwrap.dedent(extra) + f"exclusive: {value}\n"
+    def with_exclusive(self, value) -> Config:
+        text = textwrap.dedent(MINIMAL) + f"exclusive: {value}\n"
         return Config.model_validate(yaml.safe_load(text))
 
-    def test_nothing_is_exclusive_by_default(self):
-        assert parse(MINIMAL).exclusive_targets() == []
+    def test_a_laser_is_under_control_by_default(self):
+        assert parse(MINIMAL).exclusive is True
 
-    def test_a_named_command_locks_its_write_pv(self):
-        laser = self.with_exclusive("[START_LASER]")
-        assert laser.exclusive_targets() == ["CMD_NL2_START_LASER"]
+    def test_a_screen_may_leave_it_out(self):
+        assert self.with_exclusive("false").exclusive is False
 
-    def test_true_locks_every_command_this_laser_has(self):
-        text = MINIMAL.replace(
-            "      START_LASER: START_LASER\n",
-            "      START_LASER: START_LASER\n      STOP_LASER: L4:NL2:STOP\n",
-        )
-        laser = Config.model_validate(
-            yaml.safe_load(textwrap.dedent(text) + "exclusive: true\n")
-        )
-        assert sorted(laser.exclusive_targets()) == ["CMD_NL2_START_LASER", "L4:NL2:STOP"]
+    def test_a_list_of_commands_loads_as_the_whole_laser(self, caplog):
+        with caplog.at_level(logging.WARNING):
+            laser = self.with_exclusive("[START_LASER, STOP_LASER]")
+        assert laser.exclusive is True
+        assert "START_LASER" in caplog.text
 
-    def test_a_name_outside_the_vocabulary_is_refused_with_the_choices(self):
-        with pytest.raises(ValidationError, match="START_LASER"):
-            self.with_exclusive("[START_LAZER]")
-
-    def test_a_command_this_laser_has_no_button_for_is_refused(self):
-        """Locking a button that is not there is a lock nobody asked for and
-        nobody can see — almost certainly a command left out of `commands:`."""
-        with pytest.raises(ValidationError, match="not in `commands:`"):
-            self.with_exclusive("[STOP_LASER]")
-
-    def test_the_waveform_preset_needs_a_modbox(self):
-        with pytest.raises(ValidationError, match="modbox"):
-            self.with_exclusive("[WAVEFORM_PRESET]")

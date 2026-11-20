@@ -92,8 +92,8 @@ components:
     commands:
       START_LASER: L4-SPFE-APL:Start
       STOP_LASER: L4-SPFE-APL:Stop
-      ALIGNMENT_MODE: L4-OPCPA-NL2:SetAlignmentMode
-      SYSTEM_STANDBY: L4-OPCPA-NL2:SetSystemStandby
+      ALIGNMENT_MODE: L4-SPFE-APL:SetAlignmentMode
+      SYSTEM_STANDBY: L4-SPFE-APL:SetSystemStandby
       OPEN_SHUTTER:
         pv: L4-SPFE-APL:IO:15:RC1_pin31:W
         value: 1

@@ -100,9 +100,13 @@ class ScreenRow:
 
 @dataclass(frozen=True)
 class LockRow:
-    """One exclusive PV someone holds: who, from where, since when."""
+    """One unit someone holds: what it covers, who, from where, since when."""
 
-    pv: str
+    #: The unit's key and its name, as its component calls it.
+    key: str
+    unit: str
+    #: Every PV it covers, comma-separated, in name order.
+    pvs: str
     user: str
     ip: str
     screen: str
@@ -205,7 +209,7 @@ class MonitorView:
     screens: list[ScreenRow]
     monitors: list[MonitorRow]
     log: list[LogRow]
-    #: Exclusive PVs someone holds, and how many exclusive PVs there are.
+    #: Units someone holds, and how many units there are.
     locks: list[LockRow] = ()
     exclusive: int = 0
     #: Cameras, open ones first, and a line saying where the numbers come
@@ -355,7 +359,7 @@ def collect(
         monitors=[row for _rank, row in sorted(ranked, key=lambda pair: -pair[0])],
         log=log_rows(entries, run=hmi.logbook.run),
         locks=[_lock_row(held, now) for held in hmi.locks.held()],
-        exclusive=len(hmi.locks.exclusive),
+        exclusive=len(hmi.locks.units),
         **dict(zip(("cameras", "camera_note"), _camera_rows(cameras, hmi.settings))),
     )
 
@@ -364,7 +368,9 @@ def _lock_row(held: Held, now: float) -> LockRow:
     holder = held.holder
     lapsing = held.lapses_at is not None
     return LockRow(
-        pv=held.pv,
+        key=held.unit.key,
+        unit=held.unit.name,
+        pvs=", ".join(sorted(held.unit.pvs)),
         user=holder.user,
         ip=holder.ip,
         screen=holder.screen,

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import logging
 import pytest
 
 from core.components import WriteRule, Component, PvReader, PvSpec, registry, slug
@@ -564,72 +565,43 @@ class TestWhatKindOfValueAPvTakes:
 
 
 # ---------------------------------------------------------------------------
-# Exclusive write control: which PVs a screen marks as one-tab-at-a-time
+# Exclusive write control: on for every component that writes, per component
 # ---------------------------------------------------------------------------
 
 
 class TestExclusive:
-    def test_nothing_is_exclusive_unless_a_screen_says_so(self):
-        row = build(
-            "value", label="Shutter", pv="S:State", kind="bool",
-            actions=[{"label": "Open", "value": 1, "pv": "S:Open"}],
-        )
-        assert row.exclusive_pvs == set()
+    """Which PVs a component's control covers is `core.locks`' to work out
+    (`test_locks.py`). Here, what a component's `exclusive:` may say: on
+    unless the screen says otherwise, per component, and the per-control
+    forms from before still load — one screen must not stop a station."""
 
-    def test_an_action_marked_exclusive_makes_its_pv_exclusive(self):
-        row = build(
-            "value", label="Shutter", pv="S:State", kind="bool",
-            actions=[
-                {"label": "Open", "value": 1, "pv": "S:Open", "exclusive": True},
-                {"label": "Close", "value": 0, "pv": "S:Close"},
-            ],
-        )
-        assert row.exclusive_pvs == {"S:Open"}
+    VALVE = {"label": "VV1", "pv": "V:State", "open_pv": "V:Open", "close_pv": "V:Close"}
 
-    def test_an_exclusive_action_with_no_pv_of_its_own_locks_the_row_pv(self):
-        row = build(
-            "value", label="Shutter", pv="S:State", kind="bool",
-            actions=[{"label": "Open", "value": 1, "exclusive": True}],
-        )
-        assert row.exclusive_pvs == {"S:State"}
-
-    def test_a_setpoint_marked_exclusive_makes_its_pv_exclusive(self):
-        row = build(
-            "value", label="Attenuator", pv="A:Pos", kind="integer",
-            setpoint={"pv": "A:Set", "exclusive": True},
-        )
-        assert row.exclusive_pvs == {"A:Set"}
-
-    def test_a_valve_locks_both_commands_or_the_ones_named(self):
-        both = build("valve", label="VV1", pv="V:State", open_pv="V:Open",
-                     close_pv="V:Close", exclusive=True)
-        assert both.exclusive_pvs == {"V:Open", "V:Close"}
-        just_open = build("valve", label="VV1", pv="V:State", open_pv="V:Open",
-                          close_pv="V:Close", exclusive=["open"])
-        assert just_open.exclusive_pvs == {"V:Open"}
-
-    def test_a_valve_with_no_command_pvs_locks_its_state_pv(self):
-        valve = build("valve", label="VV1", pv="V:State", exclusive=True)
-        assert valve.exclusive_pvs == {"V:State"}
-
-    def test_a_motor_locks_move_or_stop_as_named(self):
-        motor = build("motor", label="Att", readback="M:RBV", setpoint="M:VAL",
-                      stop="M:STOP", exclusive=["move"])
-        assert motor.exclusive_pvs == {"M:VAL"}
-        both = build("motor", label="Att", readback="M:RBV", setpoint="M:VAL",
-                     stop="M:STOP", exclusive=True)
-        assert both.exclusive_pvs == {"M:VAL", "M:STOP"}
+    def test_a_component_that_writes_is_under_control_unless_the_screen_says_not(self):
+        assert build("valve", **self.VALVE).config.exclusive is True
+        assert build("valve", **self.VALVE, exclusive=False).config.exclusive is False
 
     @pytest.mark.parametrize(
-        ("name", "block", "valid"),
+        ("name", "block"),
         [
-            ("valve", {"label": "VV1", "pv": "V:State"}, "open, close"),
-            ("motor", {"label": "Att", "readback": "M:RBV", "setpoint": "M:VAL"}, "move, stop"),
+            ("valve", VALVE),
+            ("motor", {"label": "Att", "readback": "M:RBV", "setpoint": "M:VAL", "stop": "M:STOP"}),
         ],
     )
-    def test_a_name_that_is_not_a_control_is_refused_with_the_choices(self, name, block, valid):
-        with pytest.raises(ValueError, match=valid):
-            build(name, **block, exclusive=["opne"])
+    def test_an_old_list_of_controls_loads_as_the_whole_component(self, name, block, caplog):
+        with caplog.at_level(logging.WARNING):
+            component = build(name, **block, exclusive=["opne"])
+        assert component.config.exclusive is True
+        assert "exclusive" in caplog.text and "opne" in caplog.text
+
+    def test_an_old_flag_on_one_action_loads_and_says_it_is_not_used(self, caplog):
+        with caplog.at_level(logging.WARNING):
+            row = build(
+                "value", label="Shutter", pv="S:State", kind="bool",
+                actions=[{"label": "Open", "value": 1, "pv": "S:Open", "exclusive": True}],
+            )
+        assert row.config.exclusive is True
+        assert "no longer used" in caplog.text
 
 
 class TestCamera:

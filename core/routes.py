@@ -168,7 +168,7 @@ async def set_hidden() -> Response:
 
 def _follow_choice(view: Page, key: str, *, shown: bool, tab: str, user: str) -> list[Any]:
     """Give up this tab's control of a component just hidden, or take control
-    of a component just shown wherever nobody has it. Never forced: showing
+    of a component just shown if nobody has it — the whole unit either way. Never forced: showing
     a laser is not reason enough to take it from the tab that holds it, and
     hiding one cannot give up control another tab holds.
 
@@ -176,11 +176,12 @@ def _follow_choice(view: Page, key: str, *, shown: bool, tab: str, user: str) ->
     once; every other tab hears it from its own stream (`LockTable.watch`).
     """
     pvs = view.exclusive_pvs_of(key)
-    for pv in sorted(pvs):
+    # The component's unit, taken or given up whole (`core.locks`).
+    for unit in {view.locks.unit(pv).key for pv in pvs}:
         if shown:
-            view.locks.take(pv, tab=tab, user=user, ip=client_ip(), screen=view.gui.slug)
+            view.locks.take(unit, tab=tab, user=user, ip=client_ip(), screen=view.gui.slug)
         else:
-            view.locks.release(pv, tab=tab, user=user)
+            view.locks.release(unit, tab=tab, user=user)
     if not pvs:
         return []
     return [SSE.patch_signals({"_locks": view.locks.view(pvs, tab=tab, user=user)})]
@@ -597,11 +598,11 @@ def _lock_toast(event: Forced | Given) -> str:
     """What a tab is told when a lock moved to or from it without its asking."""
     if isinstance(event, Given):
         return (
-            f"Control of {event.pv} passed to you: {event.previous.user} "
+            f"Control of {event.unit.name} passed to you: {event.previous.user} "
             f"({event.previous.ip}) has left"
         )
     return (
-        f"Control of {event.pv} taken over by {event.by.user} "
+        f"Control of {event.unit.name} taken over by {event.by.user} "
         f"({event.by.ip}) at {clock_time(event.by.since, now=time.time())}"
     )
 
@@ -692,25 +693,29 @@ LOCK_ACTIONS = ("take", "release", "force")
 
 
 async def lock() -> DatastarResponse:
-    """Take, release or force control of one exclusive PV, for this tab.
+    """Take, release or force control of one unit — a device — for this tab.
 
-    Answers with the tab's new `_locks` entry, so its controls change at once
-    rather than a stream round-trip later; every other screen showing the PV
-    hears it from its own stream (`LockTable.watch`). Force is confirmed in
-    the browser before it is sent — by the time it arrives here it is meant.
+    Named by `unit` (what the strip sends) or by any of its PVs (`pv`):
+    either way the whole unit moves. Answers with the tab's new `_locks`
+    entry, so its controls change at once rather than a stream round-trip
+    later; every other screen showing the unit hears it from its own stream
+    (`LockTable.watch`). Force is confirmed in the browser before it is sent —
+    by the time it arrives here it is meant.
     """
     _settings, _hub, pages = state()
     locks: LockTable = current_app.hmi.locks
     who = actor()
     user = who.user if who else "-"
-    name = (request.args.get("pv") or "").strip()
+    target = (request.args.get("unit") or request.args.get("pv") or "").strip()
     action = (request.args.get("action") or "").strip()
     status = (request.args.get("status") or "").strip() or None
     tab = tab_of(await read_signals())
 
-    if locks.key(name) is None:
-        logger.warning("lock refused user=%s pv=%r reason=not-exclusive", user, name)
-        return _report(f"Refused: {name} is not under exclusive control.", status)
+    unit = locks.unit(target)
+    if unit is None:
+        logger.warning("lock refused user=%s target=%r reason=not-exclusive", user, target)
+        return _report(f"Refused: {target} is not under exclusive control.", status)
+    name = unit.name
     if action not in LOCK_ACTIONS:
         logger.warning(
             "lock refused user=%s pv=%s action=%r reason=unknown-action", user, name, action
@@ -725,7 +730,7 @@ async def lock() -> DatastarResponse:
     where = dict(tab=tab, user=user, ip=client_ip(), screen=_screen(pages))
     ok = True
     if action == "take":
-        outcome = locks.take(name, **where)
+        outcome = locks.take(unit.key, **where)
         ok = outcome.granted
         message = (
             f"{name}: you have control"
@@ -734,14 +739,14 @@ async def lock() -> DatastarResponse:
             f"— ask them, or Force"
         )
     elif action == "force":
-        outcome = locks.force(name, **where)
+        outcome = locks.force(unit.key, **where)
         message = (
             f"{name}: control taken over from {outcome.previous.user}"
             if outcome.previous is not None
             else f"{name}: you have control"
         )
     else:
-        outcome = locks.release(name, tab=tab, user=user)
+        outcome = locks.release(unit.key, tab=tab, user=user)
         ok = outcome.granted
         message = f"{name}: released" if ok else f"Refused: you do not have control of {name}"
     if not ok:
@@ -751,7 +756,7 @@ async def lock() -> DatastarResponse:
         message,
         status,
         ok=ok,
-        extra=[SSE.patch_signals({"_locks": locks.view([name], tab=tab, user=user)})],
+        extra=[SSE.patch_signals({"_locks": locks.view(unit.pvs, tab=tab, user=user)})],
     )
 
 

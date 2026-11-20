@@ -127,6 +127,7 @@ class RegisterTree(Component):
         # widget to put the box right, and would wipe a message inside it.
         self.nv_status = f"{self.key}-nv-status"
         if self.config.nv_write:
+            self.writable(self.config.nv_write)
             self.add(
                 "nv",
                 "nv_toggle",
@@ -146,7 +147,16 @@ class RegisterTree(Component):
                 # says otherwise. 1 and nothing else: the button sends 1, and
                 # anything that can post to the endpoint can post anything.
                 if self.config.refresh:
-                    self.writable(process_pv(item.pv), WriteRule.integer(min=1, max=1))
+                    # Shared: processing a record changes nothing on the
+                    # device, so any desk may ask for a fresh reading,
+                    # whoever controls the laser.
+                    self.writable(
+                        process_pv(item.pv), WriteRule.integer(min=1, max=1), exclusive=False
+                    )
+                if item.write:
+                    # Part of the laser's control: its rule is the device's,
+                    # read when the register is selected (`write_rule`).
+                    self.writable(item.write_pv)
                 # At the datatype the register's kind asks for, so the first
                 # reading to arrive is already the right kind of value.
                 pv = PvId(item.pv, DATATYPES.get(item.kind, Datatype.NUMBER))

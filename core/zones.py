@@ -139,6 +139,9 @@ class Gui:
     #: that it is patched into, in place of the component. None for a screen,
     #: which is a page of its own.
     slot: str | None = None
+    #: For a component's detail view: the unit of control of the component it
+    #: belongs to, whose strip it shows (`core.locks`). None for a screen.
+    owner: str | None = None
 
     @property
     def url(self) -> str:
@@ -168,18 +171,40 @@ class Gui:
             specs.extend(component.all_pv_specs())
         return specs
 
-    def exclusive_pvs(self) -> set[str]:
-        """PVs this screen's YAML marked `exclusive`."""
-        pvs: set[str] = set()
-        for component in self.components:
-            pvs |= component.all_exclusive_pvs()
-        return pvs
-
     def signals(self) -> dict[str, Any]:
         signals: dict[str, Any] = {}
         for component in self.components:
             signals.update(component.all_signals())
         return signals
+
+    def control_units(self) -> list[Any]:
+        """This screen's units of control (`core.locks`).
+
+        A component that writes PVs itself is a unit, covering everything
+        under it and its detail views; the outermost one on a path wins, so a
+        device's views and parts are taken with it. Its PVs are everything it
+        writes under control. Keyed `<screen>/<component key>`.
+        """
+        from core.locks import Unit
+
+        def under(component: Component) -> list[Unit]:
+            if not component.writes():
+                return [unit for child in component.children for unit in under(child)]
+            if getattr(component.config, "exclusive", True) is False:
+                # The screen left this component out of control, all of it.
+                return []
+            pvs: set[str] = set()
+            for part in component.walk():
+                pvs |= part.writes()
+                for detail in part.details():
+                    for view in detail.components:
+                        for inner in view.walk():
+                            pvs |= inner.writes()
+            label = getattr(component.config, "label", None)
+            name = label if isinstance(label, str) and label else component.label
+            return [Unit(key=f"{self.slug}/{component.key}", name=name, pvs=frozenset(pvs))]
+
+        return [unit for component in self.components for unit in under(component)]
 
     def cameras(self) -> list[Any]:
         """Every camera this screen shows, in screen order."""
@@ -200,13 +225,9 @@ class Zone:
     def gui(self, slug: str) -> Gui | None:
         return next((gui for gui in self.guis if gui.slug == slug), None)
 
-    def exclusive_pvs(self) -> set[str]:
-        """Every PV any screen of the zone marked `exclusive`. The lock is on
-        the PV, so one screen marking it makes it exclusive on all of them."""
-        pvs: set[str] = set()
-        for gui in self.guis:
-            pvs |= gui.exclusive_pvs()
-        return pvs
+    def control_units(self) -> list[Any]:
+        """Every unit of control on every screen of the zone (`core.locks`)."""
+        return [unit for gui in self.guis for unit in gui.control_units()]
 
     def cameras(self) -> dict[str, Any]:
         """Every camera any screen shows, by image PV — what the camera gateway

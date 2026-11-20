@@ -33,6 +33,9 @@
     </span>
     {% endif %}
   </header>
+  {#- The laser's one control strip: every control below, and every register
+      setpoint in its views, is taken and released with it. -#}
+  {{ controls.unit_strip(unit) }}
   <div class="panel-body">
 
     {# ------------------------------------------------------------- Sequencer #}

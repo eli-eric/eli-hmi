@@ -29,19 +29,21 @@ components:
         on_text: "YES"
         off_text: "NO"
         good: on
-      # Exclusive: one tab at a time may move it. Any other tab sees who has
-      # control, from where and since when, and may force it after confirming.
+      # Under control, as everything that writes is by default: one tab at a
+      # time may move it. Any other tab sees who has control, from where and
+      # since when, and may force it after confirming.
       - component: valve
         label: VV1 gate valve
         pv: L4-VCS-NL2:VV1:State
         open_pv: L4-VCS-NL2:VV1:Open
         close_pv: L4-VCS-NL2:VV1:Close
-        exclusive: true
+      # Left out of control: any desk may press it.
       - component: valve
         label: VV2 roughing valve
         pv: L4-VCS-NL2:VV2:State
         open_pv: L4-VCS-NL2:VV2:Open
         close_pv: L4-VCS-NL2:VV2:Close
+        exclusive: false
       - component: group
         label: Interlocks
         mode: permissions

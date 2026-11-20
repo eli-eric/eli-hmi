@@ -100,32 +100,35 @@ as a `bo` record whose FLNK fires a `seq` with a delayed release step — and
 collapses "one value to many records" into a `dfanout`. Neither of them needs
 changing when you add a component.
 
-### Declaring an exclusive PV
+### Writes and control
 
-If a screen can mark one of your controls `exclusive:`, declare the PV behind
-it in `setup()`:
+Everything your component writes is under control (`core/locks.py`): one tab
+at a time may use it, and your component is the unit that is taken and
+released, together with everything nested in it and its detail views. You
+don't declare control; you declare what you write, and that is your unit:
+
+- PVs your `pv_specs()` marks `writable` or `command`, and
+- PVs you declare with `self.writable(pv, rule)`.
+
+A write your component type knows to be harmless — one that changes nothing on
+the device, like the register tree's refresh — is declared shared:
 
 ```python
-for control in exclusive_names(cfg.exclusive, ("open", "close")):
-    self.exclusive(targets[control])
+self.writable(process_pv(item.pv), WriteRule.integer(min=1, max=1), exclusive=False)
 ```
 
-`components/common.py` has the pieces:
-
-- `Exclusive` is the `true | [names]` field type.
-- `exclusive_names()` validates it and names the valid choices on a typo.
-- `exclusive_targets()` does the same job for `actions:` / `setpoint:`.
+That is a decision of the component type, never the default. A screen can
+leave a whole component out with `exclusive: false` (the `Exclusive` field type
+in `components/common.py`; give your config one if your component writes).
 
 The write controls in `controls.html` handle the rest. A button, preset field
-or drop-down whose PV is exclusive renders `disabled`, follows the page's
-`_locks` signal, and shows the Take control / Release / Force strip. A
-component template doesn't have to do anything. The PV must also be among the
-ones your `pv_specs()` marks `writable` or `command`, because that's how a
-screen knows which locks it shows. `tests/test_locks.py` checks this for every
-TESTZ screen.
-
-`self.exclusive()` is separate from `self.writable()` on purpose: bounds are
-about the value, a lock is about who may send it.
+or drop-down whose PV is under control renders `disabled` and follows the
+page's `_locks` signal (`lock_gate`). Your template draws its unit's one strip
+with `{{ controls.unit_strip(unit) }}` where an operator will look for it — in
+the cog with the controls, or under a panel's header. `unit` is in every
+component's context, and is none for a component that is not a unit.
+`tests/test_locks.py` checks that every control on a TESTZ screen writes a PV
+the screen declares.
 
 ### Shared pieces
 

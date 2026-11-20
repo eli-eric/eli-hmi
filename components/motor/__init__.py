@@ -38,7 +38,7 @@ from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 
-from components.common import Alarm, Demo, Exclusive, exclusive_names
+from components.common import Alarm, Demo, Exclusive
 from core.components import Component, ComponentConfig, PvId, PvReader, PvSpec, register
 from core.render import (
     Readout,
@@ -99,18 +99,10 @@ class Config(ComponentConfig):
     )
     step: float = Field(default=0.1, description="Step of the setpoint field.")
     exclusive: Exclusive = Field(
-        default=False,
-        description="Only the tab that has taken control may use these: `true` "
-        "for both, or a list naming them (`[move]`, `[move, stop]`). Think twice "
-        "before naming `stop`: a stop that is locked to another desk is a stop "
-        "the operator in front of the motor cannot press.",
+        default=True,
+        description="Whether its controls are under control: one tab at a time "
+        "may use them (`core.locks`). On by default; `false` leaves it out.",
     )
-
-    @field_validator("exclusive")
-    @classmethod
-    def _exclusive(cls, value: Exclusive) -> Exclusive:
-        exclusive_names(value, CONTROLS)
-        return value
 
     @model_validator(mode="after")
     def _addressable(self) -> "Config":
@@ -169,9 +161,6 @@ class Motor(Component):
             self.add("state", "pill", state_pvs, self._state)
 
         targets = {"move": cfg.pv("setpoint"), "stop": cfg.pv("stop")}
-        for control in exclusive_names(cfg.exclusive, CONTROLS):
-            if targets[control]:
-                self.exclusive(targets[control])
 
     def _state_pvs(self) -> list[str | None]:
         cfg = self.config

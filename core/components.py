@@ -429,8 +429,9 @@ class Component:
         self.signals: dict[str, Any] = {}
         #: PVs this component writes, and the bounds it accepts. See `writable`.
         self.limits: dict[str, WriteRule] = {}
-        #: PVs one browser tab at a time may write. See `exclusive`.
-        self.exclusive_pvs: set[str] = set()
+        #: PVs this component writes that any desk may write, whoever controls
+        #: the device. See `writable`.
+        self.shared_pvs: set[str] = set()
         self.setup()
 
     # -- what a subclass implements -----------------------------------------
@@ -552,7 +553,9 @@ class Component:
         self.signals[full] = default
         return full
 
-    def writable(self, pv: str, rule: "WriteRule | None" = None) -> str:
+    def writable(
+        self, pv: str, rule: "WriteRule | None" = None, *, exclusive: bool = True
+    ) -> str:
         """Declare a PV this component writes, and what it accepts.
 
         The rule says what *kind* of value the PV takes — `WriteRule.number`,
@@ -561,25 +564,24 @@ class Component:
         rule takes text, which is to say it is simply recorded as one this
         component writes.
 
+        Every write is part of the component's control (`core.locks`): taken
+        and released with the rest of the device. `exclusive=False` is the
+        component type saying one is not — a write any desk may make,
+        whoever controls the device — and it is never the default.
+
         Returns the PV name, so a `setup()` can declare and use it in one line.
         """
         self.limits[pv] = rule or WriteRule.text()
+        if not exclusive:
+            self.shared_pvs.add(pv)
         return pv
 
-    def exclusive(self, pv: str) -> str:
-        """Declare that only the tab holding control may write this PV.
-
-        What the screen asked for with `exclusive:` in its YAML. The lock is on
-        the PV, so declaring it here makes it exclusive on every screen of the
-        zone, and the write endpoint refuses it to any tab that has not taken
-        control (`core.locks`).
-
-        Kept apart from `writable` on purpose: bounds are about the value, and
-        an exclusive string PV with default bounds would be refused any value
-        with an `e` in it.
-        """
-        self.exclusive_pvs.add(pv)
-        return pv
+    def writes(self) -> set[str]:
+        """The PVs this component itself writes under control: what its
+        `pv_specs()` mark writable or command, and what it declared with
+        `writable`, less the writes it declared shared."""
+        declared = {spec.name for spec in self.pv_specs() if spec.writable or spec.command}
+        return (declared | set(self.limits)) - self.shared_pvs
 
     # -- what the framework uses -------------------------------------------
 
@@ -609,8 +611,6 @@ class Component:
             limits.update(component.limits)
         return limits
 
-    def all_exclusive_pvs(self) -> set[str]:
-        return {pv for component in self.walk() for pv in component.exclusive_pvs}
 
     def all_pv_specs(self) -> list[PvSpec]:
         specs: list[PvSpec] = []

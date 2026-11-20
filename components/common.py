@@ -8,12 +8,15 @@ configured one component has configured most of them.
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated, Any, Iterable, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
 from core.components import ComponentConfig, PvSpec
 from core.render import ValueFormatOptions, parse_format
+
+logger = logging.getLogger(__name__)
 
 
 class Strict(BaseModel):
@@ -63,6 +66,39 @@ GoodState = Annotated[Literal["on", "off", "neither"], BeforeValidator(_good_sta
 # ---------------------------------------------------------------------------
 
 
+def _whole_component(value: Any) -> Any:
+    """A list of controls, from before control was taken per component, is
+    the whole component: still loaded — one screen must not stop a station —
+    and said once."""
+    if isinstance(value, list):
+        logger.warning(
+            "exclusive: %s — control is taken per component now, with every "
+            "write in it; read as `true`",
+            value,
+        )
+        return True
+    return value
+
+
+def _old_flag(value: Any) -> Any:
+    if value is not None:
+        logger.warning(
+            "exclusive: %r on one action or setpoint is no longer used — control "
+            "is taken per component, with every write in it",
+            value,
+        )
+    return None
+
+
+#: `exclusive:` on a component that writes: on (the default) puts every write
+#: of the component under one control (`core.locks`); `false` leaves the whole
+#: component out. Per component, never per control.
+Exclusive = Annotated[bool, BeforeValidator(_whole_component)]
+
+#: `exclusive:` where it used to be set per action or setpoint.
+OldFlag = Annotated[bool | None, BeforeValidator(_old_flag)]
+
+
 class Action(Strict):
     """One button. Every button on a screen is one of these."""
 
@@ -79,10 +115,10 @@ class Action(Strict):
         "room full of green and red buttons trains operators to look at chrome "
         "instead of at readings.",
     )
-    exclusive: bool = Field(
-        default=False,
-        description="Only the tab that has taken control may press it. Everyone "
-        "else sees who holds it, from where and since when, and may force it.",
+    exclusive: OldFlag = Field(
+        default=None,
+        description="No longer used: control is taken per component, with every "
+        "write of the component in it. Still accepted, with a warning.",
     )
 
 
@@ -110,9 +146,9 @@ class Setpoint(Strict):
         "blanks a number field while an exponent is half-typed, so pressing `e` "
         "looks like it erased the value.",
     )
-    exclusive: bool = Field(
-        default=False,
-        description="Only the tab that has taken control may write it. See Action.",
+    exclusive: OldFlag = Field(
+        default=None,
+        description="No longer used: control is taken per component. See Action.",
     )
 
     @model_validator(mode="after")
@@ -173,6 +209,12 @@ class Readable(ComponentConfig):
     """Config shared by anything that shows a number or a state."""
 
     label: str = Field(description="Row label. Keep it short; the column is fixed width.")
+    exclusive: Exclusive = Field(
+        default=True,
+        description="Whether the row's buttons and setpoint are under control: "
+        "one tab at a time may use them (`core.locks`). On by default; `false` "
+        "leaves the whole row out.",
+    )
     pv: str = Field(description="PV to read.")
     units: str | None = Field(
         default=None,
@@ -296,38 +338,6 @@ def write_targets(cfg: Readable) -> list[tuple[str, Any]]:
     return targets
 
 
-def exclusive_targets(cfg: Readable) -> list[str]:
-    """The PVs this row's `exclusive:` buttons and setpoint write."""
-    targets = [action.pv or cfg.pv for action in cfg.actions if action.exclusive]
-    if cfg.setpoint and cfg.setpoint.exclusive:
-        targets.append(cfg.setpoint.pv or cfg.pv)
-    return targets
-
-
-#: `exclusive:` on a component with a fixed set of controls: `true` for every
-#: one of them, or a list naming which.
-Exclusive = bool | list[str]
-
-
-def exclusive_names(value: Exclusive, controls: Iterable[str]) -> list[str]:
-    """Validate an `exclusive:` value against the controls a component has.
-
-    Returns the names it selects. A misspelt name is refused with the ones that
-    would have worked, for the same reason a misspelt key is: a lock that
-    silently is not there is the worst way for this to fail.
-    """
-    controls = list(controls)
-    if value is True:
-        return controls
-    if value is False:
-        return []
-    unknown = [name for name in value if name not in controls]
-    if unknown:
-        raise ValueError(
-            f"exclusive: {', '.join(map(repr, unknown))} is not a control here. "
-            f"Choose from: {', '.join(controls)} (or `true` for all of them)"
-        )
-    return list(value)
 
 
 def _decimals(cfg: Readable) -> int:

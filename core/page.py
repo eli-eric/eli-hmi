@@ -101,7 +101,7 @@ class Page:
         #: Shared by every screen of the app (`core.server`), so a lock taken
         #: here shows on any screen with a control for the same PV. A page
         #: built on its own gets a table of its own, with every PV free.
-        self.locks = locks if locks is not None else LockTable(zone.exclusive_pvs())
+        self.locks = locks if locks is not None else LockTable(zone.control_units())
         #: Every PV a control on this screen can write, from what the
         #: components declared about their PVs.
         self.written_pvs: frozenset[str] = written_pvs(gui)
@@ -143,6 +143,16 @@ class Page:
             return []
         wanted = set(names)
         return [c.key for c in self.gui.components if c.key in wanted]
+
+    def unit_for(self, component: Component) -> dict[str, str] | None:
+        """The unit of control a component draws the strip for: itself, if it
+        is one on this screen, or — in a detail view — the device the view
+        belongs to. `{key, unit, name}`: its `_locks` entry, its own key, and
+        what Force calls it."""
+        unit = self.locks.unit(self.gui.owner or f"{self.gui.slug}/{component.key}")
+        if unit is None:
+            return None
+        return {"key": self.locks.key(unit.key), "unit": unit.key, "name": unit.name}
 
     def exclusive_pvs_of(self, key: str) -> frozenset[str]:
         """The exclusive PVs one top-level component writes: what hiding or
@@ -272,8 +282,10 @@ class Page:
                 s=component.signals,
                 comp=component,
                 # How a write control learns that its PV is exclusive, and
-                # which entry of `_locks` it follows (`controls.lock_strip`).
+                # which entry of `_locks` it follows (`controls.lock_gate`).
                 lock_key=self.locks.key,
+                # The unit whose strip this component draws, if it is one.
+                unit=self.unit_for(component),
                 children=[self.render_component(child, reader) for child in component.children],
                 **component.context(),
             )
@@ -489,7 +501,7 @@ def build_pages(zone: Zone, env: Environment, locks: LockTable | None = None) ->
     It is not in the menu: the menu is the zone's folder listing, and a
     detail view is reached from the component that owns it.
     """
-    locks = locks if locks is not None else LockTable(zone.exclusive_pvs())
+    locks = locks if locks is not None else LockTable(zone.control_units())
     pages = {gui.slug: Page(zone, gui, env, locks) for gui in zone.guis}
     for gui in zone.guis:
         for component in gui.walk():
@@ -519,6 +531,7 @@ def _detail_gui(gui: Gui, slug: str, component: Component, detail: Detail) -> Gu
         description="",
         components=list(detail.components),
         slot=detail_slot(component),
+        owner=f"{gui.slug}/{component.key}",
     )
 
 

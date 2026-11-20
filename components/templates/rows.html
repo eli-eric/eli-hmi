@@ -100,6 +100,7 @@
 {% if cfg.actions or cfg.setpoint %}
 {% set signal = comp.signal('cog_' ~ (cfg.id or cfg.label)) %}
 {% call controls.cog(signal, aria or (cfg.label ~ ' actions')) %}
+{{ controls.unit_strip(unit) }}
 {% for action in cfg.actions %}
 {{ controls.action_button(action.label, action.pv or cfg.pv, action.value, action.variant, signal) }}
 {% endfor %}

@@ -219,8 +219,7 @@ def laser_pv_specs(cfg: Config) -> list[PvSpec]:
                 kind="string",
                 value="std-100ps",
                 # The preset selector writes this record directly, so it is
-                # one of the PVs the panel writes — and a lock on it
-                # (`exclusive: [WAVEFORM_PRESET]`) needs the screen to know.
+                # one of the PVs the panel writes, and under its control.
                 writable=True,
                 desc=f"{laser} loaded waveform",
             )

@@ -126,6 +126,24 @@ async def client(server):
         yield client
 
 
+#: The desk the write tests write from. They are about what a write is held
+#: to, not about who may make it — that is `TestExclusiveControl` — so this
+#: desk takes control of the device it writes to first.
+WRITER = "writer"
+
+
+async def write(client, *, params, json=None, headers=None):
+    """A write made from the desk that has control of the PV's device."""
+    await client.post(
+        "/api/lock", params={"pv": params["pv"], "action": "force"},
+        json={"tab": WRITER}, headers=DATASTAR,
+    )
+    return await client.post(
+        "/api/write", params=params, json={**(json or {}), "tab": WRITER},
+        headers={**DATASTAR, **(headers or {})},
+    )
+
+
 async def read_events(
     client,
     path: str,
@@ -441,7 +459,8 @@ class TestChoosingALaserMovesItsControl:
 
     async def test_showing_a_laser_takes_control_of_it(self, client):
         shown = await self.toggle(client, "tab-a", "NL2", [])
-        assert shown.text.count('"state":"mine"') == 2, shown.text
+        # One entry: the laser is taken whole.
+        assert shown.text.count('"state":"mine"') == 1, shown.text
         assert "Refused" not in (await press(client, "tab-a", pv=self.START)).text
         assert "controlled by test" in (await lock(client, "tab-b", "take", pv=self.START)).text
 
@@ -454,6 +473,45 @@ class TestChoosingALaserMovesItsControl:
         await self.toggle(client, "tab-a", "NL2", ["NL2"])
         assert "Refused" not in (await press(client, "tab-b", pv=self.START)).text
         assert "Refused" in (await press(client, "tab-a", pv=self.START)).text
+
+
+class TestALaserIsControlledWhole:
+    """One desk has a laser or none does: its basic view and every register
+    setpoint go together, so no desk can write a register of a laser another
+    desk is running. Reading a register again is the laser's to share."""
+
+    START = "CMD_NL2_START_LASER"
+    REGISTER = "L4-OPCPA-NL2:PS1225:11:SetPoint:W"
+    REFRESH = "L4-OPCPA-NL2:PS1225:11:SetPoint.PROC"
+
+    @pytest.fixture(autouse=True)
+    async def nobody_holds_nl2(self, client):
+        await lock(client, "janitor", "force", pv=self.START)
+        await lock(client, "janitor", "release", pv=self.START)
+        yield
+        await lock(client, "janitor", "force", pv=self.START)
+        await lock(client, "janitor", "release", pv=self.START)
+
+    async def test_a_register_is_written_only_by_the_desk_that_has_the_laser(self, client):
+        await lock(client, "tab-a", "take", pv=self.START)
+        refused = (await press(client, "tab-b", pv=self.REGISTER, value=20)).text
+        assert "controlled by test" in refused, refused
+        assert "Refused" not in (await press(client, "tab-a", pv=self.REGISTER, value=20)).text
+
+    async def test_the_strip_takes_the_laser_by_its_unit(self, client):
+        """What the strip posts: the unit, not one of its PVs."""
+        taken = await client.post(
+            "/api/lock",
+            params={"unit": "l4-opcpa/NL2", "action": "take"},
+            json={"tab": "tab-a"},
+            headers=DATASTAR,
+        )
+        assert '"state":"mine"' in taken.text and "NL2: you have control" in taken.text, taken.text
+        assert "Refused" not in (await press(client, "tab-a", pv=self.REGISTER, value=20)).text
+
+    async def test_any_desk_may_read_a_register_again(self, client):
+        await lock(client, "tab-a", "take", pv=self.START)
+        assert "Refused" not in (await press(client, "tab-b", pv=self.REFRESH, value=1)).text
 
 
 class TestTheFirstTabToOpenAScreenHasControl:
@@ -546,7 +604,7 @@ class TestWrite:
 
         task = asyncio.create_task(watch())
         await asyncio.sleep(0.6)
-        response = await client.post("/api/write", params={"pv": shutter, "value": "1"}, json={})
+        response = await write(client, params={"pv": shutter, "value": "1"}, json={})
         assert response.status_code == 200
         assert "_toast" in response.text
         await asyncio.sleep(1.0)
@@ -567,9 +625,9 @@ class TestWrite:
 
         task = asyncio.create_task(watch())
         await asyncio.sleep(0.6)
-        # Start is exclusive on this screen, so the tab takes control first.
+        # NL2 is under control, so the tab takes it first — whoever had it.
         start = "CMD_NL2_START_LASER"
-        await lock(client, "tab-a", "take", pv=start)
+        await lock(client, "tab-a", "force", pv=start)
         try:
             assert "Refused" not in (await press(client, "tab-a", pv=start)).text
             await asyncio.sleep(1.5)
@@ -586,9 +644,7 @@ class TestWrite:
     async def test_an_operator_supplied_value_comes_from_its_signal(self, client):
         # `Datastar-Request` is how the SDK knows a body carries signals; the
         # real client always sends it.
-        response = await client.post(
-            "/api/write",
-            params={"pv": "L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay", "signal": "NL2_delay_value"},
+        response = await write(client, params={"pv": "L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay", "signal": "NL2_delay_value"},
             json={"NL2_delay_value": "500"},
             headers={"Datastar-Request": "true"},
         )
@@ -596,9 +652,7 @@ class TestWrite:
         assert "500" in response.text
 
     async def test_an_empty_field_is_refused_rather_than_written(self, client):
-        response = await client.post(
-            "/api/write",
-            params={"pv": "L4-OPCPA-NL2:ATT", "signal": "NL2_atten_value"},
+        response = await write(client, params={"pv": "L4-OPCPA-NL2:ATT", "signal": "NL2_atten_value"},
             json={"NL2_atten_value": ""},
             headers={"Datastar-Request": "true"},
         )
@@ -623,9 +677,7 @@ class TestWriteGuards:
     DELAY = "L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay"
 
     async def _set(self, client, pv: str, text: str):
-        return await client.post(
-            "/api/write",
-            params={"pv": pv, "signal": "v"},
+        return await write(client, params={"pv": pv, "signal": "v"},
             json={"v": text},
             headers={"Datastar-Request": "true"},
         )
@@ -660,14 +712,13 @@ class TestWriteGuards:
 
     async def test_a_request_with_no_value_at_all_is_refused(self, client):
         # Falling through used to write the string "None" to the device.
-        response = await client.post("/api/write", params={"pv": "L4-OPCPA-NL2:ATT"}, json={})
+        response = await write(client, params={"pv": "L4-OPCPA-NL2:ATT"}, json={})
         assert "Refused" in response.text
         assert "None" not in response.text
 
     async def test_nan_and_infinity_are_not_values_an_operator_typed(self, client):
         for text in ("nan", "infinity", "1_000"):
-            response = await client.post(
-                "/api/write", params={"pv": "L4-OPCPA-NL2:SI_TEST", "value": text}, json={}
+            response = await write(client, params={"pv": "L4-OPCPA-NL2:SI_TEST", "value": text}, json={}
             )
             # Written as the string it is, never silently turned into a number.
             # (The arrow is escaped in the JSON payload, so match on the tail.)
@@ -787,9 +838,7 @@ class TestExponentialInput:
     DELAY = "L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay"
 
     async def _write(self, client, text: str):
-        return await client.post(
-            "/api/write",
-            params={"pv": self.DELAY, "signal": "v", "status": "s"},
+        return await write(client, params={"pv": self.DELAY, "signal": "v", "status": "s"},
             json={"v": text},
             headers={"Datastar-Request": "true"},
         )
@@ -1015,7 +1064,8 @@ class TestTheWaveformConfirmButtons:
 
     async def test_both_buttons_watch_the_catalog_and_the_selection(self, client):
         page = (await client.get("/l4-opcpa")).text
-        live = page.count("waveforms_available}")
+        # Held, too, until the tab has the laser: the catalog is one reason.
+        live = len(re.findall(r'data-attr="\{disabled:[^"]*waveforms_available[^"]*"', page))
         assert live == 2, (
             f"{live} of the two Confirm buttons go dead on an empty catalog"
         )
@@ -1290,6 +1340,7 @@ class TestEveryRegisterCanBeReadAgain:
         anything that can post there can post anything."""
         name = self.READING[0] + ".PROC"
 
+        # From a desk with no control: reading a register again is shared.
         async def write(value):
             return (
                 await client.post(
@@ -1655,8 +1706,7 @@ class TestWritingAStateByName:
         await client.get(
             "/api/register", params={"component": "NL2-registers", "pv": pv}
         )
-        answer = await client.post(
-            "/api/write", params={"pv": f"{pv}:W", "value": "SERVICE"}, json={}
+        answer = await write(client, params={"pv": f"{pv}:W", "value": "SERVICE"}, json={}
         )
         assert "Refused" not in answer.text, answer.text
         assert "SERVICE" in answer.text
@@ -1707,9 +1757,7 @@ class TestARegisterWriteIsHeldToTheDeviceRange:
                 "pv": "L4-OPCPA-NL2:PS1225:11:SetPoint",
             },
         )
-        answer = await client.post(
-            "/api/write",
-            params={"pv": "L4-OPCPA-NL2:PS1225:11:SetPoint:W", "value": "99"},
+        answer = await write(client, params={"pv": "L4-OPCPA-NL2:PS1225:11:SetPoint:W", "value": "99"},
             json={},
         )
         assert "Refused" in answer.text, (
@@ -1724,9 +1772,7 @@ class TestARegisterWriteIsHeldToTheDeviceRange:
                 "pv": "L4-OPCPA-NL2:PS1225:11:SetPoint",
             },
         )
-        answer = await client.post(
-            "/api/write",
-            params={"pv": "L4-OPCPA-NL2:PS1225:11:SetPoint:W", "value": "21"},
+        answer = await write(client, params={"pv": "L4-OPCPA-NL2:PS1225:11:SetPoint:W", "value": "21"},
             json={},
         )
         assert "Refused" not in answer.text, answer.text
@@ -1897,9 +1943,7 @@ class TestInlineWriteStatus:
     """
 
     async def _write(self, text: str):
-        return await self.client.post(
-            "/api/write",
-            params={
+        return await write(self.client, params={
                 "pv": "L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay",
                 "signal": "v",
                 "status": "nl2-delay-status",
@@ -2164,9 +2208,7 @@ class TestAWordWrittenToANumericSetpoint:
     DELAY = "L4-OPCPA-NL2:PS5059:22:SetBothChannelsTrigDelay"
 
     async def test_it_is_refused_before_it_reaches_the_device(self, client):
-        response = await client.post(
-            "/api/write",
-            params={"pv": self.DELAY, "value": "SERVICE"},
+        response = await write(client, params={"pv": self.DELAY, "value": "SERVICE"},
             json={},
             headers={"Datastar-Request": "true"},
         )
@@ -2182,9 +2224,7 @@ class TestTheAttenuatorTakesAWholePosition:
     SET = "L4-OPCPA-NL2:SM5-ATT1:51:SetPosition"
 
     async def _write(self, client, text: str):
-        return await client.post(
-            "/api/write",
-            params={"pv": self.SET, "value": text},
+        return await write(client, params={"pv": self.SET, "value": text},
             json={},
             headers={"Datastar-Request": "true"},
         )
@@ -2331,13 +2371,21 @@ class TestAFailedWriteIsPutRight:
             hub.caget = armed
             client = running.test_client()
             await client.post("/login", form={"username": "test", "password": "test"})
+            # The NV arm is NL2's, and NL2 is under control: this desk has it,
+            # so what is refused is the device's doing.
+            await client.post(
+                "/api/lock",
+                query_string={"pv": self.NV, "action": "take"},
+                json={"tab": "desk"},
+                headers={"Datastar-Request": "true"},
+            )
             yield client
 
     async def write(self, client) -> str:
         response = await client.post(
             "/api/write",
             query_string={"pv": self.NV, "value": "0", "status": self.STATUS},
-            json={},
+            json={"tab": "desk"},
             headers={"Datastar-Request": "true"},
         )
         return (await response.get_data()).decode()
@@ -2492,8 +2540,7 @@ class TestAnIntegerRegistersField:
 
     async def test_the_endpoint_refuses_a_decimal(self, client):
         await self.panel(client)
-        answer = await client.post(
-            "/api/write", params={"pv": f"{self.PV}:W", "value": "2.5"}, json={}
+        answer = await write(client, params={"pv": f"{self.PV}:W", "value": "2.5"}, json={}
         )
         assert "Refused" in answer.text and "whole number" in answer.text, answer.text
 
@@ -2844,8 +2891,7 @@ async def lock(client, tab: str | None, action: str, pv: str = VV1_OPEN):
 
 
 async def press(client, tab: str | None, pv: str = VV1_OPEN, value: int = 1):
-    return await client.post(
-        "/api/write", params={"pv": pv, "value": value}, json={"tab": tab}, headers=DATASTAR
+    return await client.post("/api/write", params={"pv": pv, "value": value}, json={"tab": tab}, headers=DATASTAR
     )
 
 
@@ -2938,7 +2984,10 @@ class TestExclusiveControl:
         """The listening screen opens while tab-a holds VV1: opened on a free
         one, it would take VV1 itself (`TestTheFirstTabToOpenAScreenHasControl`).
         VV1's own entry is followed, since the screen has other locks."""
-        vv1 = '"pv_L4_VCS_NL2_VV1_Open":{"state":'
+        page = (await client.get("/vacuum")).text
+        button = page[page.index(quote(VV1_OPEN, safe="")) - 400 : page.index(quote(VV1_OPEN, safe=""))]
+        key = re.findall(r"\$_locks\.(\w+)\.state", button)[-1]
+        vv1 = f'"{key}":{{"state":'
         await lock(client, "tab-a", "take")
         events: list[str] = []
         watching = asyncio.create_task(
@@ -2973,7 +3022,11 @@ class TestExclusiveControl:
     async def test_the_monitor_lists_who_holds_what(self, client):
         await lock(client, "tab-a", "take")
         rows = TestMonitor.rows((await client.get("/monitor")).text, "mon-locks")
-        assert any(VV1_OPEN in row and "test" in row for row in rows), rows
+        # A row per unit, naming the device and every PV it covers.
+        assert any(
+            "VV1 gate valve" in row and "test" in row and any(VV1_OPEN in cell for cell in row)
+            for row in rows
+        ), rows
 
 
 @pytest.fixture(scope="module")
@@ -3004,21 +3057,29 @@ async def test_a_control_whose_holder_left_passes_to_the_tab_still_showing_it(sh
 
     async with httpx.AsyncClient(base_url=short_grace, timeout=15) as client:
         await client.post("/login", data={"username": "test", "password": "test"})
+        # VV1's own entry: the screen has other units (its motors), and the
+        # server is shared by the module, so VV1 starts free.
+        page = (await client.get("/vacuum")).text
+        button = page[: page.index(quote(VV1_OPEN, safe=""))]
+        vv1 = re.findall(r"\$_locks\.(\w+)\.state", button)[-1]
+        await lock(client, "janitor", "force")
+        await lock(client, "janitor", "release")
         first: list[str] = []
         second: list[str] = []
         desk_a = asyncio.create_task(
             read_events(client, stream_as("vacuum", "tab-a"), 1000, timeout=10,
                         into=first, headers=DATASTAR)
         )
-        await until(lambda: any('"state":"mine"' in e for e in first))
+        await until(lambda: any(f'"{vv1}":{{"state":"mine"' in e for e in first))
         desk_b = asyncio.create_task(
             read_events(client, stream_as("vacuum", "tab-b"), 1000, timeout=10,
                         into=second, headers=DATASTAR)
         )
         try:
-            await until(lambda: any('"state":"other"' in e for e in second))
+            await until(lambda: any(f'"{vv1}":{{"state":"other"' in e for e in second))
             desk_a.cancel()
-            await until(lambda: any("passed to you" in e for e in second), timeout=6)
+            # Named as the screen names it: the unit is the valve.
+            await until(lambda: any("VV1 gate valve passed to you" in e for e in second), timeout=6)
             assert "Refused" not in (await press(client, "tab-b")).text
         finally:
             desk_a.cancel()

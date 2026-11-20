@@ -67,21 +67,23 @@
 </div>
 {% endmacro %}
 
-{#- Exclusive PVs and who holds them (`core.locks`). The question this answers
-    is the one an operator facing a dead button asks: who has it, from which
-    desk, and since when — so they know who to ask before forcing it. -#}
+{#- Units under control and who holds them (`core.locks`). The question this
+    answers is the one an operator facing a dead button asks: who has it, from
+    which desk, and since when — so they know who to ask before forcing it.
+    A unit is a device: every PV it covers is listed with it. -#}
 {% macro locks(view) %}
 <div class="mon-body" id="mon-locks">
   {% if view.locks %}
   <table class="mon-table">
     <thead>
-      <tr><th>PV</th><th>User</th><th>Address</th><th>Screen</th>
+      <tr><th>Unit</th><th>PVs</th><th>User</th><th>Address</th><th>Screen</th>
           <th>Since</th><th>Held</th><th>Tab</th><th>State</th></tr>
     </thead>
     <tbody>
       {% for lock in view.locks %}
-      <tr data-lock="{{ lock.pv }}">
-        <td>{{ lock.pv }}</td>
+      <tr data-lock="{{ lock.key }}">
+        <td>{{ lock.unit }}</td>
+        <td class="mon-pvs">{{ lock.pvs }}</td>
         <td>{{ lock.user }}</td>
         <td>{{ lock.ip }}</td>
         <td>{% if lock.screen != '-' %}<a href="/{{ lock.screen }}">{{ lock.screen }}</a>{% else %}-{% endif %}</td>
@@ -94,9 +96,9 @@
     </tbody>
   </table>
   {% elif view.exclusive %}
-  <p class="mon-empty">Nobody holds any of the {{ view.exclusive }} exclusive PV(s).</p>
+  <p class="mon-empty">Nobody holds any of the {{ view.exclusive }} unit(s) under control.</p>
   {% else %}
-  <p class="mon-empty">No screen in this zone marks a control exclusive.</p>
+  <p class="mon-empty">Nothing in this zone is under control.</p>
   {% endif %}
 </div>
 {% endmacro %}

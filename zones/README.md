@@ -120,44 +120,42 @@ shows an engineer what an alarm looks like, and `demo: { undefined: true }` is
 the only way to see `PV INV` on demand — the state an operator most needs to
 recognise.
 
-### `exclusive:` for a control only one desk may use
+### Control: one desk at a time
 
-Mark a control `exclusive` and only the browser tab that has taken control of
-it may write it. Everyone else sees it read-only, with who has it, from where
-and since when, and may **Force** it after confirming.
+Everything a component writes is under control by default: only the browser
+tab that has control of the component may use it. Everyone else sees it
+read-only, with who has it, from where and since when, and may **Force** it
+after confirming. The first tab to open a screen gets every component on it
+that nobody holds.
+
+Control is per component — a device. A laser is controlled whole: every
+button, and every register setpoint in its Registers view. A valve or a motor
+is controlled whole. A `panel` is not a unit; each component in it is.
 
 ```yaml
-- component: value                    # per button, per setpoint
-  label: Shutter
-  pv: L4-…:Shutter:State
-  kind: bool
-  actions:
-    - { label: Open,  value: 1, pv: "L4-…:Shutter:Open", exclusive: true }
-    - { label: Close, value: 0, pv: "L4-…:Shutter:Close" }
-  setpoint: { pv: "L4-…:Shutter:Set", exclusive: true }
-
-- component: valve                    # true = both buttons, or name them
+- component: valve                    # under control: nothing to write
   label: VV1 gate valve
   pv: L4-VCS-NL2:VV1:State
   open_pv: L4-VCS-NL2:VV1:Open
   close_pv: L4-VCS-NL2:VV1:Close
-  exclusive: true                     # or [open] / [close]
 
-- component: motor
-  exclusive: [move]                   # move, stop, or true for both
-
-- component: laser-panel
-  exclusive: [ALIGNMENT_MODE, SET_ATTENUATOR]   # command names, WAVEFORM_PRESET, or true
+- component: valve                    # any desk may press it
+  label: VV2 roughing valve
+  pv: L4-VCS-NL2:VV2:State
+  exclusive: false
 ```
 
-- **The lock is on the PV.** If one screen marks a PV exclusive, every control
-  that writes it, on any screen of the zone, is locked too.
-- **A name that isn't a control there stops the start-up** and lists the names
-  that would work. For `laser-panel`, a command that isn't in `commands:`
-  stops it as well, because a lock on a button nobody can see is a mistake.
-- **Think twice before locking a Stop.** A stop that only another desk can
-  press is a stop the operator in front of the device can't use without
-  forcing control first.
+- **`exclusive: false` is per component.** There is no way to leave one button
+  of a laser outside its control from a screen.
+- **The lock is on the PV.** If two screens' components write the same PV,
+  they are taken as one, and the station logs a warning naming both. Control
+  is meant to be separated by device, so this is usually a slip.
+- **Old forms still load.** A list (`exclusive: [START_LASER]`) is read as the
+  whole component, and a per-button or per-setpoint `exclusive:` is ignored;
+  both log a warning saying so.
+- **A Stop is controlled with everything else.** A laser's Stop needs control
+  like its Start. A component whose controls must stay pressable from any desk
+  needs `exclusive: false`.
 
 ## Which zone am I?
 

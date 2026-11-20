@@ -42,7 +42,6 @@ from components.common import (
     GoodState,
     Readable,
     ValueText,
-    exclusive_targets,
     number_spec,
     state_names,
     string_spec,
@@ -115,8 +114,6 @@ class Value(Component):
             self.add("value", "pill", [pv], self._bool)
         else:
             self.add("value", "value_cell", [pv], self._value)
-        for target in exclusive_targets(cfg):
-            self.exclusive(target)
 
     # -- the reading -------------------------------------------------------
 

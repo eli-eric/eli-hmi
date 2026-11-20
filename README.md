@@ -273,41 +273,51 @@ local IOC.
 
 ### Exclusive write control
 
-A control marked `exclusive:` in a screen's YAML can be written by **one
-browser tab at a time**. The lock is on the PV, so a PV that one screen marks
-exclusive is locked on every screen of the zone (`core/locks.py`).
+Everything a component writes is under **control**: one browser tab at a time
+may use it (`core/locks.py`). Control is taken and released per component — a
+device — and checked per PV. A laser is one unit with all of its buttons and
+every register setpoint in its views, so no desk can write a register of a
+laser another desk is running. A component leaves control only when the screen
+says `exclusive: false` on it; a write its own type knows to be harmless (a
+register's refresh) is shared by the type's code.
 
-- **First come.** The first tab to open a screen gets every exclusive control
-  on it that nobody holds, with nothing to press. A laser hidden with the
-  screen's checkboxes is not taken.
-- **Take control.** A control someone released starts disabled, with **Take
-  control** beside it. Taking it enables the control in that tab only. Any
-  page that opens while it is free takes it too.
-- **Read-only elsewhere.** Every other tab sees the control disabled, and who
-  holds it, from where and since when:
+- **First come.** The first tab to open a screen gets every unit on it that
+  nobody holds, with nothing to press. A laser hidden with the screen's
+  checkboxes is not taken.
+- **One strip per unit.** Under a laser's header (and its Registers and ModBox
+  views), or in a valve's or motor's cog: **Take control**, **Release**,
+  **Force**. Its controls carry no strip of their own; they are enabled only in
+  the tab that has the unit.
+- **Read-only elsewhere.** Every other tab sees the unit's controls disabled,
+  and who holds it, from where and since when:
   `jsvacha · 10.78.4.21 · vacuum · since 14:02`. The streams push this to each
   tab as the lock moves.
-- **Release.** The holder gives control back.
-- **Force.** Anyone signed in can take control from the holder after a
-  `confirm()`. The holder's screen goes read-only and says
+- **Release.** The holder gives control back. Any page that opens while it is
+  free takes it.
+- **Force.** Anyone signed in can take the whole unit from the holder after a
+  `confirm()` naming it. The holder's screen goes read-only and says
   `taken over by … at 14:05`.
-- **Lapse.** If no screen showing the PV has been open in the holder's tab for
-  `LOCK_GRACE_SECONDS` (default 60), the lock is released. A reload or a stream
-  reconnect within that time keeps it.
-- **Pass.** If exactly one other tab is showing the PV when it lapses, control
-  passes to that tab, which is told `Control of … passed to you`. With two or
-  more waiting it is left free.
+- **Lapse.** If no screen showing any of the unit has been open in the
+  holder's tab for `LOCK_GRACE_SECONDS` (default 60), it is released. A reload
+  or a stream reconnect within that time keeps it.
+- **Pass.** If exactly one other tab is showing any of the unit when it lapses,
+  control passes to that tab, which is told `Control of … passed to you`. With
+  two or more waiting it is left free.
+- **Overlaps.** Two units writing the same PV are taken as one, and the
+  station logs a warning at start-up. Control is meant to be separated by
+  device, so an overlap is usually a slip in one screen.
 
 A tab is identified by an id the page puts in `sessionStorage` and sends as the
 `tab` signal. A holder is that tab *and* the user signed in on it, so the id is
-not a credential. `/api/write` refuses an exclusive PV to any other tab, a
-`curl` included. `POST /api/lock?pv=…&action=take|release|force` changes a lock.
-Screens with an exclusive PV keep their stream open while the tab is hidden,
-because a tab in the background is still the tab that holds control.
+not a credential. `/api/write` refuses a controlled PV to any other tab, a
+`curl` included. `POST /api/lock?unit=…&action=take|release|force` changes a
+lock (`pv=…` names the unit by one of its PVs). Screens with anything under
+control keep their stream open while the tab is hidden, because a tab in the
+background is still the tab that holds control.
 
 Every take, release, force (a WARNING naming both users), lapse, pass and refused
 write is logged under `core.locks` / `core.routes`. `/monitor` lists who holds
-what.
+which unit, and every PV it covers.
 
 Limits worth knowing:
 

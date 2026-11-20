@@ -44,23 +44,24 @@
 
 {#- Exclusive write control (`core.locks`).
 
-    A PV marked `exclusive:` may be written only by the tab that has taken
-    control of it. `lock_key(pv)` says whether this one is, and names its
-    entry in the page's `_locks` signal: `state` is free, mine or other, and
-    `text` is who has it, from where and since when — finished prose from the
-    server, so nothing here builds a sentence.
+    Control is taken per unit — a device: everything a component writes —
+    and registered per PV. `lock_key(pv)` says whether a PV is under control,
+    and names its unit's entry in the page's `_locks` signal: `state` is
+    free, mine or other, and `text` is who has it, from where and since when —
+    finished prose from the server, so nothing here builds a sentence.
 
-    The strip is rendered once and never patched, like every control: only
-    the signal changes, pushed down the stream to each tab as the lock moves.
-    The buttons it governs are rendered `disabled` and enabled only for the
-    tab whose state is `mine`, so the first paint — before the browser has
-    said which tab it is — is locked rather than open. -#}
-{%- macro lock_url(pv, action, status) -%}
-/api/lock?pv={{ pv | urlencode }}&amp;action={{ action }}&amp;status={{ status | urlencode }}
+    A unit draws one strip (`unit_strip`); its controls draw none. Strip and
+    controls are rendered once and never patched: only the signal changes,
+    pushed down the stream to each tab as the lock moves. A control under
+    control is rendered `disabled` and enabled only for the tab whose state is
+    `mine`, so the first paint — before the browser has said which tab it
+    is — is locked rather than open. -#}
+{%- macro lock_url(unit, action) -%}
+/api/lock?unit={{ unit | urlencode }}&amp;action={{ action }}
 {%- endmacro -%}
 
-{#- The attribute that holds a control until this tab has control of `pv`.
-    `extra` is the control's own reason to be disabled, if it has one. -#}
+{#- The attribute that holds a control until this tab has control of `pv`'s
+    unit. `extra` is the control's own reason to be disabled, if it has one. -#}
 {%- macro lock_gate(pv, extra=none) -%}
 {%- set key = lock_key(pv) -%}
 {%- if key -%}
@@ -70,22 +71,24 @@ data-attr="{disabled: {{ extra }}}"
 {%- endif -%}
 {%- endmacro -%}
 
-{%- macro lock_strip(pv, label) -%}
-{%- set key = lock_key(pv) -%}
-{%- if key -%}
-{%- set lock = '$_locks.' ~ key -%}
-{%- set status = status_id(label) -%}
+{#- The one strip of a unit: take, release or force the whole device. `unit`
+    is the page's `{key, unit, name}` for it, or none for a component that is
+    not one. What happened is said in the header toast. -#}
+{%- macro unit_strip(unit) -%}
+{%- if unit -%}
+{%- set lock = '$_locks.' ~ unit.key -%}
 <span class="lock-strip" data-lock-state="other" data-attr="{'data-lock-state': {{ lock }}.state}">
 <button type="button" class="lock-take" data-indicator="_busy" data-show="{{ lock }}.state === 'free'" style="display:none"
-        data-on:click="@post('{{ lock_url(pv, 'take', status) }}')">Take control</button>
+        data-on:click="@post('{{ lock_url(unit.unit, 'take') }}')">Take control</button>
 <span class="lock-note" data-show="{{ lock }}.state === 'mine'" style="display:none">You have control <span data-text="{{ lock }}.text"></span></span>
 <button type="button" class="lock-release" data-indicator="_busy" data-show="{{ lock }}.state === 'mine'" style="display:none"
-        data-on:click="@post('{{ lock_url(pv, 'release', status) }}')">Release</button>
+        data-on:click="@post('{{ lock_url(unit.unit, 'release') }}')">Release</button>
 <span class="lock-note" data-show="{{ lock }}.state === 'other'" style="display:none">Read-only — controlled by <span data-text="{{ lock }}.text"></span></span>
-{#- Force is for the operator who cannot reach the holder: it takes control
-    at once, so it asks first, and the holder's screen says who took it. -#}
+{#- Force is for the operator who cannot reach the holder: it takes the
+    whole device at once, so it asks first, naming it, and the holder's
+    screen says who took it. -#}
 <button type="button" class="lock-force" data-indicator="_busy" data-show="{{ lock }}.state === 'other'" style="display:none"
-        data-on:click="confirm('Take control of {{ label }} from ' + {{ lock }}.user + '? They lose it immediately.') && @post('{{ lock_url(pv, 'force', status) }}')">Force</button>
+        data-on:click="confirm('Take control of {{ unit.name }}, all of it, from ' + {{ lock }}.user + '? They lose it immediately.') && @post('{{ lock_url(unit.unit, 'force') }}')">Force</button>
 </span>
 {%- endif -%}
 {%- endmacro -%}
@@ -108,7 +111,6 @@ data-attr="{disabled: {{ extra }}}"
         {% if lock_key(pv) %}{{ lock_gate(pv) }}
         {% endif -%}
         data-on:click="@post('{{ write_url(pv, value=value, status=target, close=close) }}')">{{ label }}</button>
-{{ lock_strip(pv, label) }}
 <span class="control-status" id="{{ target }}"></span>
 </span>
 {%- endmacro -%}
@@ -162,7 +164,6 @@ data-attr="{disabled: {{ extra }}}"
     being set: a second name beside it is noise, and the field's accessible
     name carries it for anyone who arrives without seeing the first. -#}
 {% if show_label %}<span class="preset-label">{{ label }}</span>{% endif %}
-{{ lock_strip(pv, label) }}
 {% if presets %}
 <span class="preset-chips">
 {% for preset in presets %}
@@ -285,7 +286,6 @@ data-attr="{disabled: {{ extra }}}"
     An attribute rather than an id, because one catalog feeds more than one
     control — the preset selector and the one in Modbox Actions — and a patch
     by selector lands in every copy, while an id can only name one. -#}
-{{ lock_strip(pv, label) }}
 <select class="waveform-field" {% if catalog %}data-waveforms="{{ catalog }}" {% endif %}data-bind="{{ signal }}" aria-label="{{ label }}">
 {{ choice_options.options(choices, prompt) if prompt else choice_options.options(choices) }}
 </select>
