@@ -169,6 +169,22 @@ make cambench / make camload # what it costs
 `docker compose up --build` runs the HMI and the gateway as two services from one
 image.
 
+**PNG waveforms.** Some camera IOCs put a PNG file in the waveform (a CHAR or
+UCHAR waveform, one byte per element) instead of raw pixels. `encoding: png`
+on the camera says so. The gateway keeps the bytes as they arrive and decodes
+them on the encode pool, and only for a frame a viewer is due, so a 2 fps tile
+on a 10 fps camera costs two decodes a second. A 16-bit grey PNG keeps every
+bit; 8-bit and colour PNGs arrive as grey (set `bits: 8` for an 8-bit one, or
+saturation is never flagged). A PNG of another size than the camera's `width`
+and `height` is a BAD FRAME, and the log says what size it really is.
+
+**Bad frames in the log.** A camera sending unusable frames sends them at its
+frame rate, so they are not logged one by one (`cameras/badframes.py`). Per
+camera: the first bad frame of a run is logged with its reason, a camera that
+stays bad gets one summary a minute (how many, and the latest reason), and the
+first good frame after a run is logged once. A frame that fails to encode is
+logged the same way, with one traceback rather than one a frame.
+
 **Security.** The socket requires the same signed session cookie as every
 screen. That check is a `before_websocket` hook (`core/login.py`), because
 Quart's `before_request` gate never sees a WebSocket. The browser's `Origin`

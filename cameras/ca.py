@@ -38,6 +38,15 @@ def frame_from_update(spec: CameraSpec, value: Any, seq: int) -> Frame:
     if not getattr(value, "ok", True):
         return Frame(pixels=None, seq=seq, timestamp=time.time(), error=str(value), disconnected=True)
     array = np.asarray(value)
+    if spec.encoding == "png":
+        if array.dtype.kind not in "ui":
+            return Frame(
+                pixels=None, seq=seq, timestamp=stamp,
+                error=f"{spec.pv} sent {array.dtype} values, expected the bytes of a PNG file",
+            )
+        # One byte per element. A CHAR waveform arrives signed; the same bits
+        # read as unsigned are the file. Decoded later, on the encode pool.
+        return Frame(pixels=None, seq=seq, timestamp=stamp, encoded=array.astype(np.uint8).tobytes())
     if array.size != spec.pixels:
         return Frame(
             pixels=None,
@@ -116,10 +125,9 @@ class CaFrameSource:
         loop, counter = self._loop, itertools.count(1)
 
         def on_update(value: Any) -> None:
-            frame = frame_from_update(spec, value, next(counter))
-            if frame.error and not frame.disconnected:
-                logger.warning("camera %s: %s", spec.pv, frame.error)
-            loop.call_soon_threadsafe(on_frame, frame)
+            # A bad frame is not logged here: the hub logs it, throttled
+            # (`cameras.badframes`), rather than once per frame.
+            loop.call_soon_threadsafe(on_frame, frame_from_update(spec, value, next(counter)))
 
         subscription = self._aioca.camonitor(
             channel,

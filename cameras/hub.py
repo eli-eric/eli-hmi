@@ -34,13 +34,13 @@ from concurrent.futures import Executor, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
+from cameras.badframes import SUMMARY_SECONDS, BadFrameLog
 from cameras.channels import channel_for
+from cameras.decode import decode_frame
 from cameras.encode import encode_lossless, encode_tile, frame_stats
 from cameras.protocol import SCALES, Encoding, FrameHeader, Status
 from cameras.source import FrameSource
 from cameras.spec import CameraSpec, Frame
-
-logger = logging.getLogger(__name__)
 
 #: A viewer wanting 10 fps from a 10 fps camera must get every frame, although
 #: frames never arrive exactly 100 ms apart. A frame is due once this fraction
@@ -174,8 +174,10 @@ class CameraHub:
         source: FrameSource,
         *,
         executor: Executor | None = None,
+        summary_every: float = SUMMARY_SECONDS,
     ):
         self._source = source
+        self._bad_frames = BadFrameLog(summary_every=summary_every)
         self._cameras = {
             pv: _Camera(spec=spec, index=index) for index, (pv, spec) in enumerate(cameras.items())
         }
@@ -281,11 +283,14 @@ class CameraHub:
             camera.pump = None
         camera.latest = None
         camera.fresh.clear()
+        self._bad_frames.forget(camera.spec.pv)
 
     def _on_frame(self, camera: _Camera, frame: Frame) -> None:
         camera.latest = frame
         camera.frames_in += 1
-        if frame.pixels is not None:
+        if frame.encoded is not None:
+            camera.bytes_in += len(frame.encoded)
+        elif frame.pixels is not None:
             camera.bytes_in += frame.pixels.nbytes
         camera.arrivals.append(time.monotonic())
         camera.fresh.set()
@@ -295,8 +300,10 @@ class CameraHub:
         scale. A frame that arrives while the previous one is still encoding
         simply replaces it in `latest`: the pump never falls behind.
 
-        A frame that fails costs that frame and a log line, never the pump: a
-        dead pump would freeze the tile for the rest of the shift."""
+        A frame that fails costs that frame, never the pump: a dead pump would
+        freeze the tile for the rest of the shift. It is logged through
+        `BadFrameLog`, so a camera failing every frame logs one traceback,
+        not ten a second."""
         loop = asyncio.get_running_loop()
         while True:
             await camera.fresh.wait()
@@ -308,8 +315,11 @@ class CameraHub:
                 await self._serve(camera, frame, loop)
             except asyncio.CancelledError:
                 raise
-            except Exception:  # noqa: BLE001 - see the docstring
-                logger.exception("camera %s: frame %d not served", camera.spec.pv, frame.seq)
+            except Exception as error:  # noqa: BLE001 - see the docstring
+                self._bad_frames.bad(
+                    camera.spec.pv, f"frame {frame.seq} not served: {error!r}",
+                    level=logging.ERROR, exc_info=True,
+                )
 
     async def _serve(self, camera: _Camera, frame: Frame, loop: asyncio.AbstractEventLoop) -> None:
         spec = camera.spec
@@ -321,7 +331,11 @@ class CameraHub:
                 due.setdefault((choose_factor(spec, want.px), want.lossless), []).append(viewer)
         if not due:
             return
+        if frame.encoded is not None:
+            frame = await loop.run_in_executor(self._executor, decode_frame, spec, frame)
         if not frame.ok:
+            if not frame.disconnected:
+                self._bad_frames.bad(spec.pv, frame.error or "no image")
             # No image to send, but the tile must say why it stopped.
             status = Status.DISCONNECTED if frame.disconnected else Status.BAD_FRAME
             header = FrameHeader(
@@ -358,3 +372,6 @@ class CameraHub:
             for viewer in viewers:
                 if viewer in camera.viewers:
                     camera.offer(viewer, delivery, now)
+        # Only once it has been served: a frame that decodes and then fails
+        # to encode is still a bad one.
+        self._bad_frames.good(spec.pv)

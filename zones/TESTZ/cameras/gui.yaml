@@ -1,9 +1,12 @@
 # Cameras on the real TESTZ network.
 #
+# Each waveform holds a PNG file rather than raw pixels (`encoding: png`).
+#
 # TODO: width, height and bits are placeholders (1024x1024, 12-bit), not the
-# cameras' real geometry. A wrong width or height draws a garbled image, so
-# replace them once they are known. Set `filters: true` on a camera whose IOC
-# runs EPICS base >= 7.0.3.
+# cameras' real geometry. A PNG of any other size is shown as BAD FRAME, and
+# the log names the size it really is. Set `bits` to the PNG's depth (8 for an
+# 8-bit PNG), or saturation is never flagged. Set `filters: true` on a camera
+# whose IOC runs EPICS base >= 7.0.3.
 title: Cameras
 order: 10
 description: Live images from the TESTZ cameras.
@@ -12,12 +15,14 @@ components:
   - component: camera
     label: C00-008
     pv: C00-008-CAM:IMG
+    encoding: png
     width: 1024
     height: 1024
     bits: 12
   - component: camera
     label: C00-005
     pv: C00-005-CAM:IMG
+    encoding: png
     width: 1024
     height: 1024
     bits: 12
