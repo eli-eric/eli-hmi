@@ -36,7 +36,7 @@ from typing import Any, Mapping
 
 from cameras.badframes import SUMMARY_SECONDS, BadFrameLog
 from cameras.channels import channel_for
-from cameras.decode import decode_frame
+from cameras.decode import decode_frame, describe
 from cameras.encode import encode_lossless, encode_tile, frame_stats
 from cameras.protocol import SCALES, Encoding, FrameHeader, Status
 from cameras.source import FrameSource
@@ -143,6 +143,8 @@ class _Camera:
     pump: asyncio.Task | None = None
     latest: Frame | None = None
     fresh: asyncio.Event = field(default_factory=asyncio.Event)
+    #: What its PNGs really are has been logged since it opened.
+    described: bool = False
     frames_in: int = 0
     encodes: int = 0
     #: Frames and bytes handed to viewers, and frames replaced before sending.
@@ -283,6 +285,7 @@ class CameraHub:
             camera.pump = None
         camera.latest = None
         camera.fresh.clear()
+        camera.described = False
         self._bad_frames.forget(camera.spec.pv)
 
     def _on_frame(self, camera: _Camera, frame: Frame) -> None:
@@ -333,6 +336,9 @@ class CameraHub:
             return
         if frame.encoded is not None:
             frame = await loop.run_in_executor(self._executor, decode_frame, spec, frame)
+            if frame.ok and not camera.described:
+                camera.described = True
+                describe(spec, frame)
         if not frame.ok:
             if not frame.disconnected:
                 self._bad_frames.bad(spec.pv, frame.error or "no image")

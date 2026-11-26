@@ -103,6 +103,10 @@ class Frame:
     #: The hub decodes it on its encode pool, and only when a viewer is due
     #: the frame; until then `pixels` is None.
     encoded: bytes | None = None
+    #: Bits per pixel of the file `pixels` was decoded from (8 or 16), or
+    #: `None` for raw pixels. What the camera really sends, whatever its
+    #: `bits` claims.
+    depth: int | None = None
 
     @property
     def ok(self) -> bool:

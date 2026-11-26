@@ -174,9 +174,14 @@ UCHAR waveform, one byte per element) instead of raw pixels. `encoding: png`
 on the camera says so. The gateway keeps the bytes as they arrive and decodes
 them on the encode pool, and only for a frame a viewer is due, so a 2 fps tile
 on a 10 fps camera costs two decodes a second. A 16-bit grey PNG keeps every
-bit; 8-bit and colour PNGs arrive as grey (set `bits: 8` for an 8-bit one, or
-saturation is never flagged). A PNG of another size than the camera's `width`
-and `height` is a BAD FRAME, and the log says what size it really is.
+bit; 8-bit and colour PNGs arrive as grey. A PNG of another size than the
+camera's `width` and `height` is a BAD FRAME, and the log says what size and
+depth it really is. Each time a camera opens, its first good frame is logged
+once with its size and depth (`camera …: sends 512x512 8-bit PNGs`). When the
+depth contradicts `bits` (an 8-bit PNG on a camera declared deeper, or a
+16-bit one on a camera declared 8-bit or less), that line is a warning naming
+the fix. The image is still shown, but saturation is flagged wrongly until
+`bits` is set.
 
 **Bad frames in the log.** A camera sending unusable frames sends them at its
 frame rate, so they are not logged one by one (`cameras/badframes.py`). Per
