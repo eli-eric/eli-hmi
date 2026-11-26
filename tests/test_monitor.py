@@ -20,7 +20,7 @@ from core.settings import Settings, SettingsError
 
 def build_settings(**over) -> Settings:
     fields = dict(
-        zone_code="TESTZ",
+        zone_code="DEV",
         epics_backend="sim",
         sim_tick_seconds=0.2,
         render_interval=0.05,

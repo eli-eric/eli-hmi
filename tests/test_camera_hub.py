@@ -8,6 +8,7 @@ share encodes, and a slow viewer gets the newest frame rather than a backlog.
 from __future__ import annotations
 
 import asyncio
+import logging
 
 import numpy as np
 import pytest
@@ -324,3 +325,321 @@ class TestResilience:
         (delivery,) = await asyncio.wait_for(viewer.next(), 2)
 
         assert delivery.header.seq == 2
+
+
+# ---------------------------------------------------------------------------
+# PNG-encoded waveforms
+# ---------------------------------------------------------------------------
+
+PNG_CAM = CameraSpec(pv="Z:PNG:IMG", width=64, height=48, bits=16, rate=10, encoding="png")
+#: Every pixel exactly, and due a new frame almost at once.
+EXACT = Want(px=64, fps=1000, lossless=True)
+#: Long enough for an EXACT viewer to be due its next frame.
+EXACT_DUE = 0.01
+
+
+def png_bytes(pixels: np.ndarray) -> bytes:
+    """A PNG file of `pixels`, the way a camera IOC that compresses would put
+    it in a CHAR waveform."""
+    import io
+
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.fromarray(pixels).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def png_update(data: bytes, dtype=np.uint8):
+    """The waveform as aioca delivers it: one element per byte."""
+    from tests.test_camera_ca import update
+
+    return update(np.frombuffer(data, dtype=np.uint8).view(dtype), dtype)
+
+
+@pytest.fixture
+async def png():
+    source = ManualSource()
+    hub = CameraHub({PNG_CAM.pv: PNG_CAM}, source)
+    await hub.start()
+    yield hub, source
+    await hub.stop()
+
+
+def send(source: ManualSource, spec: CameraSpec, data: bytes, seq: int) -> None:
+    from cameras.ca import frame_from_update
+
+    source.open_channels[spec.pv](frame_from_update(spec, png_update(data), seq))
+
+
+class TestPngCameras:
+    """A camera whose IOC puts a PNG file in the waveform rather than raw
+    pixels (`encoding: png`). The gateway decodes it on the encode pool, only
+    when a viewer is due a frame, and from there on it is a frame like any
+    other."""
+
+    async def test_a_png_waveform_reaches_the_viewer_as_the_image_it_encodes(self, png):
+        from cameras.encode import decode_lossless
+
+        hub, source = png
+        viewer = hub.viewer()
+        viewer.want({PNG_CAM.pv: EXACT})
+        pixels = np.arange(64 * 48, dtype=np.uint16).reshape(48, 64) * 13
+
+        send(source, PNG_CAM, png_bytes(pixels), seq=1)
+        (delivery,) = await asyncio.wait_for(viewer.next(), 2)
+
+        assert delivery.header.status == Status.OK
+        assert (decode_lossless(delivery.payload, 64, 48) == pixels).all()
+
+    async def test_a_png_of_another_size_is_a_bad_frame(self, png):
+        hub, source = png
+        viewer = hub.viewer()
+        viewer.want({PNG_CAM.pv: EXACT})
+
+        send(source, PNG_CAM, png_bytes(np.zeros((24, 32), dtype=np.uint16)), seq=1)
+        (delivery,) = await asyncio.wait_for(viewer.next(), 2)
+
+        assert delivery.header.status == Status.BAD_FRAME
+
+    async def test_bytes_that_are_not_a_png_are_a_bad_frame_and_the_camera_carries_on(self, png):
+        hub, source = png
+        viewer = hub.viewer()
+        viewer.want({PNG_CAM.pv: EXACT})
+
+        send(source, PNG_CAM, b"\x00" * 500, seq=1)
+        (bad,) = await asyncio.wait_for(viewer.next(), 2)
+        await asyncio.sleep(EXACT_DUE)
+        send(source, PNG_CAM, png_bytes(np.zeros((48, 64), dtype=np.uint16)), seq=2)
+        (good,) = await asyncio.wait_for(viewer.next(), 2)
+
+        assert bad.header.status == Status.BAD_FRAME
+        assert (good.header.seq, good.header.status) == (2, Status.OK)
+
+    @pytest.mark.parametrize("mode", ["L", "RGB"])
+    async def test_an_8_bit_or_colour_png_arrives_as_grey(self, png, mode):
+        from PIL import Image
+
+        from cameras.encode import decode_lossless
+
+        hub, source = png
+        viewer = hub.viewer()
+        viewer.want({PNG_CAM.pv: EXACT})
+        grey = (np.arange(64 * 48) % 251).astype(np.uint8).reshape(48, 64)
+        image = Image.fromarray(grey).convert(mode)
+
+        send(source, PNG_CAM, png_bytes(np.asarray(image)), seq=1)
+        (delivery,) = await asyncio.wait_for(viewer.next(), 2)
+
+        assert (decode_lossless(delivery.payload, 64, 48) == grey).all()
+
+    async def test_the_network_cost_is_the_png_not_the_pixels_it_decodes_to(self, png):
+        hub, source = png
+        viewer = hub.viewer()
+        viewer.want({PNG_CAM.pv: EXACT})
+        data = png_bytes(np.zeros((48, 64), dtype=np.uint16))
+
+        send(source, PNG_CAM, data, seq=1)
+        await asyncio.wait_for(viewer.next(), 2)
+
+        assert stats(hub, PNG_CAM.pv)["bytes_in"] == len(data)
+
+
+# ---------------------------------------------------------------------------
+# Logging bad frames
+# ---------------------------------------------------------------------------
+
+
+def camera_records(caplog, pv: str) -> list:
+    return [r for r in caplog.records if r.name.startswith("cameras") and pv in r.getMessage()]
+
+
+async def bad_frames(source: ManualSource, viewer, count: int, *, first_seq: int = 1) -> None:
+    """`count` frames the hub can do nothing with, each one served."""
+    for seq in range(first_seq, first_seq + count):
+        send(source, PNG_CAM, b"not a png", seq=seq)
+        await asyncio.wait_for(viewer.next(), 2)
+        await asyncio.sleep(EXACT_DUE)
+
+
+class TestBadFrameLog:
+    """A camera that sends unusable frames sends them at its frame rate. One
+    log line each would bury everything else in the log, and in /monitor's.
+    So a camera going bad is logged once, a camera staying bad is summarised
+    now and then, and a camera coming back is logged once."""
+
+    @pytest.fixture(autouse=True)
+    def info(self, caplog):
+        caplog.set_level(logging.INFO, logger="cameras")
+
+    async def test_a_run_of_bad_frames_is_logged_once(self, png, caplog):
+        hub, source = png
+        viewer = hub.viewer()
+        viewer.want({PNG_CAM.pv: EXACT})
+
+        await bad_frames(source, viewer, 10)
+
+        (record,) = camera_records(caplog, PNG_CAM.pv)
+        assert record.levelname == "WARNING"
+        assert "not a PNG" in record.getMessage()
+
+    async def test_the_camera_coming_back_is_logged_once(self, png, caplog):
+        hub, source = png
+        viewer = hub.viewer()
+        viewer.want({PNG_CAM.pv: EXACT})
+        good = png_bytes(np.zeros((48, 64), dtype=np.uint16))
+
+        await bad_frames(source, viewer, 5)
+        for seq in (6, 7, 8):
+            send(source, PNG_CAM, good, seq=seq)
+            await asyncio.wait_for(viewer.next(), 2)
+            await asyncio.sleep(EXACT_DUE)
+
+        went_bad, came_back = [
+            r for r in camera_records(caplog, PNG_CAM.pv) if r.name == "cameras.badframes"
+        ]
+        assert came_back.levelname == "INFO"
+        assert "after 5 bad" in came_back.getMessage()
+
+    async def test_a_camera_that_stays_bad_is_summarised_now_and_then(self, caplog):
+        source = ManualSource()
+        hub = CameraHub({PNG_CAM.pv: PNG_CAM}, source, summary_every=0.2)
+        await hub.start()
+        try:
+            viewer = hub.viewer()
+            viewer.want({PNG_CAM.pv: EXACT})
+
+            await bad_frames(source, viewer, 4)
+            await asyncio.sleep(0.25)
+            await bad_frames(source, viewer, 1, first_seq=5)
+        finally:
+            await hub.stop()
+
+        went_bad, summary = camera_records(caplog, PNG_CAM.pv)
+        assert summary.levelname == "WARNING"
+        assert "4 more bad frames" in summary.getMessage()
+        assert "not a PNG" in summary.getMessage()
+
+    async def test_frames_that_fail_to_encode_log_one_traceback_not_one_each(self, setup, caplog):
+        hub, source = setup
+        viewer = hub.viewer()
+        viewer.want({CAM1.pv: Want(px=64, fps=1000)})
+
+        for seq in range(1, 6):
+            source.open_channels[CAM1.pv](
+                Frame(pixels=np.zeros(7, dtype=np.uint16), seq=seq, timestamp=1.0)
+            )
+            await until(lambda seq=seq: stats(hub, CAM1.pv)["frames_in"] == seq)
+            await asyncio.sleep(EXACT_DUE)
+
+        (record,) = camera_records(caplog, CAM1.pv)
+        assert record.levelname == "ERROR"
+        assert record.exc_info is not None
+
+    async def test_a_camera_reopened_while_still_bad_is_logged_afresh(self, png, caplog):
+        hub, source = png
+        first = hub.viewer()
+        first.want({PNG_CAM.pv: EXACT})
+        await bad_frames(source, first, 3)
+        first.close()
+
+        second = hub.viewer()
+        second.want({PNG_CAM.pv: EXACT})
+        await bad_frames(source, second, 1, first_seq=4)
+
+        messages = [r.getMessage() for r in camera_records(caplog, PNG_CAM.pv)]
+        assert len(messages) == 2
+        assert all(": bad frame:" in message for message in messages)
+
+
+def png_records(caplog, pv: str) -> list:
+    return [r for r in caplog.records if r.name == "cameras.decode" and pv in r.getMessage()]
+
+
+async def serve_png(source: ManualSource, viewer, spec: CameraSpec, data: bytes, seq: int):
+    send(source, spec, data, seq=seq)
+    (delivery,) = await asyncio.wait_for(viewer.next(), 2)
+    await asyncio.sleep(EXACT_DUE)
+    return delivery
+
+
+class TestPngFormatLog:
+    """A PNG says what it holds; the screen's YAML only claims to. The log says
+    what a camera's PNGs really are, once each time the camera opens, so the
+    station's log is where `bits` can be read off. A depth that contradicts
+    `bits` is a warning naming the fix, and the image is still shown: a wrong
+    `bits` costs the saturation flag, not the picture."""
+
+    @pytest.fixture(autouse=True)
+    def info(self, caplog):
+        caplog.set_level(logging.INFO, logger="cameras")
+
+    async def test_a_png_that_fits_its_camera_is_described_once(self, png, caplog):
+        hub, source = png
+        viewer = hub.viewer()
+        viewer.want({PNG_CAM.pv: EXACT})
+        data = png_bytes(np.zeros((48, 64), dtype=np.uint16))
+
+        for seq in (1, 2, 3):
+            await serve_png(source, viewer, PNG_CAM, data, seq)
+
+        (record,) = png_records(caplog, PNG_CAM.pv)
+        assert record.levelname == "INFO"
+        assert "64x48 16-bit PNG" in record.getMessage()
+
+    async def test_an_8_bit_png_on_a_deeper_camera_says_to_set_bits_8(self, png, caplog):
+        hub, source = png
+        viewer = hub.viewer()
+        viewer.want({PNG_CAM.pv: EXACT})
+
+        delivery = await serve_png(
+            source, viewer, PNG_CAM, png_bytes(np.zeros((48, 64), dtype=np.uint8)), 1
+        )
+
+        assert delivery.header.status == Status.OK
+        (record,) = png_records(caplog, PNG_CAM.pv)
+        assert record.levelname == "WARNING"
+        assert "8-bit PNG" in record.getMessage()
+        assert "bits: 16" in record.getMessage()
+        assert "set bits: 8" in record.getMessage()
+
+    async def test_a_16_bit_png_on_an_8_bit_camera_says_to_set_the_sensor_depth(self, caplog):
+        spec = CameraSpec(pv="Z:PNG8:IMG", width=64, height=48, bits=8, encoding="png")
+        source = ManualSource()
+        hub = CameraHub({spec.pv: spec}, source)
+        await hub.start()
+        try:
+            viewer = hub.viewer()
+            viewer.want({spec.pv: EXACT})
+            await serve_png(source, viewer, spec, png_bytes(np.zeros((48, 64), dtype=np.uint16)), 1)
+        finally:
+            await hub.stop()
+
+        (record,) = png_records(caplog, spec.pv)
+        assert record.levelname == "WARNING"
+        assert "16-bit PNG" in record.getMessage()
+        assert "9 to 16" in record.getMessage()
+
+    async def test_a_camera_reopened_is_described_afresh(self, png, caplog):
+        hub, source = png
+        data = png_bytes(np.zeros((48, 64), dtype=np.uint16))
+        first = hub.viewer()
+        first.want({PNG_CAM.pv: EXACT})
+        await serve_png(source, first, PNG_CAM, data, 1)
+        first.close()
+
+        second = hub.viewer()
+        second.want({PNG_CAM.pv: EXACT})
+        await serve_png(source, second, PNG_CAM, data, 2)
+
+        assert len(png_records(caplog, PNG_CAM.pv)) == 2
+
+    async def test_a_png_of_another_size_names_its_depth_too(self, png, caplog):
+        hub, source = png
+        viewer = hub.viewer()
+        viewer.want({PNG_CAM.pv: EXACT})
+
+        await serve_png(source, viewer, PNG_CAM, png_bytes(np.zeros((24, 32), dtype=np.uint8)), 1)
+
+        (record,) = camera_records(caplog, PNG_CAM.pv)
+        assert "sent a 32x24 8-bit PNG, expected 64x48" in record.getMessage()

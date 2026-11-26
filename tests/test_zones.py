@@ -230,10 +230,19 @@ class TestRealZones:
 
     def test_every_shipped_zone_loads(self):
         codes = zone_codes()
-        assert "TESTZ" in codes
+        assert "DEV" in codes
         for code in codes:
             zone = load_zone(code)
             assert zone.guis, f"zone {code} has no screens"
+
+    def test_the_testz_station_resolves_to_testz(self, monkeypatch):
+        monkeypatch.delenv("ZONE_CODE", raising=False)
+        assert resolve_zone_code("testz-debug20")[0] == "TESTZ"
+
+    def test_the_development_zone_answers_to_no_host(self):
+        """DEV carries made-up PVs for the simulator and the tests. A station
+        that resolved to it would show an operator a plausible, fictional hall."""
+        assert load_zone("DEV").hostnames == []
 
     def test_no_two_zones_claim_the_same_hostname_pattern(self):
         """Not exhaustive — two globs can overlap without being equal — but it
@@ -256,7 +265,7 @@ class TestRealZones:
                 assert not missing, f"{code}/{gui.slug}: undeclared PVs {missing}"
 
 
-def camera_block(pv: str, width: int = 640, height: int = 480) -> str:
+def camera_block(pv: str, width: int = 640, height: int = 480, **extra: str) -> str:
     """One `camera` entry, indented to follow `make_gui`'s component list."""
     block = textwrap.dedent(
         f"""\
@@ -267,6 +276,7 @@ def camera_block(pv: str, width: int = 640, height: int = 480) -> str:
           height: {height}
         """
     )
+    block += "".join(f"  {key}: {value}\n" for key, value in extra.items())
     return textwrap.indent(block, "  ")
 
 
@@ -290,4 +300,28 @@ class TestCameras:
         make_gui(zone, "laser", camera_block("Z:CAM1:Image", width=1024))
 
         with pytest.raises(ZoneError, match="Z:CAM1:Image"):
+            load_zone("Z1")
+
+    def test_a_camera_whose_waveform_holds_a_png_says_so(self, zones):
+        zone = make_zone(zones, "Z1")
+        make_gui(zone, "wall", camera_block("Z:CAM1:IMG", encoding="png") + camera_block("Z:CAM2:IMG"))
+
+        cameras = load_zone("Z1").cameras()
+
+        assert cameras["Z:CAM1:IMG"].encoding == "png"
+        assert cameras["Z:CAM2:IMG"].encoding == "raw"
+
+    def test_an_encoding_the_gateway_cannot_read_fails_the_start(self, zones):
+        zone = make_zone(zones, "Z1")
+        make_gui(zone, "wall", camera_block("Z:CAM1:IMG", encoding="jpeg"))
+
+        with pytest.raises(ZoneError, match="encoding"):
+            load_zone("Z1")
+
+    def test_two_screens_disagreeing_about_a_camera_encoding_fail_the_start(self, zones):
+        zone = make_zone(zones, "Z1")
+        make_gui(zone, "wall", camera_block("Z:CAM1:IMG", encoding="png"))
+        make_gui(zone, "laser", camera_block("Z:CAM1:IMG"))
+
+        with pytest.raises(ZoneError, match="Z:CAM1:IMG"):
             load_zone("Z1")

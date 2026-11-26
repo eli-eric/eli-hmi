@@ -8,6 +8,7 @@
       bits: 12                      # a 12-bit sensor saturates at 4095
       rate: 10                      # frames per second the camera delivers
       filters: true                 # IOC on EPICS base >= 7.0.3 (see below)
+      encoding: png                 # the waveform holds a PNG file, not pixels
 
 Unlike every other component, the live part is not a widget. A frame is 2 MiB of
 pixels, ten times a second, so it never goes through the hub or the SSE stream:
@@ -79,6 +80,12 @@ class Config(ComponentConfig):
         description="The IOC runs EPICS base >= 7.0.3, so the gateway may ask it to "
         "drop frames a small tile does not need. Leave off for older IOCs.",
     )
+    encoding: Literal["raw", "png"] = Field(
+        default="raw",
+        description="What the waveform holds: `raw` pixels, one per element; or "
+        "`png`, the bytes of a PNG file, one per element (a CHAR or UCHAR "
+        "waveform). A PNG must be width x height; colour is shown as grey.",
+    )
     sim: SimConfig = Field(
         default_factory=SimConfig, description="How the built-in simulator draws this camera."
     )
@@ -110,6 +117,7 @@ class Camera(Component):
                 label=cfg.label,
                 levels=None if cfg.levels == "auto" else tuple(cfg.levels),
                 filters=cfg.filters,
+                encoding=cfg.encoding,
                 sim=SimBeam(**cfg.sim.model_dump()),
             )
         ]

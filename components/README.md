@@ -129,7 +129,7 @@ the cog with the controls, or under a panel's header. When the strip is not
 in the cog, pass `held=unit` to `controls.cog` so the cog itself waits for
 control, as the laser panel does; a cog holding the strip must stay openable. `unit` is in every
 component's context, and is none for a component that is not a unit.
-`tests/test_locks.py` checks that every control on a TESTZ screen writes a PV
+`tests/test_locks.py` checks that every control on a DEV screen writes a PV
 the screen declares.
 
 ### Shared pieces

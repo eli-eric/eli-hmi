@@ -13,10 +13,11 @@ The repository is one app: the ELI Beamlines operator HMI as a single Python pro
 The structure is the config:
 
 - `zones/<CODE>/zone.yaml` declares a zone and the hostname globs that select it. `zones/<CODE>/<screen>/gui.yaml` is a screen. A folder is a screen: its route and menu entry come from the folder listing, so there is no registry or menu to edit.
+- `zones/DEV/` is the development zone. It answers to no hostname, and `make run`, the tests, the local IOC and the snapshot tool all use it. `zones/TESTZ/` is a real control-system network (`testz-debug20`), not a playground.
 - `components/` holds the reusable pieces (`value`, `group`, `grid`, `tally`, `motor`, `valve`, `panel`, `camera`, `laser_panel`), each a folder with Python and a Jinja template, used from YAML. A component declares a pydantic `Config`, a `setup()` for its live widgets, and `pv_specs()` saying what each PV is. `components/valve/` is the smallest one to copy.
 - `cameras/` is the camera gateway: live images from waveform PVs. It is a path of its own beside the PV hub, never through it. `cameras/README.md` covers the design, the measured load and the wire protocol. It runs inside the HMI (`CAMERA_GATEWAY=embedded`) or as its own process (`python -m cameras`, port **8083**).
 - `core/` holds zone resolution, the EPICS hub, rendering and routes. `core/__init__.py` has the module map. It also holds `/monitor`, the diagnostics dashboard (`core/monitor.py`), which is the one page that isn't a zone folder. Its name and the app's other fixed paths are reserved slugs (`RESERVED_SLUGS` in `core/zones.py`).
-- `ioc/` is a local EPICS IOC whose database is **generated** from what the components declare (`uv run python ioc/generate.py --zone TESTZ`). Never edit `ioc/db/*.db`: add a screen and regenerate. `generate.py` also writes `zones/<ZONE>-IOC/`, which is identical to the real zone except for PVs naming a *field* of a synApps record (no base-only IOC can serve a name with a dot in it) and answers to no hostname, so a station can never resolve to it. It runs via pythonSoftIOC from the `ioc` extra (no EPICS build), or as a stock `softIoc` in Docker (`ioc/Dockerfile`).
+- `ioc/` is a local EPICS IOC whose database is **generated** from what the components declare (`uv run python ioc/generate.py --zone DEV`). Never edit `ioc/db/*.db`: add a screen and regenerate. `generate.py` also writes `zones/<ZONE>-IOC/`, which is identical to the real zone except for PVs naming a *field* of a synApps record (no base-only IOC can serve a name with a dot in it) and answers to no hostname, so a station can never resolve to it. It runs via pythonSoftIOC from the `ioc` extra (no EPICS build), or as a stock `softIoc` in Docker (`ioc/Dockerfile`).
 - `tests/` is pytest. The end-to-end tests drive a real Hypercorn socket, because the thing under test is a streaming response. The camera socket tests use the `websockets` client from the dev group.
 - `tools/snapshot.py` freezes one render of every screen as static HTML for layout review. `tools/cambench.py` and `tools/camload.py` measure what camera frames cost.
 
@@ -26,12 +27,12 @@ Dependencies are one `pyproject.toml` plus a committed `uv.lock`, with no requir
 
 All from the repo root:
 
-- `make run` starts `ZONE_CODE=TESTZ` with the built-in simulator (`EPICS_BACKEND=sim`) and `DEV=1`, on **port 8082**. It needs no IOC and no Node. Sign in as `test` / `test`.
+- `make run` starts `ZONE_CODE=DEV` with the built-in simulator (`EPICS_BACKEND=sim`) and `DEV=1`, on **port 8082**. It needs no IOC and no Node. Sign in as `test` / `test`.
 - `make run-zone ZONE_CODE=01` does the same for another zone.
 - `make test` runs the suite. Run it after every change.
 - `make components` lists the component registry with one line each.
 - `make snapshot` writes static renders to `snapshot/`.
-- Cameras: `make run` serves them embedded (the TESTZ `cameras` screen). `make run-cameras` runs the standalone gateway on 8083, and `make run-with-gateway` runs the HMI that points pages at it. `make cambench` and `make camload CAMERAS=100 CLIENTS=4` measure.
+- Cameras: `make run` serves them embedded (the DEV `cameras` screen). `make run-cameras` runs the standalone gateway on 8083, and `make run-with-gateway` runs the HMI that points pages at it. `make cambench` and `make camload CAMERAS=100 CLIENTS=4` measure.
 - Local IOC: `make ioc-db` regenerates the db and the `-IOC` zone. `make ioc` runs a real EPICS IOC on CA 5064. `make run-ioc` (in another shell) runs the HMI against it. `make ioc-verify` is the CA smoke test.
 - `make run-epics` runs against the real control system. It needs `SESSION_SECRET` and `LDAP_SERVER_URL`.
 - `make lock` / `make upgrade` rewrite `uv.lock`. Commit the diff.
@@ -58,6 +59,7 @@ All from the repo root:
   - With `filters: true` it monitors `PV.{"dec":{"n":k}}` so the IOC decimates (`cameras/channels.py`).
   - Pages get `core/static/js/cameras.js`, the only script besides Datastar, and only on screens with a camera. It opens one WebSocket (`/api/cameras/ws`), sends the full `view` of what is on screen, and draws onto canvases.
   - The socket is gated by `install_socket_gate` in `core/login.py`: the session cookie plus a same-host `Origin`. Quart's `before_request` gate does not see WebSockets.
+  - A browser hides why a handshake failed, so after a failed one `cameras.js` asks the HMI's `GET /api/session` and goes to the login form on a 401.
   - Status tones come from `camera_tone()` in `core/render/severity.py`, sent in the hello message.
   - A standalone gateway shares `SESSION_SECRET` with the HMI, which is how it accepts the HMI's cookie.
 - **Diagnostics (`/monitor`):** this page reads state and keeps none of its own.

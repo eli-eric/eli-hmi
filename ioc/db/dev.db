@@ -1,12 +1,12 @@
-# EPICS database for zone TESTZ — GENERATED, DO NOT EDIT.
+# EPICS database for zone DEV — GENERATED, DO NOT EDIT.
 #
-#     python ioc/generate.py --zone TESTZ
+#     python ioc/generate.py --zone DEV
 #
 # Built from what each component declares about its PVs
 # (`Component.pv_specs()`), so a screen written in YAML gets a
 # working IOC with no extra work.
 #
-# Zone:    TESTZ — Test zone
+# Zone:    DEV — Development zone
 # Screens: l4-opcpa, chillers, vacuum, cameras
 #
 # Analogue records scan at 1 second and random-walk inside their band;

@@ -64,7 +64,7 @@ def running(**overrides):
     fields = dict(
         host="127.0.0.1",
         port=free_port(),
-        zone_code="TESTZ",
+        zone_code="DEV",
         epics_backend="sim",
         sim_tick_seconds=0.2,
         render_interval=0.05,
@@ -201,7 +201,7 @@ class TestPage:
         be a guess."""
         body = (await client.get("/chillers")).text
         assert 'class="nav-zone"' in body
-        assert ">TESTZ<" in body
+        assert ">DEV<" in body
 
     async def test_a_screen_the_zone_does_not_have_is_a_404(self, client):
         assert (await client.get("/telepathy")).status_code == 404
@@ -560,7 +560,7 @@ class TestTheLaserChoiceIsSaved:
     async def signed_in(self):
         app = create_app(
             Settings(
-                zone_code="TESTZ",
+                zone_code="DEV",
                 epics_backend="sim",
                 sim_tick_seconds=10,
                 log_level="WARNING",
@@ -664,7 +664,7 @@ class TestOps:
         assert (await client.get("/health/live")).text == "live"
         assert (await client.get("/health/ready")).json()["status"] == "ready"
         stats = (await client.get("/stats")).json()
-        assert stats["zone"] == "TESTZ"
+        assert stats["zone"] == "DEV"
         # How the zone was chosen is the second question after "is anything
         # monitored", so /stats answers both.
         assert stats["zone_resolved_by"] == "ZONE_CODE"
@@ -794,7 +794,7 @@ class TestTruncationIsVisible:
     def test_a_field_with_decimals_says_what_will_be_sent(self):
         """A current resolved to tenths (the YDFA's), so 2.55 is sent as 2.5 —
         and the field rewrites itself to 2.5 on leaving it, before the press.
-        Rendered directly: no TESTZ laser exposes a field with decimals to
+        Rendered directly: no DEV laser exposes a field with decimals to
         drop now that the trigger delay is an integer."""
         from types import SimpleNamespace
 
@@ -1830,7 +1830,7 @@ class TestRegisterMonitorsAreNotOnTheScreen:
         from core.page import build_pages
         from core.zones import load_zone
 
-        return build_pages(load_zone("TESTZ"), create_environment())
+        return build_pages(load_zone("DEV"), create_environment())
 
     def test_the_screen_does_not_subscribe_them(self):
         pages = self.pages()
@@ -2105,6 +2105,17 @@ class TestAuthGate:
         )
         assert write.status_code == 401
 
+    async def test_a_script_can_ask_whether_it_is_still_signed_in(self, client, anonymous):
+        """A browser never sees why a WebSocket handshake failed: a sign-out
+        and a gateway that is down look the same to `cameras.js`. So after a
+        failed one it asks this, as JSON (a page fetch would be redirected to
+        the form's HTML), and a 401 sends the page to the form."""
+        json_only = {"Accept": "application/json"}
+        assert (await client.get("/api/session", headers=json_only)).status_code == 204
+        response = await anonymous.get("/api/session", headers=json_only, follow_redirects=False)
+        assert response.status_code == 401
+        assert response.json()["login"] == "/login"
+
     async def test_using_a_screen_renews_the_session(self, client):
         """The window is how long a station may sit unused, not how long a
         sign-in lasts: a screen in use never signs its operator out."""
@@ -2350,7 +2361,7 @@ class TestAFailedWriteIsPutRight:
 
         app = create_app(
             Settings(
-                zone_code="TESTZ",
+                zone_code="DEV",
                 epics_backend="sim",
                 sim_tick_seconds=10,
                 log_level="WARNING",
@@ -2472,7 +2483,7 @@ class TestRegisterUnitsComeFromTheDevice:
 
         app = create_app(
             Settings(
-                zone_code="TESTZ",
+                zone_code="DEV",
                 epics_backend="sim",
                 sim_tick_seconds=10,
                 log_level="WARNING",
@@ -2675,8 +2686,8 @@ class TestMonitor:
     async def test_a_signed_in_user_gets_the_dashboard(self, client):
         response = await client.get("/monitor")
         assert response.status_code == 200
-        assert "<title>Monitor — zone TESTZ</title>" in response.text
-        assert ">TESTZ<" in response.text
+        assert "<title>Monitor — zone DEV</title>" in response.text
+        assert ">DEV<" in response.text
 
     async def test_it_is_behind_the_sign_in_like_every_screen(self, anonymous):
         response = await anonymous.get("/monitor", follow_redirects=False)
@@ -2794,7 +2805,7 @@ class TestMonitor:
         facts = dict(
             re.findall(r"<dt>([^<]+)</dt>\s*<dd[^>]*>(.*?)</dd>", overview, re.S)
         )
-        assert facts["Zone"] == "TESTZ"
+        assert facts["Zone"] == "DEV"
         assert facts["Backend"] == "simulated EPICS"
         assert facts["Sign-in"] == stats["auth"]
         assert re.fullmatch(r"\d+(s|m \d\ds|h \d\dm|d \d\dh)", facts["Up"])
@@ -2841,7 +2852,7 @@ class TestMonitor:
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/plain")
         assert re.fullmatch(
-            r'attachment; filename="eli-hmi-TESTZ-\d{8}-\d{4}\.txt"',
+            r'attachment; filename="eli-hmi-DEV-\d{8}-\d{4}\.txt"',
             response.headers["content-disposition"],
         )
         assert re.search(r"WARNING +core\.routes: write refused user=test pv='for the ticket'", response.text)

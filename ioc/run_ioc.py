@@ -21,7 +21,7 @@ has no Python and therefore serves no cameras.
 Then point the HMI at the generated zone (the one whose field PVs were rewritten
 to names a base-only IOC can serve):
 
-    ZONE_CODE=TESTZ-IOC EPICS_BACKEND=aioca python -m core
+    ZONE_CODE=DEV-IOC EPICS_BACKEND=aioca python -m core
 
 `--list` prints every PV the IOC will serve, which is the quickest way to check
 a config change reached the database.
@@ -40,7 +40,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 #: The development zone's database. `--db` picks another; `make ioc
 #: ZONE_CODE=01` passes the right one.
-DEFAULT_DB = HERE / "db" / "testz.db"
+DEFAULT_DB = HERE / "db" / "dev.db"
 
 
 def record_names(db: Path) -> list[str]:

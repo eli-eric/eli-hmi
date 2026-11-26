@@ -212,7 +212,7 @@ def _first_laser(zone):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
-        "--zone", default="TESTZ-IOC", help="zone to check (default: TESTZ-IOC)"
+        "--zone", default="DEV-IOC", help="zone to check (default: DEV-IOC)"
     )
     parser.add_argument("--timeout", type=float, default=3.0, help="CA timeout in seconds")
     args = parser.parse_args()

@@ -244,7 +244,7 @@ class Zone:
                 if first.geometry != spec.geometry:
                     raise ZoneError(
                         f"zone {self.code}: camera {spec.pv} is declared twice with "
-                        f"different geometry (width, height, bits): {first.geometry} "
+                        f"different geometry (width, height, bits, encoding): {first.geometry} "
                         f"and {spec.geometry} on /{gui.slug}"
                     )
         return cameras

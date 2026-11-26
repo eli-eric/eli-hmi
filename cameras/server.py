@@ -1,7 +1,7 @@
 """The camera gateway as its own process.
 
     python -m cameras                       # zone from the hostname, port 8083
-    ZONE_CODE=TESTZ make run-cameras        # simulator
+    ZONE_CODE=DEV make run-cameras        # simulator
 
 Same image, same code and same zone folders as the HMI; a different process,
 so a burst of camera traffic — a wall of tiles opening, a dozen focus views —

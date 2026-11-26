@@ -169,12 +169,40 @@ make cambench / make camload # what it costs
 `docker compose up --build` runs the HMI and the gateway as two services from one
 image.
 
+**PNG waveforms.** Some camera IOCs put a PNG file in the waveform (a CHAR or
+UCHAR waveform, one byte per element) instead of raw pixels. `encoding: png`
+on the camera says so. The gateway keeps the bytes as they arrive and decodes
+them on the encode pool, and only for a frame a viewer is due, so a 2 fps tile
+on a 10 fps camera costs two decodes a second. A 16-bit grey PNG keeps every
+bit; 8-bit and colour PNGs arrive as grey. A PNG of another size than the
+camera's `width` and `height` is a BAD FRAME, and the log says what size and
+depth it really is. Each time a camera opens, its first good frame is logged
+once with its size and depth (`camera …: sends 512x512 8-bit PNGs`). When the
+depth contradicts `bits` (an 8-bit PNG on a camera declared deeper, or a
+16-bit one on a camera declared 8-bit or less), that line is a warning naming
+the fix. The image is still shown, but saturation is flagged wrongly until
+`bits` is set.
+
+**Bad frames in the log.** A camera sending unusable frames sends them at its
+frame rate, so they are not logged one by one (`cameras/badframes.py`). Per
+camera: the first bad frame of a run is logged with its reason, a camera that
+stays bad gets one summary a minute (how many, and the latest reason), and the
+first good frame after a run is logged once. A frame that fails to encode is
+logged the same way, with one traceback rather than one a frame.
+
 **Security.** The socket requires the same signed session cookie as every
 screen. That check is a `before_websocket` hook (`core/login.py`), because
 Quart's `before_request` gate never sees a WebSocket. The browser's `Origin`
 must name this host (any port), so a page elsewhere cannot open the socket with
 an operator's cookie. A page names cameras, never PVs: the gateway serves only
-the zone's cameras.
+the zone's cameras. A refused handshake is a plain 401, which a browser never
+shows the page's script. So after a failed one, `cameras.js` asks the HMI's
+`GET /api/session`. A 401 there sends the tab to the login form, the way the
+live stream does; anything else (the gateway or the HMI is just down) keeps it
+retrying. A tab left open across a sign-out therefore stops retrying every
+15 s. The question goes to the HMI, never the gateway: a gateway with the
+wrong `SESSION_SECRET` would otherwise bounce the tab between the screen and
+the form.
 
 **Diagnostics.** `/monitor` has a Cameras panel: every camera, open or idle,
 with its channel, viewers, frames in per second, encode time, bytes out and drops.

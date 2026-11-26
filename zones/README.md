@@ -9,8 +9,9 @@ zones/
 │   ├── zone.yaml           which hostnames are this zone
 │   ├── l4-opcpa/gui.yaml   a screen  ->  /l4-opcpa  ->  a menu entry
 │   └── motors/gui.yaml     another   ->  /motors
-├── TESTZ/                  the development zone
-└── TESTZ-IOC/              generated; see ioc/README.md
+├── DEV/                    the development zone: simulator, local IOC, tests
+├── DEV-IOC/                generated; see ioc/README.md
+└── TESTZ/                  the real TESTZ network (testz-debug20)
 ```
 
 **A folder is a screen.** Adding a screen to a zone is creating a folder with a
@@ -27,7 +28,7 @@ rather than giving a menu entry that can never open.
 
 ```bash
 mkdir zones/01/chillers
-cp zones/TESTZ/chillers/gui.yaml zones/01/chillers/     # start from a real one
+cp zones/DEV/chillers/gui.yaml zones/01/chillers/       # start from a real one
 $EDITOR zones/01/chillers/gui.yaml                      # change the PV names
 make run ZONE_CODE=01                                   # it is in the menu
 ```

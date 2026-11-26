@@ -30,7 +30,7 @@ from core.server import create_app, serve_config
 from core.settings import Settings
 
 ROOT = Path(__file__).resolve().parents[1]
-REFERENCE = ROOT / "zones" / "TESTZ"
+REFERENCE = ROOT / "zones" / "DEV"
 
 
 def free_port() -> int:
@@ -51,7 +51,7 @@ def accepting(port: int, timeout: float = 15.0) -> bool:
 
 
 def write_zone(root: Path, **changes) -> None:
-    """The TESTZ laser-panel screen with a few things changed or removed."""
+    """The DEV laser-panel screen with a few things changed or removed."""
     (root / "VAR").mkdir(parents=True)
     (root / "VAR" / "zone.yaml").write_text(
         yaml.safe_dump({"title": "Variant", "hostnames": ["variant*"]}),

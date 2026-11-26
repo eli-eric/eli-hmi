@@ -18,6 +18,9 @@ from typing import Literal
 import numpy as np
 
 BeamProfile = Literal["gaussian", "flattop"]
+#: How the waveform carries the image: `raw` pixels, row-major, one per
+#: element; or `png`, the bytes of a PNG file, one per element.
+WaveformEncoding = Literal["raw", "png"]
 
 
 @dataclass(frozen=True)
@@ -59,6 +62,8 @@ class CameraSpec:
     #: The IOC runs EPICS base >= 7.0.3, so the gateway may ask it to decimate
     #: with a server-side channel filter instead of pulling every frame.
     filters: bool = False
+    #: What the waveform holds: raw pixels, or a PNG file the gateway decodes.
+    encoding: WaveformEncoding = "raw"
     sim: SimBeam = field(default_factory=SimBeam)
 
     @property
@@ -76,9 +81,9 @@ class CameraSpec:
         return self.pixels * np.dtype(np.uint16).itemsize
 
     @property
-    def geometry(self) -> tuple[int, int, int]:
+    def geometry(self) -> tuple[int, int, int, str]:
         """What two declarations of one camera must agree on."""
-        return (self.width, self.height, self.bits)
+        return (self.width, self.height, self.bits, self.encoding)
 
 
 @dataclass(frozen=True, eq=False)
@@ -94,6 +99,14 @@ class Frame:
     error: str | None = None
     #: The source lost the PV, as opposed to delivering something unusable.
     disconnected: bool = False
+    #: The image as the waveform carried it (a PNG file), not yet decoded.
+    #: The hub decodes it on its encode pool, and only when a viewer is due
+    #: the frame; until then `pixels` is None.
+    encoded: bytes | None = None
+    #: Bits per pixel of the file `pixels` was decoded from (8 or 16), or
+    #: `None` for raw pixels. What the camera really sends, whatever its
+    #: `bits` claims.
+    depth: int | None = None
 
     @property
     def ok(self) -> bool:

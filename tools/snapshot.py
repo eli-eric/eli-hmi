@@ -6,7 +6,7 @@ it awkward to look at without a running IOC and a browser on the same network.
 into a folder of plain files that open anywhere, so a layout can be reviewed,
 diffed against an earlier snapshot, or sent to someone for comment.
 
-    python tools/snapshot.py --zone TESTZ --out /tmp/snapshot
+    python tools/snapshot.py --zone DEV --out /tmp/snapshot
 
 The stream is removed (`data-init`), so nothing tries to connect and the page
 stays exactly as it was rendered. Everything else — the markup, the stylesheet,
@@ -77,7 +77,7 @@ def write(out: Path, slug: str, html: str, title: str, pages: list[tuple[str, st
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--zone", default=os.environ.get("ZONE_CODE", "TESTZ"))
+    ap.add_argument("--zone", default=os.environ.get("ZONE_CODE", "DEV"))
     ap.add_argument("--out", default="snapshot", type=Path)
     args = ap.parse_args()
 

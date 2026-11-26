@@ -4,10 +4,14 @@ what it makes of what comes back."""
 
 from __future__ import annotations
 
+import asyncio
+import logging
+import sys
+
 import numpy as np
 import pytest
 
-from cameras.ca import array_bytes_problem, frame_from_update
+from cameras.ca import CaFrameSource, array_bytes_problem, frame_from_update
 from cameras.channels import channel_for
 from cameras.spec import CameraSpec
 
@@ -118,7 +122,51 @@ class TestStartUp:
 
         monkeypatch.setenv("EPICS_CA_AUTO_ARRAY_BYTES", "NO")
         monkeypatch.delenv("EPICS_CA_MAX_ARRAY_BYTES", raising=False)
-        settings = Settings(zone_code="TESTZ", epics_backend="aioca", dev=True, log_level="WARNING")
+        settings = Settings(zone_code="DEV", epics_backend="aioca", dev=True, log_level="WARNING")
 
         with pytest.raises(ValueError, match="EPICS_CA_MAX_ARRAY_BYTES"):
             create_app(settings)
+
+
+class FakeAioca:
+    """Just enough of aioca for `CaFrameSource`: `camonitor` records the
+    callback, so the test can deliver updates as aioca would."""
+
+    FORMAT_TIME = 2
+
+    def __init__(self):
+        self.callbacks = []
+
+    class Subscription:
+        def close(self):
+            pass
+
+    def camonitor(self, channel, callback, **kwargs):
+        self.callbacks.append(callback)
+        return self.Subscription()
+
+
+class TestCaSource:
+    async def test_bad_updates_reach_the_hub_without_a_log_line_each(self, monkeypatch, caplog):
+        """The hub logs bad frames, throttled (`cameras.badframes`). The source
+        logging each one too is what grew a station's log at the frame rate."""
+        aioca = FakeAioca()
+        monkeypatch.setitem(sys.modules, "aioca", aioca)
+        source = CaFrameSource()
+        await source.start()
+        frames = []
+        source.open(CAM, CAM.pv, frames.append)
+
+        for _ in range(10):
+            aioca.callbacks[0](update(range(10)))
+        await asyncio.sleep(0.01)
+
+        assert len(frames) == 10 and not frames[0].ok
+        assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+
+    def test_a_png_waveform_is_kept_as_its_bytes(self):
+        png_cam = CameraSpec(pv="L4:PNG:IMG", width=4, height=3, encoding="png")
+        signed = np.frombuffer(b"\x89PNG\r\n\x1a\n", dtype=np.int8)  # a CHAR waveform
+        frame = frame_from_update(png_cam, update(signed, np.int8), seq=1)
+        assert frame.encoded == b"\x89PNG\r\n\x1a\n"
+        assert frame.error is None
