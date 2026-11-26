@@ -28,7 +28,7 @@ from core.settings import Settings
 from tests.test_app import accepting, client, free_port, running, server  # noqa: F401
 
 SECRET = "test-only-secret"
-CAMERA = "TESTZ-CAM:NL1-FF:Image"
+CAMERA = "DEV-CAM:NL1-FF:Image"
 
 
 @contextmanager
@@ -58,10 +58,10 @@ def serving(app, settings: Settings, port: int):
 
 @pytest.fixture(scope="module")
 def gateway():
-    """A standalone gateway on the TESTZ cameras, sharing the HMI's secret."""
+    """A standalone gateway on the DEV cameras, sharing the HMI's secret."""
     port = free_port()
     settings = Settings(
-        zone_code="TESTZ", epics_backend="sim", log_level="WARNING",
+        zone_code="DEV", epics_backend="sim", log_level="WARNING",
         session_secret=SECRET, camera_port=port,
     )
     with serving(create_gateway_app(settings), settings, port) as url:

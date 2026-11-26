@@ -22,11 +22,11 @@ from core.components import PvSpec
 from core.zones import load_zone
 
 ROOT = Path(__file__).resolve().parent.parent
-DB = ROOT / "ioc" / "db" / "testz.db"
-IOC_ZONE = "TESTZ-IOC"
+DB = ROOT / "ioc" / "db" / "dev.db"
+IOC_ZONE = "DEV-IOC"
 
 
-def generate(zone: str = "TESTZ", *args: str) -> subprocess.CompletedProcess:
+def generate(zone: str = "DEV", *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "ioc/generate.py", "--zone", zone, *args],
         cwd=ROOT,
@@ -199,7 +199,7 @@ class TestIocZone:
         assert load_zone(IOC_ZONE).hostnames == []
 
     def test_only_the_field_pvs_differ_from_the_source(self):
-        source = {pv.name for gui in load_zone("TESTZ").guis for pv in gui.all_pvs()}
+        source = {pv.name for gui in load_zone("DEV").guis for pv in gui.all_pvs()}
         served = {pv.name for gui in load_zone(IOC_ZONE).guis for pv in gui.all_pvs()}
         # A PV naming a record field cannot exist on a base-only IOC, so those
         # and only those are rewritten.

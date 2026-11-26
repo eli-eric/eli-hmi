@@ -16,7 +16,7 @@ over to real ones.
 
 ```bash
 uv sync --extra epics --extra ioc            # pythonSoftIOC: EPICS base as a wheel
-uv run python ioc/generate.py                # db + the TESTZ-IOC zone
+uv run python ioc/generate.py                # db + the DEV-IOC zone
 make ioc                                     # the IOC, on CA port 5064
 ```
 
@@ -155,7 +155,7 @@ base-7.0.8.tar.gz         EPICS base source, for the Dockerfile
 ## After editing a screen
 
 ```bash
-uv run python ioc/generate.py --zone TESTZ
+uv run python ioc/generate.py --zone DEV
 make test          # test_ioc_db.py fails if the committed db is stale
 ```
 

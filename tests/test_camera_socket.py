@@ -20,8 +20,8 @@ from cameras.protocol import SOCKET_PATH, unpack_frame
 from core.auth import COOKIE_NAME
 from tests.test_app import client, server  # noqa: F401  (fixtures)
 
-#: On the TESTZ cameras screen, 1024x1024.
-CAMERA = "TESTZ-CAM:NL1-NF:Image"
+#: On the DEV cameras screen, 1024x1024.
+CAMERA = "DEV-CAM:NL1-NF:Image"
 
 
 def socket_url(server: str) -> str:

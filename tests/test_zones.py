@@ -230,10 +230,19 @@ class TestRealZones:
 
     def test_every_shipped_zone_loads(self):
         codes = zone_codes()
-        assert "TESTZ" in codes
+        assert "DEV" in codes
         for code in codes:
             zone = load_zone(code)
             assert zone.guis, f"zone {code} has no screens"
+
+    def test_the_testz_station_resolves_to_testz(self, monkeypatch):
+        monkeypatch.delenv("ZONE_CODE", raising=False)
+        assert resolve_zone_code("testz-debug20")[0] == "TESTZ"
+
+    def test_the_development_zone_answers_to_no_host(self):
+        """DEV carries made-up PVs for the simulator and the tests. A station
+        that resolved to it would show an operator a plausible, fictional hall."""
+        assert load_zone("DEV").hostnames == []
 
     def test_no_two_zones_claim_the_same_hostname_pattern(self):
         """Not exhaustive — two globs can overlap without being equal — but it

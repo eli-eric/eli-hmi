@@ -118,7 +118,7 @@ class TestStartUp:
 
         monkeypatch.setenv("EPICS_CA_AUTO_ARRAY_BYTES", "NO")
         monkeypatch.delenv("EPICS_CA_MAX_ARRAY_BYTES", raising=False)
-        settings = Settings(zone_code="TESTZ", epics_backend="aioca", dev=True, log_level="WARNING")
+        settings = Settings(zone_code="DEV", epics_backend="aioca", dev=True, log_level="WARNING")
 
         with pytest.raises(ValueError, match="EPICS_CA_MAX_ARRAY_BYTES"):
             create_app(settings)

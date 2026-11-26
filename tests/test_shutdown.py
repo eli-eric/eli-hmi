@@ -26,7 +26,7 @@ from core.settings import Settings
 
 def build_settings(**over) -> Settings:
     return Settings(
-        zone_code="TESTZ",
+        zone_code="DEV",
         epics_backend="sim",
         sim_tick_seconds=0.2,
         render_interval=0.05,

@@ -311,8 +311,8 @@ class TestUnitsThatShareAPvAreOne:
 
 
 @pytest.fixture(scope="module")
-def testz_units() -> dict[str, Unit]:
-    return {unit.key: unit for unit in load_zone("TESTZ").control_units()}
+def dev_units() -> dict[str, Unit]:
+    return {unit.key: unit for unit in load_zone("DEV").control_units()}
 
 
 class TestAComponentIsAUnitOfControl:
@@ -320,8 +320,8 @@ class TestAComponentIsAUnitOfControl:
     taken together, unless its own code says a write is shared."""
 
     @pytest.fixture
-    def units(self, testz_units) -> dict[str, Unit]:
-        return testz_units
+    def units(self, dev_units) -> dict[str, Unit]:
+        return dev_units
 
     def test_a_laser_is_everything_it_writes_its_registers_included(self, units):
         nl2 = units["l4-opcpa/NL2"]
@@ -624,7 +624,7 @@ def signals(body: str) -> dict:
 
 @pytest.fixture(scope="module")
 def zone():
-    return load_zone("TESTZ")
+    return load_zone("DEV")
 
 
 class TestOnTheScreen:

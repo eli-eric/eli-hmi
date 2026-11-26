@@ -94,7 +94,7 @@ async def test_one_monitor_however_many_widgets_read_it(hub, tmp_path):
         ),
         encoding="utf-8",
     )
-    page = Page(load_zone("TESTZ"), load_gui(screen), create_environment())
+    page = Page(load_zone("DEV"), load_gui(screen), create_environment())
     pv = PvId(shared)
     assert len(page.all_pvs) == 1, "one record, however many panels read it"
 

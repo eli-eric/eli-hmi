@@ -48,7 +48,7 @@ pins (`.python-version`), creates `.venv` from `uv.lock`, and keeps both in
 step. No virtualenv to activate.
 
 ```bash
-make run                  # ZONE_CODE=TESTZ, built-in simulator, :8082
+make run                  # ZONE_CODE=DEV, built-in simulator, :8082
 ```
 
 Open <http://localhost:8082> and sign in as **test / test** (`make run` sets
@@ -61,14 +61,14 @@ diagnostics dashboard — see [The monitor page](#the-monitor-page).
 With only Docker installed, the same thing in a container:
 
 ```bash
-docker compose up --build       # ZONE_CODE=TESTZ, simulator, DEV=1, :8082
+docker compose up --build       # ZONE_CODE=DEV, simulator, DEV=1, :8082
 ```
 
 Against a **real EPICS IOC on your own machine** — same Channel Access, same
 `aioca` code path as the hall, nothing simulated in Python:
 
 ```bash
-uv run python ioc/generate.py   # db + the TESTZ-IOC zone, from the components
+uv run python ioc/generate.py   # db + the DEV-IOC zone, from the components
 make ioc                        # a real IOC on CA port 5064 (installs the extras)
 make run-ioc                    # the HMI against it
 ```
@@ -88,7 +88,7 @@ To *look* at a screen without a running IOC — for a layout review, or to send
 someone a page to comment on:
 
 ```bash
-make snapshot                  # or: uv run python tools/snapshot.py --zone TESTZ
+make snapshot                  # or: uv run python tools/snapshot.py --zone DEV
 ```
 
 ## Dependencies, with uv
@@ -175,7 +175,7 @@ credentials) and `/static/`.
 
 ```bash
 mkdir zones/01/chillers
-cp zones/TESTZ/chillers/gui.yaml zones/01/chillers/
+cp zones/DEV/chillers/gui.yaml zones/01/chillers/
 $EDITOR zones/01/chillers/gui.yaml      # change the PV names
 make run ZONE_CODE=01
 ```

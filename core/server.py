@@ -1,7 +1,7 @@
 """Application entry point — one process that is both the HMI and its EPICS
 gateway.
 
-    make run                                   # simulator, TESTZ
+    make run                                   # simulator, DEV
     ZONE_CODE=01 EPICS_BACKEND=aioca uv run python -m core
     uv run python -m core                      # zone from the hostname
 

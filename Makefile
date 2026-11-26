@@ -6,7 +6,7 @@
 # pyproject.toml changed. There is no "activate the venv first" step, and no
 # way to run against a half-installed one.
 
-ZONE_CODE ?= TESTZ
+ZONE_CODE ?= DEV
 PORT ?= 8082
 
 # `uv run` for the app (simulator only) and for anything touching EPICS. The

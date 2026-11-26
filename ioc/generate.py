@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate an EPICS database for a zone, from what its components declare.
 
-    python ioc/generate.py                  # the TESTZ zone
+    python ioc/generate.py                  # the DEV zone
     python ioc/generate.py --zone 01
     python ioc/generate.py --zone 01 --screens motors
 
@@ -545,7 +545,7 @@ def rewrite_zone(source: Path, destination: Path, rewrite: dict[str, str], zone_
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--zone", default="TESTZ", help="source zone (default: TESTZ)")
+    parser.add_argument("--zone", default="DEV", help="source zone (default: DEV)")
     parser.add_argument(
         "--screens",
         nargs="*",

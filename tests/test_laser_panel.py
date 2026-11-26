@@ -22,12 +22,12 @@ from core.zones import load_zone
 
 @pytest.fixture(scope="module")
 def zone():
-    return load_zone("TESTZ")
+    return load_zone("DEV")
 
 
 @pytest.fixture(scope="module")
 def panel(zone) -> LaserPanel:
-    """The NL2 panel as the TESTZ zone configures it."""
+    """The NL2 panel as the DEV zone configures it."""
     gui = zone.gui("l4-opcpa")
     return gui.components[0]
 
@@ -309,10 +309,10 @@ class TestSections:
 
 @pytest.fixture(scope="module")
 def view():
-    """The TESTZ OPCPA screen, built once: rendering it is the slow part, and
+    """The DEV OPCPA screen, built once: rendering it is the slow part, and
     the tests below only read from it. Module-level rather than a method on
     the class, which pytest 10 no longer allows for a shared fixture."""
-    zone = load_zone("TESTZ")
+    zone = load_zone("DEV")
     return Page(zone, zone.gui("l4-opcpa"), create_environment())
 
 
@@ -369,7 +369,7 @@ class TestAScreenWithoutSomeOfItsLasers:
         view = Page(zone, zone.gui("l4-opcpa"), create_environment())
         nl2 = view.exclusive_pvs_of("NL2")
         nl4 = view.exclusive_pvs_of("NL4")
-        assert nl2 and nl4, "both lasers are under control in TESTZ"
+        assert nl2 and nl4, "both lasers are under control in DEV"
         assert view.without(["NL2"]).exclusive_pvs == nl4
         assert view.without(["NL4"]).exclusive_pvs == nl2
 
@@ -663,7 +663,7 @@ class TestTheNvCheckboxIsTheWholeControl:
     def detail(self):
         from core.page import build_pages
 
-        zone = load_zone("TESTZ")
+        zone = load_zone("DEV")
         page = build_pages(zone, create_environment())["l4-opcpa/NL2/registers"]
         return page, page.gui.components[0]
 
@@ -855,7 +855,7 @@ class TestAChannelThatComesBackIsDescribedAgain:
         from core.epics.types import PvDescription, PvSample
         from core.page import build_pages, describe_on_reconnect
 
-        zone = load_zone("TESTZ")
+        zone = load_zone("DEV")
         pages = build_pages(zone, create_environment())
         detail = pages["l4-opcpa/NL2/registers"]
         backend = SimBackend(tick_seconds=60, seed=1)

@@ -19,7 +19,7 @@ services:
       # A container's hostname is not the station's, so the quick start names
       # the zone explicitly. A real deployment leaves this out and lets the
       # hostname decide.
-      ZONE_CODE: TESTZ
+      ZONE_CODE: DEV
       # The quick start has no EPICS network, so it runs the built-in
       # simulator. A station sets `aioca` here and needs host networking for
       # Channel Access (see the commented block below).
@@ -76,7 +76,7 @@ services:
     ports:
       - '8083:8083'
     environment:
-      ZONE_CODE: TESTZ
+      ZONE_CODE: DEV
       EPICS_BACKEND: sim
       DEV: '1'
       LOG_LEVEL: INFO
