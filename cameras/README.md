@@ -195,7 +195,14 @@ screen. That check is a `before_websocket` hook (`core/login.py`), because
 Quart's `before_request` gate never sees a WebSocket. The browser's `Origin`
 must name this host (any port), so a page elsewhere cannot open the socket with
 an operator's cookie. A page names cameras, never PVs: the gateway serves only
-the zone's cameras.
+the zone's cameras. A refused handshake is a plain 401, which a browser never
+shows the page's script. So after a failed one, `cameras.js` asks the HMI's
+`GET /api/session`. A 401 there sends the tab to the login form, the way the
+live stream does; anything else (the gateway or the HMI is just down) keeps it
+retrying. A tab left open across a sign-out therefore stops retrying every
+15 s. The question goes to the HMI, never the gateway: a gateway with the
+wrong `SESSION_SECRET` would otherwise bounce the tab between the screen and
+the form.
 
 **Diagnostics.** `/monitor` has a Cameras panel: every camera, open or idle,
 with its channel, viewers, frames in per second, encode time, bytes out and drops.

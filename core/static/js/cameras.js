@@ -280,6 +280,23 @@ function socketUrl(address) {
   return url.href;
 }
 
+// Whether the HMI says this browser is no longer signed in. Asked of the
+// page's own server, never the gateway: a standalone gateway with the wrong
+// secret refuses a session the HMI accepts, and sending the page to the form
+// would then bring it straight back, round and round. Unreachable is not
+// signed out.
+async function signedOut() {
+  try {
+    const response = await fetch('/api/session', {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    return response.status === 401;
+  } catch {
+    return false;
+  }
+}
+
 class CameraSocket {
   constructor(address, tiles) {
     this.address = address;
@@ -300,15 +317,25 @@ class CameraSocket {
     const socket = new WebSocket(socketUrl(this.address));
     socket.binaryType = 'arraybuffer';
     this.socket = socket;
+    let opened = false;
     socket.addEventListener('message', (event) => this.onMessage(event.data));
     socket.addEventListener('open', () => {
+      opened = true;
       this.retry = 1;
     });
-    socket.addEventListener('close', () => {
+    socket.addEventListener('close', async () => {
       this.socket = null;
       this.hello = null;
       this.sent = '';
       this.markAllStale();
+      // A refused handshake looks the same here whether the gateway is down
+      // or this browser was signed out, and a tab nobody looks at would
+      // otherwise retry for ever. A sign-out goes to the form, as the live
+      // stream does when it reconnects.
+      if (!opened && (await signedOut())) {
+        window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+        return;
+      }
       setTimeout(() => this.connect(), this.retry * 1000);
       this.retry = Math.min(this.retry * 2, RECONNECT_MAX_SECONDS);
     });

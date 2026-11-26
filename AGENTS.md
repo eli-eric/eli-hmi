@@ -59,6 +59,7 @@ All from the repo root:
   - With `filters: true` it monitors `PV.{"dec":{"n":k}}` so the IOC decimates (`cameras/channels.py`).
   - Pages get `core/static/js/cameras.js`, the only script besides Datastar, and only on screens with a camera. It opens one WebSocket (`/api/cameras/ws`), sends the full `view` of what is on screen, and draws onto canvases.
   - The socket is gated by `install_socket_gate` in `core/login.py`: the session cookie plus a same-host `Origin`. Quart's `before_request` gate does not see WebSockets.
+  - A browser hides why a handshake failed, so after a failed one `cameras.js` asks the HMI's `GET /api/session` and goes to the login form on a 401.
   - Status tones come from `camera_tone()` in `core/render/severity.py`, sent in the hello message.
   - A standalone gateway shares `SESSION_SECRET` with the HMI, which is how it accepts the HMI's cookie.
 - **Diagnostics (`/monitor`):** this page reads state and keeps none of its own.

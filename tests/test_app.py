@@ -2105,6 +2105,17 @@ class TestAuthGate:
         )
         assert write.status_code == 401
 
+    async def test_a_script_can_ask_whether_it_is_still_signed_in(self, client, anonymous):
+        """A browser never sees why a WebSocket handshake failed: a sign-out
+        and a gateway that is down look the same to `cameras.js`. So after a
+        failed one it asks this, as JSON (a page fetch would be redirected to
+        the form's HTML), and a 401 sends the page to the form."""
+        json_only = {"Accept": "application/json"}
+        assert (await client.get("/api/session", headers=json_only)).status_code == 204
+        response = await anonymous.get("/api/session", headers=json_only, follow_redirects=False)
+        assert response.status_code == 401
+        assert response.json()["login"] == "/login"
+
     async def test_using_a_screen_renews_the_session(self, client):
         """The window is how long a station may sit unused, not how long a
         sign-in lasts: a screen in use never signs its operator out."""

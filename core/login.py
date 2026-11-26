@@ -5,6 +5,7 @@ is one list that can be read at a glance:
 
     /login          the form, and the POST that checks it
     /logout         clears the cookie
+    /api/session    204 when signed in, so a script can tell a sign-out apart
     PUBLIC_PATHS    everything else requires a session
 
 The gate is a `before_request` hook rather than a decorator on each view,
@@ -145,6 +146,14 @@ def build_login_blueprint(*, home: str) -> Blueprint:
         response.delete_cookie(COOKIE_NAME, path="/")
         return response
 
+    @auth.get("/api/session")
+    async def session_check() -> Response:
+        """Whether this browser is still signed in, for a script that cannot
+        tell otherwise. A refused WebSocket handshake looks the same to
+        `cameras.js` whether it was signed out or the gateway is down. The
+        gate answers 401 before this runs, so getting here means signed in."""
+        return Response(status=204)
+
     return auth
 
 
@@ -249,7 +258,9 @@ def install_socket_gate(app, sessions: SessionCodec) -> None:
     cookie with the same secret.
 
     A refused handshake gets a plain 401: nothing on the other end can follow
-    a redirect, and the page's script shows the tile as offline.
+    a redirect, and a browser never shows the status to the page's script. So
+    after a failed handshake the script asks the HMI's `/api/session`, and a
+    401 there sends the page to the form.
 
     The cookie alone is not enough for a socket. A browser sends it with a
     socket opened by *any* page, so a page elsewhere could open the camera
