@@ -145,7 +145,7 @@ components:
       - {name: RA0_direction, label: RA0 direction, kind: enum, write: true}
       - {name: RA1_pin23_AN1, label: "RA1,pin23,AN1", kind: int, write: true}
       - {name: RA1_direction, label: RA1 direction, kind: enum, write: true}
-      - {name: RA4_pin22_OpenDrain, label: "RA4,pin22,Open Drain", kind: int, write: true}
+      - {name: RA4_pin25_OpenDrain, label: "RA4,pin25,Open Drain", kind: int, write: true}
       - {name: RA4_direction, label: RA4 direction, kind: enum, write: true}
       - {name: RA5_pin26_AN4, label: "RA5,pin26,AN4", kind: int, write: true}
       - {name: RA5_direction, label: RA5 direction, kind: enum, write: true}
