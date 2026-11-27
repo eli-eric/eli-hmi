@@ -164,13 +164,17 @@ data-attr="{disabled: {{ extra }}}"
     Every call states its kind, even where it is the default: which field an
     operator gets should be readable at the call, not inferred from a
     default. -#}
-{%- macro preset_input(label, presets, pv, signal, close=none, step=1, min=none, max=none, exponential=false, precision=none, show_label=true, units=none, kind='number') -%}
+{#- `extra_chips`: one-press actions that belong with these values but write
+    a value of their own to a PV of their own — `{label, pv, value}` each, a
+    chip after the presets ("50 + Close" beside the trigger delay). The field
+    and the presets are unchanged by them. -#}
+{%- macro preset_input(label, presets, pv, signal, close=none, step=1, min=none, max=none, exponential=false, precision=none, show_label=true, units=none, kind='number', extra_chips=()) -%}
 <span class="preset-input">
 {#- `show_label` for a control whose surroundings have already named what is
     being set: a second name beside it is noise, and the field's accessible
     name carries it for anyone who arrives without seeing the first. -#}
 {% if show_label %}<span class="preset-label">{{ label }}</span>{% endif %}
-{% if presets %}
+{% if presets or extra_chips %}
 <span class="preset-chips">
 {% for preset in presets %}
 <button type="button" class="preset-chip" data-indicator="_busy"
@@ -178,13 +182,19 @@ data-attr="{disabled: {{ extra }}}"
         {% endif -%}
         data-on:click="@post('{{ write_url(pv, value=preset, status=status_id(label), close=close) }}')">{{ preset }}</button>
 {% endfor %}
+{% for chip in extra_chips %}
+<button type="button" class="preset-chip" data-indicator="_busy"
+        {% if lock_key(chip.pv) %}{{ lock_gate(chip.pv) }}
+        {% endif -%}
+        data-on:click="@post('{{ write_url(chip.pv, value=chip.value, status=status_id(label), close=close) }}')">{{ chip.label }}</button>
+{% endfor %}
 </span>
 {% endif %}
 <span class="preset-custom">
 {#- "Custom" means "not one of these". With no chips beside it there is
     nothing to contrast with, and the field is simply the value — so the word
     goes, and the control's own label names the field instead. -#}
-{% if presets %}<span class="preset-custom-label">Custom</span>{% endif %}
+{% if presets or extra_chips %}<span class="preset-custom-label">Custom</span>{% endif %}
 {#- Text, not `type="number"`. A number input reports its value as EMPTY
     whenever the contents are not yet a number — `21.`, `-`, `1e` — and with a
     two-way binding that empty value goes to the signal and straight back to

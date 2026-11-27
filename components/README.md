@@ -23,6 +23,11 @@ Every setting of every component is documented in its `Config` class, which is
 also what produces the error message when a screen misconfigures it. Read the
 module docstring first: each one opens with the YAML that uses it.
 
+Every component also takes `macros:` (`macros: {P: L4-OPCPA-NL2}`, then
+`pv: $(P):FullPower`). The zone loader expands them before your `Config` sees
+the block (`core/macros.py`), so a component never handles a macro, and every
+field holds the full name. See [`../zones/README.md`](../zones/README.md).
+
 ## Writing a component
 
 Four things, and the rest of the framework never needs to know which component

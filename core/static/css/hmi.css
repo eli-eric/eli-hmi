@@ -819,6 +819,16 @@ body {
   margin-top: calc(var(--hmi-open-outline) + var(--hmi-open-offset));
 }
 
+/* A register's label is a sentence ("Start peak current sampling window"),
+ * not a device id, so the tree's card has a wider label column than the
+ * panel's. Not so wide that a writable register's reading is squeezed out by
+ * its SET button: 16rem fitted every label and left those readings
+ * unreadable. The longest labels end in an ellipsis and are whole on hover.
+ * Still one width for the whole card, so every module's rows line up. */
+.register-tree .card {
+  --hmi-label-width: 12rem;
+}
+
 /* How many registers are behind it: a module with four is worth opening on a
  * glance, one with sixty is a decision. */
 .module-count {

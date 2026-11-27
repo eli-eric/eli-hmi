@@ -762,18 +762,18 @@ record(bi, "L4-OPCPA-NL2:ModBox:YDFA:State") {
     field(ONAM, "on")
 }
 record(bi, "L4-OPCPA-NL2:ModBox:YDFA:SoftwareKey") {
-    field(DESC, "AWG software key")
+    field(DESC, "YDFA software key")
     field(PINI, "YES")
     field(VAL, "1")
     field(ZNAM, "off")
     field(ONAM, "on")
 }
-record(stringin, "SI_NL2_LOADED_WAVEFORM") {
+record(stringin, "L4-OPCPA-NL2:ModBox:PresetWaveformName") {
     field(DESC, "NL2 loaded waveform")
     field(PINI, "YES")
     field(VAL, "std-100ps")
 }
-record(stringin, "SI_NL2_LATEST_WAVEFORM") {
+record(stringin, "L4-OPCPA-NL2:ModBox:LastSentWaveformName") {
     field(DESC, "NL2 previous waveform")
     field(PINI, "YES")
     field(VAL, "narrow-50ps")
@@ -850,7 +850,7 @@ record(bi, "L4-OPCPA-NL2:SEQ:FlashlampsStandby") {
     field(ZNAM, "IDLE")
     field(ONAM, "RUNNING")
 }
-record(bi, "L4-OPCPA-NL2:NVWriteEnable") {
+record(bi, "L4-OPCPA-NL2:UseNVMemory") {
     field(DESC, "NL2 non-volatile write armed")
     field(PINI, "YES")
     field(VAL, "0")
@@ -964,6 +964,506 @@ record(longout, "L4-OPCPA-NL2:PS1225:12:PumpSpeed:W") {
     field(DRVH, "3000.0")
     field(LOPR, "0.0")
     field(HOPR, "3000.0")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:ErrorCode") {
+    field(DESC, "LDM150A:17 Error Code")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(mbbi, "L4-OPCPA-NL2:LDM150A:17:Power") {
+    field(DESC, "LDM150A:17 Power")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(mbbo, "L4-OPCPA-NL2:LDM150A:17:Power:W") {
+    field(DESC, "LDM150A:17 Power setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:Power PP")
+}
+record(mbbi, "L4-OPCPA-NL2:LDM150A:17:DiodeCurrentON") {
+    field(DESC, "LDM150A:17 Diode current ON")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(mbbo, "L4-OPCPA-NL2:LDM150A:17:DiodeCurrentON:W") {
+    field(DESC, "LDM150A:17 Diode current ON setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:DiodeCurrentON PP")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:SetCurrent") {
+    field(DESC, "LDM150A:17 Set Current")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:SetCurrent:W") {
+    field(DESC, "LDM150A:17 Set Current setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:SetCurrent PP")
+    field(PREC, "3")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:DisplayCurrent") {
+    field(DESC, "LDM150A:17 Display Current")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:MeanCurrent") {
+    field(DESC, "LDM150A:17 Mean Current")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:CurrentSourcePower") {
+    field(DESC, "LDM150A:17 Current source power")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:VoltageOnLDSource") {
+    field(DESC, "LDM150A:17 Voltage on LD source")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:PulseWidth") {
+    field(DESC, "LDM150A:17 Pulse width")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:PulseWidth:W") {
+    field(DESC, "LDM150A:17 Pulse width setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:PulseWidth PP")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:SyncIn_PulseDelay") {
+    field(DESC, "LDM150A:17 SyncIn->Pulse delay")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:SyncIn_PulseDelay:W") {
+    field(DESC, "LDM150A:17 SyncIn->Pulse delay setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:SyncIn_PulseDelay PP")
+}
+record(mbbi, "L4-OPCPA-NL2:LDM150A:17:SynchronizationMode") {
+    field(DESC, "LDM150A:17 Synchronization mode")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(mbbo, "L4-OPCPA-NL2:LDM150A:17:SynchronizationMode:W") {
+    field(DESC, "LDM150A:17 Synchronization mode setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:SynchronizationMode PP")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:RepetitionRateLimit") {
+    field(DESC, "LDM150A:17 Repetition rate (repetition r")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:RepetitionRateLimit:W") {
+    field(DESC, "LDM150A:17 Repetition rate (repetition r")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:RepetitionRateLimit PP")
+    field(PREC, "3")
+}
+record(mbbi, "L4-OPCPA-NL2:LDM150A:17:FaultSource") {
+    field(DESC, "LDM150A:17 Fault source")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(stringin, "L4-OPCPA-NL2:LDM150A:17:FaultCode") {
+    field(DESC, "LDM150A:17 Fault code")
+    field(PINI, "YES")
+    field(VAL, "")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:PulseCounter") {
+    field(DESC, "LDM150A:17 Pulse counter")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:PulseCounter:W") {
+    field(DESC, "LDM150A:17 Pulse counter setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:PulseCounter PP")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:SetCurrentLimit") {
+    field(DESC, "LDM150A:17 Set current Limit")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:SetCurrentLimit:W") {
+    field(DESC, "LDM150A:17 Set current Limit setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:SetCurrentLimit PP")
+    field(PREC, "3")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:SetLDCurrentSourceVoltage") {
+    field(DESC, "LDM150A:17 Set LD current source voltage")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:SetLDCurrentSourceVoltage:W") {
+    field(DESC, "LDM150A:17 Set LD current source voltage")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:SetLDCurrentSourceVoltage PP")
+    field(PREC, "3")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:PeakCurrentLimit") {
+    field(DESC, "LDM150A:17 Peak current limit (hardware)")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:CurrentSourcePowerLimit") {
+    field(DESC, "LDM150A:17 Current source power limit")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:CurrentSourcePowerLimit:W") {
+    field(DESC, "LDM150A:17 Current source power limit se")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:CurrentSourcePowerLimit PP")
+    field(PREC, "3")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:CalibrateSetCurrent") {
+    field(DESC, "LDM150A:17 Calibrate set current")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:CalibrateSetCurrent:W") {
+    field(DESC, "LDM150A:17 Calibrate set current setpoin")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:CalibrateSetCurrent PP")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:StartPeakCurSamplWin") {
+    field(DESC, "LDM150A:17 Start peak current sampling w")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:StartPeakCurSamplWin:W") {
+    field(DESC, "LDM150A:17 Start peak current sampling w")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:StartPeakCurSamplWin PP")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:StopPeakCurSamplWin") {
+    field(DESC, "LDM150A:17 Stop peak current sampling wi")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:StopPeakCurSamplWin:W") {
+    field(DESC, "LDM150A:17 Stop peak current sampling wi")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:StopPeakCurSamplWin PP")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:StartupDelay") {
+    field(DESC, "LDM150A:17 Startup delay")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:StartupDelay:W") {
+    field(DESC, "LDM150A:17 Startup delay setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:StartupDelay PP")
+}
+record(mbbi, "L4-OPCPA-NL2:LDM150A:17:ExternalInterlockOnOff") {
+    field(DESC, "LDM150A:17 External interlock on/off")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(mbbo, "L4-OPCPA-NL2:LDM150A:17:ExternalInterlockOnOff:W") {
+    field(DESC, "LDM150A:17 External interlock on/off set")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:ExternalInterlockOnOff PP")
+}
+record(mbbi, "L4-OPCPA-NL2:LDM150A:17:CoolingInterlockOnOff") {
+    field(DESC, "LDM150A:17 Cooling interlock on/off")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(mbbo, "L4-OPCPA-NL2:LDM150A:17:CoolingInterlockOnOff:W") {
+    field(DESC, "LDM150A:17 Cooling interlock on/off setp")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:CoolingInterlockOnOff PP")
+}
+record(mbbi, "L4-OPCPA-NL2:LDM150A:17:ExternalInterlockState") {
+    field(DESC, "LDM150A:17 External interlock state")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(mbbi, "L4-OPCPA-NL2:LDM150A:17:CoolingInterlockState") {
+    field(DESC, "LDM150A:17 Cooling interlock state")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:FeedbackPhotodiodeOutput") {
+    field(DESC, "LDM150A:17 Feedback photodiode output")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:KeepFeedbackPhotodiodeLevel") {
+    field(DESC, "LDM150A:17 Keep feedback photodiode leve")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:KeepFeedbackPhotodiodeLevel:W") {
+    field(DESC, "LDM150A:17 Keep feedback photodiode leve")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:KeepFeedbackPhotodiodeLevel PP")
+}
+record(mbbi, "L4-OPCPA-NL2:LDM150A:17:TECPower") {
+    field(DESC, "LDM150A:17 TEC Power")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(mbbo, "L4-OPCPA-NL2:LDM150A:17:TECPower:W") {
+    field(DESC, "LDM150A:17 TEC Power setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:TECPower PP")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:DisplayTemperature") {
+    field(DESC, "LDM150A:17 Display temperature")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:SetTemperature") {
+    field(DESC, "LDM150A:17 Set temperature")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:SetTemperature:W") {
+    field(DESC, "LDM150A:17 Set temperature setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:SetTemperature PP")
+    field(PREC, "3")
+}
+record(mbbi, "L4-OPCPA-NL2:LDM150A:17:Stable") {
+    field(DESC, "LDM150A:17 Stable")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:SetTemperatureUpperLimit") {
+    field(DESC, "LDM150A:17 Set temperature upper limit")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:SetTemperatureUpperLimit:W") {
+    field(DESC, "LDM150A:17 Set temperature upper limit s")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:SetTemperatureUpperLimit PP")
+    field(PREC, "3")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:SetTemperatureLowerLimit") {
+    field(DESC, "LDM150A:17 Set temperature lower limit")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:SetTemperatureLowerLimit:W") {
+    field(DESC, "LDM150A:17 Set temperature lower limit s")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:SetTemperatureLowerLimit PP")
+    field(PREC, "3")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:Kp") {
+    field(DESC, "LDM150A:17 Kp")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:Kp:W") {
+    field(DESC, "LDM150A:17 Kp setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:Kp PP")
+    field(PREC, "3")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:Ki") {
+    field(DESC, "LDM150A:17 Ki")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:Ki:W") {
+    field(DESC, "LDM150A:17 Ki setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:Ki PP")
+    field(PREC, "3")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:Kd") {
+    field(DESC, "LDM150A:17 Kd")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:Kd:W") {
+    field(DESC, "LDM150A:17 Kd setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:Kd PP")
+    field(PREC, "3")
+}
+record(mbbi, "L4-OPCPA-NL2:LDM150A:17:ManualControl") {
+    field(DESC, "LDM150A:17 Manual control")
+    field(PINI, "YES")
+    field(VAL, "0")
+}
+record(mbbo, "L4-OPCPA-NL2:LDM150A:17:ManualControl:W") {
+    field(DESC, "LDM150A:17 Manual control setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:ManualControl PP")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:PIDOutput") {
+    field(DESC, "LDM150A:17 PID output")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:PIDOutput:W") {
+    field(DESC, "LDM150A:17 PID output setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:PIDOutput PP")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:PIDOutputMax") {
+    field(DESC, "LDM150A:17 PID output max")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:PIDOutputMax:W") {
+    field(DESC, "LDM150A:17 PID output max setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:PIDOutputMax PP")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:PIDOutputMin") {
+    field(DESC, "LDM150A:17 PID output min")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:PIDOutputMin:W") {
+    field(DESC, "LDM150A:17 PID output min setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:PIDOutputMin PP")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:StabilityWindow") {
+    field(DESC, "LDM150A:17 Stability window")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(ao, "L4-OPCPA-NL2:LDM150A:17:StabilityWindow:W") {
+    field(DESC, "LDM150A:17 Stability window setpoint")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:StabilityWindow PP")
+    field(PREC, "3")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:TimeToStayInWindow") {
+    field(DESC, "LDM150A:17 Time to stay in window to be ")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
+}
+record(longout, "L4-OPCPA-NL2:LDM150A:17:TimeToStayInWindow:W") {
+    field(DESC, "LDM150A:17 Time to stay in window to be ")
+    field(OMSL, "supervisory")
+    field(OUT, "L4-OPCPA-NL2:LDM150A:17:TimeToStayInWindow PP")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:MeasuredSensorResistance") {
+    field(DESC, "LDM150A:17 Measured sensor resistance")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:TECVoltage") {
+    field(DESC, "LDM150A:17 TEC Voltage")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(calc, "L4-OPCPA-NL2:LDM150A:17:TECDriverCurrent") {
+    field(DESC, "LDM150A:17 TEC Driver Current")
+    field(PINI, "YES")
+    field(VAL, "50.0")
+    field(PREC, "3")
+    field(LOPR, "0.0")
+    field(HOPR, "100.0")
+}
+record(longin, "L4-OPCPA-NL2:LDM150A:17:FirmwareLDM150A") {
+    field(DESC, "LDM150A:17 Firmware LDM150A")
+    field(PINI, "YES")
+    field(VAL, "50")
+    field(LOPR, "0")
+    field(HOPR, "100")
 }
 record(stringin, "L4-OPCPA-NL2:ModBox:Product") {
     field(DESC, "Identification Product")
@@ -1508,7 +2008,7 @@ record(seq, "SIM:CMD_NL2_LOAD_WAVEFORM:seq") {
     field(SELM, "All")
     field(DLY0, "0")
     field(DO0, "1")
-    field(LNK0, "SI_NL2_LOADED_WAVEFORM PP")
+    field(LNK0, "L4-OPCPA-NL2:ModBox:PresetWaveformName PP")
 }
 # The panel writes here to run the chain below.
 record(bo, "L4-OPCPA-NL2:SM5-SH:50:SetPosition") {
@@ -1535,6 +2035,30 @@ record(seq, "SIM:L4-OPCPA-NL2_SM5-ATT1_51_SetPosition:seq") {
     field(DLY0, "0")
     field(DO0, "1")
     field(LNK0, "L4-OPCPA-NL2:SM5-ATT1:51:CurrentPosition PP")
+}
+# One write, 2 records.
+record(dfanout, "SIM:CMD_NL2_DELAY_50_CLOSE:fan0_50") {
+    field(DESC, "CMD_NL2_DELAY_50_CLOSE -> 2 records")
+    field(VAL, "50")
+    field(OUTA, "L4-OPCPA-NL2:PS5059:22:Ch1TriggeringDelay PP")
+    field(OUTB, "L4-OPCPA-NL2:PS5059:22:Ch2TriggeringDelay PP")
+}
+# The panel writes here to run the chain below.
+record(bo, "CMD_NL2_DELAY_50_CLOSE") {
+    field(DESC, "DELAY_50_CLOSE trigger")
+    field(FLNK, "SIM:CMD_NL2_DELAY_50_CLOSE:seq")
+    field(ZNAM, "IDLE")
+    field(ONAM, "GO")
+}
+record(seq, "SIM:CMD_NL2_DELAY_50_CLOSE:seq") {
+    field(DESC, "CMD_NL2_DELAY_50_CLOSE chain")
+    field(SELM, "All")
+    field(DLY0, "0")
+    field(DO0, "50")
+    field(LNK0, "SIM:CMD_NL2_DELAY_50_CLOSE:fan0_50 PP")
+    field(DLY1, "0")
+    field(DO1, "0")
+    field(LNK1, "L4-OPCPA-NL2:IO:15:RC1_pin31 PP")
 }
 record(bi, "L4-OPCPA-NL4:PortControl:CNCT") {
     field(DESC, "NL4 connection")

@@ -204,6 +204,13 @@ class ComponentConfig(BaseModel):
         "Defaults to the component name plus a counter.",
     )
     title: str | None = Field(default=None, description="Heading, where the component shows one.")
+    macros: dict[str, str] = Field(
+        default_factory=dict,
+        description="Names for the parts this component's strings share, used "
+        "as `$(NAME)` in any of them, e.g. `macros: {P: L4-OPCPA-NL2}` and "
+        "`pv: $(P):FullPower` (`core/macros.py`). Not inherited by nested "
+        "components.",
+    )
 
 
 #: A whole number, written the one way: an optional sign and digits, no

@@ -113,7 +113,7 @@ class TestDiscovery:
         zone = make_zone(zones, "01")
         folder = make_gui(zone, "motors")
         (folder / "extra.yaml").write_text("title: Sneaky\ncomponents: []\n")
-        with pytest.raises(ZoneError, match="only `components:` belongs"):
+        with pytest.raises(ZoneError, match="only `components:` and `anchors:` belong"):
             load_gui(folder)
 
 
@@ -223,6 +223,193 @@ class TestErrors:
         )
         with pytest.raises(ZoneError, match="takes no nested"):
             load_zone("01")
+
+
+class TestAnchors:
+    """A screen's shared blocks under one key of their own, ahead of the
+    components that use them.
+
+    An anchor cannot live in a document of its own — YAML scopes anchors to
+    one document — and defining it at its first use ties every later laser to
+    the first one: delete NL1 and NL2..NL5 stop loading.
+    """
+
+    def test_a_screen_keeps_its_anchors_apart(self, zones):
+        zone = make_zone(zones, "01")
+        folder = zone / "screen"
+        folder.mkdir()
+        (folder / "gui.yaml").write_text(
+            textwrap.dedent(
+                """\
+                title: S
+                anchors:
+                  gauge: &gauge
+                    component: value
+                    units: mbar
+                components:
+                  - <<: *gauge
+                    label: Gauge 1
+                    pv: X:G1
+                  - <<: *gauge
+                    label: Gauge 2
+                    pv: X:G2
+                """
+            )
+        )
+        gui = load_zone("01").guis[0]
+        assert [c.config.label for c in gui.components] == ["Gauge 1", "Gauge 2"]
+        assert {c.config.units for c in gui.components} == {"mbar"}
+
+    def test_an_extra_file_keeps_its_own(self, zones):
+        """Anchors do not cross files either, so a file of its own has its
+        own."""
+        zone = make_zone(zones, "01")
+        folder = make_gui(zone, "screen")
+        (folder / "more.yaml").write_text(
+            textwrap.dedent(
+                """\
+                anchors:
+                  gauge: &gauge {component: value, units: mbar}
+                components:
+                  - {<<: *gauge, label: Gauge 3, pv: X:G3}
+                """
+            )
+        )
+        gui = load_zone("01").guis[0]
+        assert "Gauge 3" in [c.config.label for c in gui.components]
+
+
+class TestMacros:
+    """`$(NAME)` in a component's YAML, from that component's own `macros:`.
+
+    A device's PVs share a start — every PV of a laser but its MSS begins
+    `L4-OPCPA-NL2:` — and writing it out on every line is how one line comes to
+    name the wrong laser. A name without a macro is a full name, so a PV that
+    lives elsewhere needs no setting to say so.
+    """
+
+    def screen(self, zones: Path, body: str) -> str:
+        zone = make_zone(zones, "01")
+        folder = zone / "screen"
+        folder.mkdir()
+        (folder / "gui.yaml").write_text("title: S\ncomponents:\n" + textwrap.dedent(body))
+        return "01"
+
+    @staticmethod
+    def pvs(code: str) -> set[str]:
+        return {pv.name for pv in load_zone(code).guis[0].all_pvs()}
+
+    def test_a_name_is_expanded_from_its_components_macros(self, zones):
+        code = self.screen(
+            zones,
+            """\
+            - component: value
+              label: Pressure
+              macros: {P: L4-VAC-01}
+              pv: $(P):Pressure
+            """,
+        )
+        assert self.pvs(code) == {"L4-VAC-01:Pressure"}
+
+    def test_every_string_is_expanded_however_deep(self, zones):
+        """Labels too, and a button's PV inside a list of mappings: no
+        component has to say which of its fields are names."""
+        code = self.screen(
+            zones,
+            """\
+            - component: value
+              label: $(P) gauge
+              macros: {P: L4-VAC-01}
+              pv: $(P):Pressure
+              actions:
+                - {label: Vent, pv: $(P):Vent, value: 1}
+            """,
+        )
+        config = load_zone(code).guis[0].components[0].config
+        assert config.label == "L4-VAC-01 gauge"
+        assert config.actions[0].pv == "L4-VAC-01:Vent"
+        assert config.actions[0].value == 1, "a number is not a string to expand"
+
+    def test_a_nested_component_does_not_inherit_them(self, zones):
+        """Each component says its own: a reader of one block never has to
+        look up the screen for what a name means."""
+        code = self.screen(
+            zones,
+            """\
+            - component: panel
+              title: Vacuum
+              macros: {P: L4-VAC-01}
+              components:
+                - component: value
+                  label: Pressure
+                  pv: $(P):Pressure
+            """,
+        )
+        with pytest.raises(ZoneError, match=r"\$\(P\)"):
+            load_zone(code)
+
+    def test_an_undefined_macro_names_where_and_what(self, zones):
+        code = self.screen(
+            zones,
+            """\
+            - component: value
+              label: Pressure
+              macros: {P: L4-VAC-01}
+              pv: $(Q):Pressure
+            """,
+        )
+        with pytest.raises(ZoneError) as caught:
+            load_zone(code)
+        message = str(caught.value)
+        assert "gui.yaml#0" in message, "which block"
+        assert "'value'" in message, "which component"
+        assert "$(Q)" in message and "not defined" in message
+        assert "P" in message.split("not defined", 1)[1], "what is defined"
+
+    @pytest.mark.parametrize("name", ["$(P:Pressure", "$(1P):Pressure", "$():Pressure"])
+    def test_a_broken_reference_is_refused(self, zones, name):
+        """Left alone it would be a PV called `$(P:Pressure`, which no IOC
+        serves: the row would sit disconnected with nothing saying why."""
+        code = self.screen(
+            zones,
+            f"""\
+            - component: value
+              label: Pressure
+              macros: {{P: L4-VAC-01}}
+              pv: "{name}"
+            """,
+        )
+        with pytest.raises(ZoneError, match=r"\$\("):
+            load_zone(code)
+
+    def test_a_macro_is_text(self, zones):
+        """YAML reads `22` as a number and `1:30` as ninety. A macro that is
+        part of a PV name has to be exactly what was typed, so it is quoted."""
+        code = self.screen(
+            zones,
+            """\
+            - component: value
+              label: Pressure
+              macros: {P: L4-VAC-01, N: 1:30}
+              pv: $(P):$(N)
+            """,
+        )
+        with pytest.raises(ZoneError, match="quote"):
+            load_zone(code)
+
+    def test_a_macro_is_named_as_it_is_used(self, zones):
+        """A name `$(...)` cannot spell is a macro nothing can use."""
+        code = self.screen(
+            zones,
+            """\
+            - component: value
+              label: Pressure
+              macros: {my-prefix: L4-VAC-01}
+              pv: L4-VAC-01:Pressure
+            """,
+        )
+        with pytest.raises(ZoneError, match="my-prefix"):
+            load_zone(code)
 
 
 class TestRealZones:

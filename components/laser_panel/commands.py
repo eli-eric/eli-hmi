@@ -31,7 +31,14 @@ LASER_COMMANDS: tuple[str, ...] = (
     "OPEN_SHUTTER",
     "CLOSE_SHUTTER",
     "SET_ATTENUATOR",
+    # The trigger delay's "50 + Close" chip: one write, to a PV of its own,
+    # that the control system turns into the delay at 50 ns and a close.
+    "DELAY_50_CLOSE",
 )
+
+#: What a command writes when its config names only a PV (or a placeholder):
+#: `1`, the trigger convention, unless the button says otherwise.
+COMMAND_VALUES: dict[str, int | str] = {"DELAY_50_CLOSE": 50}
 
 #: Commands whose written value comes from the operator at press time, so a
 #: configured `value` would be silently discarded.
@@ -68,4 +75,6 @@ class CommandResolver:
         override = self.overrides.get(command)
         if override is not None:
             return override
-        return CommandTarget(pv_name=command_pv(self.laser, command), value=1)
+        return CommandTarget(
+            pv_name=command_pv(self.laser, command), value=COMMAND_VALUES.get(command, 1)
+        )

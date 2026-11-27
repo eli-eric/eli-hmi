@@ -496,13 +496,22 @@ def field_pv_rewrite(specs: Iterable[PvSpec]) -> dict[str, str]:
     return rewrite
 
 
-def rewrite_zone(source: Path, destination: Path, rewrite: dict[str, str], zone_code: str) -> None:
+def rewrite_zone(
+    source: Path,
+    destination: Path,
+    rewrite: dict[str, str],
+    zone_code: str,
+    macros: Iterable[dict[str, str]] = (),
+) -> None:
     """Copy a zone's folder, swapping the field PVs for their stand-ins.
 
     A textual swap on the YAML rather than a re-serialisation: the comments in a
     zone's files are half their value, and a generated copy that lost them would
-    be useless to read beside the original.
+    be useless to read beside the original. A name written with a macro
+    (`$(P):PortControl.CNCT`) is swapped as written (`macros`: every
+    component's `macros:` in the zone).
     """
+    swaps = spellings(rewrite, macros)
     if destination.exists():
         shutil.rmtree(destination)
     destination.mkdir(parents=True)
@@ -529,7 +538,7 @@ def rewrite_zone(source: Path, destination: Path, rewrite: dict[str, str], zone_
         target = destination / path.relative_to(source)
         target.parent.mkdir(parents=True, exist_ok=True)
         text = path.read_text(encoding="utf-8")
-        for original, served in rewrite.items():
+        for original, served in swaps:
             text = text.replace(original, served)
         if path.name == "zone.yaml":
             # The generated zone must not answer to the real zone's hostnames.
@@ -538,6 +547,21 @@ def rewrite_zone(source: Path, destination: Path, rewrite: dict[str, str], zone_
             data["title"] = f"{data.get('title', zone_code)} (local IOC)"
             text = yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
         target.write_text(header + text, encoding="utf-8")
+
+
+def spellings(
+    rewrite: dict[str, str], macros: Iterable[dict[str, str]]
+) -> list[tuple[str, str]]:
+    """Each swap as the YAML may spell it: in full, and through any macro whose
+    value the name starts with. Longest first, so a name is never swapped by a
+    shorter one inside it."""
+    swaps = dict(rewrite)
+    for defined in macros:
+        for name, value in defined.items():
+            for original, served in rewrite.items():
+                if original.startswith(value) and served.startswith(value):
+                    swaps[f"$({name}){original[len(value):]}"] = f"$({name}){served[len(value):]}"
+    return sorted(swaps.items(), key=lambda swap: len(swap[0]), reverse=True)
 
 
 # ---------------------------------------------------------------------------
@@ -592,7 +616,13 @@ def main() -> int:
     db_path.write_text(db.render(), encoding="utf-8")
 
     ioc_zone = f"{zone.code}{IOC_SUFFIX}"
-    rewrite_zone(zone.path, zones_root() / ioc_zone, rewrite, zone.code)
+    macros = [
+        component.config.macros
+        for gui in zone.guis
+        for component in gui.walk()
+        if component.config.macros
+    ]
+    rewrite_zone(zone.path, zones_root() / ioc_zone, rewrite, zone.code, macros)
 
     print(f"{_short(db_path)}: {len(db.names)} records")
     if db.shared:

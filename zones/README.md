@@ -63,6 +63,36 @@ gui.yaml#0.1: component 'value' is misconfigured:
   kind, label, off_text, on_text, pv, range, setpoint, states, title, units, values
 ```
 
+### `macros:` when a component's names share a start
+
+```yaml
+- component: laser-panel
+  id: NL2
+  macros: {P: L4-OPCPA-NL2}
+  pvs:
+    fullPower: $(P):FullPower                       # L4-OPCPA-NL2:FullPower
+  mss:
+  - {label: PSS permission, pv: L4-PSS:NP2_PERMISSION_TO_OPERATE_CH1}
+```
+
+`$(NAME)` is replaced by that macro in every string of the block, however deep:
+PVs, command targets, labels. A name without a macro is a full name, so a PV that
+lives elsewhere, like the MSS above, needs nothing to say so. The spelling is
+EPICS's own.
+
+- A component's macros are its own. Components nested under it do not inherit
+  them, so each block can be read without looking anywhere else.
+- A `$(NAME)` the block does not define, or a `$(` that is not a reference,
+  stops the zone loading and names the block.
+- A macro is text. Quote one that YAML would read as something else
+  (`N: "22"`, `T: "1:30"`).
+
+A laser's `P` is more than shorthand. Its modules' registers are named
+`$(P):<label>:<name>`. With `modbox: true`, the whole Modbox section and the
+ModBox register view are named `$(P):ModBox:<suffix>`, because every ModBox is
+the same device. A laser with modules or a ModBox must define `P`. A non-volatile write, for the registers declaring
+`nv: true`, is armed at `$(P):UseNVMemory`.
+
 ### `selectable:` when a workstation shows only some of it
 
 ```yaml
@@ -88,7 +118,8 @@ components it shows, and none on the hidden ones.
 `gui.yaml` holds the screen's settings. Any *other* `*.yaml` in the folder is
 read for its `components:` as well, in filename order — so one file per device
 keeps a twenty-motor screen reviewable, and adding a device is adding a file.
-See `zones/01/motors/`.
+An extra file may also have its own `anchors:` (see the end of this page), and
+nothing else.
 
 ### `wide:` when a value does not fit
 
@@ -198,18 +229,27 @@ The framework catches this one and says so rather than complaining about types.
 The same applies to keys, which is why the `value` component spells its fields
 `on_text:` and `off_text:` rather than `on:` and `off:`.
 
-YAML anchors save repeating a block:
+YAML anchors save repeating a block. Keep them under `anchors:`, which nothing
+but YAML reads, rather than on the first component that uses them. An anchor
+defined inside a component ties every later one to it, so deleting that
+component breaks the rest:
 
 ```yaml
-components:
-  - &chiller
+anchors:
+  chiller: &chiller
     component: value
     units: degC
     format: 2
     range: [22, 26]
+components:
+  - <<: *chiller
     label: Chiller 11
     pv: L4-CHW-PS1225:11:T_out
   - <<: *chiller
     label: Chiller 12
     pv: L4-CHW-PS1225:12:T_out
 ```
+
+An anchor reaches only the end of its own file. A second `---` document in the
+same file doesn't help, because YAML starts every document with no anchors. An
+extra file in a screen folder can therefore have an `anchors:` of its own.

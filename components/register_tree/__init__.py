@@ -10,7 +10,8 @@ Not written in YAML directly, though nothing stops it: `laser-panel` builds
 one from its own `modules:` block, because the modules belong to the laser and
 configuring them twice is how the two would come to disagree. It builds a
 second one for its ModBox, from the fixed table in `laser_panel/modbox.py` and
-the laser's `prefix:`, with nothing writable and no refresh.
+the laser's `$(P)`, with nothing writable and no refresh. Either way every
+register arrives already named.
 """
 
 from __future__ import annotations
@@ -74,8 +75,9 @@ class Config(ComponentConfig):
     title: str = Field(description="What the view is called, e.g. 'NL2 registers'.")
     modules: list[Module] = Field(
         default_factory=list,
-        description="The device's modules, each a prefix and the registers "
-        "under it. Built by `laser-panel` from its own `modules:` block.",
+        description="The device's modules, each a label and the registers "
+        "under it, every register already named. Built by `laser-panel` from "
+        "its own `modules:` block.",
     )
     nv_write: str | None = Field(
         default=None,

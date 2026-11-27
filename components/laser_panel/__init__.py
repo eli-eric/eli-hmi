@@ -162,7 +162,8 @@ class LaserPanel(Component):
             self._detail_list(cfg.module_errors, None, ERR_NOTE),
             show=f"${self.err_signal}",
         )
-        self.add("shutter", "pill", [PvId(pvs.shutter)], self._shutter)
+        if pvs.shutter:
+            self.add("shutter", "pill", [PvId(pvs.shutter)], self._shutter)
         self.add("phd_mean", "value_cell", [PvId(pvs.phd_mean)], self._number(pvs.phd_mean, "phdMean"))
 
         # -- Regen ----------------------------------------------------------
@@ -256,7 +257,7 @@ class LaserPanel(Component):
         # each row appearing on its own PV.
         if cfg.modbox:
             self.modbox_signal = self.signal("modbox")
-            modbox_pvs = [PvId(item.pv) for item in cfg.modbox]
+            modbox_pvs = [PvId(item.pv) for item in cfg.modbox_rows]
             self.add(
                 "modbox_pill",
                 "state_pill",
@@ -267,7 +268,7 @@ class LaserPanel(Component):
                 "modbox_list",
                 "detail_list",
                 modbox_pvs,
-                self._detail_list(cfg.modbox, ON_OFF_TEXT, None),
+                self._detail_list(cfg.modbox_rows, ON_OFF_TEXT, None),
                 show=f"${self.modbox_signal}",
             )
             if pvs.modbox_mbc1 or pvs.modbox_mbc2:

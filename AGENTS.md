@@ -72,6 +72,7 @@ All from the repo root:
 
 - The port is **8082**, not 8000 or 3000. Operators have it bookmarked. The standalone camera gateway is **8083**.
 - Screens are YAML. YAML traps (`OFF` is a boolean) are covered in `zones/README.md`.
+- A component's `macros:` (`{P: L4-OPCPA-NL2}`) is expanded as `$(P)` in every string of that block, and not in nested blocks, by the zone loader before validation (`core/macros.py`). A laser's `P` also names its module registers (`$(P):<label>:<name>`), everything of its ModBox when `modbox: true` (section rows, readings, registers: `components/laser_panel/modbox.py`), and its NV write arm (`$(P):UseNVMemory`).
 - Templates are Jinja, under `core/templates/` and `components/**`. Static assets live in `core/static/`. Link them with `static()`, which adds a content hash to `.css` and `.js` URLs (`?v=…`). They're served with a 12-hour cache, so a hard-coded `/static/…` URL keeps serving the old file after a change. `datastar.js` is vendored and must match the `datastar-py` pin in `pyproject.toml`.
 - Commit subjects are short imperative. Prefix with the Jira/issue id when there is one (e.g. `OPHMI-15: ...`).
 

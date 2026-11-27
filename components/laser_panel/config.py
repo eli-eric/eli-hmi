@@ -8,13 +8,13 @@ One signal is configured in one place. A `pvs:` entry is either the PV on its
 own or the PV with what the panel should do with it::
 
     pvs:
-      connection: L4-OPCPA-NL4:PortControl.CNCT   # shorthand: just the PV
+      connection: $(P):PortControl.CNCT           # shorthand: just the PV
       phdMean:
-        pv: L4-OPCPA-NL4:PHD1K000:12:Mean
+        pv: $(P):PHD1K000:12:Mean
         label: PHD1K000:12/Mean                   # what the row is called
-      modboxMbc1:
-        pv: L4-OPCPA-NL4:ModBox:MBC1:BiasValue
-        format: 0                                 # display rounding only
+      regenTemp:
+        pv: $(P):TK6:44:DisplayTemperature
+        format: 1                                 # display rounding only
 
 There is no `units:`, `format:` or `labels:` block: they were three parallel
 maps keyed by role, which put one readout in four places and in two
@@ -34,17 +34,27 @@ What the schema still guarantees, because each rule caught a real edit mistake:
 * two signals pointing at the same PV are rejected (copy a block, forget to
   change the name).
 
-The config holds the **full PV name** for every signal — exactly the strings the
-controls team provides. Nothing is assembled from prefixes, with two
-exceptions. The **command PV** (`CMD_<laser>_<NAME>`), because a command maps
-to a coordinated sequence of writes dispatched by the control system, not to a
-single record. And the **ModBox's registers** (`<prefix>:ModBox:<suffix>`),
-because every ModBox has the same ones: the suffixes are the component's
-(`modbox.py`), and only the laser's `prefix:` differs.
+Every signal is a **PV name** as the controls team provides it. A laser's
+names share its prefix, so a zone says it once, `macros: {P: L4-OPCPA-NL2}`,
+and writes `$(P):FullPower`. That is the zone loader's doing (`core/macros.py`)
+and done before this config is read, so every field here holds a full name. A
+name without `$(P)` is a full name too: the MSS PVs live elsewhere.
+
+Four kinds of name are assembled here rather than written. The **command PV**
+(`CMD_<laser>_<NAME>`), because a command maps to a coordinated sequence of
+writes dispatched by the control system, not to a single record. A **module's
+registers** (`$(P):<label>:<name>`), because a module repeats the same set on
+every laser and is labelled with its device. **Everything of the ModBox**
+(`$(P):ModBox:<suffix>`): the panel's Modbox section and the ModBox register
+view, because every ModBox is the same device, so `modbox: true` says it all
+and the suffixes are the component's (`modbox.py`). And the **non-volatile
+write arm**
+(`$(P):UseNVMemory`), which is the device's own name on every laser.
 """
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Annotated, Any, Mapping
 
 from pydantic import (
@@ -61,11 +71,13 @@ from components.common import Exclusive, ValueText
 from core.render import ValueFormatOptions, parse_format
 
 from .commands import (
+    COMMAND_VALUES,
     LASER_COMMANDS,
     OPERATOR_VALUED_COMMANDS,
     CommandTarget,
     command_pv,
 )
+from .modbox import READINGS as MODBOX_READINGS, STATE_ROWS as MODBOX_STATE_ROWS
 
 # `.strip()` before the length check so a whitespace-only string — a common
 # copy/paste slip — is rejected rather than subscribing to an empty PV.
@@ -100,7 +112,8 @@ class Register(Strict):
 
     Named relative to its module rather than in full: a module repeats the
     same register set on every laser, so the names are the part worth writing
-    once and the prefix is the part that differs. `pv` is derived, never
+    once, and the laser's `$(P)` and the module's label are the parts that
+    differ. `pv` is derived, never
     configured, which is why a tree of hundreds cannot drift from the device
     one typo at a time.
 
@@ -119,7 +132,7 @@ class Register(Strict):
     right before the first reading arrives.
     """
 
-    name: Name = Field(description="Register name under the module's prefix.")
+    name: Name = Field(description="Register name under its module: $(P):<label>:<name>.")
     label: Name | None = Field(default=None, description="What the row reads.")
     units: Name | None = Field(
         default=None,
@@ -136,7 +149,7 @@ class Register(Strict):
     nv: bool = Field(
         default=False,
         description="True if this register can be written to non-volatile "
-        "memory. The laser's `nvWrite` PV is what arms it.",
+        "memory. The laser's $(P):UseNVMemory is what arms it.",
     )
 
     #: What the register *is*. One word, and everything downstream follows
@@ -169,8 +182,10 @@ class Register(Strict):
     )
     value: Any = Field(default=None, description="Value at rest.")
 
-    #: Set from the module's prefix when the laser is validated.
-    pv: str = Field(default="", description="Derived: <module prefix>:<name>.")
+    #: Set when the laser is validated, from its `$(P)` and the module's
+    #: label. Given in full only by the ModBox's fixed table (`modbox.py`),
+    #: whose sections are not device ids.
+    pv: str = Field(default="", description="Derived: $(P):<module label>:<name>.")
 
     @property
     def write_pv(self) -> str:
@@ -184,17 +199,29 @@ class Register(Strict):
 
 
 class Module(Strict):
-    """One device module: a prefix, and the registers under it."""
+    """One device module and the registers under it.
 
-    label: Name = Field(description="What the module is called in the tree.")
-    prefix: Name = Field(description="PV prefix every register hangs off.")
+    Called what the device is (`PS1225:11`), because that is also the part of
+    the name it adds: its registers are `$(P):<label>:<name>`, named when the
+    laser is validated. Nothing else to configure, so a module cannot hang
+    off another laser's prefix by a copy-paste.
+    """
+
+    label: Name = Field(
+        description="The device, e.g. PS1225:11: what the tree calls the module "
+        "and the part of each register's name after the laser's $(P)."
+    )
     registers: list[Register] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def _name_the_registers(self) -> "Module":
-        for register in self.registers:
-            object.__setattr__(register, "pv", f"{self.prefix}:{register.name}")
-        return self
+    @model_validator(mode="before")
+    @classmethod
+    def _no_prefix(cls, raw: Any) -> Any:
+        if isinstance(raw, Mapping) and "prefix" in raw:
+            raise ValueError(
+                "prefix: no longer used — a module's registers are named "
+                "$(P):<label>:<name>, from the laser's `macros: {P: ...}`"
+            )
+        return raw
 
 
 class SequenceSpec(Strict):
@@ -228,15 +255,18 @@ class LaserPvs(Strict):
     """The laser's single-signal PVs.
 
     The optional ones are optional because a laser may not have the hardware:
-    omit `phd2Mean` on a laser with one photodiode and the row goes with it.
-    `loadedWaveform` belongs to the Modbox, so it is omitted only together
-    with `modbox` itself. A row naming a device that is not there is worse
-    than no row.
+    omit `phd2Mean` on a laser with one photodiode, or `shutter` on one with
+    no shutter, and the row goes with it. A row naming a device that is not
+    there is worse than no row.
+
+    The Modbox's four readings are here because labels, units and rounding
+    are keyed by role, but no zone writes them: `modbox: true` names them
+    `$(P):ModBox:<suffix>` (`modbox.py`).
     """
 
     connection: Name
     full_power: Name = Field(alias="fullPower")
-    shutter: Name
+    shutter: Name | None = None
     phd_mean: Name = Field(alias="phdMean")
     regen_state: Name = Field(alias="regenState")
     regen_temp: Name = Field(alias="regenTemp")
@@ -400,12 +430,6 @@ class Config(ComponentConfig):
         description="Laser id, e.g. NL2. The panel heading, the component's key, "
         "and the <LASER> in command PVs (CMD_<id>_<NAME>)."
     )
-    prefix: Name | None = Field(
-        default=None,
-        description="The laser's PV prefix, e.g. L4-OPCPA-NL2. The ModBox's "
-        "registers are named from it, <prefix>:ModBox:<suffix>, so it is "
-        "required for a laser with a `modbox:` and unused otherwise.",
-    )
     pvs: LaserPvs = Field(description="The single-signal read/write PVs; see LaserPvs.")
     trigger_delay: list[Name] = Field(
         alias="triggerDelay",
@@ -437,24 +461,19 @@ class Config(ComponentConfig):
         "tree behind the panel's own rows. Omitted or empty means this laser "
         "offers no register view.",
     )
-    nv_write: Name | None = Field(
-        default=None,
-        alias="nvWrite",
-        description="PV that arms writing to non-volatile memory, one per "
-        "laser. Required for a register declaring `nv: true`.",
-    )
     sequences: list[SequenceSpec] = Field(
         default_factory=list,
         description="Sequences this laser can run (label + state PV). Omitted "
         "or empty hides the Sequencer section. The row above them reads "
         "RUNNING while any of them does.",
     )
-    modbox: list[MappedPv] = Field(
-        default_factory=list,
-        description="Modbox state indicators. Omitted or empty hides the whole "
-        "Modbox section — a laser without one is not a laser with an empty box. "
-        "A laser that has one shows every Modbox row, so `pvs.loadedWaveform` "
-        "is required alongside it.",
+    modbox: bool = Field(
+        default=False,
+        description="Whether the laser has a Modbox. True shows the whole Modbox "
+        "section — its state list, bias, waveform preset and last-sent waveform "
+        "— and its ModBox register view, every name $(P):ModBox:<suffix>: every "
+        "ModBox is the same device, so the rows are the component's "
+        "(`modbox.py`). False, the default, means no section at all.",
     )
     delay_presets: list[int] = Field(
         alias="delayPresets",
@@ -498,6 +517,64 @@ class Config(ComponentConfig):
         "use any of its controls, its registers' setpoints included "
         "(`core.locks`). On by default; `false` leaves the whole laser out.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _modbox_is_the_components(cls, raw: Any) -> Any:
+        """`modbox: true` names the section's readings; no zone writes them.
+
+        Refused rather than ignored: the old list, or a reading left in
+        `pvs:`, would read as if it were what the section shows. A reading
+        equal to the one `modbox: true` gives is let through, which is what a
+        config dumped and validated again looks like.
+        """
+        if not isinstance(raw, Mapping):
+            return raw
+        if isinstance(raw.get("modbox"), list):
+            raise ValueError(
+                "modbox: now `modbox: true` — the section's rows and readings are "
+                "the component's (modbox.py), each named $(P):ModBox:<suffix>"
+            )
+        prefix = (raw.get("macros") or {}).get("P") if isinstance(raw.get("macros"), Mapping) else None
+        has_modbox = raw.get("modbox") is True
+        pvs = raw.get("pvs")
+        if not isinstance(pvs, Mapping):
+            return raw
+        derived = (
+            {role: f"{prefix}:ModBox:{suffix}" for role, suffix in MODBOX_READINGS.items()}
+            if has_modbox and prefix
+            else {}
+        )
+        for role, suffix in MODBOX_READINGS.items():
+            if role in pvs and pvs[role] != derived.get(role):
+                raise ValueError(
+                    f"pvs.{role}: not configured — `modbox: true` names it "
+                    f"$(P):ModBox:{suffix}"
+                )
+        if not derived:
+            return raw
+        return {**raw, "pvs": {**pvs, **derived}}
+
+    @model_validator(mode="before")
+    @classmethod
+    def _prefix_is_a_macro(cls, raw: Any) -> Any:
+        """The laser's prefix is its `$(P)`, said once in `macros:`.
+
+        Refused rather than ignored: a `prefix:` left in a file would read as
+        if it still named the ModBox.
+        """
+        if isinstance(raw, Mapping) and "prefix" in raw:
+            raise ValueError(
+                f"prefix: no longer used — write `macros: {{P: {raw['prefix']}}}`; "
+                "the ModBox's registers are named $(P):ModBox:<suffix>"
+            )
+        for key in ("nvWrite", "nv_write"):
+            if isinstance(raw, Mapping) and key in raw:
+                raise ValueError(
+                    f"{key}: no longer used — a non-volatile write is armed at "
+                    "$(P):UseNVMemory on every laser whose registers declare `nv: true`"
+                )
+        return raw
 
     @model_validator(mode="before")
     @classmethod
@@ -550,6 +627,39 @@ class Config(ComponentConfig):
     @property
     def laser(self) -> str:
         return self.id
+
+    @property
+    def prefix(self) -> str | None:
+        """The laser's PV prefix: its `$(P)`, e.g. L4-OPCPA-NL2.
+
+        Most of the laser's names are written with it, which `macros:` takes
+        care of before this config is read. What is left is what the YAML
+        never spells: the ModBox's registers, `<P>:ModBox:<suffix>`.
+        """
+        return self.macros.get("P")
+
+    @cached_property
+    def modbox_rows(self) -> list[MappedPv]:
+        """The Modbox section's state rows, `$(P):ModBox:<suffix>` each, or
+        none for a laser without one."""
+        if not (self.modbox and self.prefix):
+            return []
+        return [
+            MappedPv(label=label, pv=f"{self.prefix}:ModBox:{suffix}")
+            for label, suffix in MODBOX_STATE_ROWS
+        ]
+
+    @property
+    def nv_write(self) -> str | None:
+        """The PV that arms a non-volatile write: `$(P):UseNVMemory`.
+
+        The device's own name for it, the same on every laser. None when no
+        register declares `nv: true`: the box is only shown beside a register
+        that takes an NV write, so without one it would be a PV monitored for
+        nobody.
+        """
+        takes_nv = any(r.nv for module in self.modules for r in module.registers)
+        return f"{self.prefix}:UseNVMemory" if takes_nv and self.prefix else None
 
     def can(self, command: str) -> bool:
         """Is this command exposed? A button for a command not listed is hidden.
@@ -609,15 +719,18 @@ class Config(ComponentConfig):
         """Where a command's write goes and what it writes.
 
         The YAML override if there is one, else the code-built
-        `CMD_<laser>_<NAME>` triggered with `1`. A placeholder (the value equal
-        to the key) means "no real PV yet" and falls back to the same thing.
+        `CMD_<laser>_<NAME>`. A placeholder (the value equal to the key) means
+        "no real PV yet" and falls back to the same thing. Written with `1`,
+        the trigger convention, unless the YAML gives a value or the command
+        has its own (`COMMAND_VALUES`: "50 + Close" writes 50).
         """
+        default = COMMAND_VALUES.get(command, 1)
         target = (self.commands or {}).get(command)
         if target is not None:
             pv, value = _split_target(command, target)
             if pv != command:
-                return CommandTarget(pv_name=pv, value=1 if value is None else value)
-        return CommandTarget(pv_name=command_pv(self.id, command), value=1)
+                return CommandTarget(pv_name=pv, value=default if value is None else value)
+        return CommandTarget(pv_name=command_pv(self.id, command), value=default)
 
     @property
     def command_names(self) -> tuple[str, ...]:
@@ -663,21 +776,31 @@ class Config(ComponentConfig):
         """A Modbox is one device, not a bag of optional rows.
 
         Either the laser has one — and then it has everything a Modbox has,
-        including the waveform record the section always shows — or it has
-        none and the section is absent. A `modbox:` list with no waveform PV
-        is a half-configured screen, which would render a row reading `<>`
-        for a record nobody named.
+        all of it named from its `$(P)` — or it has none and the section is
+        absent. There is nothing to half-configure, so the one thing to check
+        is that there is a `P` to name it from.
         """
-        if self.modbox and not self.pvs.loaded_waveform:
-            raise ValueError(
-                "pvs.loadedWaveform is required when the laser has a modbox "
-                "(omit `modbox` for a laser that has none)"
-            )
         if self.modbox and not self.prefix:
             raise ValueError(
-                "prefix is required when the laser has a modbox: its registers "
-                "are named <prefix>:ModBox:<suffix>"
+                "macros: P is required when the laser has a modbox: its "
+                "rows and registers are named $(P):ModBox:<suffix>"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _name_the_registers(self) -> "Config":
+        """Every register is `$(P):<module label>:<name>`, derived here so a
+        tree of hundreds cannot drift from the device one typo at a time."""
+        if self.modules and not self.prefix:
+            raise ValueError(
+                "macros: P is required when the laser has modules: their "
+                "registers are named $(P):<label>:<name>"
+            )
+        for module in self.modules:
+            for register in module.registers:
+                object.__setattr__(
+                    register, "pv", f"{self.prefix}:{module.label}:{register.name}"
+                )
         return self
 
     @model_validator(mode="after")
@@ -708,7 +831,7 @@ class Config(ComponentConfig):
         for chiller in self.chillers:
             names += [chiller.flow, chiller.temp, chiller.level]
         names += [item.pv for item in self.flashlamps]
-        names += [item.pv for item in self.modbox]
+        names += [item.pv for item in self.modbox_rows]
 
         seen: set[str] = set()
         duplicates: list[str] = []

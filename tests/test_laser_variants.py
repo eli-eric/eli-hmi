@@ -23,9 +23,6 @@ import httpx
 import pytest
 import yaml
 
-from pydantic import ValidationError
-
-from components.laser_panel.config import Config as LaserPanelConfig
 from core.server import create_app, serve_config
 from core.settings import Settings
 
@@ -123,25 +120,14 @@ def page(tmp_path):
 
 class TestALaserWithoutAModbox:
     def test_the_section_is_not_there(self, page):
-        html = page(modbox=[], pvs_drop=["loadedWaveform", "latestWaveform"])
+        html = page(modbox=False)
         assert "Modbox State" not in html
         assert "Waveform Preset" not in html
+        assert "ModBox →" not in html, "its register view went with it"
 
     def test_the_rest_of_the_screen_still_renders(self, page):
-        html = page(modbox=[], pvs_drop=["loadedWaveform", "latestWaveform"])
+        html = page(modbox=False)
         assert "Overview" in html and "Chiller" in html
-
-
-    def test_a_half_configured_modbox_is_refused(self):
-        # All of it or none of it: a `modbox:` list whose waveform record
-        # nobody named would render a row reading `<>` forever.
-        gui = yaml.safe_load(
-            (REFERENCE / "l4-opcpa" / "gui.yaml").read_text(encoding="utf-8")
-        )
-        laser = gui["components"][0]
-        laser["pvs"].pop("loadedWaveform")
-        with pytest.raises(ValidationError, match="loadedWaveform"):
-            LaserPanelConfig.model_validate(laser)
 
 
 class TestALaserWithoutASecondPhotodiode:
@@ -149,6 +135,20 @@ class TestALaserWithoutASecondPhotodiode:
         html = page(pvs_drop=["phd2Mean"])
         assert "PHD1K000:48/Mean" not in html
         assert "PHD1K000:49/Mean" in html, "the first photodiode went with it"
+
+
+class TestALaserWithoutAShutter:
+    """APL has none: no row, no cog, and nothing subscribed for one."""
+
+    def test_the_row_is_not_there(self, page):
+        gui = yaml.safe_load((REFERENCE / "l4-opcpa" / "gui.yaml").read_text(encoding="utf-8"))
+        commands = dict(gui["components"][0]["commands"])
+        commands.pop("OPEN_SHUTTER")
+        commands.pop("CLOSE_SHUTTER")
+        html = page(pvs_drop=["shutter"], commands=commands)
+        assert "Shutter Position" not in html
+        assert "Shutter actions" not in html
+        assert "Overview" in html and "Chiller" in html, "the rest went with it"
 
 
 class TestTheSequencer:
@@ -182,9 +182,8 @@ class TestTheWaveformPreset:
         row reading what it read before, which looks like a write that did
         nothing."""
         html = page()
-        preset_pv = yaml.safe_load(
-            (REFERENCE / "l4-opcpa" / "gui.yaml").read_text(encoding="utf-8")
-        )["components"][0]["pvs"]["loadedWaveform"]
+        # Not in the file: `modbox: true` names it, from the laser's $(P).
+        preset_pv = "L4-OPCPA-NL2:ModBox:PresetWaveformName"
         selector = re.search(
             r'aria-label="Set waveform".*?</button>', html, re.S
         )

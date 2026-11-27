@@ -61,7 +61,8 @@
           one record and is moved by another. Writing to the one the row reads
           works only where the two are the same PV — the simulator — and does
           nothing in the hall. A laser that configures neither command gets the
-          row without the cog. -#}
+          row without the cog; one with no shutter gets no row. -#}
+      {% if 'shutter' in w %}
       {% if c.can('OPEN_SHUTTER') or c.can('CLOSE_SHUTTER') %}
       {% set shutter_cog = comp.signal('cog_shutter') %}
       {% set shutter_actions %}
@@ -77,6 +78,7 @@
       {{ rows.row(labels.shutter, w['shutter'], shutter_actions, bare=true) }}
       {% else %}
       {{ rows.row(labels.shutter, w['shutter'], bare=true) }}
+      {% endif %}
       {% endif %}
 
       {{ rows.row(labels.phdMean, w['phd_mean']) }}
@@ -187,11 +189,15 @@
       {% set delay_cog = comp.signal('cog_delay') %}
       {% set delay_actions %}
       {% call controls.cog(delay_cog, 'Set trigger delay', held=unit) %}
+        {#- "50 + Close" sits with the presets it resembles, but writes its own
+            PV: a laser that names none shows the presets as before. -#}
+        {% set fifty_and_close = [{'label': '50 + Close', 'pv': cmd.DELAY_50_CLOSE.pv,
+                                   'value': cmd.DELAY_50_CLOSE.value}] if c.can('DELAY_50_CLOSE') else [] %}
         {{ controls.preset_input('Set Trigger Delay', c.delay_presets, cmd.SET_DELAY.pv,
                                  comp.signal('set_delay', ''), delay_cog,
                                  min=cmd.SET_DELAY.min, max=cmd.SET_DELAY.max,
                                  precision=cmd.SET_DELAY.precision,
-                                 kind=cmd.SET_DELAY.kind) }}
+                                 kind=cmd.SET_DELAY.kind, extra_chips=fifty_and_close) }}
       {% endcall %}
       {% endset %}
       {{ rows.row(labels.triggerDelay, w['trigger_delay'], delay_actions) }}

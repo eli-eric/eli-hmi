@@ -119,13 +119,20 @@ def laser_pv_specs(cfg: Config) -> list[PvSpec]:
             desc=f"{laser} connection",
         ),
         PvSpec(name=pvs.full_power, kind="bool", value=1, desc=f"{laser} at full power"),
-        PvSpec(
-            name=pvs.shutter,
-            kind="bool",
-            value=0,
-            states=("CLOSED", "OPEN"),
-            writable=True,
-            desc=f"{laser} shutter",
+        # A laser with no shutter has no record for one.
+        *(
+            [
+                PvSpec(
+                    name=pvs.shutter,
+                    kind="bool",
+                    value=0,
+                    states=("CLOSED", "OPEN"),
+                    writable=True,
+                    desc=f"{laser} shutter",
+                )
+            ]
+            if pvs.shutter
+            else []
         ),
         PvSpec(
             name=pvs.regen_state,
@@ -210,7 +217,7 @@ def laser_pv_specs(cfg: Config) -> list[PvSpec]:
         )
 
     # -- Modbox ------------------------------------------------------------
-    for item in cfg.modbox:
+    for item in cfg.modbox_rows:
         specs.append(PvSpec(name=item.pv, kind="bool", value=1, desc=item.label))
     if pvs.loaded_waveform:
         specs.append(
@@ -339,7 +346,7 @@ def _command_specs(cfg: Config) -> list[PvSpec]:
     pvs = cfg.pvs
     laser = cfg.laser
     flashlamp_pvs = [item.pv for item in cfg.flashlamps]
-    modbox_pvs = [item.pv for item in cfg.modbox]
+    modbox_pvs = [item.pv for item in cfg.modbox_rows]
 
     def flashlamps(state: str) -> list[tuple[str, Any]]:
         index = FLASHLAMP_ENUM.index(state)
@@ -382,7 +389,20 @@ def _command_specs(cfg: Config) -> list[PvSpec]:
         # `None` as the value means "write whatever the operator sent".
         "SET_ATTENUATOR": [(pvs.attenuator, None)],
         "SET_DELAY": [(name, None) for name in cfg.trigger_delay],
+        # What "50 + Close" is for, as far as a screen can see it: the delay
+        # at the value the chip writes, and the shutter closed. The control
+        # system's real sequence is its own.
+        "DELAY_50_CLOSE": [
+            *((name, cfg.resolve_command("DELAY_50_CLOSE").value) for name in cfg.trigger_delay),
+            (pvs.shutter, 0),
+        ],
         "LOAD_WAVEFORM": [(pvs.loaded_waveform, None)] if pvs.loaded_waveform else [],
+    }
+    # What a laser does not have, a press cannot move: no shutter, no effect
+    # on one.
+    chains = {
+        command: [(pv, value) for pv, value in effects if pv]
+        for command, effects in chains.items()
     }
     # Which state PV each command holds at 1 while it runs, as the laser's own
     # `sequences:` say. A command no sequence claims is instantaneous.

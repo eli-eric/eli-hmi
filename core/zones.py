@@ -43,6 +43,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from core.components import Component, ComponentConfig, ComponentError, get as get_component, slug
+from core.macros import MacroError, checked, expand
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,17 @@ class GuiFile(Strict):
         description="The screen: a list of component blocks. Each needs a "
         "`component:` naming which component renders it.",
     )
+    anchors: Any = Field(
+        default=None,
+        description="YAML anchors for the components to use (`&name` here, "
+        "`*name` or `<<: *name` there), kept apart from any one component. "
+        "Read by YAML and by nothing else.",
+    )
+
+
+#: The keys an extra `*.yaml` in a screen folder may have: its components, and
+#: its own anchors (YAML scopes an anchor to one file).
+EXTRA_FILE_KEYS = {"components", "anchors"}
 
 
 # ---------------------------------------------------------------------------
@@ -420,10 +432,10 @@ def load_gui(folder: Path) -> Gui:
         if extra.name == GUI_FILE:
             continue
         data = _read_yaml(extra)
-        unknown = sorted(set(data) - {"components"})
+        unknown = sorted(set(data) - EXTRA_FILE_KEYS)
         if unknown:
             raise ZoneError(
-                f"{extra}: only `components:` belongs in an extra file "
+                f"{extra}: only `components:` and `anchors:` belong in an extra file "
                 f"(found {', '.join(unknown)}). Screen-wide settings go in {GUI_FILE}."
             )
         for index, block in enumerate(data.get("components") or []):
@@ -468,6 +480,16 @@ def build_component(
         )
 
     payload = {key: value for key, value in block.items() if key != "components"}
+    # A component's own macros, not its parent's: a nested block is expanded
+    # when it is built, from what it says itself.
+    try:
+        macros = checked(payload.get("macros"))
+        payload = {
+            key: value if key == "macros" else expand(value, macros)
+            for key, value in payload.items()
+        }
+    except MacroError as exc:
+        raise ZoneError(f"{source}: component {name!r}: {exc}") from exc
     try:
         config = cls.Config.model_validate(payload)
     except ValidationError as exc:

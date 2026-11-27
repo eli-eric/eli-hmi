@@ -30,13 +30,11 @@ MINIMAL = """
       regenTemp: L4:NL2:REGEN:T
       phd2Mean: L4:NL2:PHD2
       attenuator: L4:NL2:ATT
-      loadedWaveform: L4:NL2:WF
     triggerDelay: [L4:NL2:DELAY1]
     mss: []
     moduleErrors: []
     chillers: []
     flashlamps: []
-    modbox: []
     delayPresets: [50]
     commands:
       START_LASER: START_LASER
@@ -58,6 +56,19 @@ class TestCommands:
     def test_a_placeholder_falls_back_to_the_assembled_command_pv(self):
         target = parse(MINIMAL).resolve_command("START_LASER")
         assert (target.pv_name, target.value) == ("CMD_NL2_START_LASER", 1)
+
+    def test_50_and_close_writes_50_unless_told_otherwise(self):
+        """The button says what it writes; a PV named on its own writes it."""
+        def with_command(target: str) -> Config:
+            return parse(MINIMAL.replace(
+                "      START_LASER: START_LASER",
+                f"      START_LASER: START_LASER\n      DELAY_50_CLOSE: {target}",
+            ))
+
+        target = with_command("L4:NL2:Delay50Close").resolve_command("DELAY_50_CLOSE")
+        assert (target.pv_name, target.value) == ("L4:NL2:Delay50Close", 50)
+        target = with_command("DELAY_50_CLOSE").resolve_command("DELAY_50_CLOSE")
+        assert (target.pv_name, target.value) == ("CMD_NL2_DELAY_50_CLOSE", 50)
 
     def test_a_real_pv_is_written_directly_with_its_value(self):
         laser = parse(
@@ -171,15 +182,17 @@ class TestModulesAndRegisters:
     out of step with the device."""
 
     MODULES = (
+        "    macros: {P: L4:NL2}\n"
         "    modules:\n"
         "      - label: PS1225:11\n"
-        "        prefix: L4:NL2:PS1225:11\n"
         "        registers:\n"
         "          - {name: ErrorCode, label: Error code}\n"
         "          - {name: SetPoint, label: Setpoint, write: true}\n"
     )
 
     def test_a_register_is_named_under_its_module(self):
+        """`$(P):<label>:<name>`: a module is called what the device is, so
+        its label is the part of the name it adds."""
         laser = parse(MINIMAL + self.MODULES)
         module = laser.modules[0]
         assert [r.pv for r in module.registers] == [
@@ -187,8 +200,37 @@ class TestModulesAndRegisters:
             "L4:NL2:PS1225:11:SetPoint",
         ]
 
+    def test_a_laser_with_modules_has_to_define_p(self):
+        with pytest.raises(ValidationError, match=r"macros: P"):
+            parse(MINIMAL + self.MODULES.replace("    macros: {P: L4:NL2}\n", ""))
+
+    def test_a_module_prefix_says_what_replaced_it(self):
+        with pytest.raises(ValidationError, match=r"\$\(P\):<label>:<name>"):
+            parse(
+                MINIMAL
+                + self.MODULES.replace(
+                    "      - label: PS1225:11\n",
+                    "      - label: PS1225:11\n        prefix: L4:NL2:PS1225:11\n",
+                )
+            )
+
     def test_a_laser_without_modules_has_none(self):
         assert parse(MINIMAL).modules == []
+
+    def test_an_nv_write_is_armed_at_the_devices_own_pv(self):
+        """`$(P):UseNVMemory` on every laser: the device's name for it, not
+        a setting a zone could get wrong."""
+        laser = parse(MINIMAL + self.MODULES.replace("write: true}", "write: true, nv: true}"))
+        assert laser.nv_write == "L4:NL2:UseNVMemory"
+
+    def test_without_an_nv_register_there_is_nothing_to_arm(self):
+        """The box shows only beside a register that takes an NV write, so
+        with none it would be a PV monitored for nobody."""
+        assert parse(MINIMAL + self.MODULES).nv_write is None
+
+    def test_the_old_nv_key_says_what_replaced_it(self):
+        with pytest.raises(ValidationError, match=r"UseNVMemory"):
+            parse(MINIMAL + self.MODULES + "    nvWrite: L4:NL2:UseNVMemory\n")
 
     def test_an_unknown_kind_is_refused(self):
         """`str` for `string` used to load, and the register was then read as
@@ -198,23 +240,60 @@ class TestModulesAndRegisters:
             parse(MINIMAL + self.MODULES.replace("label: Error code", "label: Error code, kind: str"))
 
 
-class TestTheModboxPrefix:
-    """A ModBox's registers are the same on every laser, so what differs is
-    the laser's prefix, and it is declared once: a laser with a ModBox and no
-    prefix would have a ModBox view with no names to read."""
+class TestTheModbox:
+    """Every ModBox is the same device, so its section is the component's:
+    `modbox: true` and the laser's `$(P)` say everything. A laser with a
+    ModBox and no `P` would have a section with no names to read."""
 
-    MODBOX = "modbox:\n      - {label: AWG state, pv: L4:NL2:ModBox:AWG:State}"
+    WITH_P = "    macros: {P: L4:NL2}\n"
 
-    def test_a_laser_with_a_modbox_has_to_name_its_prefix(self):
-        with pytest.raises(ValidationError, match="prefix"):
-            parse(MINIMAL.replace("modbox: []", self.MODBOX))
+    def test_a_laser_with_a_modbox_has_to_define_p(self):
+        with pytest.raises(ValidationError, match=r"macros: P"):
+            parse(MINIMAL + "    modbox: true\n")
 
-    def test_with_one_it_parses(self):
-        laser = parse(MINIMAL.replace("modbox: []", self.MODBOX) + "    prefix: L4:NL2\n")
-        assert laser.prefix == "L4:NL2"
+    def test_its_rows_are_the_components(self):
+        laser = parse(MINIMAL + "    modbox: true\n" + self.WITH_P)
+        assert [(row.label, row.pv) for row in laser.modbox_rows] == [
+            ("AWG state", "L4:NL2:ModBox:AWG:State"),
+            ("RF1 power", "L4:NL2:ModBox:RF1:Power"),
+            ("RF2 power", "L4:NL2:ModBox:RF2:Power"),
+            ("AOM state", "L4:NL2:ModBox:AOM:State"),
+            ("LAS1 state", "L4:NL2:ModBox:LAS1:State"),
+            ("YDFA state", "L4:NL2:ModBox:YDFA:State"),
+            ("YDFA software key", "L4:NL2:ModBox:YDFA:SoftwareKey"),
+        ]
 
-    def test_a_laser_without_a_modbox_needs_none(self):
-        assert parse(MINIMAL).prefix is None
+    def test_so_are_its_waveform_and_bias_readings(self):
+        pvs = parse(MINIMAL + "    modbox: true\n" + self.WITH_P).pvs
+        assert pvs.loaded_waveform == "L4:NL2:ModBox:PresetWaveformName"
+        assert pvs.latest_waveform == "L4:NL2:ModBox:LastSentWaveformName"
+        assert pvs.modbox_mbc1 == "L4:NL2:ModBox:MBC1:BiasValue"
+        assert pvs.modbox_mbc2 == "L4:NL2:ModBox:MBC2:BiasValue"
+
+    def test_a_laser_without_one_has_none_of_it(self):
+        laser = parse(MINIMAL + self.WITH_P)
+        assert laser.modbox is False
+        assert laser.modbox_rows == []
+        assert laser.pvs.loaded_waveform is None
+        assert laser.prefix == "L4:NL2", "P is the laser's either way"
+
+    def test_the_old_list_says_what_replaced_it(self):
+        with pytest.raises(ValidationError, match=r"modbox: true"):
+            parse(MINIMAL + "    modbox:\n      - {label: AWG state, pv: L4:NL2:ModBox:AWG:State}\n")
+
+    @pytest.mark.parametrize("role", ["loadedWaveform", "latestWaveform", "modboxMbc1", "modboxMbc2"])
+    def test_a_modbox_reading_is_not_configured(self, role):
+        """Refused rather than ignored: a name left in a file would read as if
+        it were the one shown."""
+        with pytest.raises(ValidationError, match=rf"pvs.{role}.*modbox: true"):
+            parse(MINIMAL.replace("      attenuator: L4:NL2:ATT\n",
+                                  f"      attenuator: L4:NL2:ATT\n      {role}: L4:NL2:X\n"))
+
+    def test_the_old_prefix_key_says_what_replaced_it(self):
+        """Refused rather than ignored: a `prefix:` left in a file would
+        otherwise read as if it still named the ModBox."""
+        with pytest.raises(ValidationError, match=r"macros: \{P:"):
+            parse(MINIMAL + "    prefix: L4:NL2\n")
 
 
 class TestTheWriteSideOfADevice:

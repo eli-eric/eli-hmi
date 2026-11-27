@@ -1213,8 +1213,8 @@ class TestTheModboxSections:
         ]
 
     async def test_a_register_is_read_under_the_laser_s_prefix(self, client):
-        """`<prefix>:ModBox:<suffix>`: the suffix is the component's, the
-        prefix is the laser's `prefix:`."""
+        """`$(P):ModBox:<suffix>`: the suffix is the component's, the
+        prefix is the laser's `$(P)`."""
         view = (await client.get(self.VIEW)).text
         start = view.index('<span class="module-label">AWG &amp; YDFA</span>')
         section = view[start : view.index('class="module-head"', start + 1)]
@@ -1380,6 +1380,29 @@ class TestARegisterReadsFromTheLeft:
     async def test_both_views_are_register_trees(self, client):
         for view in ("/l4-opcpa/NL2/registers", "/l4-opcpa/NL2/modbox"):
             assert 'class="panel register-tree"' in (await client.get(view)).text, view
+
+
+class TestARegisterLabelHasRoom:
+    """A register's label is a sentence ("Start peak current sampling
+    window"), not a device id: the card's default column, sized for
+    "Regen SY3PL50M:32", cut a fifth of them short. The tree gives its own
+    card a wider one. What still does not fit ends in an ellipsis and is
+    whole on hover, as every label is."""
+
+    @staticmethod
+    def rem(rule: str) -> float:
+        width = re.search(r"--hmi-label-width:\s*([\d.]+)rem", rule)
+        assert width, f"no label width in {rule!r}"
+        return float(width.group(1))
+
+    async def test_the_tree_widens_its_label_column(self, client):
+        css = (await client.get("/static/css/hmi.css")).text
+        card = re.search(r"\n\.card\s*\{([^}]*)\}", css).group(1)
+        tree = re.search(r"\.register-tree \.card\s*\{([^}]*)\}", css)
+        assert tree, "the tree keeps the panel's label column"
+        assert self.rem(tree.group(1)) > self.rem(card), (
+            "no more room for a register's label than for a device id"
+        )
 
 
 class TestARegisterRowIsJustItsLabel:
@@ -1731,7 +1754,7 @@ class TestWritingToNonVolatileMemory:
             )
         ).text
         assert "non-volatile" in panel.lower(), "nothing says whether NV is armed"
-        assert quote("L4-OPCPA-NL2:NVWriteEnable", safe="") in panel, (
+        assert quote("L4-OPCPA-NL2:UseNVMemory", safe="") in panel, (
             "the arming PV is not written by the control"
         )
 
@@ -1846,14 +1869,21 @@ class TestRegisterMonitorsAreNotOnTheScreen:
     def test_the_detail_view_reads_nothing_but_its_registers(self):
         """It is the laser's registers and the PV that arms a non-volatile
         write — not a second copy of the panel."""
+        from core.zones import load_zone
+
+        laser = next(
+            component.config
+            for component in load_zone("TESTZ").gui("l4-opcpa").components
+            if getattr(component.config, "id", None) == "NL2"
+        )
+        # What the config declares, whatever the modules are called.
+        own = {register.pv for module in laser.modules for register in module.registers}
+        own.add(laser.nv_write)
+
         pages = self.pages()
         detail = {pv.name for pv in pages["l4-opcpa/NL2/registers"].all_pvs}
         assert detail, "no registers at all"
-        extra = {
-            name
-            for name in detail
-            if ":PS1225:" not in name and not name.endswith(":NVWriteEnable")
-        }
+        extra = detail - own
         assert not extra, f"the tree reads something that is not its own: {extra}"
 
 
@@ -2216,6 +2246,32 @@ class TestAWordWrittenToANumericSetpoint:
         assert "number" in response.text
 
 
+class TestFiftyAndClose:
+    """An NL laser offers "50 + Close" beside its trigger-delay presets: one
+    press, written to a PV of its own. A laser that names no such PV shows
+    the presets as they always were."""
+
+    TAG = r'(?:[^>"]|"[^"]*")*>'
+
+    @staticmethod
+    def chips(page: str, laser: str) -> str:
+        start = page.index(f'<h2 class="panel-title">{laser}</h2>')
+        cog = page.index('aria-label="Set trigger delay"', start)
+        return page[page.index('class="preset-chips"', cog) : page.index('class="preset-custom"', cog)]
+
+    async def test_it_is_the_last_chip_and_writes_50_to_its_own_pv(self, client):
+        chips = self.chips((await client.get("/l4-opcpa")).text, "NL2")
+        labels = [label.strip() for label in re.findall(r">([^<>]+)</button>", chips)]
+        assert labels == ["50", "500", "700", "790", "50 + Close"], labels
+        button = re.search(r'<button[^>]*class="preset-chip"' + self.TAG + r"\s*50 \+ Close", chips).group(0)
+        assert "pv=CMD_NL2_DELAY_50_CLOSE&amp;value=50" in button
+
+    async def test_a_laser_without_it_shows_the_presets_as_before(self, client):
+        chips = self.chips((await client.get("/l4-opcpa")).text, "NL4")
+        labels = [label.strip() for label in re.findall(r">([^<>]+)</button>", chips)]
+        assert labels == ["50", "500", "790"], labels
+
+
 class TestTheAttenuatorTakesAWholePosition:
     """The attenuator is set to a step position, so its setpoint is an
     integer: the field cannot take a decimal point, and the endpoint refuses
@@ -2305,7 +2361,7 @@ class TestTheNvControlIsOnlyWhereItApplies:
     ):
         panel = await self.select(client, "L4-OPCPA-NL2:PS1225:11:Mode")
         assert "non-volatile" not in panel.lower(), "the NV control is drawn anyway"
-        assert "NVWriteEnable" not in panel and "nv-status" not in panel, (
+        assert "UseNVMemory" not in panel and "nv-status" not in panel, (
             "the NV control's status line is drawn anyway"
         )
 
@@ -2336,7 +2392,7 @@ class TestAFailedWriteIsPutRight:
     the operator meant. So a failure is said, beside the control, and then the
     PV is read again and whatever displays it is redrawn from the answer."""
 
-    NV = "L4-OPCPA-NL2:NVWriteEnable"
+    NV = "L4-OPCPA-NL2:UseNVMemory"
     STATUS = "NL2-registers-nv-status"
 
     @pytest.fixture

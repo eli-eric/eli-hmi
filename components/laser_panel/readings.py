@@ -341,8 +341,8 @@ def modbox_pill(read: PvReader, spec: Config, comp: Component) -> dict[str, Any]
     coding from the raw 1/0 value. 'unknown' (no channel has reported yet) stays
     unpainted too, so "no data" and "all fine" deliberately look the same here.
     """
-    samples = read.many(item.pv for item in spec.modbox)
-    total = len(spec.modbox)
+    samples = read.many(item.pv for item in spec.modbox_rows)
+    total = len(spec.modbox_rows)
     ok_count = sum(1 for sample in samples if sample is not None and sample.value == 1)
     severity = present_aggregate(samples, is_connected=read.is_connected)
     tone = None if severity.tone == "unknown" else severity.tone

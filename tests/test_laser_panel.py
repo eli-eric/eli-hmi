@@ -47,6 +47,10 @@ def build_panel(zone, **overrides) -> LaserPanel:
         # the panel no longer has.
         overrides.setdefault("exclusive", False)
     config = template.config.model_copy(update=overrides)
+    if "modules" in overrides:
+        # A register's name is the laser's to give ($(P):<label>:<name>), and
+        # `model_copy` does not validate: the copy is validated for real.
+        config = type(config).model_validate(config.model_dump(by_alias=True))
     return LaserPanel(key="test", config=config)
 
 
@@ -270,6 +274,14 @@ class TestFlashlamps:
 
 
 class TestTriggerDelay:
+    def test_50_and_close_moves_the_simulated_delay_and_shutter(self, spec, panel):
+        """Against the simulator and the local IOC the press shows what it is
+        for: the delay readouts at 50, the shutter closed."""
+        [press] = [s for s in panel.pv_specs() if s.name == "CMD_NL2_DELAY_50_CLOSE"]
+        effects = dict(press.effects)
+        assert all(effects[name] == 50 for name in spec.trigger_delay), press.effects
+        assert effects[spec.pvs.shutter] == 0, press.effects
+
     def test_equal_readouts_render_the_value_with_its_unit(self, spec, panel):
         samples = {PvId(name): ok(name, 790) for name in spec.trigger_delay}
         readout = panel.widgets["trigger_delay"].build(reader(samples))["readout"]
@@ -508,7 +520,6 @@ class TestRegistersReachTheBackends:
         module = Module.model_validate(
             {
                 "label": "PS1225:11",
-                "prefix": "L4-OPCPA-NL2:PS1225:11",
                 "registers": [
                     # Not `ErrorCode`: the overview already declares that PV,
                     # so it would pass this test without the tree declaring it.
@@ -564,7 +575,6 @@ class TestADeclarationlessRegister:
         module = Module.model_validate(
             {
                 "label": "PS9999:01",
-                "prefix": "L4-OPCPA-NL2:PS9999:01",
                 "registers": [{"name": "Bare", "label": "Bare", "write": True}],
             }
         )
@@ -593,7 +603,6 @@ class TestARegistersKindDecidesHowItIsRead:
         module = Module.model_validate(
             {
                 "label": "PS9999:01",
-                "prefix": "L4-OPCPA-NL2:PS9999:01",
                 "registers": [{"name": "Mode", "label": "Mode", **register}],
             }
         )
@@ -657,7 +666,7 @@ class TestTheNvCheckboxIsTheWholeControl:
     PV's monitor, and ticks the moment it is pressed. No separate indicator —
     the only thing worth saying beside it is that a write failed."""
 
-    NV = "L4-OPCPA-NL2:NVWriteEnable"
+    NV = "L4-OPCPA-NL2:UseNVMemory"
 
     @pytest.fixture
     def detail(self):
@@ -760,7 +769,6 @@ class TestARegistersUnitAndPrecisionAreTheDevices:
         module = Module.model_validate(
             {
                 "label": "PS9999:01",
-                "prefix": "L4-OPCPA-NL2:PS9999:01",
                 "registers": [{"name": "Temp", "label": "Temp", **register}],
             }
         )
@@ -896,7 +904,6 @@ class TestARegistersKindDecidesWhatItsWriteTakes:
         module = Module.model_validate(
             {
                 "label": "PS9999:01",
-                "prefix": "L4-OPCPA-NL2:PS9999:01",
                 "registers": [{"name": "R", "kind": kind, "write": True}],
             }
         )
@@ -926,7 +933,6 @@ class TestARegistersKindDecidesWhatItsWriteTakes:
         module = Module.model_validate(
             {
                 "label": "PS9999:01",
-                "prefix": "L4-OPCPA-NL2:PS9999:01",
                 "registers": [{"name": "Note", "kind": "string", "write": True}],
             }
         )

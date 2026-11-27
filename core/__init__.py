@@ -4,6 +4,7 @@ You rarely need to come in here. Adding a screen is a folder under `zones/`;
 adding a new kind of thing a screen can show is a folder under `components/`.
 
     zones.py        the folder layout, hostname -> zone, GUI discovery
+    macros.py       $(NAME) in a component's YAML, from its own `macros:`
     components.py   the component contract: Config, setup(), pv_specs(), cameras()
     page.py         a screen: full render, and the patch for a change
     routes.py       page / stream / write endpoints

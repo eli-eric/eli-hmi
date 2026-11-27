@@ -1,14 +1,37 @@
-"""The ModBox's registers, in the five sections the device is built in.
+"""Everything a ModBox has, which is the same on every laser.
 
-Every ModBox has the same registers, so they are the component's and not any
-zone's: a laser says only its `prefix:`, and each register is read at
-`<prefix>:ModBox:<suffix>`. The laser's ModBox button shows them as a register
-tree in the panel's place.
+So it is the component's and not any zone's: a laser says `modbox: true` and
+its `$(P)` (`macros: {P: ...}`), and each name is `<P>:ModBox:<suffix>`. That
+covers the panel's Modbox section (`STATE_ROWS`, `READINGS`) and the registers
+the laser's ModBox button shows as a register tree in the panel's place
+(`SECTIONS`).
 """
 
 from __future__ import annotations
 
 from typing import Any
+
+#: The Modbox section's state rows as (row label, suffix): the list behind the
+#: section's pill, counted ON/OFF.
+STATE_ROWS: tuple[tuple[str, str], ...] = (
+    ("AWG state", "AWG:State"),
+    ("RF1 power", "RF1:Power"),
+    ("RF2 power", "RF2:Power"),
+    ("AOM state", "AOM:State"),
+    ("LAS1 state", "LAS1:State"),
+    ("YDFA state", "YDFA:State"),
+    ("YDFA software key", "YDFA:SoftwareKey"),
+)
+
+#: The section's other readings, by the `pvs:` role the rest of the component
+#: knows them by (labels, units and rounding are keyed by role), and suffix.
+READINGS: dict[str, str] = {
+    "loadedWaveform": "PresetWaveformName",
+    "latestWaveform": "LastSentWaveformName",
+    "modboxMbc1": "MBC1:BiasValue",
+    "modboxMbc2": "MBC2:BiasValue",
+}
+
 
 #: Each section and its registers as (suffix, row label, kind), in the order
 #: the device is built. The kind is a register's `kind:`: it decides the
@@ -90,13 +113,17 @@ SECTIONS: tuple[tuple[str, tuple[tuple[str, str, str], ...]], ...] = (
 
 
 def modbox_modules(prefix: str) -> list[dict[str, Any]]:
-    """The sections as register-tree modules under one laser's prefix."""
+    """The sections as register-tree modules under one laser's prefix.
+
+    Each register named in full: a section is called what it is about ("AWG &
+    YDFA"), not after a device, so a section's label is not part of a name the
+    way a laser module's is.
+    """
     return [
         {
             "label": label,
-            "prefix": f"{prefix}:ModBox",
             "registers": [
-                {"name": suffix, "label": row, "kind": kind}
+                {"name": suffix, "label": row, "kind": kind, "pv": f"{prefix}:ModBox:{suffix}"}
                 for suffix, row, kind in registers
             ],
         }

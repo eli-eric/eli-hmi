@@ -5,27 +5,23 @@ description: Control of APL laser
 components:
   - component: laser-panel
     id: APL
+    macros: {P: L4-SPFE-APL}
     pvs:
-      connection: L4-SPFE-APL:PortControl.CNCT
-      fullPower: L4-SPFE-APL:FullPower
-      shutter: L4-SPFE-APL:IO:15:RC1_pin31
+      connection: $(P):PortControl.CNCT
+      fullPower: $(P):FullPower
       phdMean:
-        pv: L4-SPFE-APL:PHD1K000:48:Mean
+        pv: $(P):PHD1K000:48:Mean
         label: PHD1K000:48/Mean
-      regenState: L4-SPFE-APL:SY3PL50M:32:State
-      regenTemp: L4-SPFE-APL:TK6:44:DisplayTemperature
+      regenState: $(P):SY3PL50M:32:State
+      regenTemp: $(P):TK6:44:DisplayTemperature
       attenuator:
-        pv: L4-SPFE-APL:SM5-ATT2:52:CurrentPosition
+        pv: $(P):SM5-ATT2:52:CurrentPosition
         label: Atten. SM5-ATT52:52
     sequences:
     - label: Start Laser
-      pv: L4-SPFE-APL:Start.BUSY
-    - label: Set to Alignment Mode
-      pv: L4-SPFE-APL:SetAlignmentMode.BUSY
-    - label: Set to Standby
-      pv: L4-SPFE-APL:SetSystemStandby.BUSY
+      pv: $(P):Start.BUSY
     trigger_delay:
-      - L4-SPFE-APL:PS5059:22:Ch1TriggeringDelay
+      - $(P):PS5059:22:Ch1TriggeringDelay
     mss:
     - label: PSS permission
       pv: L4-PSS:APL_PERMISSION_TO_OPERATE_CH1
@@ -41,70 +37,429 @@ components:
       pv: L4-MSS:BEAMDUMP_CHILLER_WARNING
     moduleErrors:
     - label: PS1225:10
-      pv: L4-SPFE-APL:PS1225:10:ErrorCode
+      pv: $(P):PS1225:10:ErrorCode
     - label: PS1225:11
-      pv: L4-SPFE-APL:PS1225:11:ErrorCode
+      pv: $(P):PS1225:11:ErrorCode
     - label: IO:15
-      pv: L4-SPFE-APL:IO:15:ErrorCode
+      pv: $(P):IO:15:ErrorCode
     - label: LDM150A:17
-      pv: L4-SPFE-APL:LDM150A:17:ErrorCode
+      pv: $(P):LDM150A:17:ErrorCode
     - label: PS5059:22
-      pv: L4-SPFE-APL:PS5059:22:ErrorCode
+      pv: $(P):PS5059:22:ErrorCode
     - label: PS5059:23
-      pv: L4-SPFE-APL:PS5059:23:ErrorCode
+      pv: $(P):PS5059:23:ErrorCode
     - label: PS5059:24
-      pv: L4-SPFE-APL:PS5059:24:ErrorCode
+      pv: $(P):PS5059:24:ErrorCode
     - label: SY3PL50M:32
-      pv: L4-SPFE-APL:SY3PL50M:32:ErrorCode
+      pv: $(P):SY3PL50M:32:ErrorCode
     - label: HV40W:40
-      pv: L4-SPFE-APL:HV40W:40:ErrorCode
+      pv: $(P):HV40W:40:ErrorCode
     - label: HV40W:42
-      pv: L4-SPFE-APL:HV40W:42:ErrorCode
+      pv: $(P):HV40W:42:ErrorCode
     - label: TK6:44
-      pv: L4-SPFE-APL:TK6:44:ErrorCode
+      pv: $(P):TK6:44:ErrorCode
     - label: PHD1K000:48
-      pv: L4-SPFE-APL:PHD1K000:48:ErrorCode
+      pv: $(P):PHD1K000:48:ErrorCode
     - label: SM5-SH:50
-      pv: L4-SPFE-APL:SM5-SH:50:ErrorCode
+      pv: $(P):SM5-SH:50:ErrorCode
     - label: SM5-ATT2:52
-      pv: L4-SPFE-APL:SM5-ATT2:52:ErrorCode
+      pv: $(P):SM5-ATT2:52:ErrorCode
     chillers:
     - label: PS1225:10
-      flow: L4-SPFE-APL:PS1225:10:MeasuredFlow
-      temp: L4-SPFE-APL:PS1225:10:T_Out
-      level: L4-SPFE-APL:PS1225:10:MeasuredLevel
+      flow: $(P):PS1225:10:MeasuredFlow
+      temp: $(P):PS1225:10:T_Out
+      level: $(P):PS1225:10:MeasuredLevel
     - label: PS1225:11
-      flow: L4-SPFE-APL:PS1225:11:MeasuredFlow
-      temp: L4-SPFE-APL:PS1225:11:T_Out
-      level: L4-SPFE-APL:PS1225:11:MeasuredLevel
+      flow: $(P):PS1225:11:MeasuredFlow
+      temp: $(P):PS1225:11:T_Out
+      level: $(P):PS1225:11:MeasuredLevel
     flashlamps:
     - label: PS5059:22 Ch1
-      pv: L4-SPFE-APL:PS5059:22:Ch1_State
+      pv: $(P):PS5059:22:Ch1_State
     - label: PS5059:23 Ch1
-      pv: L4-SPFE-APL:PS5059:23:Ch1_State
+      pv: $(P):PS5059:23:Ch1_State
     - label: PS5059:23 Ch2
-      pv: L4-SPFE-APL:PS5059:23:Ch2_State
+      pv: $(P):PS5059:23:Ch2_State
     - label: PS5059:24 Ch1
-      pv: L4-SPFE-APL:PS5059:24:Ch1_State
+      pv: $(P):PS5059:24:Ch1_State
     - label: PS5059:24 Ch2
-      pv: L4-SPFE-APL:PS5059:24:Ch2_State
-    delayPresets: [50, 500, 700, 790]
+      pv: $(P):PS5059:24:Ch2_State
+    delayPresets: [50, 500, 700, 730]
     commands:
-      START_LASER: L4-SPFE-APL:Start
-      STOP_LASER: L4-SPFE-APL:Stop
-      ALIGNMENT_MODE: L4-SPFE-APL:SetAlignmentMode
-      SYSTEM_STANDBY: L4-SPFE-APL:SetSystemStandby
-      OPEN_SHUTTER:
-        pv: L4-SPFE-APL:IO:15:RC1_pin31:W
-        value: 1
-      CLOSE_SHUTTER:
-        pv: L4-SPFE-APL:IO:15:RC1_pin31:W
-        value: 0
-      SET_ATTENUATOR: L4-SPFE-APL:SM5-ATT2:52:TargetPosition:W
+      START_LASER: $(P):Start
+      STOP_LASER: $(P):Stop
+      SET_ATTENUATOR: $(P):SM5-ATT2:52:TargetPosition:W
       FLASHLAMPS_RUN:
-        pv: L4-SPFE-APL:PS5059:SetAll
+        pv: $(P):PS5059:SetAll
         value: RUN
       FLASHLAMPS_STANDBY:
-        pv: L4-SPFE-APL:PS5059:SetAll
+        pv: $(P):PS5059:SetAll
         value: STANDBY
-      SET_DELAY: L4-SPFE-APL:PS5059:22:Ch1TriggeringDelay:W  # APL uses single channel
+      SET_DELAY: $(P):PS5059:22:Ch1TriggeringDelay:W  # APL uses single channel
+    modules:
+    - label: PS1225:10
+      registers: &chiller_registers
+      - {name: ErrorCode, label: Error Code, kind: int}
+      - {name: WarningCode, label: Warning Code, kind: int}
+      - {name: State, label: State, kind: enum}
+      - {name: StandbyMode, label: Standby mode, kind: enum, write: true}
+      - {name: T_Out, label: T out, kind: float}
+      - {name: T_Tank, label: T tank, kind: float}
+      - {name: T_Return, label: T return, kind: float}
+      - {name: T_Supply, label: T supply, kind: float}
+      - {name: MeasuredFlow, label: Measured flow, kind: float}
+      - {name: MeasuredPressure, label: Measured pressure, kind: int}
+      - {name: MeasuredLevel, label: Measured level %, kind: int}
+      - {name: MeasuredConductivity, label: Measured conductivity, kind: float}
+      - {name: OutputTemperature, label: Output temperature, kind: float, write: true}
+      - {name: WaterConductivity, label: Water conductivity, kind: float, write: true}
+      - {name: HeaterPower, label: Heater power, kind: int, write: true}
+      - {name: Beeper, label: Beeper, kind: enum, write: true}
+      - {name: PIDAutoAdjust, label: PID auto adjust, kind: enum, write: true}
+      - {name: PID_P_Scale, label: PID P Scale, kind: int, write: true}
+      - {name: PID_I_Scale, label: PID I Scale, kind: int, write: true}
+      - {name: MinFlowWarning, label: Min flow warning, kind: float, write: true}
+      - {name: MinFlowError, label: Min flow error, kind: float, write: true}
+      - {name: MaxPressureWarning, label: Max pressure warning, kind: float, write: true}
+      - {name: MaxPressureError, label: Max pressure error, kind: float, write: true}
+      - {name: MinWaterLevelWarning, label: Min water level warning, kind: float, write: true}
+      - {name: MinWaterLevelError, label: Min water level error, kind: float, write: true}
+      - {name: MaxWaterLevelWarning, label: Max water level warning, kind: float, write: true}
+      - {name: MaxWaterLevelError, label: Max water level error, kind: float, write: true}
+      - {name: MaxToutOverheatWarning, label: Max Tout overheat warning, kind: float, write: true}
+      - {name: MaxToutOverheatError, label: Max Tout overheat error, kind: float, write: true}
+      - {name: MaxWaterConductWarning, label: Max water conductivity warning, kind: float, write: true}
+      - {name: MaxWaterConductError, label: Max water conductivity error, kind: float, write: true}
+      - {name: MinWaterConductWarning, label: Min water conductivity warning, kind: float, write: true}
+      - {name: MinWaterConductError, label: Min water conductivity error, kind: float, write: true}
+      - {name: SerialNumber, label: Serial Number, kind: int}
+      - {name: DeviceRuntime, label: Device Runtime, kind: int}
+      - {name: CPUFirmwarePS1223CO, label: CPU Firmware PS1223CO, kind: int}
+      - {name: CANFirmwarePS1223CO, label: CAN Firmware PS1223CO, kind: int}
+    - label: PS1225:11
+      registers: *chiller_registers
+    - label: IO:15
+      registers:
+      - {name: ErrorCode, label: Error Code, kind: int}
+      - {name: RA0_pin22_AN0, label: "RA0,pin22,AN0", kind: int, write: true}
+      - {name: RA0_direction, label: RA0 direction, kind: enum, write: true}
+      - {name: RA1_pin23_AN1, label: "RA1,pin23,AN1", kind: int, write: true}
+      - {name: RA1_direction, label: RA1 direction, kind: enum, write: true}
+      - {name: RA4_pin22_OpenDrain, label: "RA4,pin22,Open Drain", kind: int, write: true}
+      - {name: RA4_direction, label: RA4 direction, kind: enum, write: true}
+      - {name: RA5_pin26_AN4, label: "RA5,pin26,AN4", kind: int, write: true}
+      - {name: RA5_direction, label: RA5 direction, kind: enum, write: true}
+      - {name: RA_register, label: RA register, kind: int, write: true, nv: true}
+      - {name: RA_direction, label: RA direction, kind: int, write: true, nv: true}
+      - {name: RB0_pin12, label: "RB0,pin12", kind: int, write: true}
+      - {name: RB0_direction, label: RB0 direction, kind: enum, write: true}
+      - {name: RB1_pin13, label: "RB1,pin13", kind: int, write: true}
+      - {name: RB1_direction, label: RB1 direction, kind: enum, write: true}
+      - {name: RB4_pin14, label: "RB4,pin14", kind: int, write: true}
+      - {name: RB4_direction, label: RB4 direction, kind: enum, write: true}
+      - {name: RB5_pin15, label: "RB5,pin15", kind: int, write: true}
+      - {name: RB5_direction, label: RB5 direction, kind: enum, write: true}
+      - {name: RB_register, label: RB register, kind: int, write: true, nv: true}
+      - {name: RB_direction, label: RB direction, kind: int, write: true, nv: true}
+      - {name: RC0_pin30, label: "RC0,pin30", kind: int, write: true}
+      - {name: RC0_direction, label: RC0 direction, kind: enum, write: true}
+      - {name: RC1_pin31, label: "RC1,pin31", kind: int, write: true}
+      - {name: RC1_direction, label: RC1 direction, kind: enum, write: true}
+      - {name: RC2_pin32_PWM1, label: "RC2,pin32,PWM1", kind: int, write: true}
+      - {name: RC2_direction, label: RC2 direction, kind: enum, write: true}
+      - {name: RC4_pin4_SDI, label: "RC4,pin4,SDI", kind: int, write: true}
+      - {name: RC4_direction, label: RC4 direction, kind: enum, write: true}
+      - {name: RC6_pin6, label: "RC6,pin6", kind: int, write: true}
+      - {name: RC6_direction, label: RC6 direction, kind: enum, write: true}
+      - {name: RC7_pin7, label: "RC7,pin7", kind: int, write: true}
+      - {name: RC7_direction, label: RC7 direction, kind: enum, write: true}
+      - {name: RC_register, label: RC register, kind: int, write: true, nv: true}
+      - {name: RC_direction, label: RC direction, kind: int, write: true, nv: true}
+      - {name: RD0_pin34, label: "RD0,pin34", kind: int, write: true}
+      - {name: RD0_direction, label: RD0 direction, kind: enum, write: true}
+      - {name: RD1_pin35, label: "RD1,pin35", kind: int, write: true}
+      - {name: RD1_direction, label: RD1 direction, kind: enum, write: true}
+      - {name: RD2_pin2, label: "RD2,pin2", kind: int, write: true}
+      - {name: RD2_direction, label: RD2 direction, kind: enum, write: true}
+      - {name: RD3_pin3, label: "RD3,pin3", kind: int, write: true}
+      - {name: RD3_direction, label: RD3 direction, kind: enum, write: true}
+      - {name: RD4_pin8_PWM2, label: "RD4,pin8,PWM2", kind: int, write: true}
+      - {name: RD4_direction, label: RD4 direction, kind: enum, write: true}
+      - {name: RD5_pin9, label: "RD5,pin9", kind: int, write: true}
+      - {name: RD5_direction, label: RD5 direction, kind: enum, write: true}
+      - {name: RD6_pin10, label: "RD6,pin10", kind: int, write: true}
+      - {name: RD6_direction, label: RD6 direction, kind: enum, write: true}
+      - {name: RD7_pin11, label: "RD7,pin11", kind: int, write: true}
+      - {name: RD7_direction, label: RD7 direction, kind: enum, write: true}
+      - {name: RD_register, label: RD register, kind: int, write: true, nv: true}
+      - {name: RD_direction, label: RD direction, kind: int, write: true, nv: true}
+      - {name: RE0_pin27_AN5, label: "RE0,pin27,AN5", kind: int, write: true}
+      - {name: RE0_direction, label: RE0 direction, kind: enum, write: true}
+      - {name: RE1_pin28_AN6, label: "RE1,pin28,AN6", kind: int, write: true}
+      - {name: RE1_direction, label: RE1 direction, kind: enum, write: true}
+      - {name: RE2_pin29_AN7, label: "RE2,pin29,AN7", kind: int, write: true}
+      - {name: RE2_direction, label: RE2 direction, kind: enum, write: true}
+      - {name: RE_register, label: RE register, kind: int, write: true, nv: true}
+      - {name: RE_direction, label: RE direction, kind: int, write: true, nv: true}
+      - {name: IOUpdateMode, label: I/O update mode, kind: enum, write: true, nv: true}
+      - {name: IOUpdateRate, label: I/O update rate, kind: int, write: true, nv: true}
+      - {name: DAC_A_pin17, label: "DAC A, pin17", kind: int, write: true, nv: true}
+      - {name: DAC_B_pin19, label: "DAC B, pin19", kind: int, write: true, nv: true}
+      - {name: ADC_AN0_pin22, label: "ADC AN0, pin22", kind: int}
+      - {name: ADC_AN1_pin23, label: "ADC AN1, pin23", kind: int}
+      - {name: ADC_AN4_pin26, label: "ADC AN4, pin26", kind: int}
+      - {name: ADC_AN5_pin27, label: "ADC AN5, pin27", kind: int}
+      - {name: ADC_AN6_pin28, label: "ADC AN6, pin28", kind: int}
+      - {name: ADC_AN7_pin29, label: "ADC AN7, pin29", kind: int}
+      - {name: EnableADCInputs, label: "Enable ADC inputs", kind: enum, write: true, nv: true}
+      - {name: ADCUpdateRate, label: "ADC update rate", kind: int, write: true, nv: true}
+      - {name: PWMCounterClock, label: "PWM counter clock", kind: enum, write: true, nv: true}
+      - {name: PWMPeriod, label: "PWM period", kind: int, write: true, nv: true}
+      - {name: PWM1_pin32_Enable, label: "PWM1(pin32) Enable", kind: enum, write: true, nv: true}
+      - {name: PWM1DutyCycle, label: "PWM1 duty cycle", kind: int, write: true, nv: true}
+      - {name: PWM2_pin8_Enable, label: "PWM2(pin8) Enable", kind: enum, write: true, nv: true}
+      - {name: PWM2DutyCycle, label: "PWM2 duty cycle", kind: int, write: true, nv: true}
+      - {name: FirmwareIO, label: "Firmware IO", kind: int}
+    - label: LDM150A:17
+      registers:
+      - {name: ErrorCode, label: Error Code, kind: int}
+      - {name: Power, label: Power, kind: enum, write: true, nv: true}
+      - {name: DiodeCurrentON, label: Diode current ON, kind: enum, write: true}
+      - {name: SetCurrent, label: Set Current, kind: float, write: true, nv: true}
+      - {name: DisplayCurrent, label: Display Current, kind: float}
+      - {name: MeanCurrent, label: Mean Current, kind: float}
+      - {name: CurrentSourcePower, label: Current source power, kind: float}
+      - {name: VoltageOnLDSource, label: Voltage on LD source, kind: float}
+      - {name: PulseWidth, label: Pulse width, kind: int, write: true, nv: true}
+      - {name: SyncIn_PulseDelay, label: SyncIn->Pulse delay, kind: int, write: true, nv: true}
+      - {name: SynchronizationMode, label: Synchronization mode, kind: enum, write: true, nv: true}
+      - {name: RepetitionRateLimit, label: Repetition rate (repetition rate limit), kind: float, write: true, nv: true}
+      - {name: FaultSource, label: Fault source, kind: enum}
+      - {name: FaultCode, label: Fault code, kind: string}
+      - {name: PulseCounter, label: Pulse counter, kind: int, write: true, nv: true}
+      - {name: SetCurrentLimit, label: Set current Limit, kind: float, write: true, nv: true}
+      - {name: SetLDCurrentSourceVoltage, label: Set LD current source voltage, kind: float, write: true, nv: true}
+      - {name: PeakCurrentLimit, label: Peak current limit (hardware), kind: float}
+      - {name: CurrentSourcePowerLimit, label: Current source power limit, kind: float, write: true, nv: true}
+      - {name: CalibrateSetCurrent, label: Calibrate set current, kind: int, write: true, nv: true}
+      - {name: StartPeakCurSamplWin, label: Start peak current sampling window, kind: int, write: true, nv: true}
+      - {name: StopPeakCurSamplWin, label: Stop peak current sampling window, kind: int, write: true, nv: true}
+      - {name: StartupDelay, label: Startup delay, kind: int, write: true, nv: true}
+      - {name: ExternalInterlockOnOff, label: External interlock on/off, kind: enum, write: true, nv: true}
+      - {name: CoolingInterlockOnOff, label: Cooling interlock on/off, kind: enum, write: true, nv: true}
+      - {name: ExternalInterlockState, label: External interlock state, kind: enum}
+      - {name: CoolingInterlockState, label: Cooling interlock state, kind: enum}
+      - {name: FeedbackPhotodiodeOutput, label: Feedback photodiode output, kind: int}
+      - {name: KeepFeedbackPhotodiodeLevel, label: Keep feedback photodiode level, kind: int, write: true, nv: true}
+      - {name: TECPower, label: TEC Power, kind: enum, write: true, nv: true}
+      - {name: DisplayTemperature, label: Display temperature, kind: float}
+      - {name: SetTemperature, label: Set temperature, kind: float, write: true, nv: true}
+      - {name: Stable, label: Stable, kind: enum}
+      - {name: SetTemperatureUpperLimit, label: Set temperature upper limit, kind: float, write: true, nv: true}
+      - {name: SetTemperatureLowerLimit, label: Set temperature lower limit, kind: float, write: true, nv: true}
+      - {name: Kp, label: Kp, kind: float, write: true, nv: true}
+      - {name: Ki, label: Ki, kind: float, write: true, nv: true}
+      - {name: Kd, label: Kd, kind: float, write: true, nv: true}
+      - {name: ManualControl, label: Manual control, kind: enum, write: true}
+      - {name: PIDOutput, label: PID output, kind: int, write: true}
+      - {name: PIDOutputMax, label: PID output max, kind: int, write: true, nv: true}
+      - {name: PIDOutputMin, label: PID output min, kind: int, write: true, nv: true}
+      - {name: StabilityWindow, label: Stability window, kind: float, write: true, nv: true}
+      - {name: TimeToStayInWindow, label: Time to stay in window to be considered stable, kind: int, write: true, nv: true}
+      - {name: MeasuredSensorResistance, label: Measured sensor resistance, kind: float}
+      - {name: TECVoltage, label: TEC Voltage, kind: float}
+      - {name: TECDriverCurrent, label: TEC Driver Current, kind: float}
+      - {name: FirmwareLDM150A, label: Firmware LDM150A, kind: int}
+    - label: PS5059:22
+      registers: &flashlamp_registers
+      - {name: ErrorCode, label: Error Code, kind: int}
+      - {name: Ch1_Command, label: Ch1 Command, kind: enum, write: true, nv: true}
+      - {name: Ch2_Command, label: Ch2 Command, kind: enum, write: true, nv: true}
+      - {name: Ch1_State, label: Ch1 State, kind: enum}
+      - {name: Ch2_State, label: Ch2 State, kind: enum}
+      - {name: SetCh1CapacitorVoltage, label: Set Ch1 Capacitor Voltage, kind: int, write: true, nv: true}
+      - {name: SetCh2CapacitorVoltage, label: Set Ch2 Capacitor Voltage, kind: int, write: true, nv: true}
+      - {name: Ch1_OnOff, label: Ch1 ON/OFF, kind: enum, write: true, nv: true}
+      - {name: Ch2_OnOff, label: Ch2 ON/OFF, kind: enum, write: true, nv: true}
+      - {name: MeasuredCh1CapacitorVoltage, label: Measured Ch1 Capacitor Voltage, kind: int}
+      - {name: MeasuredCh2CapacitorVoltage, label: Measured Ch2 Capacitor Voltage, kind: int}
+      - {name: Ch1ErrorCode, label: Ch1 Error Code, kind: int}
+      - {name: Ch2ErrorCode, label: Ch2 Error Code, kind: int}
+      - {name: Ch1PrimaryErrorSource, label: Ch1 Primary Error Source, kind: string}
+      - {name: Ch2PrimaryErrorSource, label: Ch2 Primary Error Source, kind: string}
+      - {name: Ch1PulseCounter, label: Ch1 Pulse Counter, kind: int, write: true}
+      - {name: Ch2PulseCounter, label: Ch2 Pulse Counter, kind: int, write: true}
+      - {name: RepetitionRate, label: Repetition Rate, kind: float, write: true, nv: true}
+      - {name: Ch1SyncMode, label: Ch1 Synchronization Mode, kind: enum, write: true, nv: true}
+      - {name: Ch2SyncMode, label: Ch2 Synchronization Mode, kind: enum, write: true, nv: true}
+      - {name: Ch1TriggeringDelay, label: Ch1 Triggering Delay, kind: int, write: true, nv: true}
+      - {name: Ch2TriggeringDelay, label: Ch2 Triggering Delay, kind: int, write: true, nv: true}
+      - {name: Ch1SyncOutDelay, label: Ch1 Sync Out Delay, kind: int, write: true, nv: true}
+      - {name: Ch2SyncOutDelay, label: Ch2 Sync Out Delay, kind: int, write: true, nv: true}
+      - {name: Ch1ChargeDelay, label: Ch1 Charge Delay, kind: int, write: true, nv: true}
+      - {name: Ch2ChargeDelay, label: Ch2 Charge Delay, kind: int, write: true, nv: true}
+      - {name: Ch1MinimumChargePause, label: Ch1 Minimum Charge Pause, kind: int, write: true, nv: true}
+      - {name: Ch2MinimumChargePause, label: Ch2 Minimum Charge Pause, kind: int, write: true, nv: true}
+      - {name: Ch1UpperVoltageLimit, label: Ch1 Upper Voltage Limit, kind: int, write: true, nv: true}
+      - {name: Ch2UpperVoltageLimit, label: Ch2 Upper Voltage Limit, kind: int, write: true, nv: true}
+      - {name: RepRateUpperLimit, label: Repetition Rate Upper Limit, kind: float, write: true, nv: true}
+      - {name: SingleShotMode, label: Single Shot Mode, kind: enum, write: true, nv: true}
+      - {name: LockStateAtPowerUp, label: Lock State at Power Up, kind: enum, write: true, nv: true}
+      - {name: LCDContrastAdjustment, label: LCD Contrast Adjustment, kind: int, write: true, nv: true}
+      - {name: PowerOnDelay, label: Poweron Delay, kind: int, write: true, nv: true}
+      - {name: EmergencyStopCANMessage, label: Emergency Stop CAN Message, kind: enum, write: true, nv: true}
+      - {name: Interlock2, label: Interlock2, kind: enum, write: true, nv: true}
+      - {name: MissedShot, label: Missed Shot, kind: enum, write: true, nv: true}
+      - {name: LANPasswordReset, label: LAN Password Reset, kind: enum, write: true, nv: true}
+      - {name: DeviceName, label: Device name, kind: enum, write: true, nv: true}
+      - {name: SetChargerPeakPower, label: Set Charger Peak Power %, kind: int, write: true, nv: true}
+      - {name: ChargerPowerAutoAdjust, label: Charger Power auto adjust, kind: enum, write: true, nv: true}
+      - {name: Charger1TimeMargin, label: Charger1 Time Margin, kind: int, write: true, nv: true}
+      - {name: Charger2TimeMargin, label: Charger2 Time Margin, kind: int, write: true, nv: true}
+      - {name: FailureOnChargerFanError, label: Failure on Charger Fan Error, kind: enum, write: true, nv: true}
+      - {name: Ch1PresetVoltageScale, label: Ch1 Preset Voltage Scale, kind: float, write: true, nv: true}
+      - {name: Ch2PresetVoltageScale, label: Ch2 Preset Voltage Scale, kind: float, write: true, nv: true}
+      - {name: Ch1MeasuredCapVoltScale, label: Ch1 Measured Capacitor Voltage Scale, kind: float, write: true, nv: true}
+      - {name: Ch1MeasuredCapVoltShift, label: Ch1 Measured Capacitor Voltage Shift, kind: int, write: true, nv: true}
+      - {name: Ch2MeasuredCapVoltScale, label: Ch2 Measured Capacitor Voltage Scale, kind: float, write: true, nv: true}
+      - {name: Ch2MeasuredCapVoltShift, label: Ch2 Measured Capacitor Voltage Shift, kind: int, write: true, nv: true}
+      - {name: ChargingTimeLimit, label: Charging Time Limit, kind: float, write: true, nv: true}
+      - {name: Charger1Period, label: Charger1 period, kind: float, write: true, nv: true}
+      - {name: Charger2Period, label: Charger2 period, kind: float, write: true, nv: true}
+      - {name: PowerSupplyRuntime, label: Power Supply Runtime, kind: int}
+      - {name: Ch1GlobalPulseCounter, label: Ch1 Global Pulse Counter, kind: int}
+      - {name: Ch2GlobalPulseCounter, label: Ch2 Global Pulse Counter, kind: int}
+      - {name: Ch1MissedShotCounter, label: Ch1 Missed Shot Counter, kind: int}
+      - {name: Ch2MissedShotCounter, label: Ch2 Missed Shot Counter, kind: int}
+      - {name: SerialNumber, label: Serial Number, kind: int}
+      - {name: FirmwarePS5059, label: Firmware PS5059, kind: int}
+    - label: PS5059:23
+      registers: *flashlamp_registers
+    - label: PS5059:24
+      registers: *flashlamp_registers
+    - label: SY3PL50M:32
+      registers:
+      - {name: ErrorCode, label: Error Code, kind: int}
+      - {name: State, label: State, kind: enum, write: true, nv: true}
+      - {name: SynchronizationMode, label: Synchronization Mode, kind: enum, write: true, nv: true}
+      - {name: ExternalSyncInfreq, label: External SyncIn frequency, kind: float}
+      - {name: PhotodiodeBias, label: Photodiode bias, kind: float}
+      - {name: OpticalClock, label: Optical Clock, kind: int}
+      - {name: PRE_T_Delay, label: PRE-T delay, kind: int, write: true, nv: true}
+      - {name: OUT1_Delay, label: OUT1 delay, kind: float, write: true, nv: true}
+      - {name: OUT2_Delay, label: OUT2 delay, kind: float, write: true, nv: true}
+      - {name: OUT3_Delay, label: OUT3 delay, kind: float, write: true, nv: true}
+      - {name: OUT4_Delay, label: OUT4 delay, kind: float, write: true, nv: true}
+      - {name: OUT5_Delay, label: OUT5 delay, kind: float, write: true, nv: true}
+      - {name: SyncOutDelay, label: SyncOut delay, kind: float, write: true, nv: true}
+      - {name: ClockAndLockDetector, label: Clock and lock detector, kind: enum}
+      - {name: RepetitionRate, label: Repetition rate, kind: float, write: true, nv: true}
+      - {name: OscilatorClock, label: Oscillator clock, kind: int, write: true, nv: true}
+      - {name: OptimalAmplifierDelay, label: Optimal amplifier delay, kind: int, write: true, nv: true}
+      - {name: QSW_Delay, label: QSW delay, kind: int, write: true, nv: true}
+      - {name: PRE_T_ClockDivider, label: PRE-T clock divider, kind: int, write: true, nv: true}
+      - {name: OUT1_EnableCoarseDelay, label: OUT1 enable coarse delay, kind: enum, write: true, nv: true}
+      - {name: OUT1_CoarseDelay, label: OUT1 coarse delay, kind: int, write: true, nv: true}
+      - {name: RepRateLowLimit, label: Repetition rate low limit, kind: float, write: true, nv: true}
+      - {name: RepRateHighLimit, label: Repetition rate high limit, kind: float, write: true, nv: true}
+      - {name: AmplifierWarmingTime, label: Amplifier warming time, kind: int, write: true, nv: true}
+      - {name: SyncPhase, label: /SYNC Phase, kind: int, write: true, nv: true}
+      - {name: StartLasingDelay, label: Start->Lasing delay, kind: int, write: true, nv: true}
+      - {name: PHDSyncDivider, label: PHD sync divider, kind: enum, write: true, nv: true}
+      - {name: EnergyFineTuneOption, label: Energy fine tune option, kind: enum, write: true, nv: true}
+      - {name: GateInputFunction, label: GATE input function, kind: enum, write: true, nv: true}
+      - {name: GateInput, label: GATE input, kind: enum}
+      - {name: TriggerCalibrateLMK, label: Trigger calibrate LMK, kind: int, write: true}
+      - {name: Amplification, label: Amplification, kind: int, write: true}
+      - {name: AmplificationLimit, label: Amplification limit, kind: int, write: true, nv: true}
+      - {name: AmplifierOnOff, label: Amplifier On/Off, kind: int, write: true}
+      - {name: EnergyLevel, label: Energy level, kind: enum, write: true, nv: true}
+      - {name: PumpDelayAdjLevel, label: "Pump delay, adj. level", kind: int, write: true, nv: true}
+      - {name: PumpDelayMaxOutput, label: "Pump delay, max. output", kind: int, write: true, nv: true}
+      - {name: OutputRedirection, label: Output redirection, kind: enum, write: true, nv: true}
+      - {name: OutRedirFundamentalPos, label: Out. redir. fundamental position, kind: int, write: true, nv: true}
+      - {name: OutRedirHarmonicPos, label: Out. redir. harmonic position, kind: int, write: true, nv: true}
+      - {name: FrequencyDivider, label: Frequency divider, kind: int, write: true, nv: true}
+      - {name: Burst, label: Continuous / Burst mode / Trigger burst, kind: enum, write: true}
+      - {name: BurstLength, label: "Burst length, pulses", kind: int, write: true}
+      - {name: BurstPulsesToGo, label: Burst pulses to go, kind: int}
+      - {name: CD_OnOff, label: CD ON/OFF, kind: enum, write: true}
+      - {name: CPLDVersionString, label: CPLD Version string, kind: string}
+      - {name: CPLDVersionNumber, label: CPLD Version number, kind: int}
+      - {name: CPLDDateCcode, label: CPLD date code, kind: int}
+      - {name: FirmwareSY3PL50M, label: Firmware SY3PL50M, kind: int}
+    - label: HV40W:40
+      registers: &hv40w_registers
+      - {name: ErrorCode, label: Error Code, kind: int}
+      - {name: PowerSwitch, label: Power switch, kind: enum, write: true, nv: true}
+      - {name: SetHVVoltage, label: Set HV voltage, kind: int, write: true, nv: true}
+      - {name: HVVoltage, label: HV voltage, kind: int}
+      - {name: HVCurrent, label: HV current, kind: float}
+      - {name: HVSupplyEnabled, label: HV supply enabled, kind: enum}
+      - {name: PowerCircuitStatus, label: Power circuit status, kind: enum}
+      - {name: CurrentLimitStatus, label: Current limit status, kind: enum}
+      - {name: CurrentLimitStatus, label: Current limit status, kind: enum}
+      - {name: CurrentLimit, label: Current limit, kind: float, write: true, nv: true}
+      - {name: CalibrateHVVoltage, label: Calibrate HV voltage, kind: int, write: true, nv: true}
+      - {name: CalibrateDispHVVoltage, label: Calibrate display HV voltage, kind: int, write: true, nv: true}
+      - {name: CurrentSensorConstant, label: Current sensor constant, kind: float, write: true, nv: true}
+      - {name: HighVoltageLimit, label: High Voltage Limit, kind: int, write: true, nv: true}
+      - {name: VersionHV40W, label: Version HV40W, kind: int}
+    - label: HV40W:42
+      registers: *hv40w_registers
+    - label: TK6:44
+      registers:
+      - {name: ErrorCode, label: Error Code, kind: int}
+      - {name: Power, label: Power, kind: enum, write: true, nv: true}
+      - {name: DisplayTemperature, label: Display temperature, kind: float}
+      - {name: SetTemperature, label: Set temperature, kind: float, write: true, nv: true}
+      - {name: Stable, label: Stable, kind: enum}
+      - {name: SetTemperatureLimit, label: Set temperature limit, kind: float, write: true, nv: true}
+      - {name: Kp, label: Kp, kind: float, write: true, nv: true}
+      - {name: Ki, label: Ki, kind: float, write: true, nv: true}
+      - {name: Kd, label: Kd, kind: float, write: true, nv: true}
+      - {name: ManualControl, label: Manual control, kind: enum, write: true}
+      - {name: PWMDutyCycle, label: PWM duty cycle, kind: int, write: true}
+      - {name: PWMDutyCycleLimit, label: PWM duty cycle limit, kind: int, write: true, nv: true}
+      - {name: StabilityWindow, label: Stability window, kind: float, write: true, nv: true}
+      - {name: TimeToStayInWindow, label: Time to stay in window before considered stable, kind: int, write: true, nv: true}
+      - {name: ReportingRate, label: Reporting rate, kind: int, write: true}
+      - {name: FirmwareTK6, label: Firmware TK6, kind: int}
+    - label: PHD1K000:48
+      registers:
+      - {name: ErrorCode, label: Error Code, kind: int}
+      - {name: Data, label: Data, kind: int}
+      - {name: Mean, label: Mean, kind: float}
+      - {name: StdDev, label: Standard deviation, kind: float}
+      - {name: Minimum, label: Minimum, kind: float}
+      - {name: Maximum, label: Maximum, kind: float}
+      - {name: BatchSize, label: Batch size, kind: int, write: true, nv: true}
+      - {name: AttenuatorPos, label: Attenuator position, kind: enum, write: true, nv: true}
+      - {name: SyncMode, label: Sync mode, kind: enum, write: true, nv: true}
+      - {name: EnergyLimit, label: Energy limit, kind: float, write: true, nv: true}
+      - {name: CalibrateConstant, label: Calibrate constant, kind: float, write: true, nv: true}
+      - {name: ADCOffset, label: ADC offset, kind: int, write: true, nv: true}
+      - {name: VersionPHDMET16, label: Version PHDMET16, kind: int}
+    - label: SM5-SH:50
+      registers: &sm5_registers
+      - {name: ErrorCode, label: Error Code, kind: int}
+      - {name: Mode, label: Mode, kind: enum, write: true, nv: true}
+      - {name: TargetPosition, label: Target position, kind: int, write: true, nv: true}
+      - {name: CurrentPosition, label: Current position, kind: int}
+      - {name: TargetSpeed, label: Target speed (velocity mode), kind: int, write: true, nv: true}
+      - {name: Status, label: Status, kind: enum, write: true}
+      - {name: MicrostepResolution, label: Microstep resolution, kind: enum, write: true, nv: true}
+      - {name: SynchronousRectification, label: Synchronous rectification, kind: enum, write: true, nv: true}
+      - {name: MaxMotorVelocity, label: Maximum motor velocity, kind: int, write: true, nv: true}
+      - {name: MinMotorVelocity, label: Minimum motor velocity, kind: int, write: true, nv: true}
+      - {name: Acceleration, label: Acceleration, kind: int, write: true, nv: true}
+      - {name: WindingChoppingCurrent, label: Winding chopping current, kind: float, write: true, nv: true}
+      - {name: StopOnRefswitches, label: Stop on refswitches, kind: enum, write: true, nv: true}
+      - {name: InvertRefSwitches, label: Invert reference switches, kind: enum, write: true, nv: true}
+      - {name: ModeStoppingOnRefswitches, label: Mode of stopping on refswitches, kind: enum, write: true, nv: true}
+      - {name: RefSearchMode, label: Reference search mode, kind: enum, write: true, nv: true}
+      - {name: ReferenceSensorsPower, label: Reference sensors power, kind: enum, write: true, nv: true}
+      - {name: ActiveSwitches, label: Active switches, kind: enum}
+      - {name: FirmwareSM5, label: Firmware SM5, kind: int}
+    - label: SM5-ATT2:52
+      registers: *sm5_registers

@@ -329,7 +329,7 @@ class TestAComponentIsAUnitOfControl:
         assert {"CMD_NL2_START_LASER", "CMD_NL2_STOP_LASER"} <= nl2.pvs
         assert "L4-OPCPA-NL2:SM5-SH:50:SetPosition" in nl2.pvs, "the shutter is left out"
         assert "L4-OPCPA-NL2:PS1225:11:SetPoint:W" in nl2.pvs, "a register setpoint is left out"
-        assert "L4-OPCPA-NL2:NVWriteEnable" in nl2.pvs, "the NV arm is left out"
+        assert "L4-OPCPA-NL2:UseNVMemory" in nl2.pvs, "the NV arm is left out"
 
     def test_reading_a_register_again_is_shared(self, units):
         """The register tree says so itself: processing a record changes
